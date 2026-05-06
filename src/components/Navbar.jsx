@@ -33,7 +33,7 @@ export default function Navbar(){
     }
   }, [])
 
-  const primaryTools = tools.filter(t => ['comparer', 'analyzer', 'logs', 'metrics'].includes(t.slug))
+  const primaryTools = tools.filter(t => ['comparer', 'analyzer', 'logs'].includes(t.slug))
 
   const NavLinks = () => (
     <nav className="navLinks" aria-label="Primary navigation">
@@ -45,13 +45,13 @@ export default function Navbar(){
           data-active={active('/tool')}
           onClick={(e) => { e.preventDefault(); setOpenTools(v => !v) }}
         >
-          Tools Suite
+          RCA Suite
         </a>
 
         {openTools && (
           <div className="toolsMenu" role="menu" aria-label="Tools menu">
             <div className="toolsMenuHeader">
-              <span>SAP Basis Toolkit</span>
+              <span>SAP Intelligent RCA</span>
               <strong>{tools.length} modules</strong>
             </div>
             <div className="toolsGrid">
@@ -86,8 +86,8 @@ export default function Navbar(){
         <a className="brand" href="#/">
           <span className="brandBadge">SAP</span>
           <span className="brandText">
-            <span className="brandTitle">CBJ SAP Command</span>
-            <span className="brandSub">Basis Ops · Dev Workspace</span>
+            <span className="brandTitle">SAP Intelligent RCA</span>
+            <span className="brandSub">by Fikri Maulana · Basis Intelligence</span>
           </span>
         </a>
 
@@ -108,12 +108,12 @@ export default function Navbar(){
         {mobileOpen && (
           <div className="mobileNavDock">
             <div className="mobilePanel">
-              <div className="mobilePanelTitle">Navigation</div>
+              <div className="mobilePanelTitle">SAP Intelligent RCA</div>
               <div className="row wrap gap-10">
                 <a className="btn" href="#/" onClick={() => setMobileOpen(false)}>Command Center</a>
-                <a className="btn" href="#/tool/comparer" onClick={() => setMobileOpen(false)}>Comparer</a>
-                <a className="btn" href="#/tool/analyzer" onClick={() => setMobileOpen(false)}>Analyzer</a>
-                <a className="btn" href="#/tool/logs" onClick={() => setMobileOpen(false)}>Logs</a>
+                <a className="btn" href="#/tool/comparer" onClick={() => setMobileOpen(false)}>Comparator</a>
+                <a className="btn" href="#/tool/analyzer" onClick={() => setMobileOpen(false)}>ST03N</a>
+                <a className="btn" href="#/tool/logs" onClick={() => setMobileOpen(false)}>Log Triage</a>
                 <a className="btn" href="#/about" onClick={() => setMobileOpen(false)}>Runbook</a>
                 <a className="btn" href="#/contact" onClick={() => setMobileOpen(false)}>Ops Contact</a>
               </div>
