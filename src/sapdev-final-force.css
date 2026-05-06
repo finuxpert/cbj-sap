@@ -1,0 +1,147 @@
+/* SAPDEV FINAL FORCE LAYER
+   High-specificity global overrides. This is intentionally loaded from main
+   to beat older tool styles without touching tool business logic. */
+
+html body #root .appShell .navbar .mobileBtn{
+  display:none !important;
+}
+
+@media (max-width:860px){
+  html body #root .appShell .navbar .mobileBtn{ display:inline-flex !important; }
+}
+
+html body #root .appShell .navbar .brandTitle::after{
+  content:" Command";
+}
+
+html body #root .appShell .navbar .brandSub{
+  font-size:0 !important;
+}
+
+html body #root .appShell .navbar .brandSub::after{
+  content:"Basis Ops · SAPDEV";
+  font-size:11px !important;
+}
+
+/* Force homepage hero into command-center look even if older classes remain */
+html body #root .appShell:not(.isTool) .hero{
+  border-radius:34px !important;
+  padding:clamp(34px,5vw,76px) clamp(24px,4vw,56px) !important;
+  background:
+    radial-gradient(circle at 82% 14%, rgba(56,189,248,.18), transparent 34%),
+    radial-gradient(circle at 18% 0%, rgba(45,212,191,.20), transparent 30%),
+    linear-gradient(145deg, rgba(255,255,255,.086), rgba(255,255,255,.024)) !important;
+  border:1px solid rgba(204,244,238,.18) !important;
+  box-shadow:0 26px 86px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06) !important;
+}
+
+html body #root .appShell:not(.isTool) .heroTitle{
+  max-width:980px !important;
+  font-size:clamp(46px,7vw,98px) !important;
+  line-height:.88 !important;
+  letter-spacing:-.07em !important;
+}
+
+html body #root .appShell:not(.isTool) .heroSub{
+  font-size:clamp(15px,1.35vw,19px) !important;
+  color:rgba(222,241,238,.72) !important;
+}
+
+/* FINAL FIX: kill broken floating oval comparer nav with maximum specificity */
+html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 .cmpSectionNav,
+html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav,
+html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 [class*="SectionNav"],
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"],
+html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 [class*="sectionNav"],
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"]{
+  position:relative !important;
+  inset:auto !important;
+  top:auto !important;
+  right:auto !important;
+  bottom:auto !important;
+  left:auto !important;
+  transform:none !important;
+  translate:none !important;
+  width:100% !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:8px !important;
+  padding:10px 14px !important;
+  margin:0 !important;
+  border:0 !important;
+  border-top:1px solid rgba(204,244,238,.12) !important;
+  border-radius:0 !important;
+  background:rgba(0,0,0,.18) !important;
+  box-shadow:none !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  z-index:1 !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+
+html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav::before,
+html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav::after,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"]::before,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"]::after,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"]::before,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"]::after{
+  display:none !important;
+  content:none !important;
+}
+
+html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 .cmpSectionNav a,
+html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav a,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"] a,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"] a{
+  position:static !important;
+  flex:0 0 auto !important;
+  display:inline-flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  width:auto !important;
+  min-width:auto !important;
+  height:32px !important;
+  min-height:32px !important;
+  padding:8px 12px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  border:1px solid rgba(204,244,238,.15) !important;
+  background:rgba(255,255,255,.055) !important;
+  color:rgba(222,241,238,.78) !important;
+  font-size:11px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  box-shadow:none !important;
+}
+
+html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav a.is-active,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"] a.is-active,
+html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"] a.is-active{
+  color:#effcff !important;
+  border-color:rgba(56,189,248,.52) !important;
+  background:linear-gradient(135deg, rgba(56,189,248,.24), rgba(45,212,191,.12)) !important;
+}
+
+html body #root .appShell.isTool main .fullBleed .cmpWrap .trendGrid,
+html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpChartReportGrid{
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+}
+
+@media (max-width:1280px){
+  html body #root .appShell.isTool main .fullBleed .cmpWrap .trendGrid,
+  html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpChartReportGrid{
+    grid-template-columns:1fr !important;
+  }
+}
