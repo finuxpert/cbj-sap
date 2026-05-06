@@ -1,0 +1,130 @@
+/* SAP Intelligent RCA safe UX layer
+   CSS-only enhancement: no runtime injectors, no observers, no parser changes. */
+
+:root{
+  --sapintel-bg:#06100f;
+  --sapintel-panel:rgba(255,255,255,.035);
+  --sapintel-border:rgba(203,244,238,.13);
+  --sapintel-accent:#2dd4bf;
+  --sapintel-blue:#38bdf8;
+  --sapintel-warn:#facc15;
+  --sapintel-crit:#fb7185;
+}
+
+html body #root .appShell .brandBadge{
+  box-shadow:0 0 0 1px rgba(45,212,191,.20), 0 10px 26px rgba(45,212,191,.10) !important;
+}
+
+html body #root .appShell .brandTitle{
+  font-weight:1000 !important;
+  letter-spacing:-.03em !important;
+}
+
+html body #root .appShell .brandSub{
+  letter-spacing:.01em !important;
+}
+
+html body #root .appShell .navLinks a[data-active="true"],
+html body #root .appShell .navQuick a:hover{
+  border-color:rgba(45,212,191,.30) !important;
+  background:linear-gradient(135deg,rgba(45,212,191,.20),rgba(56,189,248,.08)) !important;
+}
+
+/* Uploader fields: clearer drop target */
+html body #root .appShell.isTool input[type="file"],
+html body #root .appShell.isTool [class*="drop"],
+html body #root .appShell.isTool [class*="Drop"]{
+  border:1px dashed rgba(45,212,191,.26) !important;
+  background:linear-gradient(180deg,rgba(45,212,191,.055),rgba(0,0,0,.12)) !important;
+}
+
+html body #root .appShell.isTool input[type="file"]:hover,
+html body #root .appShell.isTool [class*="drop"]:hover,
+html body #root .appShell.isTool [class*="Drop"]:hover{
+  border-color:rgba(45,212,191,.46) !important;
+  box-shadow:0 0 0 3px rgba(45,212,191,.055) !important;
+}
+
+/* Empty states should look intentional, not broken */
+html body #root .appShell.isTool .cmpVtEmpty,
+html body #root .appShell.isTool [class*="Empty"],
+html body #root .appShell.isTool .rcaEmpty{
+  color:rgba(222,241,238,.58) !important;
+  font-weight:800 !important;
+}
+
+html body #root .appShell.isTool .cmpVtViewport:has(.cmpVtEmpty),
+html body #root .appShell.isTool .tableWrap:empty{
+  background:
+    radial-gradient(circle at 50% 30%,rgba(45,212,191,.06),transparent 38%),
+    rgba(0,0,0,.08) !important;
+}
+
+/* Analyzer: make upload stack more guided */
+html body #root .appShell.isTool .toolAnalyzer [class*="upload"],
+html body #root .appShell.isTool .toolAnalyzer [class*="Upload"]{
+  position:relative !important;
+}
+
+html body #root .appShell.isTool .toolAnalyzer [class*="upload"]::after,
+html body #root .appShell.isTool .toolAnalyzer [class*="Upload"]::after{
+  content:"ZIP/multi-file ready · upload Transaction Profile first";
+  display:block;
+  margin-top:6px;
+  font-size:10px;
+  color:rgba(222,241,238,.48);
+  font-weight:850;
+}
+
+/* Tables: scan faster in incident mode */
+html body #root .appShell.isTool .cmpVtRow:nth-child(even),
+html body #root .appShell.isTool table tbody tr:nth-child(even){
+  background-color:rgba(255,255,255,.012) !important;
+}
+
+html body #root .appShell.isTool .cmpVtRow:focus-visible,
+html body #root .appShell.isTool table tbody tr:focus-visible{
+  outline:2px solid rgba(45,212,191,.55) !important;
+  outline-offset:-2px !important;
+}
+
+/* Severity chips */
+html body #root .appShell.isTool .b-crit,
+html body #root .appShell.isTool [class*="crit"],
+html body #root .appShell.isTool [class*="Crit"]{
+  box-shadow:0 0 0 1px rgba(251,113,133,.20), 0 0 18px rgba(251,113,133,.10) !important;
+}
+
+html body #root .appShell.isTool .b-warn,
+html body #root .appShell.isTool [class*="warn"],
+html body #root .appShell.isTool [class*="Warn"]{
+  box-shadow:0 0 0 1px rgba(250,204,21,.18), 0 0 18px rgba(250,204,21,.075) !important;
+}
+
+/* PDF dock: avoid blocking content too much on mobile */
+@media(max-width:760px){
+  html body #root .appShell.isTool .sapPdfDock{
+    transform:scale(.94) !important;
+    transform-origin:bottom center !important;
+  }
+
+  html body #root .appShell.isTool .sapPdfDock button{
+    font-size:10.2px !important;
+  }
+
+  html body #root .appShell.isTool .panel:has(input[type="file"]),
+  html body #root .appShell.isTool [class*="Panel"]:has(input[type="file"]){
+    scroll-margin-top:62px !important;
+  }
+
+  html body #root .appShell.isTool .toolAnalyzer .panel,
+  html body #root .appShell.isTool .cmpWrap .panel{
+    contain:paint !important;
+  }
+}
+
+/* Print/PDF-friendly */
+@media print{
+  html body #root .appShell .brandSub::after{content:"" !important;}
+  html body #root .appShell.isTool .sapPdfDock{display:none !important;}
+}
