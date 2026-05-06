@@ -54,82 +54,17 @@ html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 [class*="Section
 html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"],
 html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 [class*="sectionNav"],
 html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"]{
-  position:relative !important;
-  inset:auto !important;
-  top:auto !important;
-  right:auto !important;
-  bottom:auto !important;
-  left:auto !important;
-  transform:none !important;
-  translate:none !important;
-  width:100% !important;
-  max-width:100% !important;
-  min-width:0 !important;
-  height:auto !important;
-  min-height:0 !important;
-  max-height:none !important;
-  display:flex !important;
-  flex-direction:row !important;
-  align-items:center !important;
-  justify-content:flex-start !important;
-  gap:8px !important;
-  padding:10px 14px !important;
+  display:none !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+  width:0 !important;
+  height:0 !important;
+  max-height:0 !important;
+  padding:0 !important;
   margin:0 !important;
   border:0 !important;
-  border-top:1px solid rgba(204,244,238,.12) !important;
-  border-radius:0 !important;
-  background:rgba(0,0,0,.18) !important;
   box-shadow:none !important;
-  overflow-x:auto !important;
-  overflow-y:hidden !important;
-  z-index:1 !important;
-  backdrop-filter:none !important;
-  -webkit-backdrop-filter:none !important;
-}
-
-html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav::before,
-html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav::after,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"]::before,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"]::after,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"]::before,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"]::after{
-  display:none !important;
-  content:none !important;
-}
-
-html body #root .appShell.isTool main .fullBleed .cmpWrap.cmpV2 .cmpSectionNav a,
-html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav a,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"] a,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"] a{
-  position:static !important;
-  flex:0 0 auto !important;
-  display:inline-flex !important;
-  flex-direction:row !important;
-  align-items:center !important;
-  justify-content:center !important;
-  gap:6px !important;
-  width:auto !important;
-  min-width:auto !important;
-  height:32px !important;
-  min-height:32px !important;
-  padding:8px 12px !important;
-  margin:0 !important;
-  border-radius:999px !important;
-  border:1px solid rgba(204,244,238,.15) !important;
-  background:rgba(255,255,255,.055) !important;
-  color:rgba(222,241,238,.78) !important;
-  font-size:11px !important;
-  line-height:1 !important;
-  white-space:nowrap !important;
-  box-shadow:none !important;
-}
-
-html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpSectionNav a.is-active,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="SectionNav"] a.is-active,
-html body #root .appShell.isTool main .fullBleed .cmpWrap [class*="sectionNav"] a.is-active{
-  color:#effcff !important;
-  border-color:rgba(56,189,248,.52) !important;
-  background:linear-gradient(135deg, rgba(56,189,248,.24), rgba(45,212,191,.12)) !important;
+  overflow:hidden !important;
 }
 
 html body #root .appShell.isTool main .fullBleed .cmpWrap .trendGrid,
@@ -144,4 +79,232 @@ html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpChartReportGrid{
   html body #root .appShell.isTool main .fullBleed .cmpWrap .cmpChartReportGrid{
     grid-template-columns:1fr !important;
   }
+}
+
+/* =========================================================
+   SAFE ENTERPRISE UX POLISH — CSS only, no runtime enhancer
+   ========================================================= */
+html body #root .appShell.isTool main{
+  padding-bottom:86px !important;
+}
+
+html body #root .appShell.isTool .fullBleed{
+  animation:sapSafeFade .24s ease both;
+}
+
+html body #root .appShell.isTool .panel,
+html body #root .appShell.isTool .cmpTopbar,
+html body #root .appShell.isTool .cmpPanel,
+html body #root .appShell.isTool section[class*="panel"],
+html body #root .appShell.isTool [class*="Panel"]{
+  border-color:rgba(203,244,238,.13) !important;
+  box-shadow:0 14px 34px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.025) !important;
+}
+
+html body #root .appShell.isTool .panel:hover,
+html body #root .appShell.isTool .cmpPanel:hover,
+html body #root .appShell.isTool section[class*="panel"]:hover{
+  border-color:rgba(45,212,191,.22) !important;
+}
+
+/* Better tables for RCA / ST03N evidence */
+html body #root .appShell.isTool table thead th,
+html body #root .appShell.isTool .cmpVtHead,
+html body #root .appShell.isTool [class*="VtHead"]{
+  position:sticky !important;
+  top:0 !important;
+  z-index:6 !important;
+  background:linear-gradient(180deg, rgba(7,20,18,.98), rgba(7,14,14,.98)) !important;
+  border-bottom:1px solid rgba(203,244,238,.14) !important;
+}
+
+html body #root .appShell.isTool table tbody tr,
+html body #root .appShell.isTool .cmpVtRow{
+  transition:background .14s ease, transform .14s ease, box-shadow .14s ease !important;
+}
+
+html body #root .appShell.isTool table tbody tr:hover,
+html body #root .appShell.isTool .cmpVtRow:hover{
+  background:rgba(45,212,191,.055) !important;
+  box-shadow:inset 3px 0 0 rgba(45,212,191,.50) !important;
+}
+
+html body #root .appShell.isTool table tbody tr:has(.b-crit),
+html body #root .appShell.isTool table tbody tr:has([class*="crit"]),
+html body #root .appShell.isTool .cmpVtRow:has(.b-crit),
+html body #root .appShell.isTool .cmpVtRow:has([class*="crit"]){
+  background:linear-gradient(90deg, rgba(251,113,133,.105), transparent 42%) !important;
+}
+
+html body #root .appShell.isTool table tbody tr:has(.b-warn),
+html body #root .appShell.isTool table tbody tr:has([class*="warn"]),
+html body #root .appShell.isTool .cmpVtRow:has(.b-warn),
+html body #root .appShell.isTool .cmpVtRow:has([class*="warn"]){
+  background:linear-gradient(90deg, rgba(251,191,36,.075), transparent 42%) !important;
+}
+
+html body #root .appShell.isTool .badge,
+html body #root .appShell.isTool .pill,
+html body #root .appShell.isTool [class*="badge"],
+html body #root .appShell.isTool [class*="Badge"]{
+  font-weight:950 !important;
+  letter-spacing:.01em !important;
+}
+
+/* PDF dock compact and less intrusive */
+html body #root .appShell.isTool .sapPdfDock{
+  border-radius:999px !important;
+  background:rgba(3,13,13,.94) !important;
+  border:1px solid rgba(45,212,191,.25) !important;
+  box-shadow:0 16px 44px rgba(0,0,0,.38) !important;
+  backdrop-filter:blur(12px) !important;
+  -webkit-backdrop-filter:blur(12px) !important;
+}
+
+html body #root .appShell.isTool .sapPdfDock button,
+html body #root .appShell.isTool .sapPdfDock .btn{
+  border-radius:999px !important;
+  min-height:36px !important;
+  font-size:11px !important;
+}
+
+/* ST03N / RCA compact cards */
+html body #root .appShell.isTool [class*="kpi"],
+html body #root .appShell.isTool [class*="Kpi"],
+html body #root .appShell.isTool [class*="summaryCard"],
+html body #root .appShell.isTool [class*="Metric"],
+html body #root .appShell.isTool [class*="metric"]{
+  transition:transform .16s ease, border-color .16s ease !important;
+}
+
+html body #root .appShell.isTool [class*="kpi"]:hover,
+html body #root .appShell.isTool [class*="Kpi"]:hover,
+html body #root .appShell.isTool [class*="summaryCard"]:hover,
+html body #root .appShell.isTool [class*="Metric"]:hover,
+html body #root .appShell.isTool [class*="metric"]:hover{
+  transform:translateY(-1px) !important;
+  border-color:rgba(45,212,191,.26) !important;
+}
+
+/* Mobile: make it feel like an enterprise incident console */
+@media (max-width:760px){
+  html body #root .appShell.isTool .navbar{
+    position:sticky !important;
+    top:0 !important;
+    z-index:90 !important;
+    min-height:50px !important;
+    backdrop-filter:blur(12px) !important;
+    -webkit-backdrop-filter:blur(12px) !important;
+  }
+
+  html body #root .appShell.isTool .navInner{
+    padding:7px 10px !important;
+  }
+
+  html body #root .appShell.isTool .brandTitle{
+    font-size:10.5px !important;
+    line-height:1.1 !important;
+    max-width:190px !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+  }
+
+  html body #root .appShell.isTool .brandSub::after{
+    font-size:8.8px !important;
+  }
+
+  html body #root .appShell.isTool .navLinks,
+  html body #root .appShell.isTool .navQuick{
+    gap:4px !important;
+  }
+
+  html body #root .appShell.isTool .navLinks a,
+  html body #root .appShell.isTool .navQuick a{
+    padding:6px 8px !important;
+    font-size:9.5px !important;
+    border-radius:999px !important;
+  }
+
+  html body #root .appShell.isTool main,
+  html body #root .appShell.isTool .fullBleed{
+    padding-left:8px !important;
+    padding-right:8px !important;
+    padding-bottom:92px !important;
+  }
+
+  html body #root .appShell.isTool .panel,
+  html body #root .appShell.isTool .cmpPanel,
+  html body #root .appShell.isTool section[class*="panel"],
+  html body #root .appShell.isTool [class*="Panel"]{
+    border-radius:14px !important;
+    margin-bottom:10px !important;
+  }
+
+  html body #root .appShell.isTool .panelHead,
+  html body #root .appShell.isTool [class*="panelHead"],
+  html body #root .appShell.isTool [class*="PanelHead"]{
+    min-height:40px !important;
+    padding:9px 10px !important;
+  }
+
+  html body #root .appShell.isTool .panelBody,
+  html body #root .appShell.isTool [class*="panelBody"],
+  html body #root .appShell.isTool [class*="PanelBody"]{
+    padding:9px !important;
+  }
+
+  html body #root .appShell.isTool input,
+  html body #root .appShell.isTool select,
+  html body #root .appShell.isTool textarea{
+    min-height:36px !important;
+    font-size:11.5px !important;
+  }
+
+  html body #root .appShell.isTool button,
+  html body #root .appShell.isTool .btn{
+    min-height:34px !important;
+    font-size:10.8px !important;
+  }
+
+  html body #root .appShell.isTool table,
+  html body #root .appShell.isTool .table,
+  html body #root .appShell.isTool .cmpVt{
+    font-size:10px !important;
+  }
+
+  html body #root .appShell.isTool table th,
+  html body #root .appShell.isTool table td{
+    padding:5px 6px !important;
+  }
+
+  html body #root .appShell.isTool .sapPdfDock{
+    left:12px !important;
+    right:12px !important;
+    bottom:10px !important;
+    width:auto !important;
+    justify-content:center !important;
+    padding:7px !important;
+    z-index:95 !important;
+  }
+
+  html body #root .appShell.isTool .sapPdfDock span{
+    display:none !important;
+  }
+
+  html body #root .appShell.isTool .sapPdfDock button,
+  html body #root .appShell.isTool .sapPdfDock .btn{
+    flex:1 1 auto !important;
+    min-height:38px !important;
+  }
+
+  html body #root .appShell.isTool .recharts-wrapper,
+  html body #root .appShell.isTool .recharts-responsive-container{
+    min-height:260px !important;
+  }
+}
+
+@keyframes sapSafeFade{
+  from{opacity:.72; transform:translateY(3px)}
+  to{opacity:1; transform:none}
 }
