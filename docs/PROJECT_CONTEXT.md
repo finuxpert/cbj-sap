@@ -21,6 +21,28 @@ Project ini berbeda dari `cbj-trading-ai`:
 - Production route: `https://cbj-kontruksi.com/sap`
 - New dev route: `https://sapdev.cbj-kontruksi.com/`
 
+## Development Direction
+
+Mulai sekarang development normal diarahkan ke:
+
+```text
+https://sapdev.cbj-kontruksi.com/
+```
+
+Alasannya:
+
+- `192.168.10.1` adalah environment lama di web-dev/VirtualBox dan mulai ditinggalkan.
+- `sapdev.cbj-kontruksi.com` menjadi dev utama untuk perubahan kecil/medium dan persiapan naik production.
+- Legacy `192.168.10.1/sap-staging` tetap disimpan hanya untuk eksperimen brutal/refactor besar bila benar-benar diperlukan.
+
+Prinsip baru:
+
+```text
+Normal development  → sapdev.cbj-kontruksi.com
+Brutal experiment   → 192.168.10.1/sap-staging
+Stable release      → cbj-kontruksi.com/sap
+```
+
 ## Environment / Route Mapping
 
 Ada 3 area penting yang harus dibedakan:
@@ -44,7 +66,7 @@ cd /home/sadmin/sap
 sudo DO_BACKUP=1 ./sap-deploy.sh
 ```
 
-### 2. Dev baru
+### 2. Dev baru / main development
 
 ```text
 https://sapdev.cbj-kontruksi.com/
@@ -52,14 +74,16 @@ https://sapdev.cbj-kontruksi.com/
 
 Fungsi:
 
-- Environment dev baru untuk perubahan kecil/medium.
+- Environment dev utama mulai sekarang.
+- Dipakai untuk development kecil/medium.
 - Dipakai untuk prepare perubahan sebelum naik ke production.
 - Cocok untuk polish UI kecil, bugfix minor, dokumentasi, dan validasi sebelum publish.
 
 Aturan:
 
+- Jadikan ini target utama untuk development normal.
 - Jangan pakai dev baru untuk eksperimen brutal yang berisiko merusak flow besar.
-- Setelah dev kecil stabil, baru siapkan publish ke production.
+- Setelah dev stabil, baru siapkan publish ke production.
 
 ### 3. Legacy web-dev / brutal staging
 
@@ -71,13 +95,15 @@ http://192.168.10.1/sap-staging/
 Fungsi:
 
 - Ini environment lama di `server web-dev` / VirtualBox.
-- Dipakai untuk testing kode brutal atau upgrade besar-besaran.
+- Mulai ditinggalkan untuk development normal.
+- Dipakai hanya untuk testing kode brutal atau upgrade besar-besaran.
 - Cocok untuk refactor besar, layout overhaul, perubahan fitur besar, dan eksperimen yang belum aman.
 
 Aturan:
 
 - Jangan anggap `192.168.10.1` sebagai production.
-- Gunakan ini untuk eksperimen besar sebelum dirapikan ke dev baru.
+- Jangan jadikan `192.168.10.1` default development lagi.
+- Gunakan ini hanya untuk eksperimen besar sebelum dirapikan ke dev baru.
 
 ## Stack
 
@@ -108,7 +134,7 @@ npm run lint
 ### Perubahan kecil / aman
 
 ```text
-local/server source
+source / branch kerja
 ↓
 build
 ↓
@@ -122,7 +148,7 @@ production /sap
 ### Perubahan besar / brutal
 
 ```text
-local/server source
+source / branch eksperimen
 ↓
 192.168.10.1/sap-staging
 ↓
@@ -139,8 +165,8 @@ production /sap
 
 1. Jangan deploy langsung ke production untuk fitur besar.
 2. Production `/sap` hanya untuk versi stabil.
-3. Dev baru `sapdev.cbj-kontruksi.com` untuk prepare perubahan kecil/medium sebelum production.
-4. Legacy `192.168.10.1/sap-staging` untuk eksperimen brutal/refactor besar.
+3. Dev baru `sapdev.cbj-kontruksi.com` adalah target utama development normal.
+4. Legacy `192.168.10.1/sap-staging` hanya untuk eksperimen brutal/refactor besar.
 5. Jangan jadikan Vite dev server port sebagai production URL.
 6. Setelah deploy, selalu smoke test route terkait.
 7. Jika ada file private/credential, jangan commit ke GitHub.
@@ -180,5 +206,5 @@ Namun untuk konteks cepat project SAP, file ini (`docs/PROJECT_CONTEXT.md`) haru
 ## Prompt pendek untuk chat baru
 
 ```text
-Saya mau lanjut project CBJ SAP Tools. Repo GitHub: finuxpert/cbj-sap. Tolong baca README.md dan docs/PROJECT_CONTEXT.md dulu. Production ada di https://cbj-kontruksi.com/sap, dev baru di https://sapdev.cbj-kontruksi.com/, dan legacy brutal staging di http://192.168.10.1/sap-staging/. Jangan deploy ke production sebelum saya setujui.
+Saya mau lanjut project CBJ SAP Tools. Repo GitHub: finuxpert/cbj-sap. Tolong baca README.md dan docs/PROJECT_CONTEXT.md dulu. Production ada di https://cbj-kontruksi.com/sap, dev utama sekarang di https://sapdev.cbj-kontruksi.com/, dan legacy brutal staging di http://192.168.10.1/sap-staging/ hanya untuk eksperimen besar. Jangan deploy ke production sebelum saya setujui.
 ```
