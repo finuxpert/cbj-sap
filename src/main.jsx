@@ -5,6 +5,7 @@ import './index.css'
 import './sapdev-polish.css'
 import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
+import './sapdev-final-force.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
