@@ -6,7 +6,6 @@ import './sapdev-polish.css'
 import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
-import './comparer-section-nav-cleanup.js'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
