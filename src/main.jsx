@@ -7,6 +7,7 @@ import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 import './comparer-nav-style-override.js'
+import './comparer-rca-final.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
