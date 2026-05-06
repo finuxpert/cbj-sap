@@ -4,7 +4,7 @@ import Footer from './components/Footer.jsx'
 import ToolCard from './components/ToolCard.jsx'
 import { tools, preloadTool } from './tools'
 
-const APP_BUILD_STAMP = 'sap-20260501-0602'
+const APP_BUILD_STAMP = 'sap-20260507-premium-command-center'
 
 function useRoute(){
   const parse = () => {
@@ -43,11 +43,12 @@ function Home(){
   }, [q])
 
   React.useEffect(() => {
-    // Preload common tools for a snappier first use (idle so it doesn't block first paint)
     const idle = window.requestIdleCallback || ((fn) => setTimeout(() => fn({ timeRemaining: () => 0 }), 250))
     const id = idle(() => {
       preloadTool?.('comparer')
       preloadTool?.('analyzer')
+      preloadTool?.('logs')
+      preloadTool?.('metrics')
     })
     return () => {
       if (window.cancelIdleCallback) window.cancelIdleCallback(id)
@@ -73,98 +74,90 @@ function Home(){
   }, [q, filtered])
 
   const featuredTools = React.useMemo(
-    () => tools.filter(t => ['comparer', 'analyzer', 'logs'].includes(t.slug)),
+    () => tools.filter(t => ['comparer', 'analyzer', 'logs', 'metrics'].includes(t.slug)),
     [],
   )
 
+  const commandFlows = [
+    {
+      n: '01',
+      title: 'Baseline & compare',
+      text: 'Upload daily check / WP-SCOUT logs, compare snapshots, and isolate deltas before/after change windows.',
+      href: '#/tool/comparer',
+      tag: 'Comparer',
+    },
+    {
+      n: '02',
+      title: 'Workload triage',
+      text: 'Analyze ST03N exports, rank offenders, and prepare evidence for SAP Basis follow-up.',
+      href: '#/tool/analyzer',
+      tag: 'Analyzer',
+    },
+    {
+      n: '03',
+      title: 'RCA evidence pack',
+      text: 'Convert logs and snapshots into clean notes, charts, and export-ready operational evidence.',
+      href: '#/tool/logs',
+      tag: 'Logs',
+    },
+  ]
+
   return (
-    <section className="container section">
-      <div className="hero">
-        <div className="heroCopy">
-          <div className="eyebrow">Basis Operations Workspace</div>
-          <h1 className="heroTitle">SAP Basis Tools</h1>
+    <section className="container section premiumHome">
+      <div className="premiumHero">
+        <div className="premiumHeroCopy">
+          <div className="eyebrow">SAP Basis Command Center</div>
+          <h1 className="heroTitle">Operate SAP with cleaner evidence, faster triage, and less chaos.</h1>
           <p className="heroSub">
-            One workspace for daily checks, workload evidence, log triage, and recovery routines.
+            A focused workspace for daily checks, WP-SCOUT comparison, ST03N workload analysis, log triage,
+            deploy evidence, and recovery routines.
           </p>
           <div className="heroBadges" aria-label="Workspace capabilities">
-            <span>ST03N Analysis</span>
-            <span>Daily Evidence</span>
-            <span>RCA Ready</span>
+            <span>WP-SCOUT</span>
+            <span>ST03N</span>
+            <span>RCA Evidence</span>
+            <span>Deploy Ready</span>
+          </div>
+          <div className="premiumHeroActions">
+            <a className="btn primary" href="#/tool/comparer">Start Daily Check</a>
+            <a className="btn secondary" href="#/tool/analyzer">Open ST03N Analyzer</a>
+            <button className="btn ghost" type="button" onClick={() => inputRef.current?.focus()}>Search Tools</button>
           </div>
         </div>
-        <div className="heroActions">
-          <a className="btn primary" href="#/tool/comparer">Open Comparer</a>
-          <a className="btn secondary" href="#/tool/analyzer">Analyze ST03N</a>
-        </div>
+
+        <aside className="premiumHeroPanel" aria-label="Operations summary">
+          <div className="heroPanelTop">
+            <span>Workspace Status</span>
+            <strong>SAPDEV</strong>
+          </div>
+          <div className="heroPanelMetric">
+            <b>{tools.length}</b>
+            <span>Active modules</span>
+          </div>
+          <div className="heroPanelMetric">
+            <b>{featuredTools.length}</b>
+            <span>Primary flows</span>
+          </div>
+          <div className="heroPanelMetric">
+            <b>{filtered.length}</b>
+            <span>Visible result</span>
+          </div>
+          <div className="heroPanelNote">Dev route for safe improvements before production release.</div>
+        </aside>
       </div>
 
-      <div className="opsStrip" aria-label="Workspace summary">
-        <div className="opsMetric">
-          <span className="opsValue">{tools.length}</span>
-          <span className="opsLabel">Tools</span>
-        </div>
-        <div className="opsMetric">
-          <span className="opsValue">{featuredTools.length}</span>
-          <span className="opsLabel">Primary flows</span>
-        </div>
-        <div className="opsMetric">
-          <span className="opsValue">{filtered.length}</span>
-          <span className="opsLabel">Visible now</span>
-        </div>
-      </div>
-
-      <div className="intelligenceGrid">
-        <section className="intelPanel">
-          <div className="intelHead">
-            <span>Ops Intelligence</span>
-            <strong>State → Delta → Action</strong>
-          </div>
-          <div className="intelSteps">
-            <a href="#/tool/comparer">
-              <span>01</span>
-              <strong>Baseline daily check</strong>
-              <em>Compare SAP health signals before and after change windows.</em>
-            </a>
-            <a href="#/tool/analyzer">
-              <span>02</span>
-              <strong>Rank workload offenders</strong>
-              <em>Surface ST03N response, DB, roll wait, and high-volume pain points.</em>
-            </a>
-            <a href="#/tool/logs">
-              <span>03</span>
-              <strong>Convert logs to RCA</strong>
-              <em>Group evidence by host, timestamp, component, and next check.</em>
-            </a>
-          </div>
-        </section>
-        <section className="intelPanel intelPanel--compact">
-          <div className="intelHead">
-            <span>Workspace Mode</span>
-            <strong>Analyst density</strong>
-          </div>
-          <p>
-            Designed for war-room screens: compact panels, sticky tables, high-contrast dark mode, and evidence-first exports.
-          </p>
-          <div className="intelMiniStats" aria-label="Workspace highlights">
-            <span>Fast triage</span>
-            <span>Compact view</span>
-            <span>Export friendly</span>
-          </div>
-        </section>
-      </div>
-
-      <div className="commandPanel">
+      <div className="commandPanel premiumLauncher">
         <div className="homeBar">
           <div className="homeBarTitle">
-            <strong>Tool launcher</strong>
-            <span>Search or open common SAP workflows quickly.</span>
+            <strong>Command launcher</strong>
+            <span>Press Ctrl+K, search a tool, or use number keys 1–9 from the homepage.</span>
           </div>
           <div className="searchWrap">
             <span className="searchIcon" aria-hidden="true">⌕</span>
             <input
               ref={inputRef}
               className="input"
-              placeholder="Search tools"
+              placeholder="Search comparer, analyzer, logs, backup, deploy..."
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -176,7 +169,7 @@ function Home(){
           </div>
           <div className="quickLinks" aria-label="Quick tools">
             {featuredTools.map(t => (
-              <a key={t.slug} className="quickPill" href={`#/tool/${t.slug}`}>
+              <a key={t.slug} className="quickPill" href={`#/tool/${t.slug}`} onMouseEnter={() => preloadTool?.(t.slug)}>
                 <span>{t.icon}</span>
                 {t.title}
               </a>
@@ -185,21 +178,32 @@ function Home(){
         </div>
       </div>
 
-      <div className="sectionHead">
+      <div className="premiumFlowGrid">
+        {commandFlows.map(flow => (
+          <a key={flow.n} className="premiumFlowCard" href={flow.href}>
+            <span>{flow.n}</span>
+            <strong>{flow.title}</strong>
+            <em>{flow.text}</em>
+            <b>{flow.tag} →</b>
+          </a>
+        ))}
+      </div>
+
+      <div className="sectionHead premiumSectionHead">
         <div>
-          <span className="sectionKicker">Available tools</span>
-          <h2>Choose an operation</h2>
+          <span className="sectionKicker">Available modules</span>
+          <h2>Choose the next operation</h2>
         </div>
         <span className="sectionCount">{filtered.length} visible</span>
       </div>
 
-      <div className="toolCards">
-        {filtered.map((t) => (
+      <div className="toolCards premiumToolCards">
+        {filtered.map((t, idx) => (
           <ToolCard
             key={t.slug}
             slug={t.slug}
             icon={t.icon}
-            title={t.title}
+            title={`${idx + 1}. ${t.title}`}
             desc={t.short}
             href={`#/tool/${t.slug}`}
             onMouseEnter={() => preloadTool?.(t.slug)}
@@ -213,15 +217,17 @@ function Home(){
 function About(){
   return (
     <section className="container section">
-      <div className="card">
-        <h2 style={{marginTop:0}}>About</h2>
-        <p className="muted" style={{lineHeight:1.5}}>
-          This dashboard is built for SAP operations (Basis/Infra):
-          optimized for fast triage, clear visualization, and evidence that&apos;s easy to bring into a war-room.
+      <div className="card premiumInfoCard">
+        <span className="sectionKicker">Runbook</span>
+        <h2 style={{marginTop:8}}>SAP Basis Operations Workspace</h2>
+        <p className="muted" style={{lineHeight:1.6}}>
+          This dashboard is built for SAP Basis/Infra work: fast triage, clear visualization, evidence-first exports,
+          and operational handoff for incident, DR, daily check, and workload review routines.
         </p>
-        <div className="row gap-10 wrap" style={{marginTop:12}}>
-          <a className="btn primary" href="#/">Back to Home</a>
-          <a className="btn ghost" href="#/tool/comparer">Open Comparer</a>
+        <div className="premiumFlowGrid" style={{marginTop:18}}>
+          <a className="premiumFlowCard" href="#/tool/comparer"><span>01</span><strong>Compare</strong><em>Daily check and WP-SCOUT evidence.</em><b>Open →</b></a>
+          <a className="premiumFlowCard" href="#/tool/analyzer"><span>02</span><strong>Analyze</strong><em>ST03N workload and response time ranking.</em><b>Open →</b></a>
+          <a className="premiumFlowCard" href="#/tool/logs"><span>03</span><strong>RCA</strong><em>Turn raw logs into action notes.</em><b>Open →</b></a>
         </div>
       </div>
     </section>
@@ -231,10 +237,12 @@ function About(){
 function Contact(){
   return (
     <section className="container section">
-      <div className="card">
-        <h2 style={{marginTop:0}}>Contact</h2>
-        <p className="muted" style={{lineHeight:1.5}}>
-          Isi halaman ini sesuai kebutuhan internal (PIC Basis / infra / ops). Saat ini placeholder.
+      <div className="card premiumInfoCard">
+        <span className="sectionKicker">Ops Contact</span>
+        <h2 style={{marginTop:8}}>Basis / Infra Coordination</h2>
+        <p className="muted" style={{lineHeight:1.6}}>
+          Placeholder for PIC Basis, Infra, datacenter, and escalation contacts. Keep this area clean and focused for
+          operational handoff.
         </p>
       </div>
     </section>
@@ -244,10 +252,11 @@ function Contact(){
 function NotFound(){
   return (
     <section className="container section">
-      <div className="card">
-        <h2 style={{marginTop:0}}>Not Found</h2>
-        <p className="muted">Page not found.</p>
-        <a className="btn primary" href="#/">Back to Home</a>
+      <div className="card premiumInfoCard">
+        <span className="sectionKicker">404</span>
+        <h2 style={{marginTop:8}}>Page not found</h2>
+        <p className="muted">The requested SAP workspace route does not exist.</p>
+        <a className="btn primary" href="#/">Back to Command Center</a>
       </div>
     </section>
   )
@@ -267,8 +276,7 @@ export default function App(){
         {route.name === 'contact' && <Contact/>}
 
         {route.name === 'tool' && ActiveTool && (
-          <React.Suspense fallback={<section className="container section"><div className="card">Loading…</div></section>}>
-            {/* Tool pages are intentionally full-width. Each tool handles its own layout. */}
+          <React.Suspense fallback={<section className="container section"><div className="card">Loading SAP module…</div></section>}>
             <div className="fullBleed">
               <ActiveTool/>
             </div>
