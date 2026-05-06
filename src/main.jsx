@@ -6,6 +6,7 @@ import './sapdev-polish.css'
 import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
+import './sap-intelligent-ux.css'
 import './comparer-nav-style-override.js'
 import './comparer-rca-final.css'
 
