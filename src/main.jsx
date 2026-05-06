@@ -8,8 +8,6 @@ import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 import './comparer-nav-style-override.js'
 import './comparer-rca-final.css'
-import './comparer-rca-dashboard-enhancer.js'
-import './sap-zip-reader.js'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
