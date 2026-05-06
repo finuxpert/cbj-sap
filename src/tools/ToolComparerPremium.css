@@ -1,0 +1,190 @@
+/* Final override loaded inside ToolComparer chunk after ToolComparer.css.
+   This file wins the CSS order and removes the broken floating oval/tab overlay. */
+
+.cmpWrap,
+.cmpWrap.cmpV2{
+  width:100% !important;
+  max-width:100vw !important;
+  overflow-x:hidden !important;
+  padding:14px !important;
+  gap:14px !important;
+}
+
+.cmpWrap .cmpTopbar{
+  border-radius:22px !important;
+  margin:0 !important;
+}
+
+.cmpWrap .cmpTopbarRow,
+.cmpWrap .cmpTopbarRow2{
+  padding:12px 14px !important;
+}
+
+.cmpWrap .cmpMain{
+  width:100% !important;
+  max-width:100% !important;
+  display:grid !important;
+  grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  gap:14px !important;
+  overflow:hidden !important;
+}
+
+.cmpWrap .cmpColLeft,
+.cmpWrap .cmpColCenter,
+.cmpWrap .cmpColRight{
+  min-width:0 !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+}
+
+.cmpWrap .panel{
+  border-radius:18px !important;
+  overflow:hidden !important;
+}
+
+.cmpWrap .panelHead{
+  min-height:48px !important;
+  padding:11px 13px !important;
+}
+
+.cmpWrap .panelBody,
+.cmpWrap .panelBodyNoPad,
+.cmpWrap .panelToolsRow{
+  padding:12px !important;
+}
+
+/* KILL BROKEN FLOATING OVAL NAV */
+.cmpWrap .cmpSectionNav,
+.cmpWrap.cmpV2 .cmpSectionNav,
+.cmpWrap [class*="SectionNav"],
+.cmpWrap [class*="sectionNav"],
+.cmpWrap [class*="JumpNav"],
+.cmpWrap [class*="jumpNav"]{
+  position:static !important;
+  inset:auto !important;
+  top:auto !important;
+  right:auto !important;
+  bottom:auto !important;
+  left:auto !important;
+  transform:none !important;
+  translate:none !important;
+  width:100% !important;
+  min-width:0 !important;
+  max-width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  display:flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:8px !important;
+  padding:10px 12px !important;
+  margin:0 !important;
+  border:0 !important;
+  border-top:1px solid rgba(204,244,238,.10) !important;
+  border-radius:0 !important;
+  background:rgba(0,0,0,.16) !important;
+  box-shadow:none !important;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  z-index:1 !important;
+  backdrop-filter:none !important;
+}
+
+.cmpWrap .cmpSectionNav::before,
+.cmpWrap .cmpSectionNav::after,
+.cmpWrap [class*="SectionNav"]::before,
+.cmpWrap [class*="SectionNav"]::after,
+.cmpWrap [class*="sectionNav"]::before,
+.cmpWrap [class*="sectionNav"]::after,
+.cmpWrap [class*="JumpNav"]::before,
+.cmpWrap [class*="JumpNav"]::after,
+.cmpWrap [class*="jumpNav"]::before,
+.cmpWrap [class*="jumpNav"]::after{
+  display:none !important;
+  content:none !important;
+}
+
+.cmpWrap .cmpSectionNav a,
+.cmpWrap.cmpV2 .cmpSectionNav a,
+.cmpWrap [class*="SectionNav"] a,
+.cmpWrap [class*="sectionNav"] a,
+.cmpWrap [class*="JumpNav"] a,
+.cmpWrap [class*="jumpNav"] a{
+  position:static !important;
+  flex:0 0 auto !important;
+  display:inline-flex !important;
+  flex-direction:row !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  width:auto !important;
+  min-width:auto !important;
+  height:32px !important;
+  min-height:32px !important;
+  padding:8px 12px !important;
+  margin:0 !important;
+  border-radius:999px !important;
+  border:1px solid rgba(204,244,238,.13) !important;
+  background:rgba(255,255,255,.045) !important;
+  color:rgba(222,241,238,.72) !important;
+  font-size:11px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  box-shadow:none !important;
+}
+
+.cmpWrap .cmpSectionNav a.is-active,
+.cmpWrap [class*="SectionNav"] a.is-active,
+.cmpWrap [class*="sectionNav"] a.is-active,
+.cmpWrap [class*="JumpNav"] a.is-active,
+.cmpWrap [class*="jumpNav"] a.is-active{
+  color:#effcff !important;
+  border-color:rgba(56,189,248,.48) !important;
+  background:linear-gradient(135deg, rgba(56,189,248,.24), rgba(45,212,191,.11)) !important;
+}
+
+/* Chart grid and tables */
+.cmpWrap .trendGrid,
+.cmpWrap .cmpChartReportGrid{
+  grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  gap:14px !important;
+  width:100% !important;
+  max-width:100% !important;
+  overflow:hidden !important;
+}
+
+.cmpWrap .chartBox,
+.cmpWrap .chartBoxSmall,
+.cmpWrap .recharts-responsive-container,
+.cmpWrap .recharts-wrapper{
+  max-width:100% !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+}
+
+.cmpWrap .tableWrap,
+.cmpWrap .cmpVt,
+.cmpWrap .cmpVtViewport{
+  max-width:100% !important;
+  overflow:auto !important;
+}
+
+@media (max-width:1280px){
+  .cmpWrap .cmpMain,
+  .cmpWrap .trendGrid,
+  .cmpWrap .cmpChartReportGrid{
+    grid-template-columns:1fr !important;
+  }
+}
+
+@media (max-width:760px){
+  .cmpWrap,
+  .cmpWrap.cmpV2{ padding:10px !important; }
+  .cmpWrap .cmpTopbarRow,
+  .cmpWrap .cmpTopbarRow2{
+    flex-direction:column !important;
+    align-items:stretch !important;
+  }
+}
