@@ -10,17 +10,21 @@ html body #root .appShell .navbar .mobileBtn{
   html body #root .appShell .navbar .mobileBtn{ display:inline-flex !important; }
 }
 
-html body #root .appShell .navbar .brandTitle::after{
-  content:" Command";
+/* Branding is now owned by Navbar.jsx: SAP Intelligent RCA by Fikri Maulana */
+html body #root .appShell .navbar .brandTitle::after,
+html body #root .appShell .navbar .brandSub::after{
+  content:none !important;
+  display:none !important;
+}
+
+html body #root .appShell .navbar .brandTitle{
+  font-size:14px !important;
+  letter-spacing:-.02em !important;
 }
 
 html body #root .appShell .navbar .brandSub{
-  font-size:0 !important;
-}
-
-html body #root .appShell .navbar .brandSub::after{
-  content:"Basis Ops · SAPDEV";
   font-size:11px !important;
+  color:rgba(222,241,238,.58) !important;
 }
 
 /* Force homepage hero into command-center look even if older classes remain */
@@ -210,7 +214,7 @@ html body #root .appShell.isTool [class*="metric"]:hover{
     white-space:nowrap !important;
   }
 
-  html body #root .appShell.isTool .brandSub::after{
+  html body #root .appShell.isTool .brandSub{
     font-size:8.8px !important;
   }
 
