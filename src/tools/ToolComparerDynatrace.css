@@ -1,0 +1,270 @@
+/* Dynatrace-inspired monitoring layer for WP-SCOUT Comparator charts and density.
+   Static CSS only: no runtime patch, no DOM injector, no MutationObserver. */
+
+.cmpCleanShell {
+  --dt-bg: #08090b;
+  --dt-panel: rgba(18, 24, 28, 0.92);
+  --dt-panel-2: rgba(12, 18, 22, 0.96);
+  --dt-stroke: rgba(148, 163, 184, 0.18);
+  --dt-green: #7ce38b;
+  --dt-mint: #25f3d0;
+  --dt-blue: #5ab0ff;
+  --dt-purple: #a78bfa;
+  --dt-red: #ff5f7e;
+  --dt-orange: #ffb86b;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(124, 227, 139, 0.14), transparent 28rem),
+    radial-gradient(circle at 78% 0%, rgba(90, 176, 255, 0.12), transparent 30rem),
+    linear-gradient(180deg, #07090b 0%, #090d0f 48%, #050707 100%) !important;
+}
+
+.cmpCleanGrid {
+  grid-template-columns: minmax(0, 1.42fr) minmax(420px, 0.82fr);
+  align-items: stretch;
+}
+
+.cmpCleanHeader,
+.cmpCleanFinding,
+.cmpCleanActionsPanel,
+.cmpCleanPanel,
+.cmpCleanStat {
+  border-color: var(--dt-stroke) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.018)),
+    var(--dt-panel) !important;
+}
+
+.cmpCleanHeader,
+.cmpCleanPanel {
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+.cmpCleanPanel h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.cmpCleanPanel h2::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--dt-green);
+  box-shadow: 0 0 15px rgba(124, 227, 139, 0.76);
+}
+
+.cmpCleanPanel:nth-of-type(2) h2::before {
+  background: var(--dt-mint);
+  box-shadow: 0 0 15px rgba(37, 243, 208, 0.68);
+}
+
+.cmpCleanPanel:nth-of-type(3) h2::before {
+  background: var(--dt-blue);
+  box-shadow: 0 0 15px rgba(90, 176, 255, 0.68);
+}
+
+.cmpCleanChart {
+  position: relative;
+  min-height: 292px;
+  border-radius: 18px;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    radial-gradient(circle at 50% 0%, rgba(124, 227, 139, 0.09), transparent 42%),
+    #070b0d !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 -44px 90px rgba(37, 243, 208, 0.035),
+    0 12px 34px rgba(0, 0, 0, 0.28) !important;
+}
+
+.cmpCleanChart::before {
+  content: 'LIVE RCA SIGNAL';
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 227, 139, 0.28);
+  color: rgba(210, 255, 220, 0.86);
+  background: rgba(124, 227, 139, 0.08);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.cmpCleanChart::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(180deg, transparent, black 18%, black 86%, transparent);
+  opacity: 0.50;
+}
+
+.cmpCleanChart .recharts-surface {
+  overflow: visible;
+}
+
+.cmpCleanChart .recharts-cartesian-grid line {
+  stroke: rgba(148, 163, 184, 0.24) !important;
+  stroke-dasharray: 2 8 !important;
+}
+
+.cmpCleanChart .recharts-cartesian-axis-line,
+.cmpCleanChart .recharts-cartesian-axis-tick-line {
+  stroke: rgba(148, 163, 184, 0.18) !important;
+}
+
+.cmpCleanChart .recharts-text,
+.cmpCleanChart .recharts-label {
+  fill: rgba(224, 242, 241, 0.62) !important;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cmpCleanChart .recharts-tooltip-cursor {
+  fill: rgba(124, 227, 139, 0.07) !important;
+  stroke: rgba(124, 227, 139, 0.24) !important;
+}
+
+.cmpCleanChart .recharts-default-tooltip {
+  border: 1px solid rgba(124, 227, 139, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(8, 12, 15, 0.94) !important;
+  color: #f8fffd !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45) !important;
+}
+
+.cmpCleanChart .recharts-tooltip-label,
+.cmpCleanChart .recharts-tooltip-item {
+  color: #f8fffd !important;
+}
+
+.cmpCleanChart .recharts-bar-rectangle path,
+.cmpCleanChart .recharts-rectangle {
+  fill: var(--dt-green) !important;
+  stroke: rgba(225, 255, 231, 0.52) !important;
+  stroke-width: 1.2px;
+  filter: drop-shadow(0 0 8px rgba(124, 227, 139, 0.38));
+  transition: opacity 160ms ease, filter 160ms ease, transform 160ms ease;
+}
+
+.cmpCleanChart .recharts-bar-rectangle:nth-child(1) path,
+.cmpCleanChart .recharts-bar-rectangle:nth-child(1) .recharts-rectangle {
+  fill: var(--dt-red) !important;
+  stroke: rgba(255, 190, 202, 0.58) !important;
+  filter: drop-shadow(0 0 10px rgba(255, 95, 126, 0.42));
+}
+
+.cmpCleanChart .recharts-bar-rectangle:nth-child(2) path,
+.cmpCleanChart .recharts-bar-rectangle:nth-child(2) .recharts-rectangle {
+  fill: var(--dt-orange) !important;
+  stroke: rgba(255, 226, 190, 0.48) !important;
+  filter: drop-shadow(0 0 9px rgba(255, 184, 107, 0.35));
+}
+
+.cmpCleanChart .recharts-bar-rectangle:nth-child(n+3) path,
+.cmpCleanChart .recharts-bar-rectangle:nth-child(n+3) .recharts-rectangle {
+  fill: var(--dt-mint) !important;
+}
+
+.cmpCleanChart .recharts-bar-rectangle:hover path,
+.cmpCleanChart .recharts-bar-rectangle:hover .recharts-rectangle {
+  filter: drop-shadow(0 0 16px rgba(124, 227, 139, 0.70));
+  opacity: 0.96;
+}
+
+.cmpCleanChart .recharts-line-curve {
+  stroke: var(--dt-blue) !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 7px rgba(90, 176, 255, 0.74));
+}
+
+.cmpCleanChart .recharts-line-dot circle,
+.cmpCleanChart .recharts-active-dot circle {
+  fill: #08090b !important;
+  stroke: var(--dt-blue) !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 7px rgba(90, 176, 255, 0.78));
+}
+
+.cmpCleanChart .recharts-active-dot circle {
+  fill: var(--dt-blue) !important;
+  animation: dtPulseDot 1.3s ease-in-out infinite;
+}
+
+.cmpCleanTableWrap {
+  max-height: 610px;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006)),
+    #070b0d !important;
+}
+
+.cmpCleanTable th {
+  background: rgba(11, 16, 19, 0.98) !important;
+  color: rgba(226, 232, 240, 0.74) !important;
+}
+
+.cmpCleanTable td {
+  border-top-color: rgba(148, 163, 184, 0.10) !important;
+}
+
+.cmpCleanTable tbody tr:hover td {
+  background: rgba(124, 227, 139, 0.065) !important;
+}
+
+.cmpCleanBadge.crit {
+  background: rgba(255, 95, 126, 0.22) !important;
+  border: 1px solid rgba(255, 95, 126, 0.35);
+  color: #ffe5ea !important;
+}
+
+.cmpCleanBadge.warn {
+  background: rgba(255, 184, 107, 0.20) !important;
+  border: 1px solid rgba(255, 184, 107, 0.32);
+  color: #ffeed8 !important;
+}
+
+.cmpCleanBadge.ok {
+  background: rgba(124, 227, 139, 0.16) !important;
+  border: 1px solid rgba(124, 227, 139, 0.30);
+  color: #e6ffe9 !important;
+}
+
+.cmpCleanFilters input,
+.cmpCleanFilters select,
+.cmpCleanSeg {
+  background: rgba(11, 16, 19, 0.86) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+.cmpCleanPrimary,
+.cmpCleanSeg button[data-active='true'] {
+  background: linear-gradient(135deg, var(--dt-green), var(--dt-mint)) !important;
+  color: #07100b !important;
+  box-shadow: 0 0 24px rgba(124, 227, 139, 0.22) !important;
+}
+
+@keyframes dtPulseDot {
+  0%, 100% { r: 4; opacity: 0.88; }
+  50% { r: 7; opacity: 1; }
+}
+
+@media (max-width: 1200px) {
+  .cmpCleanGrid {
+    grid-template-columns: 1fr;
+  }
+}
