@@ -1,0 +1,185 @@
+.evidenceToolShell {
+  min-height: calc(100vh - 64px);
+  padding: 22px;
+  color: rgba(248, 250, 252, 0.96);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(124, 227, 139, 0.13), transparent 28rem),
+    radial-gradient(circle at 90% 10%, rgba(90, 176, 255, 0.12), transparent 34rem),
+    linear-gradient(180deg, #07090b 0%, #090d0f 54%, #050707 100%);
+}
+
+.evidenceToolShell * { box-sizing: border-box; }
+
+.evidenceHero,
+.sessionBanner,
+.evidencePanel {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.018)),
+    rgba(16, 22, 26, 0.94);
+  box-shadow: 0 20px 58px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.05);
+  border-radius: 24px;
+  backdrop-filter: blur(16px) saturate(1.08);
+}
+
+.evidenceHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 18px;
+  align-items: center;
+  padding: 24px;
+  margin-bottom: 14px;
+}
+
+.evidenceHero span,
+.evidencePanel h2 {
+  color: #7ce38b;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.evidenceHero h1 {
+  max-width: 980px;
+  margin: 8px 0;
+  font-size: clamp(28px, 4vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.065em;
+  background: linear-gradient(90deg, #ffffff, #e7ffec 48%, #a8d6ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.evidenceHero p,
+.evidencePanel p,
+.sessionBanner span,
+.sessionBanner small,
+.evidenceList span,
+.evidenceList small,
+.statusList span,
+.confidenceRows span {
+  color: rgba(203, 213, 225, 0.74);
+}
+
+.evidenceUpload {
+  display: grid;
+  place-items: center;
+  min-height: 56px;
+  border-radius: 999px;
+  border: 1px solid rgba(124, 227, 139, 0.42);
+  background: linear-gradient(135deg, #7ce38b, #25f3d0);
+  color: #07100b;
+  font-weight: 950;
+  cursor: pointer;
+  box-shadow: 0 0 22px rgba(124, 227, 139, 0.16);
+}
+
+.evidenceUpload input { display: none; }
+
+.sessionBanner {
+  display: grid;
+  gap: 4px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  border-color: rgba(90, 176, 255, 0.24);
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.8fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.evidenceGrid.wide {
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+}
+
+.evidenceGrid.triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.evidencePanel {
+  padding: 18px;
+  min-width: 0;
+}
+
+.evidencePanel h2 {
+  margin: 0 0 12px;
+}
+
+.statusList,
+.evidenceList,
+.confidenceRows {
+  display: grid;
+  gap: 10px;
+}
+
+.statusList div,
+.evidenceList div,
+.confidenceRows span {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  padding: 11px;
+  background: rgba(255,255,255,0.026);
+}
+
+.statusList div.ok { border-color: rgba(124, 227, 139, 0.28); }
+.statusList div.missing { border-color: rgba(255, 184, 107, 0.30); }
+
+.statusList b,
+.evidenceList b,
+.confidenceRows b {
+  color: rgba(248, 250, 252, 0.96);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.confidenceRows {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.confidenceRows b {
+  font-size: 18px;
+}
+
+.evidenceList {
+  max-height: 410px;
+  overflow: auto;
+}
+
+.evidenceList.compact {
+  max-height: 520px;
+}
+
+.chartPanel {
+  min-height: 380px;
+}
+
+.evidenceToolShell .recharts-cartesian-grid line { stroke: rgba(148, 163, 184, 0.24); stroke-dasharray: 2 8; }
+.evidenceToolShell .recharts-text { fill: rgba(224,242,241,0.68); font-size: 11px; }
+.evidenceToolShell .recharts-default-tooltip { border: 1px solid rgba(124,227,139,0.28) !important; border-radius: 12px !important; background: rgba(8,12,15,.96) !important; color: #f8fffd !important; }
+
+@media (max-width: 1120px) {
+  .evidenceHero,
+  .evidenceGrid,
+  .evidenceGrid.wide,
+  .evidenceGrid.triple {
+    grid-template-columns: 1fr;
+  }
+
+  .confidenceRows {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .evidenceToolShell { padding: 12px; }
+  .evidenceHero { padding: 16px; }
+  .evidenceHero h1 { font-size: 34px; }
+}
