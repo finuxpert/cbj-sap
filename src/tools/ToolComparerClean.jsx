@@ -144,29 +144,32 @@ function MiniStat({ label, value, tone = '' }) {
 
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
-  const [files, setFiles] = React.useState([])
   const [rows, setRows] = React.useState([])
   const [query, setQuery] = React.useState('')
   const [onlyBad, setOnlyBad] = React.useState(true)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [lastLoad, setLastLoad] = React.useState('')
 
   const ingest = async (fileList) => {
     const list = Array.from(fileList || []).filter(Boolean)
     if (!list.length) return
     setBusy(true)
     setError('')
+    setLastLoad(`Parsing ${list.length} file(s)…`)
     try {
       const parsed = []
       for (const file of list) {
         const text = await readAsText(file)
         parsed.push(parseFileText(file.name, text))
       }
-      setFiles(parsed.map((p) => p.fileName))
-      setRows(parsed.flatMap((p) => p.rows).sort((a, b) => b.score - a.score))
+      const nextRows = parsed.flatMap((p) => p.rows).sort((a, b) => b.score - a.score)
+      setRows(nextRows)
+      setLastLoad(nextRows.length ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).` : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.')
     } catch (err) {
       console.error('[WP-SCOUT Comparator] parse failed:', err)
       setError(err?.message || String(err))
+      setLastLoad('Parse failed.')
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ''
@@ -212,15 +215,23 @@ export default function ToolComparerClean() {
           <span className="cmpCleanKicker">WP-SCOUT Comparator</span>
           <h1>SAP RCA Workspace</h1>
           <p>Bandingkan snapshot WP-SCOUT, temukan offender, lalu arsipkan evidence.</p>
+          {lastLoad ? <small className="cmpCleanLoadState">{lastLoad}</small> : null}
         </div>
         <div className="cmpCleanActions">
           <input ref={inputRef} hidden type="file" multiple accept=".log,.txt,.csv" onChange={(e) => ingest(e.target.files)} />
-          <button className="cmpCleanPrimary" type="button" onClick={() => inputRef.current?.click()} disabled={busy}>{busy ? 'Parsing…' : 'Upload Log'}</button>
+          <button className="cmpCleanPrimary" type="button" onClick={() => inputRef.current?.click()} disabled={busy}>{busy ? 'Parsing…' : 'Upload & Analyze'}</button>
         </div>
       </header>
 
       <div className="cmpCleanEvidence">
-        <EvidenceUploader tool="comparer" title="WP-SCOUT Comparator" note="Raw WP-SCOUT evidence archive." tags={['wp-scout', 'comparator', 'sap-rca']} accept=".log,.txt,.csv,.zip,.gz" />
+        <EvidenceUploader
+          tool="comparer"
+          title="WP-SCOUT Comparator"
+          note="Raw WP-SCOUT evidence archive. Upload here also analyzes the file."
+          tags={['wp-scout', 'comparator', 'sap-rca']}
+          accept=".log,.txt,.csv,.zip,.gz"
+          onFiles={ingest}
+        />
         <EvidenceHistory tool="comparer" limit={5} />
       </div>
 
