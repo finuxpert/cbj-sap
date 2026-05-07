@@ -12,6 +12,7 @@ import './comparer-rca-final.css'
 import './features/evidence/evidence.css'
 import './app/shell-overrides.css'
 import './app/rca-workspace.css'
+import './sap-dynatrace-rca.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
