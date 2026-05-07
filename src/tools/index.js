@@ -1,8 +1,8 @@
 import React from 'react'
 
 /**
- * RCA core tools only.
- * Fokus project saat ini: evidence/root-cause workflow, bukan helper deploy/backup/settings.
+ * SAP RCA Workspace core tools only.
+ * Fokus: Basis evidence, observability triage, RCA workflow.
  */
 
 const importers = {
@@ -12,9 +12,9 @@ const importers = {
 }
 
 const meta = [
-  { slug: 'comparer', title: 'WP-SCOUT Comparator', short: 'Compare work process snapshots and rank offenders', icon: '🧩' },
-  { slug: 'analyzer', title: 'ST03N Workload', short: 'Workload XLSX ranking and response-time analysis', icon: '📈' },
-  { slug: 'logs', title: 'System Log Triage', short: 'Group log patterns and prepare action notes', icon: '🧾' },
+  { slug: 'comparer', title: 'WP-SCOUT Monitor', short: 'Work process offender ranking, RSS, age, host pressure', icon: '🟢' },
+  { slug: 'analyzer', title: 'ST03N Workload RCA', short: 'Transaction workload, DB share, wait, response-time triage', icon: '📊' },
+  { slug: 'logs', title: 'SM21 / ST22 Log RCA', short: 'System log, dump pattern, correlation, action notes', icon: '🧾' },
 ]
 
 const lazyCache = new Map()
