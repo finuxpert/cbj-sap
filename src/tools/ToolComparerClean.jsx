@@ -12,6 +12,7 @@ import {
 } from 'recharts'
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
 import './ToolComparerClean.css'
+import './ToolComparerCleanVisual.css'
 
 const MAX_ROWS = 5000
 
