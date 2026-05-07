@@ -13,6 +13,7 @@ import {
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
 import './ToolComparerClean.css'
 import './ToolComparerCleanVisual.css'
+import './ToolComparerDynatrace.css'
 
 const MAX_ROWS = 5000
 
@@ -376,18 +377,34 @@ export default function ToolComparerClean() {
 
         <section className="cmpCleanPanel">
           <h2>Top Unique RSS</h2>
-          <div className="cmpCleanChart">
+          <div className="cmpCleanChart cmpCleanChartBars">
             {topRss.length ? (
-              <ResponsiveContainer width="100%" height="100%"><BarChart data={topRss}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" hide /><YAxis /><Tooltip /><Bar dataKey="rss" /></BarChart></ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topRss} margin={{ top: 28, right: 18, bottom: 8, left: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={false} axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} width={44} />
+                  <Tooltip />
+                  <Bar dataKey="rss" radius={[8, 8, 0, 0]} barSize={44} isAnimationActive animationDuration={900} />
+                </BarChart>
+              </ResponsiveContainer>
             ) : <EmptyChart />}
           </div>
         </section>
 
         <section className="cmpCleanPanel">
           <h2>Host Pressure</h2>
-          <div className="cmpCleanChart">
+          <div className="cmpCleanChart cmpCleanChartLine">
             {hostPressure.length ? (
-              <ResponsiveContainer width="100%" height="100%"><LineChart data={hostPressure}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="host" /><YAxis /><Tooltip /><Line type="monotone" dataKey="score" strokeWidth={2} /></LineChart></ResponsiveContainer>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={hostPressure} margin={{ top: 28, right: 20, bottom: 8, left: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="host" tickMargin={10} axisLine={false} tickLine={false} />
+                  <YAxis axisLine={false} tickLine={false} width={52} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="score" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} isAnimationActive animationDuration={950} />
+                </LineChart>
+              </ResponsiveContainer>
             ) : <EmptyChart label="No host pressure yet." />}
           </div>
         </section>
