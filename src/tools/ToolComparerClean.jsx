@@ -43,13 +43,23 @@ function sevRank(sev) {
 }
 
 function sevOf(row) {
-  if (row.rssGb >= 18 || row.ageHours >= 72 || row.cpu >= 90) return 'CRIT'
-  if (row.rssGb >= 10 || row.ageHours >= 24 || row.cpu >= 70) return 'WARN'
+  const rssGb = Number(row?.rssGb || 0)
+  const ageHours = Number(row?.ageHours || 0)
+  const cpu = Number(row?.cpu || 0)
+  const hits = Number(row?.hits || 1)
+
+  // Tuned triage rule:
+  // - Very high RSS stays critical.
+  // - Repeated 64GB+ offenders become critical only when they recur many times.
+  // - Long age / 70GB stale jobs become WARN by default, so the table does not mark everything critical.
+  if (rssGb >= 256 || cpu >= 95 || (rssGb >= 96 && ageHours >= 24) || (rssGb >= 64 && ageHours >= 24 && hits >= 10)) return 'CRIT'
+  if (rssGb >= 32 || ageHours >= 168 || cpu >= 70 || hits >= 5) return 'WARN'
   return 'OK'
 }
 
 function scoreOf(row) {
-  return Math.round((row.cpu * 0.35) + (row.rssGb * 4.2) + (Math.log1p(row.ageHours) * 18) + (row.severity === 'CRIT' ? 35 : row.severity === 'WARN' ? 16 : 0))
+  const severity = row.severity || sevOf(row)
+  return Math.round((row.cpu * 0.35) + (row.rssGb * 4.2) + (Math.log1p(row.ageHours) * 18) + (row.hits || 1) * 3 + (severity === 'CRIT' ? 35 : severity === 'WARN' ? 16 : 0))
 }
 
 function parseFileText(fileName, text) {
@@ -137,7 +147,10 @@ function uniqueOffenders(sourceRows) {
     const key = `${row.host}|${row.pid}|${row.type}|${row.job}`
     const cur = map.get(key)
     if (!cur) {
-      map.set(key, { ...row, hits: 1, maxRssGb: row.rssGb, maxAgeHours: row.ageHours })
+      const next = { ...row, hits: 1, maxRssGb: row.rssGb, maxAgeHours: row.ageHours }
+      next.severity = sevOf(next)
+      next.score = scoreOf(next)
+      map.set(key, next)
       continue
     }
     cur.hits += 1
@@ -146,8 +159,9 @@ function uniqueOffenders(sourceRows) {
     cur.rssGb = Math.max(cur.rssGb, row.rssGb)
     cur.ageHours = Math.max(cur.ageHours, row.ageHours)
     cur.ageRaw = fmtAge(cur.ageHours)
-    cur.score = Math.max(cur.score, row.score)
-    if (sevRank(row.severity) > sevRank(cur.severity)) cur.severity = row.severity
+    if (sevRank(row.severity) > sevRank(cur.sourceSeverity || 'OK')) cur.sourceSeverity = row.severity
+    cur.severity = sevOf(cur)
+    cur.score = scoreOf(cur)
   }
   return Array.from(map.values()).sort((a, b) => b.score - a.score || b.hits - a.hits)
 }
