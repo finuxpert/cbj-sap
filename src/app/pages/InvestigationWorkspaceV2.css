@@ -1,0 +1,180 @@
+.compactResult {
+  grid-template-columns: minmax(0, 1fr) 260px !important;
+  padding: 16px 20px !important;
+  margin-bottom: 12px !important;
+}
+
+.compactResult h1 {
+  font-size: clamp(22px, 3vw, 34px) !important;
+  line-height: 1.05 !important;
+  margin: 6px 0 !important;
+}
+
+.compactResult .investSteps span {
+  min-height: 30px;
+  padding: 7px 10px;
+}
+
+.overviewStack {
+  display: grid;
+  gap: 14px;
+}
+
+.groupGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.groupList,
+.whyBox ul,
+.evidenceColumns ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.groupList div,
+.whyBox li,
+.evidenceColumns li,
+.interpretationBox {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 14px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.groupList b,
+.groupList span,
+.groupList small {
+  display: block;
+}
+
+.groupList b {
+  color: rgba(248, 250, 252, 0.96);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupList span,
+.groupList small {
+  margin-top: 4px;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+}
+
+.detailHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.detailHead strong {
+  display: block;
+  font-size: 22px;
+  margin: 4px 0;
+  letter-spacing: -0.04em;
+}
+
+.detailScore {
+  min-width: 118px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  padding: 12px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.detailScore span,
+.detailScore b {
+  display: block;
+}
+
+.detailScore span {
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.detailScore b {
+  margin-top: 4px;
+  font-size: 28px;
+  letter-spacing: -0.08em;
+}
+
+.detailScore.crit {
+  border-color: rgba(255, 95, 126, 0.35);
+  background: rgba(255, 95, 126, 0.08);
+}
+
+.detailScore.warn {
+  border-color: rgba(255, 184, 107, 0.32);
+  background: rgba(255, 184, 107, 0.07);
+}
+
+.detailScore.info {
+  border-color: rgba(124, 227, 139, 0.28);
+  background: rgba(124, 227, 139, 0.06);
+}
+
+.whyBox,
+.evidenceColumns,
+.interpretationBox {
+  margin-top: 14px;
+}
+
+.whyBox h4,
+.evidenceColumns h4,
+.interpretationBox h4 {
+  margin: 0 0 8px;
+  color: #7ce38b;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.evidenceColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.evidenceColumns li:first-child,
+.whyBox li:first-child {
+  border-color: rgba(124, 227, 139, 0.23);
+}
+
+.interpretationBox p {
+  margin: 0;
+  color: rgba(203, 213, 225, 0.78);
+  line-height: 1.6;
+}
+
+.suspectList button {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  color: rgba(248, 250, 252, 0.92);
+}
+
+.suspectList button[data-active='true'] {
+  border-color: rgba(124, 227, 139, 0.46) !important;
+  background: rgba(124, 227, 139, 0.075) !important;
+  box-shadow: inset 3px 0 0 #7ce38b;
+}
+
+.rankGrid.oneWide {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 1180px) {
+  .groupGrid,
+  .evidenceColumns {
+    grid-template-columns: 1fr;
+  }
+}
