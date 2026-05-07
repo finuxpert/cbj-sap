@@ -8,14 +8,14 @@ import React from 'react'
 
 const importers = {
   comparer: () => import('./ToolComparerClean.jsx'),
-  analyzer: () => import('./ToolSt03nImpact.jsx'),
-  logs: () => import('./ToolLogEvidence.jsx'),
+  analyzer: () => import('./ToolSt03nImpactV2.jsx'),
+  logs: () => import('./ToolLogEvidenceV2.jsx'),
 }
 
 const meta = [
   { slug: 'comparer', title: 'WP-SCOUT Process', short: 'Process-level suspect detector: PID, WP, job, program, error, recurrence', icon: '🟢' },
-  { slug: 'analyzer', title: 'ST03N Impact', short: 'Workload impact validation: response, DB, wait, transaction/report ranking', icon: '📊' },
-  { slug: 'logs', title: 'Log Evidence', short: 'Error-family validation: SM21, ST22, dev_w, job log, WP-SCOUT errors', icon: '🧾' },
+  { slug: 'analyzer', title: 'ST03N Impact V2', short: 'Decision-first workload impact validation: response, DB, wait, completeness', icon: '📊' },
+  { slug: 'logs', title: 'Log Evidence V2', short: 'Decision-first error evidence: family, owner direction, job/program mapping', icon: '🧾' },
 ]
 
 const lazyCache = new Map()
