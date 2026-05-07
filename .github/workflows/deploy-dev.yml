@@ -24,6 +24,11 @@ jobs:
           git fetch origin main
           git reset --hard origin/main
 
+          # Previous manual/root builds may leave dist files owned by root/www-data.
+          # Normalize ownership and remove old Vite output before npm build.
+          sudo chown -R sadmin:sadmin /home/sadmin/sap
+          sudo rm -rf /home/sadmin/sap/dist
+
           npm install
           npm run build
 
