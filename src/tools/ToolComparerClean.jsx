@@ -10,7 +10,6 @@ import {
   LineChart,
   Line,
 } from 'recharts'
-import EvidenceUploader from '../features/evidence/EvidenceUploader.jsx'
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
 import './ToolComparerClean.css'
 
@@ -142,11 +141,43 @@ function MiniStat({ label, value, tone = '' }) {
   )
 }
 
+function FindingCard({ stats, topRow }) {
+  let title = 'No RCA evidence loaded'
+  let desc = 'Upload WP-SCOUT log untuk membaca work process, RSS, age, host pressure, dan offender queue.'
+  let tone = ''
+
+  if (stats.total) {
+    if (stats.crit > 0) {
+      tone = 'crit'
+      title = 'Critical offender detected'
+      desc = `${stats.crit} critical row(s). Top offender: ${topRow?.host || '-'} PID ${topRow?.pid || '-'} / ${topRow?.job || '-'}. Prioritaskan validasi SM50/SM66 dan job owner.`
+    } else if (stats.warn > 0) {
+      tone = 'warn'
+      title = 'Warning threshold reached'
+      desc = `${stats.warn} warning row(s). Review long-running WP, RSS growth, and recurring job pattern before escalation.`
+    } else {
+      tone = 'ok'
+      title = 'No critical offender'
+      desc = 'Tidak ada WP melewati threshold kritikal. Simpan evidence dan lanjut korelasi dengan ST03N/log jika symptom masih ada.'
+    }
+  }
+
+  return (
+    <section className={`cmpCleanFinding ${tone}`}>
+      <div>
+        <span>RCA finding</span>
+        <strong>{title}</strong>
+        <p>{desc}</p>
+      </div>
+    </section>
+  )
+}
+
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
   const [rows, setRows] = React.useState([])
   const [query, setQuery] = React.useState('')
-  const [onlyBad, setOnlyBad] = React.useState(true)
+  const [severityFilter, setSeverityFilter] = React.useState('BAD')
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
   const [lastLoad, setLastLoad] = React.useState('')
@@ -179,11 +210,13 @@ export default function ToolComparerClean() {
   const filteredRows = React.useMemo(() => {
     const q = query.trim().toLowerCase()
     return rows.filter((row) => {
-      if (onlyBad && row.severity === 'OK') return false
+      if (severityFilter === 'BAD' && row.severity === 'OK') return false
+      if (severityFilter === 'CRIT' && row.severity !== 'CRIT') return false
+      if (severityFilter === 'WARN' && row.severity !== 'WARN') return false
       if (!q) return true
       return `${row.host} ${row.pid} ${row.type} ${row.job} ${row.program} ${row.errorCode} ${row.fileName}`.toLowerCase().includes(q)
     })
-  }, [rows, query, onlyBad])
+  }, [rows, query, severityFilter])
 
   const stats = React.useMemo(() => {
     const crit = rows.filter((r) => r.severity === 'CRIT').length
@@ -194,6 +227,7 @@ export default function ToolComparerClean() {
     return { total: rows.length, crit, warn, hosts, maxRss, maxAge }
   }, [rows])
 
+  const topRow = rows[0] || null
   const topRss = React.useMemo(() => filteredRows.slice(0, 8).map((r) => ({ name: `${r.host}/${r.pid}`, rss: Number(r.rssGb.toFixed(2)), score: r.score })), [filteredRows])
   const hostPressure = React.useMemo(() => {
     const map = new Map()
@@ -214,7 +248,7 @@ export default function ToolComparerClean() {
         <div>
           <span className="cmpCleanKicker">WP-SCOUT Comparator</span>
           <h1>SAP RCA Workspace</h1>
-          <p>Bandingkan snapshot WP-SCOUT, temukan offender, lalu arsipkan evidence.</p>
+          <p>Upload WP-SCOUT log. Rank offender. Export RCA evidence.</p>
           {lastLoad ? <small className="cmpCleanLoadState">{lastLoad}</small> : null}
         </div>
         <div className="cmpCleanActions">
@@ -223,15 +257,11 @@ export default function ToolComparerClean() {
         </div>
       </header>
 
-      <div className="cmpCleanEvidence">
-        <EvidenceUploader
-          tool="comparer"
-          title="WP-SCOUT Comparator"
-          note="Raw WP-SCOUT evidence archive. Upload here also analyzes the file."
-          tags={['wp-scout', 'comparator', 'sap-rca']}
-          accept=".log,.txt,.csv,.zip,.gz"
-          onFiles={ingest}
-        />
+      <div className="cmpCleanTopRow">
+        <div className="cmpCleanDrop" onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}>
+          <strong>Drop / select WP-SCOUT log</strong>
+          <span>Accepted: .log, .txt, .csv. File akan langsung dianalisis di browser.</span>
+        </div>
         <EvidenceHistory tool="comparer" limit={5} />
       </div>
 
@@ -246,6 +276,8 @@ export default function ToolComparerClean() {
         <MiniStat label="Max Age" value={fmtAge(stats.maxAge)} />
       </div>
 
+      <FindingCard stats={stats} topRow={topRow} />
+
       <div className="cmpCleanGrid">
         <section className="cmpCleanPanel span2">
           <div className="cmpCleanPanelHead">
@@ -255,7 +287,11 @@ export default function ToolComparerClean() {
             </div>
             <div className="cmpCleanFilters">
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search host, PID, job, error…" />
-              <label><input type="checkbox" checked={onlyBad} onChange={(e) => setOnlyBad(e.target.checked)} /> Only bad</label>
+              <div className="cmpCleanSeg">
+                {['BAD', 'CRIT', 'WARN', 'ALL'].map((value) => (
+                  <button key={value} type="button" data-active={severityFilter === value} onClick={() => setSeverityFilter(value)}>{value}</button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="cmpCleanTableWrap">
@@ -270,7 +306,7 @@ export default function ToolComparerClean() {
                     <td>{row.host}</td><td>{row.pid}</td><td>{row.type}</td><td>{row.rssGb.toFixed(2)} GB</td><td>{row.ageRaw}</td><td title={row.job}>{row.job}</td><td>{row.score}</td>
                   </tr>
                 ))}
-                {!filteredRows.length ? <tr><td colSpan="8" className="cmpCleanEmpty">Upload WP-SCOUT log untuk mulai analisis.</td></tr> : null}
+                {!filteredRows.length ? <tr><td colSpan="8" className="cmpCleanEmpty">No rows for current filter.</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -290,7 +326,7 @@ export default function ToolComparerClean() {
           <div className="cmpCleanChart">
             {hostPressure.length ? (
               <ResponsiveContainer width="100%" height="100%"><LineChart data={hostPressure}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="host" /><YAxis /><Tooltip /><Line type="monotone" dataKey="score" strokeWidth={2} /></LineChart></ResponsiveContainer>
-            ) : <EmptyChart label="Belum ada host pressure." />}
+            ) : <EmptyChart label="No host pressure yet." />}
           </div>
         </section>
       </div>
