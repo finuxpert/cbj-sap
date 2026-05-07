@@ -1,3 +1,33 @@
+.toolEvidencePanel {
+  display: grid;
+  grid-template-columns: minmax(220px, .62fr) minmax(320px, 1fr) minmax(300px, .9fr);
+  gap: 12px;
+  align-items: stretch;
+  padding-block: 14px;
+}
+
+.toolEvidenceIntro {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(220,245,244,.11);
+  border-radius: var(--radius, 8px);
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018));
+  padding: 14px;
+}
+
+.toolEvidenceIntro strong {
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.toolEvidenceIntro small {
+  color: var(--muted, rgba(220,235,235,.72));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .evidenceUploader {
   display: flex;
   align-items: center;
@@ -41,7 +71,8 @@
 .evidenceHistory {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .evidenceHistoryHead {
@@ -53,12 +84,14 @@
 
 .evidenceHistoryHead h3 {
   margin: 4px 0 0;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .evidenceList {
   display: grid;
   gap: 8px;
+  max-height: 150px;
+  overflow: auto;
 }
 
 .evidenceItem {
@@ -78,6 +111,9 @@
 
 .evidenceItem strong {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .evidenceItem span,
@@ -91,6 +127,12 @@
   background: rgba(239,95,111,.10);
   border-radius: var(--radius-sm, 6px);
   padding: 9px 10px;
+}
+
+@media (max-width: 1120px) {
+  .toolEvidencePanel {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
