@@ -34,6 +34,12 @@ function fmtAge(hours = 0) {
   return `${Math.round(hours * 60)}m`
 }
 
+function sevRank(sev) {
+  if (sev === 'CRIT') return 3
+  if (sev === 'WARN') return 2
+  return 1
+}
+
 function sevOf(row) {
   if (row.rssGb >= 18 || row.ageHours >= 72 || row.cpu >= 90) return 'CRIT'
   if (row.rssGb >= 10 || row.ageHours >= 24 || row.cpu >= 70) return 'WARN'
@@ -47,7 +53,6 @@ function scoreOf(row) {
 function parseFileText(fileName, text) {
   const lines = String(text || '').replace(/\r/g, '').split('\n')
   const rows = []
-  const snapshots = []
   let host = 'UNKNOWN'
   let snapshot = ''
 
@@ -58,7 +63,6 @@ function parseFileText(fileName, text) {
     const snapMatch = line.match(/^snapshot\s*@\s*(.+)$/i)
     if (snapMatch) {
       snapshot = snapMatch[1].trim()
-      snapshots.push(snapshot)
       continue
     }
 
@@ -98,6 +102,7 @@ function parseFileText(fileName, text) {
 
     const row = {
       id: `${fileName}-${pid}-${rows.length}`,
+      hits: 1,
       fileName,
       snapshot,
       host,
@@ -121,7 +126,28 @@ function parseFileText(fileName, text) {
     if (rows.length >= MAX_ROWS) break
   }
 
-  return { fileName, snapshots, rows }
+  return { fileName, rows }
+}
+
+function uniqueOffenders(sourceRows) {
+  const map = new Map()
+  for (const row of sourceRows) {
+    const key = `${row.host}|${row.pid}|${row.type}|${row.job}`
+    const cur = map.get(key)
+    if (!cur) {
+      map.set(key, { ...row, hits: 1, maxRssGb: row.rssGb, maxAgeHours: row.ageHours })
+      continue
+    }
+    cur.hits += 1
+    cur.maxRssGb = Math.max(cur.maxRssGb || 0, row.rssGb)
+    cur.maxAgeHours = Math.max(cur.maxAgeHours || 0, row.ageHours)
+    cur.rssGb = Math.max(cur.rssGb, row.rssGb)
+    cur.ageHours = Math.max(cur.ageHours, row.ageHours)
+    cur.ageRaw = fmtAge(cur.ageHours)
+    cur.score = Math.max(cur.score, row.score)
+    if (sevRank(row.severity) > sevRank(cur.severity)) cur.severity = row.severity
+  }
+  return Array.from(map.values()).sort((a, b) => b.score - a.score || b.hits - a.hits)
 }
 
 async function readAsText(file) {
@@ -149,16 +175,16 @@ function FindingCard({ stats, topRow }) {
   if (stats.total) {
     if (stats.crit > 0) {
       tone = 'crit'
-      title = 'Critical offender detected'
-      desc = `${stats.crit} critical row(s). Top offender: ${topRow?.host || '-'} PID ${topRow?.pid || '-'} / ${topRow?.job || '-'}. Prioritaskan validasi SM50/SM66 dan job owner.`
+      title = 'Primary suspect identified'
+      desc = `${topRow?.host || '-'} / PID ${topRow?.pid || '-'} / ${topRow?.type || '-'} / ${topRow?.job || '-'}. Max RSS ${Number(topRow?.rssGb || 0).toFixed(1)} GB, hits ${topRow?.hits || 1}. Validate SM50/SM66, job owner, and memory pressure.`
     } else if (stats.warn > 0) {
       tone = 'warn'
       title = 'Warning threshold reached'
-      desc = `${stats.warn} warning row(s). Review long-running WP, RSS growth, and recurring job pattern before escalation.`
+      desc = `${stats.warn} warning offender(s). Review long-running WP, RSS growth, and recurring job pattern before escalation.`
     } else {
       tone = 'ok'
       title = 'No critical offender'
-      desc = 'Tidak ada WP melewati threshold kritikal. Simpan evidence dan lanjut korelasi dengan ST03N/log jika symptom masih ada.'
+      desc = 'Tidak ada WP melewati threshold kritikal. Simpan evidence dan korelasikan dengan ST03N/log jika symptom masih ada.'
     }
   }
 
@@ -173,11 +199,32 @@ function FindingCard({ stats, topRow }) {
   )
 }
 
+function ActionNotes({ topRow, hasData }) {
+  const actions = hasData && topRow
+    ? [
+        `SM50/SM66: validate PID ${topRow.pid} on ${topRow.host}.`,
+        `SM37/job owner: check ${topRow.job || '-'} schedule and owner.`,
+        'ST22/SM21: correlate dump/system log around same timestamp.',
+        'OS level: validate top/memory pressure and long-running process age.',
+      ]
+    : ['Upload WP-SCOUT log to generate Basis action notes.']
+
+  return (
+    <section className="cmpCleanActionsPanel">
+      <span>Recommended checks</span>
+      <ol>{actions.map((item) => <li key={item}>{item}</li>)}</ol>
+    </section>
+  )
+}
+
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
   const [rows, setRows] = React.useState([])
   const [query, setQuery] = React.useState('')
   const [severityFilter, setSeverityFilter] = React.useState('BAD')
+  const [viewMode, setViewMode] = React.useState('UNIQUE')
+  const [hostFilter, setHostFilter] = React.useState('ALL')
+  const [jobFilter, setJobFilter] = React.useState('ALL')
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
   const [lastLoad, setLastLoad] = React.useState('')
@@ -196,6 +243,8 @@ export default function ToolComparerClean() {
       }
       const nextRows = parsed.flatMap((p) => p.rows).sort((a, b) => b.score - a.score)
       setRows(nextRows)
+      setHostFilter('ALL')
+      setJobFilter('ALL')
       setLastLoad(nextRows.length ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).` : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.')
     } catch (err) {
       console.error('[WP-SCOUT Comparator] parse failed:', err)
@@ -207,40 +256,48 @@ export default function ToolComparerClean() {
     }
   }
 
+  const uniqueRows = React.useMemo(() => uniqueOffenders(rows), [rows])
+  const baseRows = viewMode === 'UNIQUE' ? uniqueRows : rows
+
+  const hostOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.host))).sort()], [rows])
+  const jobOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.job).filter(Boolean))).sort().slice(0, 80)], [rows])
+
   const filteredRows = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    return rows.filter((row) => {
+    return baseRows.filter((row) => {
+      if (hostFilter !== 'ALL' && row.host !== hostFilter) return false
+      if (jobFilter !== 'ALL' && row.job !== jobFilter) return false
       if (severityFilter === 'BAD' && row.severity === 'OK') return false
       if (severityFilter === 'CRIT' && row.severity !== 'CRIT') return false
       if (severityFilter === 'WARN' && row.severity !== 'WARN') return false
       if (!q) return true
       return `${row.host} ${row.pid} ${row.type} ${row.job} ${row.program} ${row.errorCode} ${row.fileName}`.toLowerCase().includes(q)
     })
-  }, [rows, query, severityFilter])
+  }, [baseRows, query, severityFilter, hostFilter, jobFilter])
 
   const stats = React.useMemo(() => {
-    const crit = rows.filter((r) => r.severity === 'CRIT').length
-    const warn = rows.filter((r) => r.severity === 'WARN').length
+    const crit = uniqueRows.filter((r) => r.severity === 'CRIT').length
+    const warn = uniqueRows.filter((r) => r.severity === 'WARN').length
     const hosts = new Set(rows.map((r) => r.host)).size
     const maxRss = Math.max(0, ...rows.map((r) => r.rssGb))
     const maxAge = Math.max(0, ...rows.map((r) => r.ageHours))
-    return { total: rows.length, crit, warn, hosts, maxRss, maxAge }
-  }, [rows])
+    return { total: uniqueRows.length, raw: rows.length, crit, warn, hosts, maxRss, maxAge }
+  }, [rows, uniqueRows])
 
-  const topRow = rows[0] || null
+  const topRow = uniqueRows[0] || null
   const topRss = React.useMemo(() => filteredRows.slice(0, 8).map((r) => ({ name: `${r.host}/${r.pid}`, rss: Number(r.rssGb.toFixed(2)), score: r.score })), [filteredRows])
   const hostPressure = React.useMemo(() => {
     const map = new Map()
-    for (const row of rows) {
+    for (const row of uniqueRows) {
       const cur = map.get(row.host) || { host: row.host, crit: 0, warn: 0, rss: 0, score: 0 }
       cur.crit += row.severity === 'CRIT' ? 1 : 0
       cur.warn += row.severity === 'WARN' ? 1 : 0
       cur.rss = Math.max(cur.rss, row.rssGb)
-      cur.score = Math.max(cur.score, row.score)
+      cur.score += row.score
       map.set(row.host, cur)
     }
     return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 8)
-  }, [rows])
+  }, [uniqueRows])
 
   return (
     <section className="cmpCleanShell">
@@ -260,7 +317,7 @@ export default function ToolComparerClean() {
       <div className="cmpCleanTopRow">
         <div className="cmpCleanDrop" onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}>
           <strong>Drop / select WP-SCOUT log</strong>
-          <span>Accepted: .log, .txt, .csv. File akan langsung dianalisis di browser.</span>
+          <span>Accepted: .log, .txt, .csv. Default view groups duplicate rows into unique offenders.</span>
         </div>
         <EvidenceHistory tool="comparer" limit={5} />
       </div>
@@ -268,52 +325,56 @@ export default function ToolComparerClean() {
       {error ? <div className="cmpCleanError">{error}</div> : null}
 
       <div className="cmpCleanStats">
-        <MiniStat label="Rows" value={stats.total} />
+        <MiniStat label="Unique" value={stats.total} />
+        <MiniStat label="Raw Rows" value={stats.raw} />
         <MiniStat label="Critical" value={stats.crit} tone="crit" />
         <MiniStat label="Warning" value={stats.warn} tone="warn" />
         <MiniStat label="Hosts" value={stats.hosts} />
         <MiniStat label="Max RSS" value={`${stats.maxRss.toFixed(1)} GB`} />
-        <MiniStat label="Max Age" value={fmtAge(stats.maxAge)} />
       </div>
 
       <FindingCard stats={stats} topRow={topRow} />
+      <ActionNotes topRow={topRow} hasData={Boolean(rows.length)} />
 
       <div className="cmpCleanGrid">
         <section className="cmpCleanPanel span2">
           <div className="cmpCleanPanelHead">
             <div>
               <h2>Offender Queue</h2>
-              <p>Sorted by impact score.</p>
+              <p>{viewMode === 'UNIQUE' ? 'Unique offenders by host + PID + job.' : 'Raw WP rows.'}</p>
             </div>
             <div className="cmpCleanFilters">
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search host, PID, job, error…" />
+              <select value={hostFilter} onChange={(e) => setHostFilter(e.target.value)}>{hostOptions.map((host) => <option key={host}>{host}</option>)}</select>
+              <select value={jobFilter} onChange={(e) => setJobFilter(e.target.value)}>{jobOptions.map((job) => <option key={job}>{job}</option>)}</select>
               <div className="cmpCleanSeg">
-                {['BAD', 'CRIT', 'WARN', 'ALL'].map((value) => (
-                  <button key={value} type="button" data-active={severityFilter === value} onClick={() => setSeverityFilter(value)}>{value}</button>
-                ))}
+                {['UNIQUE', 'RAW'].map((value) => <button key={value} type="button" data-active={viewMode === value} onClick={() => setViewMode(value)}>{value}</button>)}
+              </div>
+              <div className="cmpCleanSeg">
+                {['BAD', 'CRIT', 'WARN', 'ALL'].map((value) => <button key={value} type="button" data-active={severityFilter === value} onClick={() => setSeverityFilter(value)}>{value}</button>)}
               </div>
             </div>
           </div>
           <div className="cmpCleanTableWrap">
             <table className="cmpCleanTable">
               <thead>
-                <tr><th>SEV</th><th>HOST</th><th>PID</th><th>TYPE</th><th>RSS</th><th>AGE</th><th>JOB</th><th>SCORE</th></tr>
+                <tr><th>SEV</th><th>HOST</th><th>PID</th><th>TYPE</th><th>RSS</th><th>AGE</th><th>JOB</th><th>HITS</th><th>SCORE</th></tr>
               </thead>
               <tbody>
                 {filteredRows.slice(0, 200).map((row) => (
                   <tr key={row.id}>
                     <td><span className={`cmpCleanBadge ${row.severity.toLowerCase()}`}>{row.severity}</span></td>
-                    <td>{row.host}</td><td>{row.pid}</td><td>{row.type}</td><td>{row.rssGb.toFixed(2)} GB</td><td>{row.ageRaw}</td><td title={row.job}>{row.job}</td><td>{row.score}</td>
+                    <td>{row.host}</td><td>{row.pid}</td><td>{row.type}</td><td>{row.rssGb.toFixed(2)} GB</td><td>{row.ageRaw}</td><td title={row.job}>{row.job}</td><td>{row.hits || 1}</td><td>{row.score}</td>
                   </tr>
                 ))}
-                {!filteredRows.length ? <tr><td colSpan="8" className="cmpCleanEmpty">No rows for current filter.</td></tr> : null}
+                {!filteredRows.length ? <tr><td colSpan="9" className="cmpCleanEmpty">No rows for current filter.</td></tr> : null}
               </tbody>
             </table>
           </div>
         </section>
 
         <section className="cmpCleanPanel">
-          <h2>Top RSS</h2>
+          <h2>Top Unique RSS</h2>
           <div className="cmpCleanChart">
             {topRss.length ? (
               <ResponsiveContainer width="100%" height="100%"><BarChart data={topRss}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" hide /><YAxis /><Tooltip /><Bar dataKey="rss" /></BarChart></ResponsiveContainer>
