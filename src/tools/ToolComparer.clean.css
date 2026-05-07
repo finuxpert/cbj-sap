@@ -1,30 +1,26 @@
 /* Comparator clean layer
-   Loaded after ToolComparer.css so it wins lazy CSS order.
+   Loaded globally after all legacy CSS.
    No JS patching. No DOM injector. */
 
-/* Remove old floating section shortcut overlay. */
-.cmpWrap .cmpSectionNav,
-.cmpWrap.cmpV2 .cmpSectionNav,
-.cmpWrap .cmpRestoreBar,
-.cmpWrap.cmpV2 .cmpRestoreBar,
-.cmpWrap .cmpSectionNav *,
-.cmpWrap .cmpRestoreBar *,
-.cmpWrap [class*="SectionNav"],
-.cmpWrap [class*="sectionNav"],
-.cmpWrap [class*="JumpNav"],
-.cmpWrap [class*="jumpNav"],
-.cmpWrap [class*="Restore"],
-.cmpWrap [class*="restore"],
-.cmpWrap [class*="Shortcut"],
-.cmpWrap [class*="shortcut"],
-.cmpWrap [class*="QuickNav"],
-.cmpWrap [class*="quickNav"],
-.cmpWrap [class*="MiniNav"],
-.cmpWrap [class*="miniNav"],
-.cmpWrap [class*="Floating"],
-.cmpWrap [class*="floating"],
-.cmpWrap [class*="AnchorNav"],
-.cmpWrap [class*="anchorNav"] {
+/* Remove old floating shortcut overlays. */
+.cmpSectionNav,
+.cmpRestoreBar,
+[class*="SectionNav"],
+[class*="sectionNav"],
+[class*="JumpNav"],
+[class*="jumpNav"],
+[class*="Restore"],
+[class*="restore"],
+[class*="Shortcut"],
+[class*="shortcut"],
+[class*="QuickNav"],
+[class*="quickNav"],
+[class*="MiniNav"],
+[class*="miniNav"],
+[class*="Floating"],
+[class*="floating"],
+[class*="AnchorNav"],
+[class*="anchorNav"] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -42,44 +38,112 @@
   overflow: hidden !important;
 }
 
-/* Direct anchor cleanup for the visible old shortcuts. */
-.cmpWrap a[href*="snapshots"],
-.cmpWrap a[href*="offenders"],
-.cmpWrap a[href*="summary"],
-.cmpWrap a[href*="charts"],
-.cmpWrap a[href*="topwp"],
-.cmpWrap a[href*="top-wp"],
-.cmpWrap a[href$="#top"],
-.cmpWrap a[href$="top"] {
+/* Direct cleanup for visible legacy section links. */
+a[href*="snapshots"],
+a[href*="offenders"],
+a[href*="summary"],
+a[href*="charts"],
+a[href*="topwp"],
+a[href*="top-wp"],
+a[href$="#top"],
+a[href$="top"] {
   display: none !important;
 }
 
-/* If a wrapper only contains those anchors, collapse common nav containers. */
-.cmpWrap nav,
-.cmpWrap aside[aria-label*="nav" i],
-.cmpWrap div[aria-label*="nav" i] {
+/* Comparator: remove the split-screen blank area and make panels readable. */
+.appShell.isTool main,
+.appShell.isTool .fullBleed,
+.cmpWrap,
+.cmpWrap.cmpV2 {
+  width: 100% !important;
+  max-width: 100vw !important;
+  min-height: calc(100vh - 58px) !important;
+  overflow-x: hidden !important;
+}
+
+.cmpMain,
+.cmpMain.is-left-collapsed,
+.cmpMain.is-center-collapsed,
+.cmpMain.is-left-collapsed.is-center-collapsed {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(280px, .9fr) minmax(520px, 1.7fr) minmax(360px, 1fr) !important;
+  gap: 12px !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+}
+
+.cmpColLeft,
+.cmpColCenter,
+.cmpColRight {
+  display: flex !important;
+  min-width: 0 !important;
   max-width: 100% !important;
 }
 
-/* Cleaner empty states and panel spacing. */
+.panel,
+.chartBox,
+.cmpVt,
+.tableWrap {
+  border-radius: 12px !important;
+}
+
+.chartBox,
+.chartBoxSmall {
+  min-height: 240px !important;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(45,212,191,.07), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12)) !important;
+}
+
+.chartBox:empty::before,
+.chartBoxSmall:empty::before {
+  content: 'Upload log untuk menampilkan chart';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(220,238,238,.58);
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .cmpVtEmpty,
 .tableEmpty,
 .emptyState {
   color: rgba(220, 238, 238, .72) !important;
   font-size: 12px !important;
-  font-weight: 800 !important;
+  font-weight: 850 !important;
 }
 
-/* Keep comparator inside viewport. */
-.cmpWrap,
-.cmpWrap.cmpV2,
-.cmpMain {
-  width: 100% !important;
-  max-width: 100vw !important;
-  overflow-x: hidden !important;
+/* Compact PDF dock: single clean action. */
+.sapPdfDock {
+  position: fixed !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  left: auto !important;
+  z-index: 80 !important;
+  width: auto !important;
+  max-width: 240px !important;
+  padding: 8px !important;
+  border-radius: 999px !important;
+  background: rgba(5,18,18,.9) !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,.38) !important;
 }
 
-/* Stronger visual hierarchy. */
+.sapPdfDock button {
+  min-height: 34px !important;
+  border-radius: 999px !important;
+  padding: 7px 12px !important;
+  white-space: nowrap !important;
+}
+
+.sapPdfDock span {
+  display: none !important;
+}
+
+/* Cleaner technical naming via visual polish. */
 .cmpTitle {
   letter-spacing: -.02em !important;
 }
@@ -87,4 +151,21 @@
 .panelTitle,
 .panelTitleSm {
   letter-spacing: -.01em !important;
+}
+
+@media (max-width: 1280px) {
+  .cmpMain,
+  .cmpMain.is-left-collapsed,
+  .cmpMain.is-center-collapsed,
+  .cmpMain.is-left-collapsed.is-center-collapsed {
+    grid-template-columns: 1fr !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .sapPdfDock {
+    right: 10px !important;
+    bottom: 10px !important;
+  }
 }
