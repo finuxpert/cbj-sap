@@ -1,0 +1,22 @@
+/* Static shell/tool overrides only.
+   Keep this file CSS-only: no runtime DOM injection, MutationObserver, or delayed JS patching. */
+
+.cmpWrap .cmpSectionNav,
+.cmpWrap.cmpV2 .cmpSectionNav,
+.cmpWrap [class*="SectionNav"],
+.cmpWrap [class*="sectionNav"],
+.cmpWrap [class*="JumpNav"],
+.cmpWrap [class*="jumpNav"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
