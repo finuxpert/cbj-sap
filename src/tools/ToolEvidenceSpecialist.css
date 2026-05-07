@@ -12,7 +12,8 @@
 
 .evidenceHero,
 .sessionBanner,
-.evidencePanel {
+.evidencePanel,
+.decisionCard {
   border: 1px solid rgba(148, 163, 184, 0.18);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.018)),
@@ -29,6 +30,11 @@
   align-items: center;
   padding: 24px;
   margin-bottom: 14px;
+}
+
+.compactEvidenceHero {
+  padding: 18px 20px;
+  grid-template-columns: minmax(0, 1fr) 210px;
 }
 
 .evidenceHero span,
@@ -52,6 +58,10 @@
   color: transparent;
 }
 
+.compactEvidenceHero h1 {
+  font-size: clamp(26px, 3vw, 42px);
+}
+
 .evidenceHero p,
 .evidencePanel p,
 .sessionBanner span,
@@ -59,7 +69,9 @@
 .evidenceList span,
 .evidenceList small,
 .statusList span,
-.confidenceRows span {
+.confidenceRows span,
+.decisionCard small,
+.decisionCard span {
   color: rgba(203, 213, 225, 0.74);
 }
 
@@ -84,6 +96,55 @@
   padding: 14px 18px;
   margin-bottom: 14px;
   border-color: rgba(90, 176, 255, 0.24);
+}
+
+.decisionBoard {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.decisionCard {
+  display: grid;
+  gap: 7px;
+  min-height: 134px;
+  padding: 16px;
+  border-radius: 20px;
+}
+
+.decisionCard.good {
+  border-color: rgba(124, 227, 139, 0.32);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(124, 227, 139, 0.10), transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.018)),
+    rgba(16, 22, 26, 0.94);
+}
+
+.decisionCard.blue {
+  border-color: rgba(90, 176, 255, 0.28);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(90, 176, 255, 0.10), transparent 40%),
+    linear-gradient(180deg, rgba(255,255,255,0.052), rgba(255,255,255,0.018)),
+    rgba(16, 22, 26, 0.94);
+}
+
+.decisionCard span {
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.decisionCard b {
+  font-size: clamp(18px, 2vw, 28px);
+  letter-spacing: -0.05em;
+  color: rgba(248, 250, 252, 0.96);
+  overflow-wrap: anywhere;
+}
+
+.decisionCard small {
+  line-height: 1.45;
 }
 
 .evidenceGrid {
@@ -161,6 +222,11 @@
   min-height: 380px;
 }
 
+.refinedTool .evidencePanel:hover,
+.refinedTool .decisionCard:hover {
+  border-color: rgba(124, 227, 139, 0.30);
+}
+
 .evidenceToolShell .recharts-cartesian-grid line { stroke: rgba(148, 163, 184, 0.24); stroke-dasharray: 2 8; }
 .evidenceToolShell .recharts-text { fill: rgba(224,242,241,0.68); font-size: 11px; }
 .evidenceToolShell .recharts-default-tooltip { border: 1px solid rgba(124,227,139,0.28) !important; border-radius: 12px !important; background: rgba(8,12,15,.96) !important; color: #f8fffd !important; }
@@ -169,7 +235,8 @@
   .evidenceHero,
   .evidenceGrid,
   .evidenceGrid.wide,
-  .evidenceGrid.triple {
+  .evidenceGrid.triple,
+  .decisionBoard {
     grid-template-columns: 1fr;
   }
 
