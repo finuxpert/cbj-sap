@@ -8,13 +8,15 @@ import About from './app/pages/About.jsx'
 import Contact from './app/pages/Contact.jsx'
 import NotFound from './app/pages/NotFound.jsx'
 import ToolExportDock from './features/pdf/ToolExportDock.jsx'
+import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
 
-const APP_BUILD_STAMP = 'sap-20260507-modular-shell'
+const APP_BUILD_STAMP = 'sap-20260507-log-evidence-panel'
 
 export default function App() {
   const route = useRoute()
   const tool = route.name === 'tool' ? tools.find((t) => t.slug === route.slug) : null
   const ActiveTool = tool ? tool.Component : null
+  const showEvidencePanel = route.name === 'tool' && route.slug === 'logs'
 
   return (
     <div className={`appShell ${route.name === 'tool' ? 'isTool' : ''}`} data-build={APP_BUILD_STAMP}>
@@ -25,6 +27,7 @@ export default function App() {
         {route.name === 'contact' && <Contact />}
         {route.name === 'tool' && ActiveTool && (
           <React.Suspense fallback={<section className="container section"><div className="card">Loading SAP RCA module…</div></section>}>
+            {showEvidencePanel && <ToolEvidencePanel tool={route.slug} />}
             <div className="fullBleed"><ActiveTool /></div>
             <ToolExportDock slug={route.slug} />
           </React.Suspense>
