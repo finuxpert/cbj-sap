@@ -5,53 +5,37 @@ on:
     workflows: ["Build SAP RCA Workspace"]
     types:
       - completed
+  workflow_dispatch:
 
 jobs:
   deploy-dev:
     name: Deploy to sapdev
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
-    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: [self-hosted, sapdev]
 
     steps:
-      - name: Prepare SSH key
+      - name: Deploy locally on DEV runner
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          printf '%s\n' "${{ secrets.DEV_SSH_KEY }}" > ~/.ssh/cbj_sap_dev_deploy
-          chmod 600 ~/.ssh/cbj_sap_dev_deploy
 
-      - name: Add DEV host to known_hosts
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh-keyscan -p "${{ secrets.DEV_PORT }}" -H "${{ secrets.DEV_HOST }}" >> ~/.ssh/known_hosts
+          cd /home/sadmin/sap
 
-      - name: Deploy build to DEV server
-        shell: bash
-        run: |
-          set -euo pipefail
-          ssh -i ~/.ssh/cbj_sap_dev_deploy -p "${{ secrets.DEV_PORT }}" "${{ secrets.DEV_USER }}@${{ secrets.DEV_HOST }}" 'bash -se' <<'REMOTE'
-            set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
 
-            cd /home/sadmin/sap
+          npm install
+          npm run build
 
-            git fetch origin main
-            git reset --hard origin/main
+          sudo rm -rf /var/www/svr01-dev/sap/*
+          sudo cp -rv dist/* /var/www/svr01-dev/sap/
 
-            npm install
-            npm run build
+          sudo chown -R www-data:www-data /var/www/svr01-dev/sap
+          sudo find /var/www/svr01-dev/sap -type d -exec chmod 755 {} \;
+          sudo find /var/www/svr01-dev/sap -type f -exec chmod 644 {} \;
 
-            sudo rm -rf /var/www/svr01-dev/sap/*
-            sudo cp -rv dist/* /var/www/svr01-dev/sap/
+          sudo nginx -t
+          sudo systemctl reload nginx
 
-            sudo chown -R www-data:www-data /var/www/svr01-dev/sap
-            sudo find /var/www/svr01-dev/sap -type d -exec chmod 755 {} \;
-            sudo find /var/www/svr01-dev/sap -type f -exec chmod 644 {} \;
-
-            sudo nginx -t
-            sudo systemctl reload nginx
-
-            curl -f http://127.0.0.1:8090/health
-          REMOTE
+          curl -f http://127.0.0.1:8090/health
+          curl -f https://sapdev.cbj-kontruksi.com/sap-api/health
