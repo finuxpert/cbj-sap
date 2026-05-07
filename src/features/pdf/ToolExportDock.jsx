@@ -5,14 +5,13 @@ export default function ToolExportDock({ slug }) {
   const [busy, setBusy] = React.useState(false)
   if (!['comparer', 'analyzer', 'logs'].includes(slug)) return null
 
-  const label = slug === 'comparer' ? 'Comparator PDF' : slug === 'analyzer' ? 'ST03N PDF' : 'Logs PDF'
   const exportPdf = async () => {
     if (busy) return
     setBusy(true)
     try {
       await exportStructuredPdf(slug)
     } catch (err) {
-      console.error('[SAP PDF Export] failed:', err)
+      console.error('[PDF Export] failed:', err)
       window.print()
     } finally {
       setBusy(false)
@@ -21,8 +20,7 @@ export default function ToolExportDock({ slug }) {
 
   return (
     <div className="sapPdfDock">
-      <button type="button" onClick={exportPdf} disabled={busy}>{busy ? 'Preparing PDF…' : `Export ${label}`}</button>
-      <span>Structured RCA report</span>
+      <button type="button" onClick={exportPdf} disabled={busy}>{busy ? 'Preparing…' : 'Export PDF'}</button>
     </div>
   )
 }
