@@ -6,15 +6,15 @@ import React from 'react'
  */
 
 const importers = {
-  comparer: () => import('./ToolComparer.jsx'),
+  comparer: () => import('./ToolComparerClean.jsx'),
   analyzer: () => import('./ToolAnalyzer.jsx'),
   logs: () => import('./ToolLogs.jsx'),
 }
 
 const meta = [
-  { slug: 'comparer', title: 'RCA Comparator', short: 'Daily Check / WP-SCOUT root-cause evidence', icon: '🧩' },
-  { slug: 'analyzer', title: 'ST03N Analyzer', short: 'Workload XLSX analyzer & offender ranking', icon: '📈' },
-  { slug: 'logs', title: 'Log Triage', short: 'Log evidence viewer & action notes', icon: '🧾' },
+  { slug: 'comparer', title: 'WP-SCOUT Comparator', short: 'Compare work process snapshots and rank offenders', icon: '🧩' },
+  { slug: 'analyzer', title: 'ST03N Workload', short: 'Workload XLSX ranking and response-time analysis', icon: '📈' },
+  { slug: 'logs', title: 'System Log Triage', short: 'Group log patterns and prepare action notes', icon: '🧾' },
 ]
 
 const lazyCache = new Map()
