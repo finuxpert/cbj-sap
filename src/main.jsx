@@ -9,6 +9,7 @@ import './sapdev-final-force.css'
 import './sap-intelligent-ux.css'
 import './sap-intelligent-investigation.css'
 import './comparer-rca-final.css'
+import './features/evidence/evidence.css'
 import './app/shell-overrides.css'
 
 createRoot(document.getElementById('root')).render(
