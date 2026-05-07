@@ -1,0 +1,39 @@
+.evidenceToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.evidenceToolbar button {
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  padding: 0 13px;
+  color: rgba(248, 250, 252, 0.90);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.evidenceToolbar button:hover:not(:disabled) {
+  border-color: rgba(124, 227, 139, 0.38);
+  background: rgba(124, 227, 139, 0.07);
+}
+
+.evidenceToolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.emptyState ol {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  color: rgba(203, 213, 225, 0.74);
+  line-height: 1.8;
+}
+
+.emptyState p {
+  margin-top: 0;
+}
