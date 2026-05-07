@@ -1,7 +1,7 @@
 /* Static shell/tool overrides only.
    CSS-only. No runtime DOM injection, MutationObserver, or delayed JS patching. */
 
-/* Hide old Comparator shortcut/restore navigation that creates a large floating pill. */
+/* Hide old Comparator shortcut / restore / quick navigation overlays. */
 .cmpWrap .cmpSectionNav,
 .cmpWrap.cmpV2 .cmpSectionNav,
 .cmpWrap .cmpRestoreBar,
@@ -11,7 +11,17 @@
 .cmpWrap [class*="JumpNav"],
 .cmpWrap [class*="jumpNav"],
 .cmpWrap [class*="RestoreBar"],
-.cmpWrap [class*="restoreBar"] {
+.cmpWrap [class*="restoreBar"],
+.cmpWrap [class*="Shortcut"],
+.cmpWrap [class*="shortcut"],
+.cmpWrap [class*="QuickNav"],
+.cmpWrap [class*="quickNav"],
+.cmpWrap [class*="MiniNav"],
+.cmpWrap [class*="miniNav"],
+.cmpWrap [class*="FloatingNav"],
+.cmpWrap [class*="floatingNav"],
+.cmpWrap [class*="Toc"],
+.cmpWrap [class*="toc"] {
   display: none !important;
   visibility: hidden !important;
   pointer-events: none !important;
@@ -27,6 +37,16 @@
   box-shadow: none !important;
   overflow: hidden !important;
   opacity: 0 !important;
+}
+
+/* Last-resort cleanup for the oversized oval shortcut overlay. */
+.cmpWrap a[href^="#snapshots"],
+.cmpWrap a[href^="#offenders"],
+.cmpWrap a[href^="#summary"],
+.cmpWrap a[href^="#charts"],
+.cmpWrap a[href^="#topwp"],
+.cmpWrap a[href="#top"] {
+  display: none !important;
 }
 
 /* Keep tool pages inside viewport width. */
