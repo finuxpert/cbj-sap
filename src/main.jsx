@@ -9,7 +9,8 @@ import './sapdev-comparer-fix.css'
 // Keep src/sapdev-premium-overhaul.css for quick rollback if sapdev QA finds regression.
 // Legacy force layer intentionally not imported anymore.
 // Keep src/sapdev-final-force.css for quick rollback if sapdev QA finds regression.
-import './sap-intelligent-ux.css'
+// Legacy SAP intelligent UX override intentionally not imported anymore.
+// Keep src/sap-intelligent-ux.css for quick rollback if sapdev QA finds regression.
 import './sap-intelligent-investigation.css'
 // disabled: aggressive legacy comparer override
 import './features/evidence/evidence.css'
