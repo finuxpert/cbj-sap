@@ -1,5 +1,6 @@
 import React from 'react'
 import { getMobileCase } from '../../evidence-api-client.js'
+import { exportCaseDetailPdf } from '../../features/cases/casePdfExport.js'
 
 function formatDate(value) {
   if (!value) return '-'
@@ -90,6 +91,7 @@ function EvidenceList({ items = [] }) {
 export default function CaseDetail({ caseId }) {
   const [caseData, setCaseData] = React.useState(null)
   const [loading, setLoading] = React.useState(true)
+  const [exporting, setExporting] = React.useState(false)
   const [error, setError] = React.useState('')
 
   const loadCase = React.useCallback(async () => {
@@ -112,6 +114,19 @@ export default function CaseDetail({ caseId }) {
     loadCase()
   }, [loadCase])
 
+  const exportPdf = React.useCallback(async () => {
+    if (!caseData || exporting) return
+    setExporting(true)
+    try {
+      await exportCaseDetailPdf(caseData)
+    } catch (err) {
+      console.error('[Case Detail PDF] failed:', err)
+      window.print()
+    } finally {
+      setExporting(false)
+    }
+  }, [caseData, exporting])
+
   const topProblem = caseData?.top_problem || {}
   const summary = caseData?.executive_summary || caseData?.summary || 'No management summary saved yet.'
 
@@ -119,9 +134,14 @@ export default function CaseDetail({ caseId }) {
     <section className="caseDetailPage container section">
       <div className="caseDetailBackRow">
         <a href="#/cases">← Back to Case History</a>
-        <button className="btn" type="button" onClick={loadCase} disabled={loading}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="caseDetailActions">
+          <button className="btn" type="button" onClick={loadCase} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button className="btn primary" type="button" onClick={exportPdf} disabled={loading || exporting || !caseData}>
+            {exporting ? 'Preparing PDF…' : 'Export PDF'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="caseHistoryNotice isError">{error}</div>}
