@@ -5,7 +5,8 @@ import './index.css'
 // Legacy base sapdev polish intentionally not imported anymore.
 // Keep src/sapdev-polish.css for quick rollback if sapdev QA finds regression.
 import './sapdev-comparer-fix.css'
-import './sapdev-premium-overhaul.css'
+// Legacy premium overhaul intentionally not imported anymore.
+// Keep src/sapdev-premium-overhaul.css for quick rollback if sapdev QA finds regression.
 // Legacy force layer intentionally not imported anymore.
 // Keep src/sapdev-final-force.css for quick rollback if sapdev QA finds regression.
 import './sap-intelligent-ux.css'
