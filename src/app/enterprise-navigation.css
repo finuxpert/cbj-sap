@@ -96,7 +96,7 @@
 }
 
 .mobilePanelTitle {
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   color: rgba(235, 250, 248, 0.82);
   font-size: 12px;
   font-weight: 950;
@@ -105,12 +105,97 @@
 }
 
 .mobileNavDock .mobilePanel {
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  border-radius: 22px;
+  background: rgba(7, 16, 19, 0.96);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(18px);
+  padding: 14px;
 }
 
-.mobileNavDock .btn {
-  flex: 1 1 150px;
+.mobilePanelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.mobilePanelHead p {
+  margin: 0;
+  color: rgba(220, 238, 238, 0.68);
+  font-size: 12px;
+}
+
+.mobilePanelClose {
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(214, 242, 240, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(250, 255, 253, 0.92);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.mobileMenuGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.mobileMenuItem {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid rgba(214, 242, 240, 0.10);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  text-decoration: none;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
+}
+
+.mobileMenuItem strong {
+  display: block;
+  color: rgba(250, 255, 253, 0.96);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.mobileMenuItem span {
+  display: block;
+  color: rgba(220, 238, 238, 0.66);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.mobileMenuItem:hover,
+.mobileMenuItem[data-active="true"] {
+  border-color: rgba(45, 212, 191, 0.32);
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.12), rgba(56, 189, 248, 0.06));
+  transform: translateY(-1px);
+}
+
+.mobileMenuFooter {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mobileMenuFooter a {
+  flex: 1 1 auto;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  border-radius: 14px;
+  border: 1px solid rgba(214, 242, 240, 0.10);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(250, 255, 253, 0.92);
+  text-decoration: none;
+}
+
+.mobileMenuFooter a[data-active="true"] {
+  border-color: rgba(45, 212, 191, 0.28);
+  background: rgba(45, 212, 191, 0.10);
 }
 
 .appShell.isTool .navbar {
@@ -125,7 +210,6 @@
   background: linear-gradient(135deg, rgba(45, 212, 191, 0.26), rgba(56, 189, 248, 0.12));
 }
 
-/* Compact topbar before it wraps awkwardly */
 @media (max-width: 1180px) {
   .rcaBrand {
     min-width: 190px;
@@ -194,7 +278,17 @@
     min-height: 56px;
   }
 
-  .mobileNavDock .btn {
-    flex-basis: 100%;
+  .mobileNavDock {
+    left: 8px;
+    right: 8px;
+  }
+
+  .mobileNavDock .mobilePanel {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .mobileMenuFooter {
+    flex-direction: column;
   }
 }
