@@ -12,7 +12,6 @@ export default defineConfig({
       output: {
         // Split heavy libs so initial load is lighter and caching is better
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
           recharts: ['recharts'],
         },
       },
