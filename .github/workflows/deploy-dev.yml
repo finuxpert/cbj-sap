@@ -3,10 +3,6 @@ name: Deploy SAP RCA Workspace to DEV
 on:
   push:
     branches: [dev]
-  workflow_run:
-    workflows: ["Build SAP RCA Workspace"]
-    types:
-      - completed
   workflow_dispatch:
 
 concurrency:
@@ -16,7 +12,6 @@ concurrency:
 jobs:
   deploy-dev:
     name: Deploy to sapdev
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev') }}
     runs-on: [self-hosted, sapdev]
 
     steps:
