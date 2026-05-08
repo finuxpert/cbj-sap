@@ -70,50 +70,50 @@ export default function Navbar() {
         >
           {mobileOpen ? '×' : '☰'}
         </button>
+      </div>
 
-        {mobileOpen && (
-          <div className="mobileNavDock rcaMobileMenu" role="dialog" aria-label="Mobile navigation menu">
-            <div className="mobilePanel">
-              <div className="mobilePanelHead">
-                <div>
-                  <div className="mobilePanelTitle">SAP RCA Workspace</div>
-                  <p>Quick access RCA tools</p>
-                </div>
-                <button className="mobilePanelClose" type="button" onClick={closeMobile} aria-label="Close menu">×</button>
+      {mobileOpen && (
+        <div className="mobileNavDock rcaMobileMenu" role="dialog" aria-label="Mobile navigation menu">
+          <div className="mobilePanel">
+            <div className="mobilePanelHead">
+              <div>
+                <div className="mobilePanelTitle">SAP RCA Workspace</div>
+                <p>Quick access RCA tools</p>
               </div>
+              <button className="mobilePanelClose" type="button" onClick={closeMobile} aria-label="Close menu">×</button>
+            </div>
 
-              <div className="mobileMenuGroup">
-                <a className="mobileMenuItem" href="#/" data-active={active('/')} onClick={closeMobile}>
-                  <strong>Dashboard</strong>
-                  <span>Upload evidence pack & incident workflow</span>
+            <div className="mobileMenuGroup">
+              <a className="mobileMenuItem" href="#/" data-active={active('/')} onClick={closeMobile}>
+                <strong>Dashboard</strong>
+                <span>Upload evidence pack & incident workflow</span>
+              </a>
+              <a className="mobileMenuItem" href="#/cases" data-active={active('/cases')} onClick={closeMobile}>
+                <strong>Case History</strong>
+                <span>Mobile RCA summary, anomaly, status, and evidence count</span>
+              </a>
+              {coreTools.map((tool) => (
+                <a
+                  className="mobileMenuItem"
+                  key={tool.slug}
+                  href={`#/tool/${tool.slug}`}
+                  data-active={active(`/tool/${tool.slug}`)}
+                  onMouseEnter={() => preloadTool?.(tool.slug)}
+                  onClick={closeMobile}
+                >
+                  <strong>{MOBILE_TOOL_LABELS[tool.slug] || tool.title}</strong>
+                  <span>{tool.short}</span>
                 </a>
-                <a className="mobileMenuItem" href="#/cases" data-active={active('/cases')} onClick={closeMobile}>
-                  <strong>Case History</strong>
-                  <span>Mobile RCA summary, anomaly, status, and evidence count</span>
-                </a>
-                {coreTools.map((tool) => (
-                  <a
-                    className="mobileMenuItem"
-                    key={tool.slug}
-                    href={`#/tool/${tool.slug}`}
-                    data-active={active(`/tool/${tool.slug}`)}
-                    onMouseEnter={() => preloadTool?.(tool.slug)}
-                    onClick={closeMobile}
-                  >
-                    <strong>{MOBILE_TOOL_LABELS[tool.slug] || tool.title}</strong>
-                    <span>{tool.short}</span>
-                  </a>
-                ))}
-              </div>
+              ))}
+            </div>
 
-              <div className="mobileMenuFooter">
-                <a href="#/about" data-active={active('/about')} onClick={closeMobile}>Runbook</a>
-                <a href="#/contact" data-active={active('/contact')} onClick={closeMobile}>Ops</a>
-              </div>
+            <div className="mobileMenuFooter">
+              <a href="#/about" data-active={active('/about')} onClick={closeMobile}>Runbook</a>
+              <a href="#/contact" data-active={active('/contact')} onClick={closeMobile}>Ops</a>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </header>
   )
 }
