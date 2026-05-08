@@ -1102,3 +1102,40 @@ html, body, #root { height: 100%; }
   .workbenchStatus,
   .settingsStatus{ max-width: 100%; }
 }
+
+.evidenceHistoryRow {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.evidenceHistoryRow.isSelected {
+  outline: 1px solid rgba(34, 211, 238, 0.45);
+  background: rgba(20, 184, 166, 0.12);
+}
+
+.evidenceHistorySelect {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.evidenceHistorySelect strong,
+.evidenceHistorySelect span {
+  display: block;
+}
+
+.evidenceHistoryDownload {
+  align-self: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}

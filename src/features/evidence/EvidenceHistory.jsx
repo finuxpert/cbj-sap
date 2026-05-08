@@ -1,8 +1,9 @@
 import React from 'react'
 import { evidenceDownloadUrl, listEvidence } from '../../evidence-api-client.js'
 
-export default function EvidenceHistory({ tool = '', limit = 20 }) {
+export default function EvidenceHistory({ tool = '', limit = 20, onSelect }) {
   const [items, setItems] = React.useState([])
+  const [selectedId, setSelectedId] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
 
@@ -31,6 +32,11 @@ export default function EvidenceHistory({ tool = '', limit = 20 }) {
     refresh()
   }, [refresh])
 
+  const selectItem = React.useCallback((item, id) => {
+    setSelectedId(id)
+    onSelect?.(item)
+  }, [onSelect])
+
   return (
     <section className="evidenceHistory card soft">
       <div className="evidenceHistoryHead">
@@ -52,11 +58,29 @@ export default function EvidenceHistory({ tool = '', limit = 20 }) {
           const name = item.title || item.filename || item.name || `Evidence ${index + 1}`
           const created = item.created_at || item.createdAt || item.timestamp || ''
           const itemTool = item.tool || tool || 'unknown'
+          const active = selectedId === id
+
           return (
-            <a className="evidenceItem" key={id} href={evidenceDownloadUrl(id)}>
-              <strong>{name}</strong>
-              <span>{itemTool}{created ? ` • ${created}` : ''}</span>
-            </a>
+            <div className={`evidenceItem evidenceHistoryRow ${active ? 'isSelected' : ''}`} key={id}>
+              <button
+                className="evidenceHistorySelect"
+                type="button"
+                onClick={() => selectItem(item, id)}
+                title="Select evidence"
+              >
+                <strong>{name}</strong>
+                <span>{itemTool}{created ? ` • ${created}` : ''}</span>
+              </button>
+
+              <a
+                className="evidenceHistoryDownload"
+                href={evidenceDownloadUrl(id)}
+                onClick={(event) => event.stopPropagation()}
+                title="Download evidence file"
+              >
+                Download
+              </a>
+            </div>
           )
         })}
       </div>
