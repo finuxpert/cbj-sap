@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-08T17:35:05+07:00
+Generated: 2026-05-08T17:36:32+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: e34529e
-- Commit subject: Restore investigation UX styles with mobile compact patch
+- Commit: 3054df9
+- Commit subject: Improve ST03N evidence ranking chart readability
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -14,13 +14,13 @@ Generated: 2026-05-08T17:35:05+07:00
 - Status: green
 
 ```text
-dist/assets/LogEvidenceCharts-B3JUlaHB.js          3.35 kB │ gzip:   1.39 kB
-dist/assets/jszip-Cd94Lot4.js                     96.72 kB │ gzip:  29.87 kB
-dist/assets/index-Cj-mbfjs.js                    232.03 kB │ gzip:  74.39 kB
+dist/assets/LogEvidenceCharts-DK2AlcZA.js          3.34 kB │ gzip:   1.39 kB
+dist/assets/jszip-CqxnpHu4.js                     96.72 kB │ gzip:  29.87 kB
+dist/assets/index-CUR6E_di.js                    232.03 kB │ gzip:  74.39 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
-dist/assets/jspdf.es.min-kKv6m33X.js             385.13 kB │ gzip: 125.77 kB
-dist/assets/recharts-tFO_QKj3.js                 415.92 kB │ gzip: 121.64 kB
-✓ built in 6.49s
+dist/assets/jspdf.es.min-Bez88OQA.js             385.13 kB │ gzip: 125.77 kB
+dist/assets/recharts-BtahUBWz.js                 415.92 kB │ gzip: 121.64 kB
+✓ built in 6.55s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-tFO_QKj3.js                 415.92 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Fri, 08 May 2026 10:35:04 GMT
+- Last modified: Fri, 08 May 2026 10:36:32 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Fri, 08 May 2026 10:35:05 GMT
+date: Fri, 08 May 2026 10:36:32 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RMIkmdi3KLdy1JPt0o0yfg5XcvwMGTV%2FpZp9CsV6%2F1RhFJ7xZs5QcAPSSISzSrZiI92JPyMB0DdrXNt3QI4okaDQhfJKNmo1fxsEuucJou%2B48lgCqdAyaPGP2cGymuXZjL3%2F0BS8OzfaZec%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=q994dBCKLN5nGi4Ot4362FxM8w54ghSbNSsNNpyIJLl2X%2BRvLPKil0n0CO4tohSs9G0x5K2f0%2F0bZ42Ut3teQTR%2BGBKsQcoWvQmcrEijrE%2FJZkPOeX6vlCRdKp%2FZQrX9j0akoAk8uYUgvl8%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Fri, 08 May 2026 10:35:04 GMT
+last-modified: Fri, 08 May 2026 10:36:32 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f87d0cd1fb0a742-SIN
+cf-ray: 9f87d2eec944d846-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
