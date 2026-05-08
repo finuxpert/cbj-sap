@@ -11,7 +11,7 @@ import ToolExportDock from './features/pdf/ToolExportDock.jsx'
 import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
 import ComparatorUiGuard from './features/comparer/ComparatorUiGuard.jsx'
 
-const APP_BUILD_STAMP = 'sap-20260507-comparator-ui-guard'
+const APP_BUILD_STAMP = 'sap-20260508-enterprise-ui-system'
 
 export default function App() {
   const route = useRoute()
