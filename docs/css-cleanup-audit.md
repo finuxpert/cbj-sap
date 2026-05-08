@@ -176,10 +176,54 @@ Despite the file name, this layer is mostly scoped to `.appShell.isTool`, not th
 
 These behaviors are now better centralized through enterprise theme layers and tool-specific UX files.
 
+## Cleanup patch 6
+
+Disabled this legacy comparer emergency import in `src/main.jsx`:
+
+```js
+import './sapdev-comparer-fix.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+`sapdev-comparer-fix.css` was an emergency CSS layer for older comparer markup. It handled:
+
+- old global `.btn` collisions from ToolComparer CSS
+- `.cmpWrap` horizontal containment
+- `.cmpTopbar` density
+- `.cmpMain` two-column layout forcing
+- `.cmpSectionNav` floating overlay fix
+- `.cmpChartReportGrid` and chart overflow
+- `.cmpVt*` virtual table polish
+
+A focused repo search did not find active source references for the main old comparer selectors such as:
+
+```text
+cmpWrap
+cmpTopbar
+cmpMain
+cmpSectionNav
+cmpVtRow
+cmpChartReportGrid
+```
+
+Current comparer UX ownership should stay in:
+
+```text
+src/app/comparer-process-ux.css
+```
+
+which is loaded through:
+
+```text
+src/app/enterprise-theme.css
+```
+
 ## Current CSS imports still active in main.jsx
 
 ```text
-src/sapdev-comparer-fix.css
 src/features/evidence/evidence.css
 src/app/shell-overrides.css
 src/app/rca-workspace.css
@@ -191,6 +235,7 @@ src/app/enterprise-theme.css
 
 ```text
 src/sapdev-polish.css
+src/sapdev-comparer-fix.css
 src/sapdev-premium-overhaul.css
 src/sapdev-final-force.css
 src/sap-intelligent-ux.css
@@ -203,6 +248,7 @@ If QA finds regression on sapdev, restore the disabled imports in `src/main.jsx`
 
 ```js
 import './sapdev-polish.css'
+import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 import './sap-intelligent-ux.css'
@@ -242,4 +288,11 @@ Verify:
 
 ## Next recommended cleanup
 
-Audit `src/sapdev-comparer-fix.css` next because it is still active and likely the last old sapdev-specific emergency layer. Do not delete it until the comparer route passes sapdev QA without it.
+Audit the remaining active imports in this order:
+
+1. `src/sap-dynatrace-rca.css`
+2. `src/app/shell-overrides.css`
+3. `src/app/rca-workspace.css`
+4. `src/features/evidence/evidence.css`
+
+Do not disable more than one remaining CSS file per patch unless QA is already green.
