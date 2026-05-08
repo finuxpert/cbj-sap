@@ -4,45 +4,33 @@ This document tracks the current RCA workspace refactor state and the next safe 
 
 ## Current State
 
-The GitHub Actions pipeline is operational:
+The SAP RCA Workspace is now evolving from a parser-only toolset into a persistent RCA investigation workspace.
+
+Current stable foundation:
 
 ```text
-Commit to main
-→ Build SAP RCA Workspace
-→ Deploy SAP RCA Workspace to DEV
-→ Self-hosted runner on DEV server executes local deploy
+React + Vite frontend
+FastAPI Evidence API
+File-backed Evidence and Case History persistence
+DEV deploy to sapdev
 ```
 
-The self-hosted runner is installed on the DEV server and should run as a systemd service.
-
-Known runner service:
+Known DEV URL:
 
 ```text
-actions.runner.finuxpert-cbj-sap.sapdev-pc-runner.service
+https://sapdev.cbj-kontruksi.com/sap/
 ```
 
-Runner label used by deploy workflow:
+Known API health URL:
 
 ```text
-sapdev
+https://sapdev.cbj-kontruksi.com/sap-api/health
 ```
 
-Deploy workflow file:
+Expected API health response shape:
 
-```text
-.github/workflows/deploy-dev.yml
-```
-
-Build workflow file:
-
-```text
-.github/workflows/build.yml
-```
-
-DEV runbook:
-
-```text
-docs/dev-deploy-runbook.md
+```json
+{"status":"ok","service":"SAP Intelligent RCA Evidence API","storage_root":"/var/www/svr01-dev/sap-data","max_upload_mb":500}
 ```
 
 ## Core Product Scope
@@ -69,6 +57,155 @@ old comparer/st03n dashboard enhancer files
 
 These previously caused blank screen, loading stuck, render lag, and mobile freeze.
 
+## Case History V1 Status
+
+Case History V1 is implemented as file-backed JSON persistence first. PostgreSQL is intentionally deferred.
+
+Backend storage:
+
+```text
+/var/www/svr01-dev/sap-data/cases
+```
+
+Implemented API endpoints:
+
+```text
+GET    /cases
+POST   /cases
+GET    /cases/{id}
+PATCH  /cases/{id}
+POST   /cases/{id}/parsed-results
+GET    /mobile/cases
+GET    /mobile/cases/{id}
+```
+
+Frontend routes:
+
+```text
+#/cases       → Case History list
+#/cases/{id}  → Case Detail / Management RCA Snapshot
+```
+
+Frontend files:
+
+```text
+src/app/pages/CaseHistory.jsx
+src/app/pages/CaseDetail.jsx
+src/features/cases/CaseCard.jsx
+src/features/cases/casePdfExport.js
+```
+
+Current Case History capabilities:
+
+```text
+- mobile-friendly case list using /sap-api/mobile/cases
+- mobile-friendly case detail using /sap-api/mobile/cases/{id}
+- case cards with severity/status/SID/evidence count/top problem
+- detail view with management summary, top problem, stats, timeline, parsed results, linked evidence
+- Export PDF from Case History list
+- Export PDF from Case Detail
+```
+
+PDF export helper:
+
+```text
+src/features/cases/casePdfExport.js
+```
+
+PDF output examples:
+
+```text
+sap-rca-case-history-YYYY-MM-DD-HH-MM-SS.pdf
+sap-rca-case-CASE-ID-YYYY-MM-DD-HH-MM-SS.pdf
+```
+
+Existing RCA tool PDF export remains separate and should not be merged aggressively:
+
+```text
+src/features/pdf/structuredPdf.js
+src/features/pdf/ToolExportDock.jsx
+```
+
+## Mobile Navigation Status
+
+Mobile nav/dropdown was fixed with a React portal rendered into `document.body` and a solid overlay. The previous blur/floating menu issue is resolved.
+
+Important file:
+
+```text
+src/components/Navbar.jsx
+```
+
+Do not reintroduce CSS-only mobile nav overlays that depend on old `.mobilePanel` / `.mobileMenuItem` cascade behavior.
+
+## DEV Deploy Workflow
+
+A DEV deploy workflow exists:
+
+```text
+.github/workflows/deploy-sapdev.yml
+```
+
+Workflow name:
+
+```text
+Deploy SAP RCA Workspace to sapdev
+```
+
+Triggers:
+
+```text
+push to dev
+workflow_dispatch
+```
+
+Runner:
+
+```text
+self-hosted
+```
+
+Deploy root:
+
+```text
+/var/www/svr01-dev/sap
+```
+
+Workflow validates deployed bundle contains:
+
+```text
+sap-rca-case-history
+Export PDF
+```
+
+And validates:
+
+```text
+https://sapdev.cbj-kontruksi.com/sap-api/health
+```
+
+Manual verification command:
+
+```bash
+grep -R -q "sap-rca-case-history" /var/www/svr01-dev/sap/assets/*.js \
+  && echo "OK: Case History PDF export found" \
+  || echo "NG: Case History PDF export not found"
+
+grep -R -q "Export PDF" /var/www/svr01-dev/sap/assets/*.js \
+  && echo "OK: Export PDF button found" \
+  || echo "NG: Export PDF button not found"
+
+curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/health && echo
+```
+
+Recent server verification showed:
+
+```text
+OK: Case History PDF export found
+OK: Export PDF button found
+{"status":"ok","service":"SAP Intelligent RCA Evidence API","storage_root":"/var/www/svr01-dev/sap-data","max_upload_mb":500}
+```
+
 ## Completed Refactors
 
 ### 1. Log Evidence V2
@@ -94,23 +231,7 @@ Current improvements:
 Test route:
 
 ```text
-https://sapdev.cbj-kontruksi.com/#/tool/logs
-```
-
-Expected UI:
-
-```text
-Log Evidence Analyzer V2
-Upload Log Evidence
-Primary Error
-Error Family
-Owner Direction
-Confidence
-Copy Summary
-Export JSON
-Clear Cache
-Uploaded Files
-Evidence Server Context
+https://sapdev.cbj-kontruksi.com/sap/#/tool/logs
 ```
 
 ### 2. ST03N Impact V2
@@ -121,25 +242,10 @@ Updated file:
 src/tools/ToolSt03nImpactV2.jsx
 ```
 
-New shared parser module:
+Shared parser module:
 
 ```text
 src/tools/parsers/st03nParser.js
-```
-
-Shared parser exports:
-
-```text
-REQUIRED_ST03N
-classifySt03nFile
-isSt03nWorkbook
-expandSt03nFiles
-readSt03nMatrix
-findSt03nHeaderIndex
-st03nRowsToObjects
-summarizeSt03nObjects
-parseSt03nFile
-buildSt03nAnalysis
 ```
 
 Current improvements:
@@ -158,63 +264,7 @@ Current improvements:
 Test route:
 
 ```text
-https://sapdev.cbj-kontruksi.com/#/tool/analyzer
-```
-
-Expected UI:
-
-```text
-ST03N Impact Analyzer V2
-Upload ST03N Pack
-Impact Verdict
-Dominant Component
-Confidence
-Completeness
-Copy Summary
-Export JSON
-Clear Cache
-Parse Status
-Interpretation
-Top ST03N Evidence
-Component Mix
-Uploaded Files
-Evidence Server Context
-```
-
-## Current Deploy Notes
-
-The deploy workflow runs locally on the DEV server and performs:
-
-```bash
-cd /home/sadmin/sap
-
-git fetch origin main
-git reset --hard origin/main
-
-sudo chown -R sadmin:sadmin /home/sadmin/sap
-sudo rm -rf /home/sadmin/sap/dist
-
-npm install
-npm run build
-
-sudo rm -rf /var/www/svr01-dev/sap/*
-sudo cp -rv dist/* /var/www/svr01-dev/sap/
-
-sudo chown -R www-data:www-data /var/www/svr01-dev/sap
-sudo find /var/www/svr01-dev/sap -type d -exec chmod 755 {} \;
-sudo find /var/www/svr01-dev/sap -type f -exec chmod 644 {} \;
-
-sudo nginx -t
-sudo systemctl reload nginx
-
-curl -f http://127.0.0.1:8090/health
-curl -f https://sapdev.cbj-kontruksi.com/sap-api/health
-```
-
-The `sudo chown -R sadmin:sadmin /home/sadmin/sap` and `sudo rm -rf /home/sadmin/sap/dist` steps are intentional to prevent old root-owned Vite output from breaking build with:
-
-```text
-EACCES: permission denied, unlink '/home/sadmin/sap/dist/assets/...'
+https://sapdev.cbj-kontruksi.com/sap/#/tool/analyzer
 ```
 
 ## Runner Operations
@@ -240,73 +290,53 @@ sudo systemctl status 'actions.runner.*' --no-pager
 
 `systemctl` may escape the wildcard and return an invalid unit name.
 
-## Next Safe Refactor
+## Next Safe Work
 
-Next recommended patch:
+Recommended next patch:
 
 ```text
-Create src/tools/parsers/wpScoutParser.js
+Integrate Log Evidence auto-save parsed summary into Case History.
 ```
 
 Goal:
 
 ```text
-- centralize parseHostMetrics
-- centralize parseWpRows
-- standardize WP-SCOUT row fields
-- reduce duplicate parsing logic in InvestigationWorkspaceV2.jsx and ToolComparerClean.jsx
-- prepare InvestigationWorkspaceV2.jsx to become an orchestrator instead of a large parser/scoring/UI file
+Upload once → persist evidence → parse → save parsed summary to case → open again from mobile → export management PDF.
 ```
 
-Suggested shared WP-SCOUT row fields:
+Suggested sequence:
 
 ```text
-fileName
-snapshot
-timeLabel
-host
-sid
-pid
-inst
-wp
-type
-cpu
-mem
-rssGb
-state
-ageRaw
-ageMin
-rabax
-sxpg
-jobCount
-rxmsg
-className
-program
-errorCode
-jobName
-raw
+1. Add case selector / create case action near Log Evidence upload flow.
+2. Save parser output to POST /cases/{id}/parsed-results.
+3. Link evidence ID to case where possible.
+4. Add report persistence after PDF export.
+5. Add Management Summary page once parsed result persistence is stable.
 ```
 
-Do not aggressively refactor `InvestigationWorkspaceV2.jsx` before the shared WP-SCOUT parser exists.
+Do not start PostgreSQL migration yet.
 
 ## Smoke Test Checklist
 
 After each deploy, verify:
 
 ```text
-https://sapdev.cbj-kontruksi.com
+https://sapdev.cbj-kontruksi.com/sap/
 https://sapdev.cbj-kontruksi.com/sap-api/health
-https://sapdev.cbj-kontruksi.com/#/tool/analyzer
-https://sapdev.cbj-kontruksi.com/#/tool/logs
-https://sapdev.cbj-kontruksi.com/#/tool/comparer
+https://sapdev.cbj-kontruksi.com/sap/#/cases
+https://sapdev.cbj-kontruksi.com/sap/#/tool/analyzer
+https://sapdev.cbj-kontruksi.com/sap/#/tool/logs
+https://sapdev.cbj-kontruksi.com/sap/#/tool/comparer
 ```
 
 Basic route expectations:
 
 ```text
-/#/tool/analyzer → ST03N Impact Analyzer V2 should render
-/#/tool/logs     → Log Evidence Analyzer V2 should render
-/#/tool/comparer → WP-SCOUT Comparator should render
+/#/cases          → Case History list should render with Export PDF
+/#/cases/{id}     → Case Detail should render with Export PDF
+/#/tool/analyzer  → ST03N Impact Analyzer V2 should render
+/#/tool/logs      → Log Evidence Analyzer V2 should render
+/#/tool/comparer  → WP-SCOUT Comparator should render
 ```
 
 ## Production Safety
