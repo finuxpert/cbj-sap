@@ -7,8 +7,7 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  LineChart,
-  Line,
+  LabelList,
 } from 'recharts'
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
 import './ToolComparerClean.css'
@@ -48,10 +47,6 @@ function sevOf(row) {
   const cpu = Number(row?.cpu || 0)
   const hits = Number(row?.hits || 1)
 
-  // Tuned triage rule:
-  // - Very high RSS stays critical.
-  // - Repeated 64GB+ offenders become critical only when they recur many times.
-  // - Long age / 70GB stale jobs become WARN by default, so the table does not mark everything critical.
   if (rssGb >= 256 || cpu >= 95 || (rssGb >= 96 && ageHours >= 24) || (rssGb >= 64 && ageHours >= 24 && hits >= 10)) return 'CRIT'
   if (rssGb >= 32 || ageHours >= 168 || cpu >= 70 || hits >= 5) return 'WARN'
   return 'OK'
@@ -60,6 +55,37 @@ function sevOf(row) {
 function scoreOf(row) {
   const severity = row.severity || sevOf(row)
   return Math.round((row.cpu * 0.35) + (row.rssGb * 4.2) + (Math.log1p(row.ageHours) * 18) + (row.hits || 1) * 3 + (severity === 'CRIT' ? 35 : severity === 'WARN' ? 16 : 0))
+}
+
+function shortLabel(value = '', max = 24) {
+  const text = String(value || '')
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+function WpScoutTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const row = payload[0]?.payload || {}
+  return (
+    <div className="evidenceChartTooltip cmpCleanTooltip">
+      <strong>{row.fullName || label}</strong>
+      <span>Severity: {row.severity || '-'} · Problem Score: {row.score || 0}</span>
+      <small>RSS {Number(row.rss || row.rssGb || 0).toFixed(2)} GB · CPU {Number(row.cpu || 0).toFixed(1)}% · Age {row.ageRaw || '-'}</small>
+      <small>Why this matters: high RSS, old WP age, repeated hits, or high CPU makes this process a stronger RCA suspect.</small>
+    </div>
+  )
+}
+
+function HostPressureTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const row = payload[0]?.payload || {}
+  return (
+    <div className="evidenceChartTooltip cmpCleanTooltip">
+      <strong>{row.host || label}</strong>
+      <span>Host Pressure Score: {row.score || 0}</span>
+      <small>Critical {row.crit || 0} · Warning {row.warn || 0} · Max RSS {Number(row.rss || 0).toFixed(1)} GB</small>
+      <small>Why this matters: host with more critical/warning offenders should be checked first in SM50/SM66 and OS memory view.</small>
+    </div>
+  )
 }
 
 function parseFileText(fileName, text) {
@@ -301,7 +327,17 @@ export default function ToolComparerClean() {
   }, [rows, uniqueRows])
 
   const topRow = uniqueRows[0] || null
-  const topRss = React.useMemo(() => filteredRows.slice(0, 8).map((r) => ({ name: `${r.host}/${r.pid}`, rss: Number(r.rssGb.toFixed(2)), score: r.score })), [filteredRows])
+  const topRss = React.useMemo(() => filteredRows.slice(0, 8).map((r, index) => ({
+    name: `${index + 1}. ${shortLabel(`${r.host}/${r.pid}`, 20)}`,
+    fullName: `${r.host} / PID ${r.pid} / ${r.type} / ${r.job}`,
+    rss: Number(r.rssGb.toFixed(2)),
+    rssGb: r.rssGb,
+    score: r.score,
+    severity: r.severity,
+    cpu: r.cpu,
+    ageRaw: r.ageRaw,
+    hits: r.hits || 1,
+  })), [filteredRows])
   const hostPressure = React.useMemo(() => {
     const map = new Map()
     for (const row of uniqueRows) {
@@ -312,7 +348,10 @@ export default function ToolComparerClean() {
       cur.score += row.score
       map.set(row.host, cur)
     }
-    return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 8)
+    return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 8).map((item, index) => ({
+      ...item,
+      name: `${index + 1}. ${shortLabel(item.host, 18)}`,
+    }))
   }, [uniqueRows])
 
   return (
@@ -389,35 +428,45 @@ export default function ToolComparerClean() {
           </div>
         </section>
 
-        <section className="cmpCleanPanel">
-          <h2>Top Unique RSS</h2>
+        <section className="cmpCleanPanel rcaReadableChartPanel">
+          <div className="chartTitleBlock">
+            <h2>Top RSS offender ranking</h2>
+            <p>Bar paling atas adalah WP/PID dengan RSS paling besar pada filter aktif.</p>
+          </div>
           <div className="cmpCleanChart cmpCleanChartBars">
             {topRss.length ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topRss} margin={{ top: 28, right: 18, bottom: 8, left: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={false} axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} width={44} />
-                  <Tooltip />
-                  <Bar dataKey="rss" radius={[8, 8, 0, 0]} barSize={44} isAnimationActive animationDuration={900} />
+                <BarChart data={topRss} layout="vertical" margin={{ top: 8, right: 46, bottom: 12, left: 118 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" axisLine={false} tickLine={false} label={{ value: 'RSS GB', position: 'insideBottom', offset: -6 }} />
+                  <YAxis type="category" dataKey="name" width={118} axisLine={false} tickLine={false} />
+                  <Tooltip content={<WpScoutTooltip />} />
+                  <Bar dataKey="rss" name="RSS GB" radius={[0, 8, 8, 0]} barSize={22} isAnimationActive animationDuration={700}>
+                    <LabelList dataKey="rss" position="right" formatter={(value) => `${value}GB`} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : <EmptyChart />}
           </div>
         </section>
 
-        <section className="cmpCleanPanel">
-          <h2>Host Pressure</h2>
+        <section className="cmpCleanPanel rcaReadableChartPanel">
+          <div className="chartTitleBlock">
+            <h2>Host pressure ranking</h2>
+            <p>Host paling atas punya akumulasi score offender terbesar; cek memory dan work process host ini dulu.</p>
+          </div>
           <div className="cmpCleanChart cmpCleanChartLine">
             {hostPressure.length ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={hostPressure} margin={{ top: 28, right: 20, bottom: 8, left: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="host" tickMargin={10} axisLine={false} tickLine={false} />
-                  <YAxis axisLine={false} tickLine={false} width={52} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="score" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} isAnimationActive animationDuration={950} />
-                </LineChart>
+                <BarChart data={hostPressure} layout="vertical" margin={{ top: 8, right: 46, bottom: 12, left: 118 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" axisLine={false} tickLine={false} label={{ value: 'Host Pressure Score', position: 'insideBottom', offset: -6 }} />
+                  <YAxis type="category" dataKey="name" width={118} axisLine={false} tickLine={false} />
+                  <Tooltip content={<HostPressureTooltip />} />
+                  <Bar dataKey="score" name="Host Pressure Score" radius={[0, 8, 8, 0]} barSize={22} isAnimationActive animationDuration={700}>
+                    <LabelList dataKey="score" position="right" />
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             ) : <EmptyChart label="No host pressure yet." />}
           </div>
