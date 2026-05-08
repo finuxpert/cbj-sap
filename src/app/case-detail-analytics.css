@@ -231,6 +231,61 @@
   text-align: center;
 }
 
+.caseConfidencePanel {
+  background: radial-gradient(circle at top right, rgba(45, 212, 191, 0.08), transparent 36%), rgba(0, 0, 0, 0.15) !important;
+}
+
+.caseConfidenceRows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.caseConfidenceRow {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(214, 242, 240, 0.10);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.caseConfidenceMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.caseConfidenceMeta strong {
+  min-width: 0;
+  color: rgba(249, 251, 247, 0.92);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caseConfidenceMeta span {
+  color: #bffbf1;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.caseConfidenceTrack {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(214, 242, 240, 0.08);
+  overflow: hidden;
+}
+
+.caseConfidenceTrack i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(45, 212, 191, 0.76);
+}
+
 .caseFullDetailShell {
   padding-top: 6px;
   padding-bottom: 22px;
@@ -293,7 +348,8 @@
   .caseDashboardHero,
   .caseDetailAnalyticsGrid,
   .caseAnalyticsInsights,
-  .caseAnalyticsQuickSummary {
+  .caseAnalyticsQuickSummary,
+  .caseConfidenceRows {
     grid-template-columns: 1fr;
   }
 
