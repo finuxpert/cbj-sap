@@ -30,3 +30,7 @@ This note documents the DEV incremental integration between Log Evidence V2 and 
 - `npm run build`
 - DEV deploy to `/var/www/svr01-dev/sap`
 - API health check: `https://sapdev.cbj-kontruksi.com/sap-api/health`
+
+## Deploy trigger note
+
+Latest validation trigger: fallback case selection after create-case response without id.
