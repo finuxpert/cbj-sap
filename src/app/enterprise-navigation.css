@@ -306,19 +306,33 @@
     overflow: hidden;
   }
 
-  .mobileNavDock {
-    position: fixed;
-    top: 74px;
-    left: max(10px, env(safe-area-inset-left));
-    right: max(10px, env(safe-area-inset-right));
-    z-index: 999;
-    max-height: calc(100dvh - 88px);
-    overflow: auto;
+  .mobileNavDock.rcaMobileMenu {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2147483000 !important;
+    display: block !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    overflow: auto !important;
+    padding: 74px 12px 18px !important;
+    background: rgba(2, 8, 10, 0.68) !important;
+    backdrop-filter: blur(10px);
     overscroll-behavior: contain;
   }
 
-  .mobileNavDock .mobilePanel {
-    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58);
+  .mobileNavDock.rcaMobileMenu .mobilePanel {
+    display: block !important;
+    width: min(100%, 520px) !important;
+    margin: 0 auto !important;
+    border: 1px solid rgba(45, 212, 191, 0.28) !important;
+    border-radius: 22px !important;
+    background: rgba(7, 16, 19, 0.98) !important;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.72) !important;
+    padding: 14px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
   }
 }
 
@@ -336,11 +350,8 @@
     gap: 8px;
   }
 
-  .mobileNavDock {
-    top: 66px;
-    left: max(8px, env(safe-area-inset-left));
-    right: max(8px, env(safe-area-inset-right));
-    max-height: calc(100dvh - 78px);
+  .mobileNavDock.rcaMobileMenu {
+    padding: 66px 8px 14px !important;
   }
 
   .mobileNavDock .mobilePanel {
