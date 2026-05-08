@@ -207,6 +207,51 @@
   stroke: rgba(45, 212, 191, 0.88);
 }
 
+.caseResourcePanel .recharts-line path {
+  stroke: currentColor;
+}
+
+.caseResourceLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -2px 0 10px;
+}
+
+.caseResourceLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  border: 1px solid rgba(214, 242, 240, 0.12);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: rgba(249, 251, 247, 0.88);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.caseResourceLegend span::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #2dd4bf;
+}
+
+.caseResourceLegend .isCpu::before {
+  background: #38bdf8;
+}
+
+.caseResourceLegend .isMem::before {
+  background: #2dd4bf;
+}
+
+.caseResourceLegend .isSwap::before {
+  background: #f59e0b;
+}
+
 .caseAnalyticsChartNote {
   margin: 4px 0 0;
   color: rgba(220, 238, 238, 0.60);
