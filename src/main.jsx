@@ -8,7 +8,7 @@ import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 import './sap-intelligent-ux.css'
 import './sap-intelligent-investigation.css'
-import './comparer-rca-final.css'
+// disabled: aggressive legacy comparer override
 import './features/evidence/evidence.css'
 import './app/shell-overrides.css'
 import './app/rca-workspace.css'
