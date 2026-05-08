@@ -67,7 +67,7 @@ import './sapdev-polish.css'
 
 The file was not deleted.
 
-### Why this candidate was chosen before disabling premium overhaul
+### Why this candidate was chosen before premium overhaul
 
 `sapdev-polish.css` mostly contains older global styling for:
 
@@ -87,13 +87,39 @@ src/app/enterprise-navigation.css
 src/app/investigation-workspace-ux.css
 ```
 
-`sapdev-premium-overhaul.css` was not disabled yet because it still contains broader comparer/workbench selectors such as `.cmpWrap`, `.cmpTopbar`, `.cmpMain`, and legacy chart/table rules. That file needs one more focused inventory before disabling.
+## Cleanup patch 3
+
+Disabled this legacy premium overhaul import in `src/main.jsx`:
+
+```js
+import './sapdev-premium-overhaul.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+A focused repo search did not find active source references for the main legacy selectors from this file, including:
+
+```text
+premiumHome
+premiumHero
+premiumFlowGrid
+premiumFlowCard
+premiumLauncher
+premiumInfoCard
+cmpWrap
+cmpTopbar
+cmpMain
+cmpSectionNav
+```
+
+Current homepage routing renders `InvestigationWorkspaceV2`, and current visual ownership is centralized in enterprise theme layers.
 
 ## Current legacy CSS imports still active in main.jsx
 
 ```text
 src/sapdev-comparer-fix.css
-src/sapdev-premium-overhaul.css
 src/sap-intelligent-ux.css
 src/sap-intelligent-investigation.css
 src/features/evidence/evidence.css
@@ -103,12 +129,21 @@ src/sap-dynatrace-rca.css
 src/app/enterprise-theme.css
 ```
 
+## Disabled legacy CSS files retained for rollback
+
+```text
+src/sapdev-polish.css
+src/sapdev-premium-overhaul.css
+src/sapdev-final-force.css
+```
+
 ## Rollback
 
 If QA finds regression on sapdev, restore the disabled imports in `src/main.jsx` as needed:
 
 ```js
 import './sapdev-polish.css'
+import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 ```
 
@@ -145,4 +180,4 @@ Verify:
 
 ## Next recommended cleanup
 
-Audit `src/sapdev-premium-overhaul.css` against current React class usage before disabling it. Do not delete the file until sapdev QA passes without it.
+Audit the remaining active legacy CSS imports one by one. Start with `src/sap-intelligent-ux.css` and `src/sap-intelligent-investigation.css`, but do not disable both at once. Keep each patch small and rollbackable.
