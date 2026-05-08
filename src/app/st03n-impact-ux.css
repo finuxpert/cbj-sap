@@ -2,13 +2,13 @@
  * ST03N Impact V2 UX polish.
  * CSS-only layer: workload-focused readability, parse status, chart panels, and mobile ergonomics.
  */
-.evidenceToolShell.refinedTool:has(.compactEvidenceHero span:first-child) {
+.evidenceToolShell.refinedTool {
   --st03n-blue: #38bdf8;
   --st03n-cyan: #22d3ee;
   --st03n-amber: #f5b942;
 }
 
-.evidenceToolShell.refinedTool .compactEvidenceHero:has(span:first-child) {
+.evidenceToolShell.refinedTool .compactEvidenceHero {
   isolation: isolate;
 }
 
