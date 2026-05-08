@@ -255,28 +255,62 @@
 }
 
 @media (max-width: 860px) {
+  .rcaNavInner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: center;
+    column-gap: 10px;
+    padding: 8px 12px;
+  }
+
   .rcaNavLinks {
     display: none !important;
   }
 
   .rcaBrand {
     min-width: 0;
-    flex: 1 1 auto;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .rcaBrand .brandText {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .rcaBrand .brandTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .rcaToolTabs {
     display: none;
   }
 
-  .mobileBtn {
+  .rcaMobileToggle.mobileBtn,
+  .btn.iconBtn.mobileBtn.rcaMobileToggle {
     display: inline-flex !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 0 !important;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    border-radius: 14px !important;
+    font-size: 24px !important;
+    line-height: 1 !important;
+    overflow: hidden;
   }
 
   .mobileNavDock {
     position: fixed;
     top: 74px;
-    left: 10px;
-    right: 10px;
+    left: max(10px, env(safe-area-inset-left));
+    right: max(10px, env(safe-area-inset-right));
     z-index: 999;
     max-height: calc(100dvh - 88px);
     overflow: auto;
@@ -295,12 +329,17 @@
 
   .rcaNavInner {
     min-height: 56px;
+    padding-inline: 8px;
+  }
+
+  .rcaBrand {
+    gap: 8px;
   }
 
   .mobileNavDock {
     top: 66px;
-    left: 8px;
-    right: 8px;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
     max-height: calc(100dvh - 78px);
   }
 
