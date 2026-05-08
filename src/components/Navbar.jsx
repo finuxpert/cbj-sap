@@ -3,6 +3,12 @@ import { getCurrentHashRoute } from '../app/routeUtils.js'
 import { tools, preloadTool } from '../tools'
 import SapRcaLogo from './SapRcaLogo.jsx'
 
+const MOBILE_TOOL_LABELS = {
+  comparer: 'WP-SCOUT',
+  analyzer: 'ST03N Impact',
+  logs: 'Log Evidence',
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [route, setRoute] = React.useState(getCurrentHashRoute)
@@ -21,12 +27,13 @@ export default function Navbar() {
     [route],
   )
 
+  const closeMobile = React.useCallback(() => setMobileOpen(false), [])
   const coreTools = tools.filter((tool) => ['comparer', 'analyzer', 'logs'].includes(tool.slug))
 
   return (
     <header className="navbar rcaNav">
       <div className="navInner rcaNavInner">
-        <a className="brand rcaBrand" href="#/">
+        <a className="brand rcaBrand" href="#/" onClick={closeMobile}>
           <SapRcaLogo />
           <span className="brandText">
             <span className="brandTitle">SAP RCA Workspace</span>
@@ -53,21 +60,50 @@ export default function Navbar() {
           <a href="#/contact" data-active={active('/contact')}>Ops</a>
         </nav>
 
-        <button className="btn iconBtn mobileBtn" type="button" onClick={() => setMobileOpen((value) => !value)} aria-label="Toggle menu">
+        <button
+          className="btn iconBtn mobileBtn rcaMobileToggle"
+          type="button"
+          onClick={() => setMobileOpen((value) => !value)}
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={mobileOpen ? 'true' : 'false'}
+        >
           {mobileOpen ? '×' : '☰'}
         </button>
 
         {mobileOpen && (
-          <div className="mobileNavDock">
+          <div className="mobileNavDock rcaMobileMenu" role="dialog" aria-label="Mobile navigation menu">
             <div className="mobilePanel">
-              <div className="mobilePanelTitle">SAP RCA Workspace</div>
-              <div className="row wrap gap-10">
-                <a className="btn" href="#/">Dashboard</a>
+              <div className="mobilePanelHead">
+                <div>
+                  <div className="mobilePanelTitle">SAP RCA Workspace</div>
+                  <p>Quick access RCA tools</p>
+                </div>
+                <button className="mobilePanelClose" type="button" onClick={closeMobile} aria-label="Close menu">×</button>
+              </div>
+
+              <div className="mobileMenuGroup">
+                <a className="mobileMenuItem" href="#/" data-active={active('/')} onClick={closeMobile}>
+                  <strong>Dashboard</strong>
+                  <span>Upload evidence pack & incident workflow</span>
+                </a>
                 {coreTools.map((tool) => (
-                  <a className="btn" key={tool.slug} href={`#/tool/${tool.slug}`}>{tool.title}</a>
+                  <a
+                    className="mobileMenuItem"
+                    key={tool.slug}
+                    href={`#/tool/${tool.slug}`}
+                    data-active={active(`/tool/${tool.slug}`)}
+                    onMouseEnter={() => preloadTool?.(tool.slug)}
+                    onClick={closeMobile}
+                  >
+                    <strong>{MOBILE_TOOL_LABELS[tool.slug] || tool.title}</strong>
+                    <span>{tool.short}</span>
+                  </a>
                 ))}
-                <a className="btn" href="#/about">Runbook</a>
-                <a className="btn" href="#/contact">Ops</a>
+              </div>
+
+              <div className="mobileMenuFooter">
+                <a href="#/about" data-active={active('/about')} onClick={closeMobile}>Runbook</a>
+                <a href="#/contact" data-active={active('/contact')} onClick={closeMobile}>Ops</a>
               </div>
             </div>
           </div>
