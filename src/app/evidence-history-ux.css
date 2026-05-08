@@ -208,9 +208,281 @@
   padding: 9px 10px;
 }
 
+.caseHistoryPage {
+  width: min(1180px, calc(100% - 24px));
+}
+
+.caseHistoryHero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.caseHistoryHero h1 {
+  margin: 4px 0 8px;
+  max-width: 760px;
+  color: rgba(249, 251, 247, 0.98);
+  font-size: clamp(30px, 5vw, 58px);
+  line-height: 0.98;
+  letter-spacing: -0.055em;
+}
+
+.caseHistoryHero p:not(.sectionKicker) {
+  max-width: 760px;
+  margin: 0;
+  color: rgba(220, 238, 238, 0.72);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.caseHistoryToolbar {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(180px, 260px);
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px !important;
+}
+
+.caseHistoryToolbar label {
+  display: grid;
+  gap: 7px;
+  color: rgba(220, 238, 238, 0.68);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.02em;
+}
+
+.caseHistoryToolbar input,
+.caseHistoryToolbar select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(214, 242, 240, 0.14);
+  border-radius: 14px;
+  padding: 0 12px;
+  color: rgba(249, 251, 247, 0.94);
+  background: rgba(0, 0, 0, 0.22);
+  outline: none;
+}
+
+.caseHistoryToolbar input:focus,
+.caseHistoryToolbar select:focus {
+  border-color: rgba(45, 212, 191, 0.52);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+}
+
+.caseHistoryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.caseHistoryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(214, 242, 240, 0.13);
+  border-radius: 22px;
+  padding: 16px;
+  background:
+    radial-gradient(circle at top right, rgba(45, 212, 191, 0.11), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.056), rgba(255, 255, 255, 0.02)),
+    rgba(10, 19, 23, 0.86);
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.caseHistoryCardTop,
+.caseHistoryCardFoot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.caseHistoryMetaStack {
+  min-width: 0;
+}
+
+.caseHistoryCaseNo {
+  display: inline-flex;
+  max-width: 100%;
+  color: #7dd3fc;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.caseHistoryCard h3 {
+  margin: 4px 0 0;
+  color: rgba(249, 251, 247, 0.96);
+  font-size: 18px;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+}
+
+.caseHistorySeverity {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border: 1px solid rgba(214, 242, 240, 0.14);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: rgba(249, 251, 247, 0.9);
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.caseHistorySeverity.isCritical {
+  color: #fecdd3;
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(248, 113, 113, 0.12);
+}
+
+.caseHistorySeverity.isWarning {
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.42);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.caseHistorySeverity.isInfo {
+  color: #bae6fd;
+  border-color: rgba(56, 189, 248, 0.34);
+  background: rgba(56, 189, 248, 0.11);
+}
+
+.caseHistorySummary {
+  display: -webkit-box;
+  min-height: 62px;
+  margin: 0;
+  color: rgba(220, 238, 238, 0.72);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.caseHistoryProblemBox {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(45, 212, 191, 0.065);
+}
+
+.caseHistoryProblemBox span {
+  color: rgba(191, 251, 241, 0.72);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.caseHistoryProblemBox strong {
+  color: rgba(249, 251, 247, 0.94);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.caseHistoryFacts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.caseHistoryFacts div {
+  min-width: 0;
+  border-radius: 14px;
+  padding: 9px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.caseHistoryFacts dt {
+  margin: 0 0 4px;
+  color: rgba(220, 238, 238, 0.52);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.caseHistoryFacts dd {
+  margin: 0;
+  color: rgba(249, 251, 247, 0.9);
+  font-size: 12px;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caseHistoryCardFoot {
+  align-items: center;
+  margin-top: auto;
+  color: rgba(220, 238, 238, 0.55);
+  font-size: 12px;
+}
+
+.caseHistoryCardFoot a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid rgba(45, 212, 191, 0.32);
+  border-radius: 999px;
+  padding: 0 13px;
+  color: #bffbf1;
+  background: rgba(45, 212, 191, 0.10);
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.caseHistoryNotice,
+.caseHistoryEmpty {
+  border: 1px solid rgba(214, 242, 240, 0.13);
+  border-radius: 18px;
+  padding: 16px;
+  color: rgba(220, 238, 238, 0.78);
+  background: rgba(10, 19, 23, 0.78);
+}
+
+.caseHistoryNotice.isError {
+  color: #fecdd3;
+  border-color: rgba(248, 113, 113, 0.34);
+  background: rgba(248, 113, 113, 0.09);
+}
+
+.caseHistoryEmpty {
+  display: grid;
+  gap: 5px;
+}
+
+.caseHistoryEmpty strong {
+  color: rgba(249, 251, 247, 0.95);
+}
+
+.caseHistoryEmpty span {
+  color: rgba(220, 238, 238, 0.66);
+}
+
 @media (max-width: 1120px) {
   .toolEvidencePanel {
     grid-template-columns: 1fr;
+  }
+
+  .caseHistoryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -246,5 +518,38 @@
     max-height: none;
     overflow: visible;
     padding-right: 0;
+  }
+
+  .caseHistoryPage {
+    width: min(100% - 16px, 720px);
+    padding-top: 18px;
+  }
+
+  .caseHistoryHero,
+  .caseHistoryCardTop,
+  .caseHistoryCardFoot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .caseHistoryHero .btn,
+  .caseHistoryCardFoot a {
+    width: 100%;
+  }
+
+  .caseHistoryToolbar,
+  .caseHistoryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .caseHistoryToolbar {
+    position: sticky;
+    top: 74px;
+    z-index: 8;
+    backdrop-filter: blur(14px);
+  }
+
+  .caseHistoryFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
