@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-09T00:10:09+07:00
+Generated: 2026-05-09T00:11:46+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: e38d24a
-- Commit subject: Polish case analytics visual layout
+- Commit: 437970f
+- Commit subject: Update DEV validation report [skip ci]
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -32,22 +32,22 @@ dist/assets/recharts-DPpNiXWN.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Fri, 08 May 2026 17:10:07 GMT
+- Last modified: Fri, 08 May 2026 17:11:46 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Fri, 08 May 2026 17:10:08 GMT
+date: Fri, 08 May 2026 17:11:46 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=roghtgEZO%2Bd16%2FHzoOCfeF4PPj0OPGWxOy%2F0i4tZB792iMbaa3wvj1QNmhM6QTtxr%2F%2FkZqzB5dfbDh5lmtQWXsLkGXC6I6AwP9M8k9I%2F%2BgXOd1O7prLoQe%2BpUfSmUIECao6Fr9i%2BROQBERQ%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=bW95VYr4VuPWRHxlCM%2F931GMc7oHhEL%2FX%2BWPAs7zVqeMzLPNcq95nueBoHh0UdOrVA4VEXPNq%2BdQiQdX6%2BYlsDnoXdlLlgP7nxtH3y7QSGglEUjvmnkE%2BmR59XhntIB82IGpXAIuShUlx%2FY%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Fri, 08 May 2026 17:10:07 GMT
+last-modified: Fri, 08 May 2026 17:11:46 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f8a137cae9bc6f6-SIN
+cf-ray: 9f8a15e4de5bce52-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
