@@ -15,7 +15,9 @@ import './index.css'
 // Legacy SAP intelligent investigation override intentionally not imported anymore.
 // Keep src/sap-intelligent-investigation.css for quick rollback if sapdev QA finds regression.
 // disabled: aggressive legacy comparer override
-import './features/evidence/evidence.css'
+// Legacy evidence feature CSS intentionally not imported anymore.
+// Structural evidence layout now lives in src/app/evidence-history-ux.css via enterprise-theme.css.
+// Keep src/features/evidence/evidence.css for quick rollback if Evidence History/uploader QA regresses.
 // Legacy shell override kill-switch intentionally not imported anymore.
 // Keep src/app/shell-overrides.css for quick rollback if old floating nav/viewport QA regresses.
 // Legacy RCA workspace shell polish intentionally not imported anymore.
