@@ -73,28 +73,28 @@ export default function Navbar() {
       </div>
 
       {mobileOpen && (
-        <div className="mobileNavDock rcaMobileMenu" role="dialog" aria-label="Mobile navigation menu">
-          <div className="mobilePanel">
-            <div className="mobilePanelHead">
+        <div className="rcaMobileOverlay" role="dialog" aria-label="Mobile navigation menu">
+          <div className="rcaMobilePanel">
+            <div className="rcaMobilePanelHead">
               <div>
-                <div className="mobilePanelTitle">SAP RCA Workspace</div>
+                <div className="rcaMobilePanelTitle">SAP RCA Workspace</div>
                 <p>Quick access RCA tools</p>
               </div>
-              <button className="mobilePanelClose" type="button" onClick={closeMobile} aria-label="Close menu">×</button>
+              <button className="rcaMobilePanelClose" type="button" onClick={closeMobile} aria-label="Close menu">×</button>
             </div>
 
-            <div className="mobileMenuGroup">
-              <a className="mobileMenuItem" href="#/" data-active={active('/')} onClick={closeMobile}>
+            <div className="rcaMobileMenuGroup">
+              <a className="rcaMobileMenuItem" href="#/" data-active={active('/')} onClick={closeMobile}>
                 <strong>Dashboard</strong>
                 <span>Upload evidence pack & incident workflow</span>
               </a>
-              <a className="mobileMenuItem" href="#/cases" data-active={active('/cases')} onClick={closeMobile}>
+              <a className="rcaMobileMenuItem" href="#/cases" data-active={active('/cases')} onClick={closeMobile}>
                 <strong>Case History</strong>
                 <span>Mobile RCA summary, anomaly, status, and evidence count</span>
               </a>
               {coreTools.map((tool) => (
                 <a
-                  className="mobileMenuItem"
+                  className="rcaMobileMenuItem"
                   key={tool.slug}
                   href={`#/tool/${tool.slug}`}
                   data-active={active(`/tool/${tool.slug}`)}
@@ -107,7 +107,7 @@ export default function Navbar() {
               ))}
             </div>
 
-            <div className="mobileMenuFooter">
+            <div className="rcaMobileMenuFooter">
               <a href="#/about" data-active={active('/about')} onClick={closeMobile}>Runbook</a>
               <a href="#/contact" data-active={active('/contact')} onClick={closeMobile}>Ops</a>
             </div>
