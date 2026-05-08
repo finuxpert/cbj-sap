@@ -13,10 +13,7 @@ import './features/evidence/evidence.css'
 import './app/shell-overrides.css'
 import './app/rca-workspace.css'
 import './sap-dynatrace-rca.css'
-import './app/enterprise-ui-system.css'
-import './app/enterprise-navigation.css'
-import './app/log-evidence-ux.css'
-import './app/st03n-impact-ux.css'
+import './app/enterprise-theme.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
