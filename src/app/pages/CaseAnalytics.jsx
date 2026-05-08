@@ -62,7 +62,7 @@ function buildFallbackRows(caseData) {
 
     const conf = Number(item?.confidence ?? raw?.confidence ?? 0)
     if (Number.isFinite(conf) && conf > 0) {
-      confidence.push({ name: String(item?.tool || `Result ${index + 1}`).slice(0, 18), value: conf })
+      confidence.push({ name: String(item?.tool || `Result ${index + 1}`).slice(0, 18), fullName: String(item?.tool || `Result ${index + 1}`), value: conf })
     }
 
     list(raw?.timeline).forEach((row) => {
@@ -231,6 +231,37 @@ function TimelineCard({ data }) {
   )
 }
 
+function ConfidenceCard({ data }) {
+  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  if (!data.length) return <EmptyChart title="Parsed Confidence" hint="Confidence per parser result" />
+
+  return (
+    <section className="caseDetailAnalyticsWide caseConfidencePanel">
+      <div className="caseAnalyticsChartHead">
+        <div>
+          <h3>Parsed Confidence</h3>
+          <span>Confidence per parser result</span>
+        </div>
+        <b>{Math.round(total / data.length)}%</b>
+      </div>
+      <div className="caseConfidenceRows">
+        {data.map((item, index) => {
+          const value = Math.max(0, Math.min(100, Number(item.value || 0)))
+          return (
+            <div className="caseConfidenceRow" key={`${item.fullName || item.name}-${index}`}>
+              <div className="caseConfidenceMeta">
+                <strong title={item.fullName || item.name}>{item.fullName || item.name}</strong>
+                <span>{value}%</span>
+              </div>
+              <div className="caseConfidenceTrack"><i style={{ width: `${value}%` }} /></div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export default function CaseAnalytics({ caseData }) {
   const rows = React.useMemo(() => buildRows(caseData), [caseData])
   const hasData = Object.values(rows).some((row) => Array.isArray(row) && row.length > 0)
@@ -265,9 +296,7 @@ export default function CaseAnalytics({ caseData }) {
           <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" horizontal />
           <BarCard title="Top JobName" data={rows.jobs} hint="Impacted job names" horizontal />
           <BarCard title="Top Program" data={rows.programs} hint="Impacted SAP programs" horizontal />
-          <section className="caseDetailAnalyticsWide">
-            <BarCard title="Parsed Confidence" data={rows.confidence} hint="Confidence per parser result" />
-          </section>
+          <ConfidenceCard data={rows.confidence} />
         </div>
       )}
     </article>
