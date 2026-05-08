@@ -45,6 +45,15 @@ function normalizeTimeline(rows = []) {
   })).slice(-20)
 }
 
+function normalizeResourceRows(rows = []) {
+  return list(rows).map((item, index) => ({
+    name: String(item?.name || item?.time || item?.label || `T${index + 1}`).slice(0, 32),
+    cpu: Number(item?.cpu ?? item?.cpu_pct ?? item?.cpu_percent ?? 0) || 0,
+    mem: Number(item?.mem ?? item?.memory ?? item?.memory_pct ?? item?.mem_percent ?? 0) || 0,
+    swap: Number(item?.swap ?? item?.swap_pct ?? item?.swap_percent ?? 0) || 0,
+  })).filter((item) => item.cpu > 0 || item.mem > 0 || item.swap > 0).slice(-30)
+}
+
 function buildFallbackRows(caseData) {
   const severity = new Map()
   const tools = new Map()
@@ -53,6 +62,7 @@ function buildFallbackRows(caseData) {
   const programs = new Map()
   const timeline = new Map()
   const confidence = []
+  const resources = []
 
   list(caseData?.parsed_results).forEach((item, index) => {
     const raw = item?.result_json || {}
@@ -74,6 +84,8 @@ function buildFallbackRows(caseData) {
       timeline.set(label, current)
     })
 
+    resources.push(...normalizeResourceRows(raw?.system_resources || raw?.resources || raw?.cpu_mem_swap || raw?.host_metrics || []))
+
     list(raw?.errorGroups).forEach((row) => add(anomaly, row?.name || row?.errorCode, Number(row?.hits || 1) || 1))
     list(raw?.jobGroups).forEach((row) => add(jobs, row?.name || row?.jobName, Number(row?.hits || 1) || 1))
     list(raw?.programGroups).forEach((row) => add(programs, row?.name || row?.program, Number(row?.hits || 1) || 1))
@@ -89,6 +101,7 @@ function buildFallbackRows(caseData) {
     programs: rowsFromMap(programs),
     confidence: confidence.slice(-8),
     timeline: Array.from(timeline.values()).slice(-14),
+    resources: resources.slice(-30),
     summary: null,
     source: 'frontend-fallback',
   }
@@ -105,6 +118,7 @@ function buildRows(caseData) {
       programs: normalizeRows(analytics.programs, 10),
       confidence: normalizeRows(analytics.confidence, 10),
       timeline: normalizeTimeline(analytics.timeline),
+      resources: normalizeResourceRows(analytics.system_resources || analytics.resources || analytics.cpu_mem_swap || []),
       summary: analytics.summary || null,
       source: 'backend',
     }
@@ -231,6 +245,40 @@ function TimelineCard({ data }) {
   )
 }
 
+function ResourceChart({ data }) {
+  if (!data.length) return <EmptyChart title="CPU / Memory / Swap" hint="Host resource utilization over time" />
+
+  return (
+    <section className="caseDetailAnalyticsWide caseResourcePanel">
+      <div className="caseAnalyticsChartHead">
+        <div>
+          <h3>CPU / Memory / Swap</h3>
+          <span>Host resource utilization over time</span>
+        </div>
+        <b>{data.length}</b>
+      </div>
+      <div className="caseResourceLegend">
+        <span>CPU %</span>
+        <span>Memory %</span>
+        <span>Swap %</span>
+      </div>
+      <div className="caseDetailChartBox">
+        <ResponsiveContainer width="100%" height={280}>
+          <LineChart data={data} margin={{ top: 8, right: 14, left: -18, bottom: 18 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
+            <Tooltip />
+            <Line type="monotone" dataKey="cpu" name="CPU %" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="mem" name="Memory %" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="swap" name="Swap %" strokeWidth={3} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </section>
+  )
+}
+
 function ConfidenceCard({ data }) {
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
   if (!data.length) return <EmptyChart title="Parsed Confidence" hint="Confidence per parser result" />
@@ -291,6 +339,7 @@ export default function CaseAnalytics({ caseData }) {
       ) : (
         <div className="caseDetailAnalyticsGrid">
           <TimelineCard data={rows.timeline} />
+          <ResourceChart data={rows.resources} />
           <SeverityCard data={rows.severity} />
           <BarCard title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" horizontal />
           <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" horizontal />
