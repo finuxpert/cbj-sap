@@ -1,6 +1,7 @@
 import React from 'react'
 import { listMobileCases } from '../../evidence-api-client.js'
 import CaseCard from '../../features/cases/CaseCard.jsx'
+import { exportCaseHistoryListPdf } from '../../features/cases/casePdfExport.js'
 
 function normalizeItems(payload) {
   if (Array.isArray(payload)) return payload
@@ -14,6 +15,7 @@ export default function CaseHistory() {
   const [query, setQuery] = React.useState('')
   const [status, setStatus] = React.useState('')
   const [loading, setLoading] = React.useState(true)
+  const [exporting, setExporting] = React.useState(false)
   const [error, setError] = React.useState('')
 
   const loadCases = React.useCallback(async () => {
@@ -57,6 +59,19 @@ export default function CaseHistory() {
     })
   }, [cases, query, status])
 
+  const exportPdf = React.useCallback(async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      await exportCaseHistoryListPdf(filteredCases, { query, status })
+    } catch (err) {
+      console.error('[Case History PDF] failed:', err)
+      window.print()
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting, filteredCases, query, status])
+
   return (
     <section className="caseHistoryPage container section">
       <div className="caseHistoryHero">
@@ -68,9 +83,14 @@ export default function CaseHistory() {
             dan management-ready RCA snapshot tanpa upload ulang.
           </p>
         </div>
-        <button className="btn" type="button" onClick={loadCases} disabled={loading}>
-          {loading ? 'Refreshing…' : 'Refresh'}
-        </button>
+        <div className="caseHistoryActions">
+          <button className="btn" type="button" onClick={loadCases} disabled={loading}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button className="btn primary" type="button" onClick={exportPdf} disabled={loading || exporting}>
+            {exporting ? 'Preparing PDF…' : 'Export PDF'}
+          </button>
+        </div>
       </div>
 
       <div className="caseHistoryToolbar card">
