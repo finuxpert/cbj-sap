@@ -120,10 +120,59 @@
   overflow: visible;
 }
 
+.evidenceToolShell.refinedTool .recharts-cartesian-grid line {
+  stroke: rgba(148, 163, 184, 0.24) !important;
+  stroke-dasharray: 2 8;
+}
+
+.evidenceToolShell.refinedTool .recharts-cartesian-axis-line,
+.evidenceToolShell.refinedTool .recharts-cartesian-axis-tick-line {
+  stroke: rgba(148, 163, 184, 0.18) !important;
+}
+
+.evidenceToolShell.refinedTool .recharts-text,
+.evidenceToolShell.refinedTool .recharts-label {
+  fill: rgba(224, 242, 241, 0.70) !important;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.evidenceToolShell.refinedTool .recharts-bar-rectangle path,
+.evidenceToolShell.refinedTool .recharts-rectangle {
+  fill: #2dd4bf !important;
+  stroke: rgba(191, 251, 241, 0.42) !important;
+  filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.24));
+}
+
+.evidenceToolShell.refinedTool .recharts-sector {
+  fill: rgba(45, 212, 191, 0.66) !important;
+  stroke: rgba(236, 253, 245, 0.72) !important;
+}
+
+.evidenceToolShell.refinedTool .recharts-line-curve {
+  stroke: #38bdf8 !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.36));
+}
+
+.evidenceToolShell.refinedTool .recharts-line-dot circle,
+.evidenceToolShell.refinedTool .recharts-active-dot circle {
+  fill: #071013 !important;
+  stroke: #38bdf8 !important;
+  stroke-width: 2px !important;
+}
+
 .evidenceToolShell.refinedTool .recharts-legend-item-text,
 .evidenceToolShell.refinedTool .recharts-tooltip-label,
 .evidenceToolShell.refinedTool .recharts-tooltip-item {
   color: rgba(240, 253, 250, 0.92) !important;
+}
+
+.evidenceToolShell.refinedTool .recharts-default-tooltip {
+  border: 1px solid rgba(45, 212, 191, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(8, 12, 15, 0.96) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42) !important;
 }
 
 .evidenceToolShell.refinedTool .evidenceGrid.wide .evidencePanel:nth-child(2) {
