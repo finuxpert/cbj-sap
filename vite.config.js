@@ -12,7 +12,9 @@ export default defineConfig({
       output: {
         // Split heavy libs so initial load is lighter and caching is better
         manualChunks: {
+          jszip: ['jszip'],
           recharts: ['recharts'],
+          xlsx: ['xlsx'],
         },
       },
     },
