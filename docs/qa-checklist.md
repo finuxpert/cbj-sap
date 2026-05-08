@@ -67,7 +67,31 @@ concurrency:
   cancel-in-progress: true
 ```
 
-### 2. Build command
+### 2. Validation report
+
+Runner-written latest validation report:
+
+```text
+docs/validation/dev-latest.md
+```
+
+Expected after push to `dev`:
+
+```text
+Build      : green
+HTTP       : 200 on https://sapdev.cbj-kontruksi.com/sap/
+API Health : ok on /sap-api/health
+```
+
+Most recent known green validation after CSS consolidation:
+
+```text
+Commit : 9df3a9a
+Subject: Update SAP RCA current status after CSS consolidation
+Status : green
+```
+
+### 3. Build command
 
 Expected:
 
@@ -76,7 +100,7 @@ npm install
 npm run build
 ```
 
-### 3. API health
+### 4. API health
 
 Expected:
 
@@ -103,7 +127,7 @@ Ctrl + F5
 URL:
 
 ```text
-https://sapdev.cbj-kontruksi.com
+https://sapdev.cbj-kontruksi.com/sap/
 ```
 
 Check:
@@ -120,7 +144,7 @@ Check:
 URL:
 
 ```text
-https://sapdev.cbj-kontruksi.com/#/tool/comparer
+https://sapdev.cbj-kontruksi.com/sap/#/tool/comparer
 ```
 
 Check:
@@ -130,6 +154,8 @@ Check:
 - Offender Queue panel visible
 - filters/search visible
 - severity badges render: CRIT/WARN/OK
+- chart panels remain readable after legacy Dynatrace CSS removal
+- no old floating/shortcut nav reappears
 - PDF export dock visible
 - Evidence History panel visible
 
@@ -138,7 +164,7 @@ Check:
 URL:
 
 ```text
-https://sapdev.cbj-kontruksi.com/#/tool/analyzer
+https://sapdev.cbj-kontruksi.com/sap/#/tool/analyzer
 ```
 
 Check:
@@ -149,13 +175,14 @@ Check:
 - Parse Status visible
 - chart panels render without layout collapse
 - PDF export dock visible
+- Evidence History panel visible
 
 ### Log Evidence V2
 
 URL:
 
 ```text
-https://sapdev.cbj-kontruksi.com/#/tool/logs
+https://sapdev.cbj-kontruksi.com/sap/#/tool/logs
 ```
 
 Check:
@@ -166,6 +193,33 @@ Check:
 - Decision cards visible
 - Error Evidence Ranking visible after data/cache
 - PDF export dock visible
+- Evidence History panel visible
+
+## Evidence Archive / Uploader QA
+
+Evidence layout was consolidated into:
+
+```text
+src/app/evidence-history-ux.css
+```
+
+Direct import disabled but retained for rollback:
+
+```text
+src/features/evidence/evidence.css
+```
+
+Check on all 3 core tool pages:
+
+- Evidence API intro panel visible
+- upload/drop zone visible
+- upload button usable
+- Evidence History card visible
+- Refresh button usable
+- evidence list scrolls correctly on desktop
+- evidence cards stack correctly on mobile
+- empty state is readable
+- upload error state is readable
 
 ## PDF export smoke test
 
@@ -219,7 +273,26 @@ Theme entrypoint:
 src/app/enterprise-theme.css
 ```
 
-New polish files must be imported here, not directly in `main.jsx`.
+`src/main.jsx` should only import:
+
+```text
+src/index.css
+src/app/enterprise-theme.css
+```
+
+Current enterprise theme import chain:
+
+```css
+@import './enterprise-ui-system.css';
+@import './sap-rca-logo.css';
+@import './enterprise-navigation.css';
+@import './evidence-history-ux.css';
+@import './investigation-workspace-ux.css';
+@import './log-evidence-ux.css';
+@import './st03n-impact-ux.css';
+@import './comparer-process-ux.css';
+@import './pdf-export-ux.css';
+```
 
 ### CSS safety
 
@@ -230,6 +303,45 @@ Avoid:
 - MutationObserver/runtime injector
 - oversized FORCE_UI_CSS override
 - unsupported or risky selectors when simple selectors work
+
+## CSS consolidation rollback references
+
+Legacy/direct CSS files are disabled but retained:
+
+```text
+src/sapdev-polish.css
+src/sapdev-comparer-fix.css
+src/sapdev-premium-overhaul.css
+src/sapdev-final-force.css
+src/sap-intelligent-ux.css
+src/sap-intelligent-investigation.css
+src/sap-dynatrace-rca.css
+src/app/shell-overrides.css
+src/app/rca-workspace.css
+src/features/evidence/evidence.css
+```
+
+CSS cleanup audit:
+
+```text
+docs/css-cleanup-audit.md
+```
+
+Rollback approach:
+
+```text
+restore only the specific import that matches the visual regression, not all legacy CSS at once
+```
+
+Examples:
+
+```text
+Evidence layout regression -> restore src/features/evidence/evidence.css
+Chart readability regression -> restore src/sap-dynatrace-rca.css
+Old floating nav reappears -> restore src/app/shell-overrides.css
+Navbar/PDF shell regression -> restore src/app/rca-workspace.css
+Comparer layout regression -> restore src/sapdev-comparer-fix.css
+```
 
 ## Code-level QA
 
@@ -294,6 +406,8 @@ Stop and fix if any appear:
 - Evidence API health fails
 - nginx health check fails in deploy workflow
 - deploy job queues because runner is offline
+- old floating/shortcut nav appears again
+- Evidence History layout collapses after CSS consolidation
 
 ## Post-QA handoff note
 
