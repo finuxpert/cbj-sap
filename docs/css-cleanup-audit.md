@@ -26,7 +26,7 @@ Do not add new visual CSS imports directly to:
 src/main.jsx
 ```
 
-## First cleanup patch
+## Cleanup patch 1
 
 Disabled this legacy import in `src/main.jsx`:
 
@@ -36,7 +36,7 @@ import './sapdev-final-force.css'
 
 The file was not deleted.
 
-## Why this is the safest first candidate
+### Why this was a safe first candidate
 
 `sapdev-final-force.css` is a high-specificity emergency override layer with broad `!important` rules for:
 
@@ -57,11 +57,58 @@ src/app/comparer-process-ux.css
 src/app/pdf-export-ux.css
 ```
 
-## Rollback
+## Cleanup patch 2
 
-If QA finds regression on sapdev, restore the import in `src/main.jsx`:
+Disabled this older base polish import in `src/main.jsx`:
 
 ```js
+import './sapdev-polish.css'
+```
+
+The file was not deleted.
+
+### Why this candidate was chosen before disabling premium overhaul
+
+`sapdev-polish.css` mostly contains older global styling for:
+
+- body background
+- navbar
+- buttons
+- generic cards/panels
+- homepage hero
+- table wrappers
+- mobile spacing
+
+These areas are now covered by:
+
+```text
+src/app/enterprise-ui-system.css
+src/app/enterprise-navigation.css
+src/app/investigation-workspace-ux.css
+```
+
+`sapdev-premium-overhaul.css` was not disabled yet because it still contains broader comparer/workbench selectors such as `.cmpWrap`, `.cmpTopbar`, `.cmpMain`, and legacy chart/table rules. That file needs one more focused inventory before disabling.
+
+## Current legacy CSS imports still active in main.jsx
+
+```text
+src/sapdev-comparer-fix.css
+src/sapdev-premium-overhaul.css
+src/sap-intelligent-ux.css
+src/sap-intelligent-investigation.css
+src/features/evidence/evidence.css
+src/app/shell-overrides.css
+src/app/rca-workspace.css
+src/sap-dynatrace-rca.css
+src/app/enterprise-theme.css
+```
+
+## Rollback
+
+If QA finds regression on sapdev, restore the disabled imports in `src/main.jsx` as needed:
+
+```js
+import './sapdev-polish.css'
 import './sapdev-final-force.css'
 ```
 
@@ -70,7 +117,7 @@ Then run:
 ```bash
 npm run build
 git add src/main.jsx
-git commit -m "Restore legacy sapdev force CSS import"
+git commit -m "Restore legacy sapdev CSS imports"
 git push origin dev
 ```
 
@@ -90,7 +137,12 @@ Verify:
 - no blank screen
 - navbar desktop/mobile still works
 - SAP RCA logo still visible
+- homepage Investigation Workspace still readable
 - comparer layout is not broken
 - PDF dock still visible
 - Export PDF works on all 3 core tools
 - evidence/table readability still OK
+
+## Next recommended cleanup
+
+Audit `src/sapdev-premium-overhaul.css` against current React class usage before disabling it. Do not delete the file until sapdev QA passes without it.
