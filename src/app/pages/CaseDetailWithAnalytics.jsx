@@ -20,7 +20,7 @@ function AnalyticsQuickSummary({ caseData }) {
   return (
     <div className="caseAnalyticsQuickSummary" id="case-analytics">
       <div>
-        <span>Analytics Scope</span>
+        <span>Case</span>
         <strong>{caseData?.case_no || caseData?.id || 'Case Detail'}</strong>
       </div>
       <div>
@@ -43,14 +43,32 @@ function AnalyticsQuickSummary({ caseData }) {
   )
 }
 
+function CaseDashboardHero({ caseData, loadingAnalytics }) {
+  const title = caseData?.title || caseData?.case_no || caseData?.id || 'Case Detail'
+  const summary = caseData?.executive_summary || caseData?.summary || 'RCA dashboard summary will appear after the case data is loaded.'
+  const status = String(caseData?.status || 'OPEN').toUpperCase()
+  const severity = String(caseData?.severity || 'INFO').toUpperCase()
+
+  return (
+    <section className="caseDashboardHero">
+      <div>
+        <p className="sectionKicker">Case RCA Dashboard</p>
+        <h1>{title}</h1>
+        <p>{summary}</p>
+      </div>
+      <div className="caseDashboardMeta">
+        <span>{loadingAnalytics ? 'SYNCING' : status}</span>
+        <strong>{severity}</strong>
+        <a href="#case-detail-full">Open Full Detail</a>
+      </div>
+    </section>
+  )
+}
+
 function AnalyticsBlock({ caseData, loadingAnalytics }) {
   return (
     <section className="caseDetailPage container section caseDetailAnalyticsMount">
-      <div className="caseAnalyticsTopbar">
-        <span>Analytics Overview</span>
-        <a href="#case-detail-full">Continue to Case Detail</a>
-        <small>{loadingAnalytics ? 'Loading analytics data…' : 'Loaded from Case History API'}</small>
-      </div>
+      <CaseDashboardHero caseData={caseData} loadingAnalytics={loadingAnalytics} />
       {caseData ? (
         <>
           <AnalyticsQuickSummary caseData={caseData} />
@@ -58,7 +76,7 @@ function AnalyticsBlock({ caseData, loadingAnalytics }) {
         </>
       ) : (
         <article className="caseDetailPanel caseDetailAnalyticsPanel">
-          <div className="caseDetailChartEmpty">Analytics data is not available yet.</div>
+          <div className="caseDetailChartEmpty">Analytics data is loading or not available yet.</div>
         </article>
       )}
     </section>
@@ -94,9 +112,16 @@ export default function CaseDetailWithAnalytics({ caseId }) {
   return (
     <>
       <AnalyticsBlock caseData={caseData} loadingAnalytics={loadingAnalytics} />
-      <div id="case-detail-full">
-        <CaseDetail caseId={caseId} />
-      </div>
+      <section className="caseDetailPage container section caseFullDetailShell" id="case-detail-full">
+        <div className="caseFullDetailHead">
+          <div>
+            <p className="sectionKicker">Full Case Detail</p>
+            <h2>Detail, edit form, timeline, parsed result, and linked evidence</h2>
+          </div>
+          <a href="#case-analytics">Back to Analytics</a>
+        </div>
+      </section>
+      <CaseDetail caseId={caseId} />
     </>
   )
 }
