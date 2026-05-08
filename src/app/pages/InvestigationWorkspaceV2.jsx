@@ -18,6 +18,7 @@ import {
 import { uploadEvidence } from '../../evidence-api-client.js'
 import './InvestigationWorkspace.css'
 import './InvestigationWorkspaceV2.css'
+import { GroupPanel, SuspectDetail } from './investigation/InvestigationPanels.jsx'
 
 const REQUIRED_ST03N = [
   { key: 'timeProfile', label: 'Time Profile', patterns: ['time-profile', 'time_profile', 'time profile'] },
@@ -366,15 +367,6 @@ async function exportReport(session) {
   const action = session.top ? [`Review job ${session.top.jobName}.`, `Review program ${session.top.program}.`, `Focus on ErrorCode ${session.top.errorCode}.`, `Compare critical occurrence during ${session.window.start} - ${session.window.end}.`, 'Attach this report to the incident record with the original evidence pack.'] : ['Review uploaded evidence and rerun analysis with additional snapshots.']
   action.forEach((a) => line(`[ ] ${a}`))
   doc.save(`SAP-RCA-${session.sessionId}.pdf`)
-}
-function GroupPanel({ title, rows }) {
-  return <section className="resultPanel groupPanel"><h3>{title}</h3><div className="groupList">{rows.slice(0, 8).map((row) => <div key={row.name}><b>{row.name}</b><span>hits {row.hits} · CRIT {row.critHits} · WARN {row.warnHits} · max CPU {fmt(row.maxCpu)}%</span>{row.examples?.length ? <small>{row.examples.join(' · ')}</small> : null}</div>)}</div></section>
-}
-function SuspectDetail({ suspect, analysis }) {
-  if (!suspect) return <section className="resultPanel"><h3>Suspect Detail</h3><p>No suspect selected.</p></section>
-  const ev = suspectEvidence(suspect, analysis)
-  const type = classifyProblemType(suspect, analysis.timeline)
-  return <section className="resultPanel suspectDetail"><div className="detailHead"><div><h3>Suspect Detail</h3><strong>PID {suspect.pid} / WP {suspect.wp} / {suspect.type}</strong><p>{suspect.program}</p></div><div className={`detailScore ${suspect.severity.toLowerCase()}`}><span>{suspect.severity}</span><b>{suspect.score}/100</b></div></div><div className="factsGrid"><span>ErrorCode<b>{suspect.errorCode}</b></span><span>JobName<b>{suspect.jobName}</b></span><span>Hits<b>{suspect.hits}</b></span><span>CRIT Hits<b>{suspect.critHits}</b></span><span>Incident Match<b>{suspect.spikeHits}x</b></span><span>Max CPU<b>{fmt(suspect.maxCpu)}%</b></span></div><div className="whyBox"><h4>Why ranked high?</h4><ul>{suspect.why.map((w) => <li key={w}>{w}</li>)}</ul></div><div className="evidenceColumns"><div><h4>Evidence For</h4><ul>{ev.evidenceFor.map((x) => <li key={x}>{x}</li>)}</ul></div><div><h4>Evidence Against / Limits</h4><ul>{ev.evidenceAgainst.map((x) => <li key={x}>{x}</li>)}</ul></div></div><div className="interpretationBox"><h4>RCA Interpretation</h4><p><b>{type.primary}.</b> {type.secondary}. The strongest evidence comes only from the uploaded WP-SCOUT/ST03N files.</p></div></section>
 }
 
 export default function InvestigationWorkspaceV2() {
