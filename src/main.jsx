@@ -16,6 +16,7 @@ import './sap-dynatrace-rca.css'
 import './app/enterprise-ui-system.css'
 import './app/enterprise-navigation.css'
 import './app/log-evidence-ux.css'
+import './app/st03n-impact-ux.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
