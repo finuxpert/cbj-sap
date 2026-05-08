@@ -291,11 +291,37 @@ which is loaded through:
 src/app/enterprise-theme.css
 ```
 
+## Cleanup patch 9
+
+Disabled this legacy RCA workspace shell polish import in `src/main.jsx`:
+
+```js
+import './app/rca-workspace.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+`rca-workspace.css` was a small shell polish layer for RCA navigation, brand badge, tool tabs, PDF dock, and evidence shell radius/text color. These areas are now covered by:
+
+```text
+src/app/enterprise-navigation.css
+src/app/sap-rca-logo.css
+src/app/pdf-export-ux.css
+src/app/evidence-history-ux.css
+```
+
+all loaded through:
+
+```text
+src/app/enterprise-theme.css
+```
+
 ## Current CSS imports still active in main.jsx
 
 ```text
 src/features/evidence/evidence.css
-src/app/rca-workspace.css
 src/app/enterprise-theme.css
 ```
 
@@ -310,6 +336,7 @@ src/sap-intelligent-ux.css
 src/sap-intelligent-investigation.css
 src/sap-dynatrace-rca.css
 src/app/shell-overrides.css
+src/app/rca-workspace.css
 ```
 
 ## Rollback
@@ -325,6 +352,7 @@ import './sap-intelligent-ux.css'
 import './sap-intelligent-investigation.css'
 import './sap-dynatrace-rca.css'
 import './app/shell-overrides.css'
+import './app/rca-workspace.css'
 ```
 
 Then run:
@@ -362,9 +390,4 @@ Verify:
 
 ## Next recommended cleanup
 
-Audit the remaining active imports in this order:
-
-1. `src/app/rca-workspace.css`
-2. `src/features/evidence/evidence.css`
-
-Do not disable more than one remaining CSS file per patch unless QA is already green.
+Audit `src/features/evidence/evidence.css` last. This file may still provide functional Evidence History / uploader styles, so do not disable it unless enterprise evidence styling fully covers the visible components.
