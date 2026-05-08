@@ -11,6 +11,7 @@ import {
   safe,
   saveJson,
 } from './evidence-utils.js'
+import { KNOWN_SAP_ERROR_CODES } from './log-evidence-constants.js'
 import {
   DecisionCard,
   EmptyState,
@@ -22,17 +23,6 @@ import {
 import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
-const KNOWN_ERRORS = [
-  'CONVT_NO_NUMBER',
-  'DBSQL_DUPLICATE_KEY_ER',
-  'ITAB_DUPLICATE_KEY',
-  'LOAD_PROGRAM_TABLE_MIS',
-  'UNCAUGHT_EXCEPTION',
-  'SYNTAX_ERROR',
-  'CALL_FUNCTION_SEND_ERR',
-  'TIME_OUT',
-  'IMPORT_WRONG_END_POS',
-]
 
 async function expandFiles(fileList) {
   const expanded = await expandZipAwareFiles(fileList, ['log', 'txt', 'csv'])
@@ -80,7 +70,7 @@ function parseWpRows(text = '', fileName = '') {
 function parseGenericErrors(text = '', fileName = '') {
   const rows = []
   String(text || '').replace(/\r/g, '').split('\n').forEach((line, idx) => {
-    const errorCode = KNOWN_ERRORS.find((error) => line.includes(error))
+    const errorCode = KNOWN_SAP_ERROR_CODES.find((error) => line.includes(error))
     if (!errorCode) return
     const hhmm = line.match(/\b(\d{2}:\d{2})(?::\d{2})?\b/)?.[1] || ''
     const severity = /CRIT|ERROR|\bE\b|dump|abend|failed|exception/i.test(line) ? 'CRIT' : 'WARN'
