@@ -67,3 +67,66 @@ jobs:
           set -euo pipefail
           curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/health
           echo
+
+      - name: Verify Case History parsed-result API flow
+        run: |
+          set -euo pipefail
+          API="https://sapdev.cbj-kontruksi.com/sap-api"
+          TITLE="Workflow Test Case ${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-1}"
+          echo "Creating case: ${TITLE}"
+
+          CREATE_RESPONSE=$(curl -fsS -X POST "${API}/cases" \
+            -H 'Content-Type: application/json' \
+            --data "{\"title\":\"${TITLE}\",\"severity\":\"INFO\",\"status\":\"OPEN\",\"summary\":\"Workflow validation case\",\"created_by\":\"github-actions\"}")
+          echo "Create response: ${CREATE_RESPONSE}"
+
+          CASE_ID=$(python3 - <<'PY' <<<"${CREATE_RESPONSE}"
+          import json, sys
+          payload = json.load(sys.stdin)
+          candidate = payload.get('case') or payload.get('item') or payload.get('data') or payload
+          print(candidate.get('id') or candidate.get('case_no') or payload.get('case_id') or '')
+          PY
+          )
+
+          if [ -z "${CASE_ID}" ]; then
+            echo "Create response did not include case id; falling back to /mobile/cases lookup"
+            CASE_LIST=$(curl -fsS "${API}/mobile/cases?limit=25")
+            CASE_ID=$(TITLE="${TITLE}" python3 - <<'PY' <<<"${CASE_LIST}"
+            import json, os, sys
+            payload = json.load(sys.stdin)
+            items = payload if isinstance(payload, list) else payload.get('items') or payload.get('cases') or payload.get('data') or []
+            title = os.environ.get('TITLE', '')
+            match = None
+            for item in items:
+              if item.get('title') == title:
+                match = item
+                break
+            if match is None and items:
+              match = items[0]
+            print((match or {}).get('id') or (match or {}).get('case_no') or '')
+            PY
+            )
+          fi
+
+          test -n "${CASE_ID}"
+          echo "Case id: ${CASE_ID}"
+
+          PARSED_RESPONSE=$(curl -fsS -X POST "${API}/cases/${CASE_ID}/parsed-results" \
+            -H 'Content-Type: application/json' \
+            --data '{"tool":"Workflow Case History Test","verdict":"parsed-result-api-ok","severity":"WARN","confidence":99,"top_anomaly":"WORKFLOW_CASE_HISTORY_TEST","top_suspect":"Log Evidence V2 integration","summary":"Workflow verified parsed-result persistence from DEV deploy.","result_json":{"source":"github-actions","check":"case-history-parsed-result"}}')
+          echo "Parsed response: ${PARSED_RESPONSE}"
+
+          DETAIL_RESPONSE=$(curl -fsS "${API}/mobile/cases/${CASE_ID}")
+          echo "Detail response: ${DETAIL_RESPONSE}"
+
+          python3 - <<'PY' <<<"${DETAIL_RESPONSE}"
+          import json, sys
+          payload = json.load(sys.stdin)
+          case = payload.get('case') or payload
+          results = case.get('parsed_results') or []
+          if not results:
+              raise SystemExit('No parsed_results returned from mobile case detail')
+          if not any(item.get('top_anomaly') == 'WORKFLOW_CASE_HISTORY_TEST' for item in results):
+              raise SystemExit('Workflow parsed result was not found in case detail')
+          print('OK: Case History parsed-result API flow verified')
+          PY
