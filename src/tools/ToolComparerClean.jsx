@@ -1,4 +1,6 @@
 import React from 'react'
+import CaseLinkPanel from '../features/cases/CaseLinkPanel.jsx'
+import useCaseHistoryLink from '../features/cases/useCaseHistoryLink.js'
 import {
   ResponsiveContainer,
   BarChart,
@@ -10,11 +12,13 @@ import {
   LabelList,
 } from 'recharts'
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
+import { loadJson, saveJson } from './evidence-utils.js'
 import './ToolComparerClean.css'
 import './ToolComparerCleanVisual.css'
 import './ToolComparerDynatrace.css'
 
 const MAX_ROWS = 5000
+const CASE_KEY = 'sap_wp_scout_comparator_case_id'
 
 function n(value, fallback = 0) {
   const parsed = Number(String(value ?? '').replace(',', '.'))
@@ -192,6 +196,98 @@ function uniqueOffenders(sourceRows) {
   return Array.from(map.values()).sort((a, b) => b.score - a.score || b.hits - a.hits)
 }
 
+function severityFromStats(stats = {}) {
+  if (stats.crit > 0) return 'CRIT'
+  if (stats.warn > 0) return 'WARN'
+  return 'INFO'
+}
+
+function buildComparerSummary(analysis) {
+  if (!analysis?.topRow) return 'WP-SCOUT comparator evidence saved to Case History.'
+  const top = analysis.topRow
+  return `${top.host || '-'} / PID ${top.pid || '-'} / ${top.type || '-'} / ${top.job || '-'}. Max RSS ${Number(top.rssGb || 0).toFixed(1)} GB, hits ${top.hits || 1}.`
+}
+
+function buildComparerAnalysis(sourceRows = [], fileCount = 0) {
+  if (!sourceRows.length) return null
+  const uniqueRows = uniqueOffenders(sourceRows)
+  const crit = uniqueRows.filter((row) => row.severity === 'CRIT').length
+  const warn = uniqueRows.filter((row) => row.severity === 'WARN').length
+  const hosts = new Set(sourceRows.map((row) => row.host)).size
+  const maxRss = Math.max(0, ...sourceRows.map((row) => row.rssGb))
+  const maxAge = Math.max(0, ...sourceRows.map((row) => row.ageHours))
+  const topRow = uniqueRows[0] || null
+  const hostMap = new Map()
+
+  for (const row of uniqueRows) {
+    const current = hostMap.get(row.host) || { host: row.host, crit: 0, warn: 0, rss: 0, score: 0 }
+    current.crit += row.severity === 'CRIT' ? 1 : 0
+    current.warn += row.severity === 'WARN' ? 1 : 0
+    current.rss = Math.max(current.rss, row.rssGb)
+    current.score += row.score
+    hostMap.set(row.host, current)
+  }
+
+  const hostPressure = Array.from(hostMap.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 20)
+
+  return {
+    fileCount,
+    severity: severityFromStats({ crit, warn }),
+    rawRows: sourceRows.length,
+    totalUnique: uniqueRows.length,
+    crit,
+    warn,
+    hosts,
+    maxRss,
+    maxAge,
+    topRow,
+    summary: buildComparerSummary({ topRow }),
+    topHosts: hostPressure,
+    uniqueRows: uniqueRows.slice(0, 100),
+    rows: sourceRows.slice(0, 120),
+  }
+}
+
+function buildComparerCasePayload(analysis, title) {
+  return {
+    title,
+    severity: analysis?.severity || 'INFO',
+    summary: analysis?.summary || '',
+    top_anomaly: analysis?.topRow ? `${analysis.topRow.severity} WP-SCOUT offender` : 'WP-SCOUT comparator',
+    top_suspect: analysis?.topRow ? `${analysis.topRow.host} / PID ${analysis.topRow.pid} / ${analysis.topRow.type}` : 'WP-SCOUT comparator',
+    status: 'OPEN',
+    created_by: 'sap-rca-workspace',
+  }
+}
+
+function buildComparerParsedPayload(analysis) {
+  return {
+    tool: 'WP-SCOUT / RCA Comparator',
+    verdict: analysis?.topRow ? `${analysis.topRow.severity} offender ranked` : 'WP-SCOUT comparator parsed',
+    severity: analysis?.severity || 'INFO',
+    confidence: analysis?.topRow ? Math.min(99, Math.max(40, Number(analysis.topRow.score || 0))) : 0,
+    top_anomaly: analysis?.topRow ? `${analysis.topRow.severity} WP-SCOUT offender` : 'WP-SCOUT comparator',
+    top_suspect: analysis?.topRow ? `${analysis.topRow.host} / PID ${analysis.topRow.pid} / ${analysis.topRow.type} / ${analysis.topRow.job}` : 'WP-SCOUT comparator',
+    summary: analysis?.summary || 'WP-SCOUT comparator evidence saved to Case History.',
+    result_json: {
+      file_count: analysis?.fileCount || 0,
+      raw_rows: analysis?.rawRows || 0,
+      unique_rows: analysis?.totalUnique || 0,
+      crit: analysis?.crit || 0,
+      warn: analysis?.warn || 0,
+      hosts: analysis?.hosts || 0,
+      max_rss_gb: Number(analysis?.maxRss || 0),
+      max_age_hours: Number(analysis?.maxAge || 0),
+      top_row: analysis?.topRow || null,
+      top_hosts: analysis?.topHosts || [],
+      unique_offenders: analysis?.uniqueRows || [],
+      rows: analysis?.rows || [],
+    },
+  }
+}
+
 async function readAsText(file) {
   return file.text()
 }
@@ -261,6 +357,7 @@ function ActionNotes({ topRow, hasData }) {
 
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
+  const [files, setFiles] = React.useState([])
   const [rows, setRows] = React.useState([])
   const [query, setQuery] = React.useState('')
   const [severityFilter, setSeverityFilter] = React.useState('BAD')
@@ -270,6 +367,16 @@ export default function ToolComparerClean() {
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
   const [lastLoad, setLastLoad] = React.useState('')
+  const caseLink = useCaseHistoryLink({
+    storageKey: CASE_KEY,
+    buildCasePayload: buildComparerCasePayload,
+    buildParsedPayload: buildComparerParsedPayload,
+    defaultCaseTitle: 'WP-SCOUT RCA Case',
+    toolName: 'WP-SCOUT / RCA Comparator',
+    uploadTags: ['wp-scout', 'comparer', 'sap-rca', 'auto-linked'],
+    loadJson,
+    saveJson,
+  })
 
   const ingest = async (fileList) => {
     const list = Array.from(fileList || []).filter(Boolean)
@@ -283,11 +390,14 @@ export default function ToolComparerClean() {
         const text = await readAsText(file)
         parsed.push(parseFileText(file.name, text))
       }
-      const nextRows = parsed.flatMap((p) => p.rows).sort((a, b) => b.score - a.score)
+      const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
+      const nextAnalysis = buildComparerAnalysis(nextRows, parsed.length)
+      setFiles(list)
       setRows(nextRows)
       setHostFilter('ALL')
       setJobFilter('ALL')
       setLastLoad(nextRows.length ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).` : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.')
+      if (caseLink.caseId && nextAnalysis) await caseLink.persistAnalysis(nextAnalysis, list)
     } catch (err) {
       console.error('[WP-SCOUT Comparator] parse failed:', err)
       setError(err?.message || String(err))
@@ -300,6 +410,7 @@ export default function ToolComparerClean() {
 
   const uniqueRows = React.useMemo(() => uniqueOffenders(rows), [rows])
   const baseRows = viewMode === 'UNIQUE' ? uniqueRows : rows
+  const caseAnalysis = React.useMemo(() => buildComparerAnalysis(rows, files.length), [files.length, rows])
 
   const hostOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.host))).sort()], [rows])
   const jobOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.job).filter(Boolean))).sort().slice(0, 80)], [rows])
@@ -374,7 +485,25 @@ export default function ToolComparerClean() {
           <strong>Drop / select WP-SCOUT log</strong>
           <span>Accepted: .log, .txt, .csv. Default view groups duplicate rows into unique offenders.</span>
         </div>
-        <EvidenceHistory tool="comparer" limit={5} />
+        <div>
+          <CaseLinkPanel
+            title="Case History Link"
+            description="Pilih atau buat case supaya hasil WP-SCOUT comparator tersimpan dan raw evidence bisa dibuka ulang dari #/cases maupun mobile."
+            caseId={caseLink.caseId}
+            caseTitle={caseLink.caseTitle}
+            recentCases={caseLink.recentCases}
+            savingCase={caseLink.savingCase}
+            saveStatus={caseLink.saveStatus}
+            onCaseIdChange={caseLink.setCaseId}
+            onCaseTitleChange={caseLink.setCaseTitle}
+            onCreateCase={() => caseLink.createLinkedCase(caseAnalysis)}
+            onSaveCurrent={() => caseLink.persistAnalysis(caseAnalysis, files)}
+            hasAnalysis={Boolean(caseAnalysis)}
+            saveLabel="Save to Case History"
+            titlePlaceholder="Contoh: WP-SCOUT memory pressure RCA"
+          />
+          <EvidenceHistory tool="comparer" limit={5} />
+        </div>
       </div>
 
       {error ? <div className="cmpCleanError">{error}</div> : null}
