@@ -1,0 +1,47 @@
+/* Custom SAP RCA brand mark. This is an internal SAP RCA Workspace badge, not an official SAP logo asset. */
+.sapRcaLogo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 92px;
+  height: 44px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 12px 24px rgba(45, 212, 191, 0.18));
+}
+
+.sapRcaLogo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sapRcaLogo.compact {
+  width: 74px;
+  height: 36px;
+}
+
+.rcaBrand .sapRcaLogo {
+  margin-right: 2px;
+}
+
+.rcaBrand:hover .sapRcaLogo {
+  filter: drop-shadow(0 14px 30px rgba(45, 212, 191, 0.24));
+}
+
+@media (max-width: 720px) {
+  .sapRcaLogo {
+    width: 76px;
+    height: 36px;
+  }
+
+  .rcaBrand .brandTitle {
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 460px) {
+  .sapRcaLogo {
+    width: 68px;
+    height: 32px;
+  }
+}
