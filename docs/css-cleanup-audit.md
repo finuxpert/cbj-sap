@@ -318,14 +318,41 @@ all loaded through:
 src/app/enterprise-theme.css
 ```
 
+## Cleanup patch 10
+
+Moved the structural Evidence panel layout from `src/features/evidence/evidence.css` into:
+
+```text
+src/app/evidence-history-ux.css
+```
+
+Then disabled this feature CSS import in `src/main.jsx`:
+
+```js
+import './features/evidence/evidence.css'
+```
+
+The file was not deleted.
+
+### Why this was handled differently
+
+Unlike the earlier legacy layers, `evidence.css` still provided structural layout for active components:
+
+```text
+ToolEvidencePanel.jsx
+EvidenceUploader.jsx
+EvidenceHistory.jsx
+```
+
+So the layout rules for `.toolEvidencePanel`, `.evidenceUploader`, `.evidenceHistory`, `.evidenceList`, `.evidenceItem`, and mobile stacking were first consolidated into the enterprise evidence layer before disabling the direct feature CSS import.
+
 ## Current CSS imports still active in main.jsx
 
 ```text
-src/features/evidence/evidence.css
 src/app/enterprise-theme.css
 ```
 
-## Disabled legacy CSS files retained for rollback
+## Disabled legacy/direct CSS files retained for rollback
 
 ```text
 src/sapdev-polish.css
@@ -337,6 +364,7 @@ src/sap-intelligent-investigation.css
 src/sap-dynatrace-rca.css
 src/app/shell-overrides.css
 src/app/rca-workspace.css
+src/features/evidence/evidence.css
 ```
 
 ## Rollback
@@ -353,6 +381,7 @@ import './sap-intelligent-investigation.css'
 import './sap-dynatrace-rca.css'
 import './app/shell-overrides.css'
 import './app/rca-workspace.css'
+import './features/evidence/evidence.css'
 ```
 
 Then run:
@@ -385,9 +414,22 @@ Verify:
 - old floating/shortcut nav does not reappear
 - PDF dock still visible and does not block content
 - Export PDF works on all 3 core tools
+- Evidence Archive/Uploader/History layout still works
+- Evidence upload button and refresh button remain usable on mobile
 - evidence/table readability still OK
 - charts remain readable without the legacy Dynatrace override
 
-## Next recommended cleanup
+## Final state
 
-Audit `src/features/evidence/evidence.css` last. This file may still provide functional Evidence History / uploader styles, so do not disable it unless enterprise evidence styling fully covers the visible components.
+`src/main.jsx` now imports only the app baseline CSS and the enterprise theme entrypoint for UI styling:
+
+```text
+src/index.css
+src/app/enterprise-theme.css
+```
+
+New UI/UX layers should continue to be added through:
+
+```text
+src/app/enterprise-theme.css
+```
