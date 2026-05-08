@@ -1,0 +1,367 @@
+/*
+ * SAP Intelligent RCA Workspace - Enterprise UI System
+ * Incremental UI/UX layer only. No runtime injector, no MutationObserver, no DOM patching.
+ * Imported last from main.jsx so it behaves like a safe design-system override.
+ */
+:root {
+  --sap-ui-bg: #070f12;
+  --sap-ui-panel: rgba(13, 24, 29, 0.86);
+  --sap-ui-panel-strong: rgba(18, 31, 37, 0.94);
+  --sap-ui-panel-soft: rgba(255, 255, 255, 0.045);
+  --sap-ui-line: rgba(214, 242, 240, 0.14);
+  --sap-ui-line-strong: rgba(45, 212, 191, 0.32);
+  --sap-ui-text: rgba(249, 251, 247, 0.96);
+  --sap-ui-muted: rgba(220, 238, 238, 0.68);
+  --sap-ui-faint: rgba(220, 238, 238, 0.46);
+  --sap-ui-accent: #2dd4bf;
+  --sap-ui-accent-2: #38bdf8;
+  --sap-ui-success: #22c55e;
+  --sap-ui-warning: #f5b942;
+  --sap-ui-danger: #ef5f6f;
+  --sap-ui-radius: 14px;
+  --sap-ui-radius-sm: 10px;
+  --sap-ui-shadow: 0 22px 70px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  --sap-ui-shadow-soft: 0 14px 36px rgba(0, 0, 0, 0.24);
+  --sap-ui-ring: 0 0 0 3px rgba(45, 212, 191, 0.15);
+}
+
+body {
+  background:
+    radial-gradient(circle at 18% -8%, rgba(45, 212, 191, 0.18), transparent 32%),
+    radial-gradient(circle at 92% 4%, rgba(56, 189, 248, 0.13), transparent 30%),
+    linear-gradient(180deg, #071013 0%, #081114 48%, #060b0d 100%) !important;
+  color: var(--sap-ui-text);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.38), transparent 72%);
+  z-index: 0;
+}
+
+.appShell,
+.appShell main,
+.navbar {
+  position: relative;
+  z-index: 1;
+}
+
+.navbar {
+  background: rgba(5, 13, 16, 0.82) !important;
+  border-bottom: 1px solid rgba(214, 242, 240, 0.12) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+}
+
+.brandBadge,
+.toolIcon {
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.20), rgba(56, 189, 248, 0.10)) !important;
+  border-color: rgba(45, 212, 191, 0.30) !important;
+}
+
+.navLinks a,
+.quickPill,
+.toolTag,
+.badge {
+  border-radius: 999px !important;
+}
+
+.navLinks a[data-active="true"],
+.navLinks a:hover,
+.quickPill:hover {
+  background: rgba(45, 212, 191, 0.10) !important;
+  border-color: rgba(45, 212, 191, 0.28) !important;
+}
+
+.card,
+.commandPanel,
+.intelPanel,
+.workbenchPanel,
+.workbenchHero,
+.settingsPanel,
+.settingsHero,
+.toolCard,
+.opsStrip,
+.tableWrap,
+.mobilePanel,
+.toolsMenu {
+  border-radius: var(--sap-ui-radius) !important;
+  border-color: var(--sap-ui-line) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.026)),
+    var(--sap-ui-panel) !important;
+  box-shadow: var(--sap-ui-shadow) !important;
+}
+
+.card.soft,
+.opsMetric,
+.workbenchFlow div,
+.workbenchSignal,
+.intelSteps a,
+.toolItem {
+  border-radius: var(--sap-ui-radius-sm) !important;
+  border-color: rgba(214, 242, 240, 0.12) !important;
+  background: rgba(255, 255, 255, 0.042) !important;
+}
+
+.card:hover,
+.toolCard:hover,
+.intelSteps a:hover,
+.toolItem:hover,
+.workbenchFlow div:hover,
+.workbenchSignal:hover {
+  border-color: var(--sap-ui-line-strong) !important;
+  box-shadow: 0 24px 76px rgba(0, 0, 0, 0.36), 0 0 0 1px rgba(45, 212, 191, 0.08) inset !important;
+}
+
+.heroTitle,
+.workbenchTitle,
+.settingsTitle {
+  letter-spacing: -0.045em !important;
+  text-wrap: balance;
+}
+
+.heroSub,
+.workbenchDesc,
+.settingsDesc,
+.toolCardDesc,
+.intelPanel p,
+.intelSteps em {
+  color: var(--sap-ui-muted) !important;
+}
+
+.eyebrow,
+.sectionKicker,
+.intelHead strong,
+.workbenchPanelHead b,
+.toolCardGo {
+  color: var(--sap-ui-accent) !important;
+}
+
+.btn {
+  border-radius: 12px !important;
+  min-height: 40px;
+  letter-spacing: 0.005em;
+  background: rgba(255, 255, 255, 0.048) !important;
+  border-color: rgba(214, 242, 240, 0.15) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.btn.primary {
+  color: #effffb !important;
+  background: linear-gradient(135deg, rgba(45, 212, 191, 0.34), rgba(56, 189, 248, 0.18)) !important;
+  border-color: rgba(45, 212, 191, 0.52) !important;
+}
+
+.btn.secondary {
+  background: rgba(56, 189, 248, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.34) !important;
+}
+
+.btn.ghost {
+  background: rgba(255, 255, 255, 0.024) !important;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.38) !important;
+  box-shadow: var(--sap-ui-shadow-soft) !important;
+}
+
+.btn:focus-visible,
+.input:focus,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: none !important;
+  box-shadow: var(--sap-ui-ring) !important;
+}
+
+.input,
+input,
+select,
+textarea {
+  border-radius: 12px !important;
+  border-color: rgba(214, 242, 240, 0.14) !important;
+  background: rgba(4, 10, 12, 0.62) !important;
+  color: var(--sap-ui-text) !important;
+}
+
+.tableWrap {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 212, 191, 0.42) rgba(255, 255, 255, 0.045);
+}
+
+.table,
+table {
+  border-spacing: 0;
+}
+
+.table-th,
+th {
+  background: rgba(6, 15, 18, 0.96) !important;
+  color: var(--sap-ui-faint) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.table-td,
+td {
+  color: rgba(249, 251, 247, 0.90);
+}
+
+tr:hover .table-td,
+tbody tr:hover td {
+  background: rgba(45, 212, 191, 0.052) !important;
+}
+
+.badge {
+  min-height: 24px;
+  background: rgba(255, 255, 255, 0.052) !important;
+  border-color: rgba(214, 242, 240, 0.15) !important;
+}
+
+.badge[data-tone="ok"],
+.badge.ok,
+.status-ok,
+.status-success {
+  color: #bbf7d0 !important;
+  background: rgba(34, 197, 94, 0.10) !important;
+  border-color: rgba(34, 197, 94, 0.26) !important;
+}
+
+.badge[data-tone="warn"],
+.badge.warn,
+.status-warn,
+.status-warning {
+  color: #fde68a !important;
+  background: rgba(245, 185, 66, 0.11) !important;
+  border-color: rgba(245, 185, 66, 0.28) !important;
+}
+
+.badge[data-tone="danger"],
+.badge.danger,
+.status-danger,
+.status-critical,
+.status-crit {
+  color: #fecdd3 !important;
+  background: rgba(239, 95, 111, 0.11) !important;
+  border-color: rgba(239, 95, 111, 0.30) !important;
+}
+
+/* RCA workspace ergonomics */
+.appShell.isTool .fullBleed {
+  padding-inline: clamp(8px, 1.4vw, 18px);
+}
+
+.appShell.isTool .card,
+.appShell.isTool .workbenchPanel,
+.appShell.isTool .commandPanel,
+.appShell.isTool .tableWrap {
+  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.26) !important;
+}
+
+.appShell.isTool .section {
+  padding-block: clamp(12px, 1.4vw, 22px) !important;
+}
+
+/* Make dense evidence screens less tiring */
+.appShell.isTool p,
+.appShell.isTool li,
+.appShell.isTool td,
+.appShell.isTool .table-td {
+  line-height: 1.46;
+}
+
+/* Sticky helper areas for long analysis pages when class names already exist */
+.homeBar,
+.sectionHead,
+.workbenchPanelHead,
+.intelHead {
+  scroll-margin-top: 78px;
+}
+
+/* Upload/command states */
+.commandPanel,
+.homeBar,
+.searchWrap {
+  backdrop-filter: blur(16px);
+}
+
+/* Better small-screen SAP workbench */
+@media (max-width: 860px) {
+  .navInner {
+    padding-inline: 12px !important;
+  }
+
+  .hero,
+  .workbenchHero,
+  .settingsHero {
+    gap: 14px !important;
+  }
+
+  .heroActions,
+  .workbenchPanel--actions {
+    width: 100%;
+  }
+
+  .heroActions .btn,
+  .workbenchPanel--actions .btn,
+  .quickPill {
+    flex: 1 1 auto;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .table,
+  table {
+    min-width: 720px;
+  }
+}
+
+@media (max-width: 560px) {
+  :root {
+    --sap-ui-radius: 12px;
+    --sap-ui-radius-sm: 9px;
+  }
+
+  .container {
+    padding-inline: 10px !important;
+  }
+
+  .card,
+  .commandPanel,
+  .intelPanel,
+  .workbenchPanel,
+  .settingsPanel,
+  .toolCard {
+    padding: 14px !important;
+  }
+
+  .heroTitle,
+  .workbenchTitle,
+  .settingsTitle {
+    font-size: clamp(32px, 11vw, 48px) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}
