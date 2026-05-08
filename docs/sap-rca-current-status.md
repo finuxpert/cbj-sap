@@ -141,7 +141,7 @@ docs/css-cleanup-audit.md
 
 ## Latest validation status
 
-Latest runtime validation report seen:
+Latest runtime validation report:
 
 ```text
 docs/validation/dev-latest.md
@@ -150,7 +150,7 @@ docs/validation/dev-latest.md
 Last green runtime commit from the validation report:
 
 ```text
-48f303a - Disable legacy evidence feature CSS import
+60603c6 - Simplify main CSS entrypoint imports
 ```
 
 Validation summary:
@@ -160,9 +160,10 @@ Build      : green
 HTTP       : 200 on https://sapdev.cbj-kontruksi.com/sap/
 API Health : ok on /sap-api/health
 Asset count: 17
+Build time : 6.66s
 ```
 
-Note: documentation-only commits after runtime changes may not create a new runtime validation report immediately. Treat `docs/validation/dev-latest.md` as the runner-written source of truth for sapdev validation.
+Treat `docs/validation/dev-latest.md` as the runner-written source of truth for sapdev validation.
 
 ## PDF export status
 
@@ -189,9 +190,9 @@ Current PDF export behavior:
 Smoke test paths:
 
 ```text
-https://sapdev.cbj-kontruksi.com/#/tool/comparer
-https://sapdev.cbj-kontruksi.com/#/tool/analyzer
-https://sapdev.cbj-kontruksi.com/#/tool/logs
+https://sapdev.cbj-kontruksi.com/sap/#/tool/comparer
+https://sapdev.cbj-kontruksi.com/sap/#/tool/analyzer
+https://sapdev.cbj-kontruksi.com/sap/#/tool/logs
 ```
 
 Then click:
@@ -207,6 +208,7 @@ docs/enterprise-theme-notes.md      -> enterprise CSS structure and rules
 docs/ai-coding-workflow-style.md    -> preferred AI coding/audit workflow
 docs/dev-deploy-runbook.md          -> updated dev auto-deploy runbook
 docs/css-cleanup-audit.md           -> CSS cleanup/rollback audit
+docs/qa-checklist.md                -> visual/manual QA checklist after CSS consolidation
 docs/validation/dev-latest.md       -> runner-written latest DEV validation report
 docs/sap-rca-current-status.md      -> this status handoff file
 ```
@@ -282,6 +284,7 @@ Read first:
 - docs/enterprise-theme-notes.md
 - docs/dev-deploy-runbook.md
 - docs/css-cleanup-audit.md
+- docs/qa-checklist.md
 - docs/validation/dev-latest.md
 
 Working style:
