@@ -52,11 +52,29 @@ function buildRows(caseData) {
   }
 }
 
-function Chart({ title, data }) {
+function Insight({ label, value, hint }) {
+  return (
+    <div className="caseAnalyticsInsight">
+      <span>{label}</span>
+      <strong>{value || '-'}</strong>
+      <small>{hint}</small>
+    </div>
+  )
+}
+
+function Chart({ title, data, hint = 'Parsed evidence distribution' }) {
+  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  const top = data[0]
+
   if (!data.length) {
     return (
       <section>
-        <h3>{title}</h3>
+        <div className="caseAnalyticsChartHead">
+          <div>
+            <h3>{title}</h3>
+            <span>{hint}</span>
+          </div>
+        </div>
         <div className="caseDetailChartEmpty">No chart data yet.</div>
       </section>
     )
@@ -64,7 +82,13 @@ function Chart({ title, data }) {
 
   return (
     <section>
-      <h3>{title}</h3>
+      <div className="caseAnalyticsChartHead">
+        <div>
+          <h3>{title}</h3>
+          <span>{hint}</span>
+        </div>
+        <b>{total}</b>
+      </div>
       <div className="caseDetailChartBox">
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={data} margin={{ top: 8, right: 14, left: -18, bottom: 18 }}>
@@ -76,6 +100,7 @@ function Chart({ title, data }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <p className="caseAnalyticsChartNote">Top signal: <b>{top.name}</b> · {top.value}</p>
     </section>
   )
 }
@@ -83,27 +108,38 @@ function Chart({ title, data }) {
 export default function CaseAnalytics({ caseData }) {
   const rows = React.useMemo(() => buildRows(caseData), [caseData])
   const hasData = Object.values(rows).some((row) => row.length > 0)
+  const topSignal = rows.anomaly[0]?.name || caseData?.top_anomaly || 'Pending'
+  const topTool = rows.tools[0]?.name || caseData?.tool || 'Unknown'
+  const avgConfidence = rows.confidence.length
+    ? Math.round(rows.confidence.reduce((sum, item) => sum + Number(item.value || 0), 0) / rows.confidence.length)
+    : 0
 
   return (
     <article className="caseDetailPanel caseDetailAnalyticsPanel">
-      <div className="caseDetailSectionHead">
+      <div className="caseDetailSectionHead caseAnalyticsHeader">
         <div>
           <p className="sectionKicker">RCA Evidence Analytics</p>
           <span>Auto-generated from parsed results and linked evidence.</span>
         </div>
       </div>
 
+      <div className="caseAnalyticsInsights">
+        <Insight label="Top Signal" value={topSignal} hint="Highest parsed anomaly" />
+        <Insight label="Dominant Source" value={topTool} hint="Most frequent tool/evidence source" />
+        <Insight label="Avg Confidence" value={avgConfidence ? `${avgConfidence}%` : '-'} hint="Based on parsed result confidence" />
+      </div>
+
       {!hasData ? (
         <div className="caseDetailChartEmpty">No parsed analytics found for this case yet.</div>
       ) : (
         <div className="caseDetailAnalyticsGrid">
-          <Chart title="Severity Split" data={rows.severity} />
-          <Chart title="Tool / Evidence Source" data={rows.tools} />
-          <Chart title="Top Error / Anomaly" data={rows.anomaly} />
-          <Chart title="Top JobName" data={rows.jobs} />
-          <Chart title="Top Program" data={rows.programs} />
+          <Chart title="Severity Split" data={rows.severity} hint="INFO/WARN/CRIT result spread" />
+          <Chart title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" />
+          <Chart title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" />
+          <Chart title="Top JobName" data={rows.jobs} hint="Impacted job names" />
+          <Chart title="Top Program" data={rows.programs} hint="Impacted SAP programs" />
           <section className="caseDetailAnalyticsWide">
-            <Chart title="Parsed Confidence" data={rows.confidence} />
+            <Chart title="Parsed Confidence" data={rows.confidence} hint="Confidence per parser result" />
           </section>
         </div>
       )}
