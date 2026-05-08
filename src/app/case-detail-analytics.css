@@ -1,6 +1,106 @@
+.caseDetailAnalyticsMount {
+  padding-top: 0;
+}
+
+.caseAnalyticsTopbar {
+  position: sticky;
+  top: 78px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  border: 1px solid rgba(214, 242, 240, 0.12);
+  border-radius: 999px;
+  padding: 9px 12px;
+  background: rgba(7, 16, 20, 0.82);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.24);
+}
+
+.caseAnalyticsTopbar a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid rgba(45, 212, 191, 0.30);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #bffbf1;
+  background: rgba(45, 212, 191, 0.10);
+  font-size: 12px;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.caseAnalyticsTopbar span {
+  color: rgba(220, 238, 238, 0.62);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.caseAnalyticsQuickSummary {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.caseAnalyticsQuickSummary div,
+.caseAnalyticsInsight {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(214, 242, 240, 0.11);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)), rgba(10, 19, 23, 0.84);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.caseAnalyticsQuickSummary span,
+.caseAnalyticsInsight span,
+.caseAnalyticsChartHead span,
+.caseAnalyticsChartNote {
+  color: rgba(220, 238, 238, 0.56);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.caseAnalyticsQuickSummary strong,
+.caseAnalyticsInsight strong {
+  color: rgba(249, 251, 247, 0.95);
+  font-size: 18px;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caseAnalyticsInsight small {
+  color: rgba(220, 238, 238, 0.58);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .caseDetailAnalyticsPanel {
   margin-top: 14px;
   overflow: hidden;
+  border-color: rgba(45, 212, 191, 0.18);
+  background: radial-gradient(circle at top right, rgba(45, 212, 191, 0.10), transparent 34%), linear-gradient(180deg, rgba(255, 255, 255, 0.060), rgba(255, 255, 255, 0.020)), rgba(10, 19, 23, 0.88);
+}
+
+.caseAnalyticsHeader {
+  align-items: flex-start;
+}
+
+.caseAnalyticsInsights {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.8fr;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .caseDetailAnalyticsGrid {
@@ -17,12 +117,39 @@
   background: radial-gradient(circle at top right, rgba(45, 212, 191, 0.07), transparent 36%), rgba(0, 0, 0, 0.15);
 }
 
+.caseDetailAnalyticsGrid section:hover {
+  border-color: rgba(45, 212, 191, 0.25);
+  background: radial-gradient(circle at top right, rgba(45, 212, 191, 0.095), transparent 38%), rgba(0, 0, 0, 0.18);
+}
+
+.caseAnalyticsChartHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.caseAnalyticsChartHead h3,
 .caseDetailAnalyticsGrid h3 {
-  margin: 0 0 10px;
+  margin: 0;
   color: rgba(249, 251, 247, 0.94);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 950;
   letter-spacing: -0.01em;
+}
+
+.caseAnalyticsChartHead b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 30px;
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  border-radius: 999px;
+  color: #bffbf1;
+  background: rgba(45, 212, 191, 0.09);
+  font-size: 12px;
 }
 
 .caseDetailAnalyticsWide {
@@ -74,6 +201,16 @@
   font-size: 12px;
 }
 
+.caseAnalyticsChartNote {
+  margin: 4px 0 0;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+.caseAnalyticsChartNote b {
+  color: rgba(249, 251, 247, 0.92);
+}
+
 .caseDetailChartEmpty {
   display: grid;
   min-height: 180px;
@@ -87,11 +224,19 @@
 }
 
 @media (max-width: 920px) {
-  .caseDetailAnalyticsGrid {
+  .caseDetailAnalyticsGrid,
+  .caseAnalyticsInsights,
+  .caseAnalyticsQuickSummary {
     grid-template-columns: 1fr;
   }
 
   .caseDetailAnalyticsWide {
     grid-column: auto;
+  }
+
+  .caseAnalyticsTopbar {
+    align-items: stretch;
+    border-radius: 18px;
+    flex-direction: column;
   }
 }
