@@ -116,11 +116,44 @@ cmpSectionNav
 
 Current homepage routing renders `InvestigationWorkspaceV2`, and current visual ownership is centralized in enterprise theme layers.
 
+## Cleanup patch 4
+
+Disabled this legacy SAP intelligent UX override import in `src/main.jsx`:
+
+```js
+import './sap-intelligent-ux.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+`sap-intelligent-ux.css` mostly contains broad global overrides for:
+
+- brand/nav emphasis
+- uploader/drop-zone treatment
+- empty states
+- analyzer upload pseudo-labels
+- table zebra rows
+- severity chip glow
+- PDF dock mobile scaling
+
+These areas are already covered more cleanly by centralized layers:
+
+```text
+src/app/enterprise-ui-system.css
+src/app/enterprise-navigation.css
+src/app/investigation-workspace-ux.css
+src/app/log-evidence-ux.css
+src/app/st03n-impact-ux.css
+src/app/comparer-process-ux.css
+src/app/pdf-export-ux.css
+```
+
 ## Current legacy CSS imports still active in main.jsx
 
 ```text
 src/sapdev-comparer-fix.css
-src/sap-intelligent-ux.css
 src/sap-intelligent-investigation.css
 src/features/evidence/evidence.css
 src/app/shell-overrides.css
@@ -135,6 +168,7 @@ src/app/enterprise-theme.css
 src/sapdev-polish.css
 src/sapdev-premium-overhaul.css
 src/sapdev-final-force.css
+src/sap-intelligent-ux.css
 ```
 
 ## Rollback
@@ -145,6 +179,7 @@ If QA finds regression on sapdev, restore the disabled imports in `src/main.jsx`
 import './sapdev-polish.css'
 import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
+import './sap-intelligent-ux.css'
 ```
 
 Then run:
@@ -180,4 +215,4 @@ Verify:
 
 ## Next recommended cleanup
 
-Audit the remaining active legacy CSS imports one by one. Start with `src/sap-intelligent-ux.css` and `src/sap-intelligent-investigation.css`, but do not disable both at once. Keep each patch small and rollbackable.
+Audit `src/sap-intelligent-investigation.css` next. Do not disable it together with other remaining CSS files because it may still affect the Investigation Workspace route.
