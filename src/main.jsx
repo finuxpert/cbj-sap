@@ -2,7 +2,8 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
-import './sapdev-polish.css'
+// Legacy base sapdev polish intentionally not imported anymore.
+// Keep src/sapdev-polish.css for quick rollback if sapdev QA finds regression.
 import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
 // Legacy force layer intentionally not imported anymore.
