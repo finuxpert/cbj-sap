@@ -1,15 +1,27 @@
 import React from 'react'
 import { tools, preloadTool } from '../tools'
 
+function normalizeHashRoute(value = '/') {
+  const parts = value.split('/').filter(Boolean)
+  if (parts[0] === 'sap') {
+    const next = `/${parts.slice(1).join('/')}`
+    return next === '/' ? '/' : next
+  }
+  return value || '/'
+}
+
+function currentHashRoute() {
+  if (typeof window === 'undefined') return '/'
+  return normalizeHashRoute(window.location.hash.replace('#', '') || '/')
+}
+
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
-  const [route, setRoute] = React.useState(() =>
-    (typeof window !== 'undefined' ? (window.location.hash.replace('#', '') || '/') : '/') || '/', 
-  )
+  const [route, setRoute] = React.useState(currentHashRoute)
 
   React.useEffect(() => {
     const onHash = () => {
-      setRoute(window.location.hash.replace('#', '') || '/')
+      setRoute(currentHashRoute())
       setMobileOpen(false)
     }
     window.addEventListener('hashchange', onHash)
