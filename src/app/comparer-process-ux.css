@@ -332,6 +332,7 @@
   border-radius: 16px !important;
   background: rgba(0, 0, 0, 0.12) !important;
   border: 1px solid rgba(214, 242, 240, 0.10) !important;
+  overflow: hidden;
 }
 
 .cmpCleanEmptyChart,
@@ -340,13 +341,46 @@
 }
 
 .cmpCleanShell .recharts-cartesian-grid line {
-  stroke: rgba(148, 163, 184, 0.24);
+  stroke: rgba(148, 163, 184, 0.24) !important;
   stroke-dasharray: 2 8;
 }
 
-.cmpCleanShell .recharts-text {
-  fill: rgba(224, 242, 241, 0.68);
+.cmpCleanShell .recharts-cartesian-axis-line,
+.cmpCleanShell .recharts-cartesian-axis-tick-line {
+  stroke: rgba(148, 163, 184, 0.18) !important;
+}
+
+.cmpCleanShell .recharts-text,
+.cmpCleanShell .recharts-label {
+  fill: rgba(224, 242, 241, 0.70) !important;
   font-size: 11px;
+  font-weight: 700;
+}
+
+.cmpCleanShell .recharts-bar-rectangle path,
+.cmpCleanShell .recharts-rectangle {
+  fill: #2dd4bf !important;
+  stroke: rgba(191, 251, 241, 0.42) !important;
+  filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.24));
+}
+
+.cmpCleanShell .recharts-line-curve {
+  stroke: #38bdf8 !important;
+  stroke-width: 2.5px !important;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.36));
+}
+
+.cmpCleanShell .recharts-line-dot circle,
+.cmpCleanShell .recharts-active-dot circle {
+  fill: #071013 !important;
+  stroke: #38bdf8 !important;
+  stroke-width: 2px !important;
+}
+
+.cmpCleanShell .recharts-legend-item-text,
+.cmpCleanShell .recharts-tooltip-label,
+.cmpCleanShell .recharts-tooltip-item {
+  color: rgba(240, 253, 250, 0.92) !important;
 }
 
 .cmpCleanShell .recharts-default-tooltip {
@@ -354,6 +388,25 @@
   border-radius: 12px !important;
   background: rgba(8, 12, 15, 0.96) !important;
   color: #f8fffd !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42) !important;
+}
+
+.cmpCleanShell [class*="Suspect"] li,
+.cmpCleanShell [class*="suspect"] li,
+.cmpCleanShell [class*="Ranking"] li,
+.cmpCleanShell [class*="ranking"] li {
+  line-height: 1.35;
+  margin-bottom: 6px;
+  padding-block: 7px !important;
+  overflow-wrap: anywhere;
+}
+
+.cmpCleanShell [class*="Suspect"] b,
+.cmpCleanShell [class*="suspect"] b,
+.cmpCleanShell [class*="Ranking"] b,
+.cmpCleanShell [class*="ranking"] b {
+  display: inline-block;
+  margin-right: 4px;
 }
 
 @media (max-width: 980px) {
