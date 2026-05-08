@@ -221,13 +221,45 @@ which is loaded through:
 src/app/enterprise-theme.css
 ```
 
+## Cleanup patch 7
+
+Disabled this legacy Dynatrace-inspired observability import in `src/main.jsx`:
+
+```js
+import './sap-dynatrace-rca.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+`sap-dynatrace-rca.css` was a broad visual theme for Comparator, ST03N, Logs, charts, tables, and print/PDF readability. It also globally restyled Recharts primitives such as bars, lines, axis text, and tooltips.
+
+A focused repo search did not find active source references for its main legacy selectors, including:
+
+```text
+cmpCleanShell
+st03n-clean
+toolLogs
+logsTool
+rcaTool
+rcaPanel
+rcaCard
+cmpCleanChart
+```
+
+Current observability/tool visual ownership should stay in centralized enterprise layers and tool-specific files imported by:
+
+```text
+src/app/enterprise-theme.css
+```
+
 ## Current CSS imports still active in main.jsx
 
 ```text
 src/features/evidence/evidence.css
 src/app/shell-overrides.css
 src/app/rca-workspace.css
-src/sap-dynatrace-rca.css
 src/app/enterprise-theme.css
 ```
 
@@ -240,6 +272,7 @@ src/sapdev-premium-overhaul.css
 src/sapdev-final-force.css
 src/sap-intelligent-ux.css
 src/sap-intelligent-investigation.css
+src/sap-dynatrace-rca.css
 ```
 
 ## Rollback
@@ -253,6 +286,7 @@ import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 import './sap-intelligent-ux.css'
 import './sap-intelligent-investigation.css'
+import './sap-dynatrace-rca.css'
 ```
 
 Then run:
@@ -285,14 +319,14 @@ Verify:
 - PDF dock still visible
 - Export PDF works on all 3 core tools
 - evidence/table readability still OK
+- charts remain readable without the legacy Dynatrace override
 
 ## Next recommended cleanup
 
 Audit the remaining active imports in this order:
 
-1. `src/sap-dynatrace-rca.css`
-2. `src/app/shell-overrides.css`
-3. `src/app/rca-workspace.css`
-4. `src/features/evidence/evidence.css`
+1. `src/app/shell-overrides.css`
+2. `src/app/rca-workspace.css`
+3. `src/features/evidence/evidence.css`
 
 Do not disable more than one remaining CSS file per patch unless QA is already green.
