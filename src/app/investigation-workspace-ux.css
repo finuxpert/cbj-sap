@@ -1,0 +1,290 @@
+/*
+ * Investigation Workspace / home dashboard UX polish.
+ * CSS-only layer for the main evidence-pack workflow.
+ */
+.investigationShell {
+  --inv-accent: #2dd4bf;
+  --inv-blue: #38bdf8;
+  --inv-warn: #f5b942;
+  --inv-danger: #ef5f6f;
+  --inv-panel: rgba(10, 19, 23, 0.84);
+  --inv-line: rgba(214, 242, 240, 0.13);
+  --inv-muted: rgba(220, 238, 238, 0.68);
+  background:
+    radial-gradient(circle at 12% -4%, rgba(45, 212, 191, 0.16), transparent 30rem),
+    radial-gradient(circle at 92% 8%, rgba(56, 189, 248, 0.11), transparent 34rem),
+    linear-gradient(180deg, #071013 0%, #071012 56%, #05090b 100%) !important;
+}
+
+.investHero,
+.uploadZone,
+.validatePanel,
+.overviewCard,
+.resultPanel,
+.investStatus,
+.groupList div,
+.whyBox li,
+.evidenceColumns li,
+.interpretationBox,
+.detailScore,
+.factsGrid span,
+.miniTable div,
+.suspectList div {
+  border-color: var(--inv-line) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.060), rgba(255, 255, 255, 0.022)),
+    var(--inv-panel) !important;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+.investHero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px !important;
+}
+
+.investHero::after {
+  content: "";
+  position: absolute;
+  right: -90px;
+  top: -110px;
+  width: 300px;
+  height: 300px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.16), transparent 62%);
+  pointer-events: none;
+}
+
+.investKicker,
+.whyBox h4,
+.evidenceColumns h4,
+.interpretationBox h4 {
+  color: var(--inv-accent) !important;
+}
+
+.investHero h1,
+.compactResult h1,
+.overviewCard h2,
+.detailHead strong {
+  text-wrap: balance;
+}
+
+.investHero p,
+.validatePanel p,
+.overviewCard p,
+.strengthList,
+.reportPanel li,
+.detectList small,
+.miniTable span,
+.suspectList span,
+.confidenceBox small,
+.groupList span,
+.groupList small,
+.interpretationBox p {
+  color: var(--inv-muted) !important;
+}
+
+.investSteps span {
+  border-color: rgba(214, 242, 240, 0.13) !important;
+  background: rgba(255, 255, 255, 0.040) !important;
+  color: rgba(220, 238, 238, 0.68) !important;
+}
+
+.investSteps span[data-active='true'] {
+  color: #04110f !important;
+  background: linear-gradient(135deg, #6ee7b7, #2dd4bf 52%, #38bdf8) !important;
+  border-color: rgba(45, 212, 191, 0.44) !important;
+}
+
+.bigDrop {
+  border-radius: 18px !important;
+  border-color: rgba(45, 212, 191, 0.30) !important;
+  background:
+    radial-gradient(circle at center, rgba(45, 212, 191, 0.11), transparent 42%),
+    rgba(0, 0, 0, 0.18) !important;
+}
+
+.bigDrop:hover {
+  border-color: rgba(45, 212, 191, 0.52) !important;
+  background:
+    radial-gradient(circle at center, rgba(45, 212, 191, 0.16), transparent 42%),
+    rgba(0, 0, 0, 0.20) !important;
+}
+
+.bigDrop strong {
+  color: rgba(249, 251, 247, 0.98) !important;
+}
+
+.bigDrop span {
+  color: var(--inv-muted) !important;
+}
+
+.detectList div {
+  position: relative;
+  border-radius: 14px !important;
+  padding-left: 14px !important;
+}
+
+.detectList div::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.50);
+}
+
+.detectList .ok {
+  background: rgba(34, 197, 94, 0.055) !important;
+  border-color: rgba(34, 197, 94, 0.24) !important;
+}
+
+.detectList .ok::before {
+  background: rgba(34, 197, 94, 0.78);
+}
+
+.detectList .missing {
+  background: rgba(245, 185, 66, 0.060) !important;
+  border-color: rgba(245, 185, 66, 0.26) !important;
+}
+
+.detectList .missing::before {
+  background: rgba(245, 185, 66, 0.78);
+}
+
+.investPrimary,
+.resultTabs button[data-active='true'] {
+  color: #04110f !important;
+  background: linear-gradient(135deg, #6ee7b7, #2dd4bf 52%, #38bdf8) !important;
+  border-color: rgba(45, 212, 191, 0.44) !important;
+}
+
+.investSecondary,
+.resultTabs button {
+  border-color: rgba(214, 242, 240, 0.14) !important;
+  background: rgba(255, 255, 255, 0.044) !important;
+  color: rgba(249, 251, 247, 0.88) !important;
+}
+
+.resultTabs button {
+  min-height: 38px;
+}
+
+.overviewCard,
+.resultPanel,
+.validatePanel,
+.uploadZone {
+  border-radius: 18px !important;
+}
+
+.confidenceBox {
+  border-radius: 18px !important;
+  border-color: rgba(45, 212, 191, 0.30) !important;
+  background: rgba(45, 212, 191, 0.065) !important;
+}
+
+.confidenceBox span,
+.confidenceBox strong {
+  color: #effffb !important;
+}
+
+.factsGrid span,
+.groupList div,
+.whyBox li,
+.evidenceColumns li,
+.interpretationBox,
+.miniTable div,
+.suspectList div {
+  position: relative;
+  border-radius: 14px !important;
+}
+
+.groupList div:hover,
+.whyBox li:hover,
+.evidenceColumns li:hover,
+.miniTable div:hover,
+.suspectList div:hover {
+  border-color: rgba(45, 212, 191, 0.32) !important;
+  background: rgba(45, 212, 191, 0.055) !important;
+}
+
+.detailScore.crit,
+.suspectList .crit {
+  border-color: rgba(239, 95, 111, 0.34) !important;
+  background: rgba(239, 95, 111, 0.105) !important;
+}
+
+.detailScore.warn,
+.suspectList .warn {
+  border-color: rgba(245, 185, 66, 0.30) !important;
+  background: rgba(245, 185, 66, 0.080) !important;
+}
+
+.detailScore.info,
+.suspectList .info {
+  border-color: rgba(45, 212, 191, 0.26) !important;
+  background: rgba(45, 212, 191, 0.065) !important;
+}
+
+.detailScore b,
+.factsGrid b,
+.groupList b,
+.mainSuspect > strong {
+  color: rgba(249, 251, 247, 0.98) !important;
+}
+
+.miniTable,
+.suspectList {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 212, 191, 0.42) rgba(255, 255, 255, 0.04);
+}
+
+.investStatus {
+  border-radius: 999px !important;
+  border-color: rgba(56, 189, 248, 0.22) !important;
+  background: rgba(10, 19, 23, 0.90) !important;
+  backdrop-filter: blur(18px);
+}
+
+.investigationShell .recharts-default-tooltip {
+  border: 1px solid rgba(45, 212, 191, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(8, 12, 15, 0.96) !important;
+  color: #f8fffd !important;
+}
+
+@media (max-width: 760px) {
+  .investigationShell {
+    padding: 10px !important;
+  }
+
+  .investHero,
+  .uploadZone,
+  .validatePanel,
+  .overviewCard,
+  .resultPanel {
+    padding: 14px !important;
+  }
+
+  .investPrimary,
+  .investSecondary,
+  .resultTabs button {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .resultTabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .investStatus {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    max-width: none;
+    border-radius: 14px !important;
+  }
+}
