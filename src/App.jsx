@@ -7,12 +7,13 @@ import Home from './app/pages/Home.jsx'
 import About from './app/pages/About.jsx'
 import Contact from './app/pages/Contact.jsx'
 import CaseHistory from './app/pages/CaseHistory.jsx'
+import CaseDetail from './app/pages/CaseDetail.jsx'
 import NotFound from './app/pages/NotFound.jsx'
 import ToolExportDock from './features/pdf/ToolExportDock.jsx'
 import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
 import ComparatorUiGuard from './features/comparer/ComparatorUiGuard.jsx'
 
-const APP_BUILD_STAMP = 'sap-20260508-case-history-route'
+const APP_BUILD_STAMP = 'sap-20260508-case-detail-route'
 
 export default function App() {
   const route = useRoute()
@@ -29,6 +30,7 @@ export default function App() {
         {route.name === 'about' && <About />}
         {route.name === 'contact' && <Contact />}
         {route.name === 'cases' && <CaseHistory />}
+        {route.name === 'caseDetail' && <CaseDetail caseId={route.caseId} />}
         {route.name === 'tool' && ActiveTool && (
           <React.Suspense fallback={<section className="container section"><div className="card">Loading RCA module…</div></section>}>
             {showComparatorGuard && <ComparatorUiGuard />}
