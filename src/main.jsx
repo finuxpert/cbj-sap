@@ -18,7 +18,8 @@ import './index.css'
 import './features/evidence/evidence.css'
 import './app/shell-overrides.css'
 import './app/rca-workspace.css'
-import './sap-dynatrace-rca.css'
+// Legacy Dynatrace-inspired observability override intentionally not imported anymore.
+// Keep src/sap-dynatrace-rca.css for quick rollback if chart/tool QA finds regression.
 import './app/enterprise-theme.css'
 
 createRoot(document.getElementById('root')).render(
