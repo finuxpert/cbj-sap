@@ -232,6 +232,15 @@
   background: linear-gradient(90deg, rgba(45, 212, 191, 0.34), transparent);
 }
 
+.chartTitleBlock h2::after {
+  display: none;
+}
+
+.chartTitleBlock p {
+  margin-top: 4px !important;
+  line-height: 1.45;
+}
+
 .cmpCleanFilters {
   align-items: center;
   gap: 8px !important;
@@ -302,6 +311,18 @@
   background: rgba(45, 212, 191, 0.055) !important;
 }
 
+.cmpCleanTable th:first-child,
+.cmpCleanTable td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: rgba(6, 15, 18, 0.98) !important;
+}
+
+.cmpCleanTable tbody td:first-child {
+  background: rgba(8, 18, 21, 0.98) !important;
+}
+
 .cmpCleanBadge {
   min-width: 54px;
   justify-content: center;
@@ -364,31 +385,37 @@
   filter: drop-shadow(0 0 8px rgba(45, 212, 191, 0.24));
 }
 
-.cmpCleanShell .recharts-line-curve {
-  stroke: #38bdf8 !important;
-  stroke-width: 2.5px !important;
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.36));
-}
-
-.cmpCleanShell .recharts-line-dot circle,
-.cmpCleanShell .recharts-active-dot circle {
-  fill: #071013 !important;
-  stroke: #38bdf8 !important;
-  stroke-width: 2px !important;
-}
-
 .cmpCleanShell .recharts-legend-item-text,
 .cmpCleanShell .recharts-tooltip-label,
 .cmpCleanShell .recharts-tooltip-item {
   color: rgba(240, 253, 250, 0.92) !important;
 }
 
-.cmpCleanShell .recharts-default-tooltip {
+.cmpCleanShell .recharts-default-tooltip,
+.cmpCleanTooltip,
+.evidenceChartTooltip {
   border: 1px solid rgba(45, 212, 191, 0.28) !important;
   border-radius: 12px !important;
   background: rgba(8, 12, 15, 0.96) !important;
   color: #f8fffd !important;
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42) !important;
+}
+
+.evidenceChartTooltip {
+  display: grid;
+  gap: 5px;
+  max-width: min(320px, 82vw);
+  padding: 10px 12px;
+}
+
+.evidenceChartTooltip strong {
+  color: #f8fffd;
+}
+
+.evidenceChartTooltip span,
+.evidenceChartTooltip small {
+  color: rgba(220, 238, 238, 0.76);
+  line-height: 1.35;
 }
 
 .cmpCleanShell [class*="Suspect"] li,
@@ -473,10 +500,57 @@
   }
 
   .cmpCleanTableWrap {
-    max-height: none;
+    max-height: 60vh;
+    overflow: auto;
   }
 
   .cmpCleanTable {
     min-width: 820px;
+  }
+
+  .rcaReadableChartPanel .cmpCleanChart {
+    min-height: 320px;
+    overflow-x: auto;
+  }
+
+  .rcaReadableChartPanel .recharts-wrapper {
+    min-width: 560px;
+  }
+
+  .chartTitleBlock h2 {
+    font-size: 1rem !important;
+    line-height: 1.2;
+  }
+
+  .chartTitleBlock p {
+    font-size: 0.82rem !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .cmpCleanShell {
+    padding: 6px !important;
+  }
+
+  .cmpCleanHeader,
+  .cmpCleanDrop,
+  .cmpCleanFinding,
+  .cmpCleanActionsPanel,
+  .cmpCleanStat,
+  .cmpCleanPanel {
+    border-radius: 14px !important;
+    padding: 12px !important;
+  }
+
+  .cmpCleanStats {
+    gap: 8px !important;
+  }
+
+  .cmpCleanStat {
+    min-height: 78px;
+  }
+
+  .cmpCleanChart {
+    border-radius: 12px !important;
   }
 }
