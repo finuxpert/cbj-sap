@@ -1,7 +1,6 @@
 import React from 'react'
 import JSZip from 'jszip'
 import * as XLSX from 'xlsx'
-import { jsPDF } from 'jspdf'
 import {
   ResponsiveContainer,
   LineChart,
@@ -311,7 +310,8 @@ async function persistFilesToServer(files, session) {
   }
   return result
 }
-function exportReport(session) {
+async function exportReport(session) {
+  const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
   const margin = 44
   let y = 48
