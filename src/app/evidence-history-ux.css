@@ -1,0 +1,184 @@
+/*
+ * Evidence History / server-side evidence UX polish.
+ * CSS-only layer for reusable evidence panels used by RCA tools.
+ */
+.toolEvidencePanel {
+  padding-inline: clamp(10px, 1.4vw, 18px);
+}
+
+.toolEvidenceIntro,
+.evidenceUploader,
+.evidenceHistory {
+  border-radius: 16px !important;
+  border-color: rgba(214, 242, 240, 0.13) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.058), rgba(255, 255, 255, 0.020)),
+    rgba(10, 19, 23, 0.82) !important;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+.toolEvidenceIntro {
+  position: relative;
+  overflow: hidden;
+  min-height: 126px;
+}
+
+.toolEvidenceIntro::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.72);
+}
+
+.toolEvidenceIntro strong {
+  color: rgba(249, 251, 247, 0.96) !important;
+  letter-spacing: -0.01em;
+}
+
+.toolEvidenceIntro small,
+.evidenceUploaderText span,
+.evidenceUploaderText small,
+.evidenceItem span,
+.evidenceError {
+  color: rgba(220, 238, 238, 0.66) !important;
+}
+
+.evidenceUploader {
+  position: relative;
+  min-height: 126px;
+  border-style: dashed !important;
+  border-color: rgba(45, 212, 191, 0.30) !important;
+  background: rgba(45, 212, 191, 0.055) !important;
+}
+
+.evidenceUploader::before {
+  content: "UPLOAD";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #bffbf1;
+  background: rgba(45, 212, 191, 0.10);
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.evidenceUploader.isDragOver {
+  border-color: rgba(45, 212, 191, 0.72) !important;
+  background: rgba(45, 212, 191, 0.105) !important;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12), 0 18px 44px rgba(0, 0, 0, 0.24) !important;
+}
+
+.evidenceUploaderText strong {
+  color: rgba(249, 251, 247, 0.96) !important;
+}
+
+.evidenceUploader .btn,
+.evidenceHistoryHead .btn {
+  min-height: 38px;
+  border-radius: 999px !important;
+}
+
+.evidenceHistory {
+  min-height: 126px;
+}
+
+.evidenceHistoryHead {
+  padding-bottom: 2px;
+}
+
+.evidenceHistoryHead h3 {
+  letter-spacing: -0.02em;
+}
+
+.evidenceHistory .sectionKicker {
+  color: #38bdf8 !important;
+}
+
+.evidenceHistory .evidenceList {
+  max-height: 220px;
+  padding-right: 5px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 212, 191, 0.42) rgba(255, 255, 255, 0.04);
+}
+
+.evidenceHistory .evidenceList::-webkit-scrollbar {
+  width: 9px;
+}
+
+.evidenceHistory .evidenceList::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.34);
+}
+
+.evidenceItem {
+  position: relative;
+  border-radius: 12px !important;
+  border-color: rgba(214, 242, 240, 0.11) !important;
+  background: rgba(0, 0, 0, 0.16) !important;
+  padding-left: 14px !important;
+}
+
+.evidenceItem::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.62);
+}
+
+.evidenceItem:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 212, 191, 0.32) !important;
+  background: rgba(45, 212, 191, 0.075) !important;
+}
+
+.evidenceItem strong {
+  color: rgba(249, 251, 247, 0.94) !important;
+}
+
+.evidenceError {
+  border-radius: 12px !important;
+  border-color: rgba(239, 95, 111, 0.32) !important;
+  background: rgba(239, 95, 111, 0.105) !important;
+}
+
+@media (max-width: 720px) {
+  .toolEvidencePanel {
+    padding-inline: 10px;
+  }
+
+  .toolEvidenceIntro,
+  .evidenceUploader,
+  .evidenceHistory {
+    min-height: auto;
+  }
+
+  .evidenceUploader::before {
+    position: static;
+    justify-self: flex-start;
+    margin-bottom: 6px;
+  }
+
+  .evidenceUploader .btn,
+  .evidenceHistoryHead .btn {
+    width: 100%;
+  }
+
+  .evidenceHistory .evidenceList {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+}
