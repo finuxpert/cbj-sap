@@ -83,6 +83,25 @@ function AnalyticsBlock({ caseData, loadingAnalytics }) {
   )
 }
 
+function FullCaseDetailDisclosure({ caseId }) {
+  return (
+    <section className="caseDetailPage container section caseFullDetailShell" id="case-detail-full">
+      <details className="caseFullDetailDisclosure">
+        <summary>
+          <div>
+            <p className="sectionKicker">Full Case Detail</p>
+            <h2>Edit case, timeline, parsed result, and linked evidence</h2>
+          </div>
+          <span>Open</span>
+        </summary>
+        <div className="caseFullDetailBody">
+          <CaseDetail caseId={caseId} />
+        </div>
+      </details>
+    </section>
+  )
+}
+
 export default function CaseDetailWithAnalytics({ caseId }) {
   const [caseData, setCaseData] = React.useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(false)
@@ -112,16 +131,7 @@ export default function CaseDetailWithAnalytics({ caseId }) {
   return (
     <>
       <AnalyticsBlock caseData={caseData} loadingAnalytics={loadingAnalytics} />
-      <section className="caseDetailPage container section caseFullDetailShell" id="case-detail-full">
-        <div className="caseFullDetailHead">
-          <div>
-            <p className="sectionKicker">Full Case Detail</p>
-            <h2>Detail, edit form, timeline, parsed result, and linked evidence</h2>
-          </div>
-          <a href="#case-analytics">Back to Analytics</a>
-        </div>
-      </section>
-      <CaseDetail caseId={caseId} />
+      <FullCaseDetailDisclosure caseId={caseId} />
     </>
   )
 }
