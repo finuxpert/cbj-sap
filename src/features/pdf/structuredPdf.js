@@ -1,91 +1,177 @@
-function textOf(selector, fallback = '') {
-  const el = document.querySelector(selector)
-  return (el?.textContent || fallback).replace(/\s+/g, ' ').trim()
+function cleanText(value = '') {
+  return String(value || '').replace(/\s+/g, ' ').trim()
 }
 
-function collectRows(root, limit = 12) {
+function textOf(selector, fallback = '') {
+  const el = document.querySelector(selector)
+  return cleanText(el?.textContent || fallback)
+}
+
+function unique(items = []) {
+  const seen = new Set()
+  const out = []
+  for (const item of items.map(cleanText).filter(Boolean)) {
+    const key = item.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(item)
+  }
+  return out
+}
+
+function collectTextCards(root, selectors, limit = 12) {
+  const nodes = selectors.flatMap((selector) => Array.from(root.querySelectorAll(selector)))
+  return unique(nodes.slice(0, limit * 2).map((node) => cleanText(node.textContent)).filter((text) => text.length >= 2)).slice(0, limit)
+}
+
+function collectRows(root, limit = 18) {
   const rows = []
   const tableRows = Array.from(root.querySelectorAll('tbody tr')).slice(0, limit)
 
   for (const tr of tableRows) {
     const cells = Array.from(tr.querySelectorAll('td,th'))
-      .map((td) => td.textContent.replace(/\s+/g, ' ').trim())
+      .map((td) => cleanText(td.textContent))
       .filter(Boolean)
     if (cells.length) rows.push(cells.join(' | '))
   }
 
   if (rows.length) return rows
 
-  const virtualRows = Array.from(root.querySelectorAll('.cmpVtRow')).slice(0, limit)
+  const virtualRows = Array.from(root.querySelectorAll('.cmpVtRow,.evidenceList > div,.statusList > div,.miniTable > div,.suspectList div,.groupList div')).slice(0, limit)
   for (const row of virtualRows) {
-    const cells = Array.from(row.querySelectorAll('span'))
-      .map((td) => td.textContent.replace(/\s+/g, ' ').trim())
+    const cells = Array.from(row.querySelectorAll('b,strong,span,small,td,th'))
+      .map((td) => cleanText(td.textContent))
       .filter(Boolean)
-    if (cells.length) rows.push(cells.join(' | '))
+    const text = cells.length ? cells.join(' | ') : cleanText(row.textContent)
+    if (text) rows.push(text)
   }
 
-  return rows
+  return unique(rows).slice(0, limit)
+}
+
+function collectDecisionCards(root) {
+  const selectors = ['.decisionCard', '.cmpCleanStat', '.confidenceBox', '.detailScore', '.factsGrid span', '.opsMetric']
+  return collectTextCards(root, selectors, 14)
+}
+
+function collectPanels(root) {
+  const selectors = [
+    '.evidencePanel',
+    '.cmpCleanFinding',
+    '.cmpCleanActionsPanel',
+    '.cmpCleanPanel',
+    '.overviewCard',
+    '.resultPanel',
+    '.validatePanel',
+    '.toolEvidenceIntro',
+    '.evidenceHistory',
+  ]
+  const nodes = selectors.flatMap((selector) => Array.from(root.querySelectorAll(selector)))
+  const panels = []
+  const seen = new Set()
+
+  for (const panel of nodes) {
+    const heading = cleanText(panel.querySelector('h2,h3,.sectionKicker,.cmpCleanKicker,.investKicker,strong,b')?.textContent || 'Evidence Section')
+    const body = cleanText(panel.textContent).slice(0, 900)
+    const key = `${heading}:${body.slice(0, 120)}`.toLowerCase()
+    if (!body || seen.has(key)) continue
+    seen.add(key)
+    panels.push({ heading, body, rows: collectRows(panel, 8) })
+    if (panels.length >= 10) break
+  }
+
+  return panels
+}
+
+function detectToolTitle(slug) {
+  const activeTitle = textOf('h1', '')
+  const map = {
+    comparer: {
+      title: 'SAP Intelligent RCA Comparator Report',
+      subtitle: 'WP-SCOUT Process Evidence',
+      filename: 'sap-comparator-wpscout-rca-report',
+      actions: [
+        'Validate top PID/WP in SM50 or SM66.',
+        'Check JobName owner and latest execution in SM37.',
+        'Correlate ErrorCode with ST22, SM21, and work process trace.',
+        'Validate OS memory/CPU pressure around the same evidence window.',
+      ],
+    },
+    analyzer: {
+      title: 'SAP Intelligent ST03N Workload RCA Report',
+      subtitle: 'ST03N Impact Evidence',
+      filename: 'sap-st03n-impact-rca-report',
+      actions: [
+        'Review Top ST03N Evidence and dominant component.',
+        'Validate whether response time is driven by DB, wait, CPU, or workload spike.',
+        'Check completeness of required ST03N files before final RCA conclusion.',
+        'Attach source XLSX/CSV evidence with the incident record.',
+      ],
+    },
+    logs: {
+      title: 'SAP Intelligent Log Evidence RCA Report',
+      subtitle: 'Log Evidence / Error Pattern Drilldown',
+      filename: 'sap-log-evidence-rca-report',
+      actions: [
+        'Group repeated error patterns by ErrorCode, JobName, and Program.',
+        'Confirm owner direction before assigning Basis, ABAP, DB, or Functional action.',
+        'Correlate log timeline with incident/change window.',
+        'Attach raw logs as appendix; keep management summary concise.',
+      ],
+    },
+  }
+
+  const meta = map[slug] || {
+    title: 'SAP Intelligent RCA Workspace Report',
+    subtitle: 'Evidence Pack Summary',
+    filename: 'sap-intelligent-rca-report',
+    actions: [
+      'Validate uploaded evidence completeness.',
+      'Confirm primary suspect before escalation.',
+      'Attach generated report and source evidence to incident record.',
+    ],
+  }
+
+  return {
+    ...meta,
+    visibleTitle: activeTitle || meta.title,
+  }
 }
 
 function buildReportFromDom(slug) {
   const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
   const now = new Date().toLocaleString('id-ID')
-  const toolMeta = {
-    comparer: {
-      title: 'SAP Intelligent RCA Comparator Report',
-      subtitle: 'Daily Check / WP-SCOUT Evidence',
-      actions: [
-        'Check SM50/SM66 for long-running work process.',
-        'Validate top JobName owner and schedule.',
-        'Check ST22/SM21 for repeated ErrorCode/RABAX.',
-        'Use ST03N Analyzer if response-time or DB-access symptom appears.',
-      ],
-    },
-    analyzer: {
-      title: 'SAP Intelligent ST03N Workload RCA Report',
-      subtitle: 'Workload XLSX Evidence',
-      actions: [
-        'Review top response-time transactions.',
-        'Validate DB access and time-profile hotspots.',
-        'Classify whether the issue is application code, database access, or workload spike.',
-        'Attach exported XLSX source as supporting evidence.',
-      ],
-    },
-    logs: {
-      title: 'SAP Intelligent Log Triage RCA Report',
-      subtitle: 'Log Evidence / Action Notes',
-      actions: [
-        'Group repeated error patterns by host/component.',
-        'Confirm timeline around incident/change window.',
-        'Map each error pattern to owner/action item.',
-        'Attach raw logs only as appendix, not management summary.',
-      ],
-    },
-  }[slug] || { title: 'SAP Intelligent RCA Report', subtitle: 'Evidence Report', actions: [] }
-
-  const title = textOf('.cmpTitle', toolMeta.title) || toolMeta.title
-  const subtitle = textOf('.cmpSub', toolMeta.subtitle) || toolMeta.subtitle
-  const kpis = Array.from(root.querySelectorAll('.kpiMini,.summaryCard,.heroPanelMetric'))
-    .slice(0, 10)
-    .map((el) => el.textContent.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-  const panels = Array.from(root.querySelectorAll('.panel,.card'))
-    .slice(0, 6)
-    .map((panel) => {
-      const heading = panel.querySelector('.panelTitle,.panelTitleSm,h2,h3,strong')?.textContent?.replace(/\s+/g, ' ')?.trim() || 'Evidence Section'
-      const body = panel.textContent.replace(/\s+/g, ' ').trim().slice(0, 520)
-      const rows = collectRows(panel, 8)
-      return { heading, body, rows }
-    })
+  const meta = detectToolTitle(slug)
+  const decisionCards = collectDecisionCards(root)
+  const topRows = collectRows(root, 20)
+  const panels = collectPanels(root)
+  const session = textOf('.sessionBanner', '') || textOf('[data-build]', '')
+  const status = textOf('.cmpCleanLoadState,.investStatus,.evidenceError', '')
+  const uploadState = textOf('.evidenceUpload,.cmpCleanPrimary,.bigDrop', '')
 
   return {
-    title: toolMeta.title,
-    subtitle: title !== toolMeta.title ? `${title} — ${subtitle}` : subtitle,
+    ...meta,
     generatedAt: now,
-    kpis,
+    session,
+    status,
+    uploadState,
+    decisionCards,
+    topRows,
     panels,
-    rows: collectRows(root, 15),
-    actions: toolMeta.actions,
+  }
+}
+
+function addFooter(pdf, page, report) {
+  const count = pdf.getNumberOfPages()
+  for (let i = 1; i <= count; i += 1) {
+    pdf.setPage(i)
+    pdf.setDrawColor(210, 220, 220)
+    pdf.line(page.m, page.h - 13, page.w - page.m, page.h - 13)
+    pdf.setTextColor(110, 120, 125)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(7.5)
+    pdf.text(`SAP Intelligent RCA Workspace • ${report.generatedAt}`, page.m, page.h - 7)
+    pdf.text(`Page ${i} / ${count}`, page.w - page.m - 20, page.h - 7)
   }
 }
 
@@ -98,7 +184,7 @@ export async function exportStructuredPdf(slug) {
   let y = 16
 
   const addPageIfNeeded = (need = 12) => {
-    if (y + need > page.h - page.m) {
+    if (y + need > page.h - 18) {
       pdf.addPage()
       y = 16
     }
@@ -111,14 +197,14 @@ export async function exportStructuredPdf(slug) {
     const width = page.w - page.m * 2 - indent
     const parts = pdf.splitTextToSize(String(text || '-'), width)
     for (const part of parts) {
-      addPageIfNeeded(6)
+      addPageIfNeeded(size >= 13 ? 8 : 6)
       pdf.text(part, page.m + indent, y)
-      y += size >= 14 ? 7 : 5.5
+      y += size >= 14 ? 7 : size >= 11 ? 6.1 : 5.2
     }
   }
 
   const section = (title) => {
-    addPageIfNeeded(14)
+    addPageIfNeeded(16)
     y += 2
     pdf.setDrawColor(45, 160, 145)
     pdf.line(page.m, y, page.w - page.m, y)
@@ -126,39 +212,58 @@ export async function exportStructuredPdf(slug) {
     line(title, 12, 'bold', 0, [0, 90, 84])
   }
 
+  const bullet = (text, idx, size = 9.2) => line(`${idx + 1}. ${text}`, size, 'normal', 3)
+
   pdf.setFillColor(5, 22, 22)
-  pdf.rect(0, 0, page.w, 32, 'F')
+  pdf.rect(0, 0, page.w, 35, 'F')
   pdf.setTextColor(255, 255, 255)
   pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(16)
-  pdf.text(report.title, page.m, 15)
+  pdf.setFontSize(15)
+  pdf.text(report.title, page.m, 14)
   pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(9)
-  pdf.text(report.subtitle, page.m, 23)
-  y = 42
+  pdf.setFontSize(8.5)
+  pdf.text(report.subtitle, page.m, 22)
+  pdf.text(`Active view: ${report.visibleTitle}`, page.m, 29)
+  y = 44
 
   section('1. Executive Summary')
   line(`Generated: ${report.generatedAt}`, 9)
-  line('Purpose: concise RCA evidence package generated from the active SAP tool view. This PDF focuses on readable findings instead of full-page screenshots.', 10)
+  if (report.session) line(`Session: ${report.session}`, 9)
+  if (report.status) line(`Status: ${report.status}`, 9)
+  line('Purpose: structured SAP RCA report generated from the active tool state. This report avoids screenshot-based export and summarizes visible evidence, rankings, and recommended checks.', 10)
 
-  section('2. Key Metrics')
-  if (report.kpis.length) report.kpis.forEach((k, i) => line(`${i + 1}. ${k}`, 10, 'normal', 3))
-  else line('No KPI card detected. Upload/parse evidence first, then export again.', 10, 'italic')
+  section('2. Decision Summary')
+  if (report.decisionCards.length) report.decisionCards.slice(0, 12).forEach((item, index) => bullet(item, index, 9.4))
+  else line('No decision cards detected. Upload/parse evidence first, then export again.', 10, 'italic')
 
-  section('3. Top Evidence / Offenders')
-  const rows = report.rows.length ? report.rows : report.panels.flatMap((p) => p.rows).slice(0, 12)
-  if (rows.length) rows.slice(0, 12).forEach((r, i) => line(`${i + 1}. ${r}`, 8.5, 'normal', 3))
-  else line('No table/offender rows detected in the current view.', 10, 'italic')
+  section('3. Top Evidence / Ranking')
+  if (report.topRows.length) report.topRows.slice(0, 16).forEach((row, index) => bullet(row, index, 8.7))
+  else line('No evidence ranking rows detected in the current view.', 10, 'italic')
 
-  section('4. Visible Findings')
-  report.panels.forEach((p, i) => {
-    line(`${i + 1}. ${p.heading}`, 10, 'bold')
-    line(p.body, 8.5, 'normal', 4)
-  })
+  section('4. Findings Detail')
+  if (report.panels.length) {
+    report.panels.slice(0, 8).forEach((panel, index) => {
+      line(`${index + 1}. ${panel.heading}`, 10.2, 'bold', 0, [35, 55, 55])
+      line(panel.body, 8.4, 'normal', 4)
+      if (panel.rows.length) panel.rows.slice(0, 4).forEach((row, rowIndex) => line(`- ${row}`, 8.1, 'normal', 7, [65, 65, 65]))
+      y += 1.5
+    })
+  } else {
+    line('No visible finding panel detected.', 10, 'italic')
+  }
 
-  section('5. Recommended Action')
-  report.actions.forEach((a, i) => line(`${i + 1}. ${a}`, 10, 'normal', 3))
+  section('5. Recommended Basis / RCA Actions')
+  report.actions.forEach((action, index) => bullet(action, index, 9.8))
+
+  section('6. Evidence Handling Notes')
+  ;[
+    'Use this PDF as a readable RCA summary, not as replacement for raw evidence.',
+    'Attach original WP-SCOUT, ST03N, SM21/ST22, or job log files to the incident record.',
+    'If confidence is low, collect another evidence snapshot from the same incident window.',
+  ].forEach((note, index) => bullet(note, index, 9.2))
+
+  addFooter(pdf, page, report)
 
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-  pdf.save(`sap-intelligent-${slug}-rca-report-${stamp}.pdf`)
+  pdf.save(`${report.filename}-${stamp}.pdf`)
 }
