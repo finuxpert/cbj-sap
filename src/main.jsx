@@ -5,7 +5,8 @@ import './index.css'
 import './sapdev-polish.css'
 import './sapdev-comparer-fix.css'
 import './sapdev-premium-overhaul.css'
-import './sapdev-final-force.css'
+// Legacy force layer intentionally not imported anymore.
+// Keep src/sapdev-final-force.css for quick rollback if sapdev QA finds regression.
 import './sap-intelligent-ux.css'
 import './sap-intelligent-investigation.css'
 // disabled: aggressive legacy comparer override
