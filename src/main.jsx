@@ -16,7 +16,8 @@ import './index.css'
 // Keep src/sap-intelligent-investigation.css for quick rollback if sapdev QA finds regression.
 // disabled: aggressive legacy comparer override
 import './features/evidence/evidence.css'
-import './app/shell-overrides.css'
+// Legacy shell override kill-switch intentionally not imported anymore.
+// Keep src/app/shell-overrides.css for quick rollback if old floating nav/viewport QA regresses.
 import './app/rca-workspace.css'
 // Legacy Dynatrace-inspired observability override intentionally not imported anymore.
 // Keep src/sap-dynatrace-rca.css for quick rollback if chart/tool QA finds regression.
