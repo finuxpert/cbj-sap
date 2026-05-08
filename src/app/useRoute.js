@@ -1,8 +1,13 @@
 import React from 'react'
 
+function normalizeHashParts(parts = []) {
+  if (parts[0] !== 'sap') return parts
+  return parts.slice(1)
+}
+
 function parseRoute() {
   const hash = window.location.hash.slice(1) || '/'
-  const parts = hash.split('/').filter(Boolean)
+  const parts = normalizeHashParts(hash.split('/').filter(Boolean))
 
   if (parts.length === 0) return { name: 'home' }
   if (parts[0] === 'tool' && parts[1]) return { name: 'tool', slug: parts[1] }
