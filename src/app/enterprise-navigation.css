@@ -99,7 +99,8 @@
   z-index: 80;
 }
 
-.mobilePanelTitle {
+.mobilePanelTitle,
+.rcaMobilePanelTitle {
   margin-bottom: 4px;
   color: rgba(235, 250, 248, 0.82);
   font-size: 12px;
@@ -117,7 +118,8 @@
   padding: 14px;
 }
 
-.mobilePanelHead {
+.mobilePanelHead,
+.rcaMobilePanelHead {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -125,13 +127,15 @@
   margin-bottom: 14px;
 }
 
-.mobilePanelHead p {
+.mobilePanelHead p,
+.rcaMobilePanelHead p {
   margin: 0;
   color: rgba(220, 238, 238, 0.68);
   font-size: 12px;
 }
 
-.mobilePanelClose {
+.mobilePanelClose,
+.rcaMobilePanelClose {
   width: 38px;
   height: 38px;
   border: 1px solid rgba(214, 242, 240, 0.14);
@@ -142,12 +146,14 @@
   line-height: 1;
 }
 
-.mobileMenuGroup {
+.mobileMenuGroup,
+.rcaMobileMenuGroup {
   display: grid;
   gap: 10px;
 }
 
-.mobileMenuItem {
+.mobileMenuItem,
+.rcaMobileMenuItem {
   display: block;
   padding: 12px 14px;
   border: 1px solid rgba(214, 242, 240, 0.10);
@@ -157,14 +163,16 @@
   transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
 }
 
-.mobileMenuItem strong {
+.mobileMenuItem strong,
+.rcaMobileMenuItem strong {
   display: block;
   color: rgba(250, 255, 253, 0.96);
   font-size: 14px;
   margin-bottom: 4px;
 }
 
-.mobileMenuItem span {
+.mobileMenuItem span,
+.rcaMobileMenuItem span {
   display: block;
   color: rgba(220, 238, 238, 0.66);
   font-size: 12px;
@@ -172,19 +180,23 @@
 }
 
 .mobileMenuItem:hover,
-.mobileMenuItem[data-active="true"] {
+.mobileMenuItem[data-active="true"],
+.rcaMobileMenuItem:hover,
+.rcaMobileMenuItem[data-active="true"] {
   border-color: rgba(45, 212, 191, 0.32);
   background: linear-gradient(135deg, rgba(45, 212, 191, 0.12), rgba(56, 189, 248, 0.06));
   transform: translateY(-1px);
 }
 
-.mobileMenuFooter {
+.mobileMenuFooter,
+.rcaMobileMenuFooter {
   display: flex;
   gap: 10px;
   margin-top: 14px;
 }
 
-.mobileMenuFooter a {
+.mobileMenuFooter a,
+.rcaMobileMenuFooter a {
   flex: 1 1 auto;
   min-height: 40px;
   display: inline-flex;
@@ -197,7 +209,8 @@
   text-decoration: none;
 }
 
-.mobileMenuFooter a[data-active="true"] {
+.mobileMenuFooter a[data-active="true"],
+.rcaMobileMenuFooter a[data-active="true"] {
   border-color: rgba(45, 212, 191, 0.28);
   background: rgba(45, 212, 191, 0.10);
 }
@@ -306,7 +319,8 @@
     overflow: hidden;
   }
 
-  .mobileNavDock.rcaMobileMenu {
+  .mobileNavDock.rcaMobileMenu,
+  .rcaMobileOverlay {
     position: fixed !important;
     inset: 0 !important;
     z-index: 2147483000 !important;
@@ -316,23 +330,27 @@
     max-height: none !important;
     overflow: auto !important;
     padding: 74px 12px 18px !important;
-    background: rgba(2, 8, 10, 0.68) !important;
+    background: rgba(2, 8, 10, 0.84) !important;
     backdrop-filter: blur(10px);
     overscroll-behavior: contain;
   }
 
-  .mobileNavDock.rcaMobileMenu .mobilePanel {
+  .mobileNavDock.rcaMobileMenu .mobilePanel,
+  .rcaMobilePanel {
     display: block !important;
+    position: relative !important;
     width: min(100%, 520px) !important;
+    min-height: 260px !important;
     margin: 0 auto !important;
-    border: 1px solid rgba(45, 212, 191, 0.28) !important;
+    border: 1px solid rgba(45, 212, 191, 0.34) !important;
     border-radius: 22px !important;
-    background: rgba(7, 16, 19, 0.98) !important;
+    background: #071013 !important;
     box-shadow: 0 28px 90px rgba(0, 0, 0, 0.72) !important;
     padding: 14px !important;
     opacity: 1 !important;
     visibility: visible !important;
     transform: none !important;
+    color: rgba(250, 255, 253, 0.96) !important;
   }
 }
 
@@ -350,16 +368,19 @@
     gap: 8px;
   }
 
-  .mobileNavDock.rcaMobileMenu {
+  .mobileNavDock.rcaMobileMenu,
+  .rcaMobileOverlay {
     padding: 66px 8px 14px !important;
   }
 
-  .mobileNavDock .mobilePanel {
-    padding: 12px;
-    border-radius: 18px;
+  .mobileNavDock .mobilePanel,
+  .rcaMobilePanel {
+    padding: 12px !important;
+    border-radius: 18px !important;
   }
 
-  .mobileMenuFooter {
+  .mobileMenuFooter,
+  .rcaMobileMenuFooter {
     flex-direction: column;
   }
 }
