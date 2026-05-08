@@ -254,11 +254,47 @@ Current observability/tool visual ownership should stay in centralized enterpris
 src/app/enterprise-theme.css
 ```
 
+## Cleanup patch 8
+
+Disabled this legacy shell override import in `src/main.jsx`:
+
+```js
+import './app/shell-overrides.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+`shell-overrides.css` was a kill-switch layer for old floating/shortcut nav UI and compact PDF dock behavior. It broadly hid selectors such as section nav, jump nav, restore bar, shortcut, quick nav, mini nav, floating nav, anchor nav, and TOC patterns.
+
+A focused repo search did not find active source references for the old shell override selectors, including:
+
+```text
+cmpSectionNav
+cmpRestoreBar
+JumpNav
+RestoreBar
+FloatingNav
+AnchorNav
+```
+
+PDF dock styling and print behavior should now be owned by:
+
+```text
+src/app/pdf-export-ux.css
+```
+
+which is loaded through:
+
+```text
+src/app/enterprise-theme.css
+```
+
 ## Current CSS imports still active in main.jsx
 
 ```text
 src/features/evidence/evidence.css
-src/app/shell-overrides.css
 src/app/rca-workspace.css
 src/app/enterprise-theme.css
 ```
@@ -273,6 +309,7 @@ src/sapdev-final-force.css
 src/sap-intelligent-ux.css
 src/sap-intelligent-investigation.css
 src/sap-dynatrace-rca.css
+src/app/shell-overrides.css
 ```
 
 ## Rollback
@@ -287,6 +324,7 @@ import './sapdev-final-force.css'
 import './sap-intelligent-ux.css'
 import './sap-intelligent-investigation.css'
 import './sap-dynatrace-rca.css'
+import './app/shell-overrides.css'
 ```
 
 Then run:
@@ -316,7 +354,8 @@ Verify:
 - SAP RCA logo still visible
 - homepage Investigation Workspace still readable
 - comparer layout is not broken
-- PDF dock still visible
+- old floating/shortcut nav does not reappear
+- PDF dock still visible and does not block content
 - Export PDF works on all 3 core tools
 - evidence/table readability still OK
 - charts remain readable without the legacy Dynatrace override
@@ -325,8 +364,7 @@ Verify:
 
 Audit the remaining active imports in this order:
 
-1. `src/app/shell-overrides.css`
-2. `src/app/rca-workspace.css`
-3. `src/features/evidence/evidence.css`
+1. `src/app/rca-workspace.css`
+2. `src/features/evidence/evidence.css`
 
 Do not disable more than one remaining CSS file per patch unless QA is already green.
