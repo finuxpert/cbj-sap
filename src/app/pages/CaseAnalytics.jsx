@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import '../case-detail-analytics.css'
 
 const list = (value) => Array.isArray(value) ? value : []
@@ -22,6 +22,7 @@ function buildRows(caseData) {
   const anomaly = new Map()
   const jobs = new Map()
   const programs = new Map()
+  const timeline = new Map()
   const confidence = []
 
   list(caseData?.parsed_results).forEach((item, index) => {
@@ -34,6 +35,15 @@ function buildRows(caseData) {
     if (Number.isFinite(conf) && conf > 0) {
       confidence.push({ name: String(item?.tool || `Result ${index + 1}`).slice(0, 18), value: conf })
     }
+
+    list(raw?.timeline).forEach((row) => {
+      const label = row?.time || row?.timeLabel || row?.created_at || `T${index + 1}`
+      const current = timeline.get(label) || { name: String(label).slice(0, 16), hits: 0, crit: 0, warn: 0 }
+      current.hits += Number(row?.hits || row?.crit || row?.warn || 0) || 0
+      current.crit += Number(row?.crit || 0) || 0
+      current.warn += Number(row?.warn || 0) || 0
+      timeline.set(label, current)
+    })
 
     list(raw?.errorGroups).forEach((row) => add(anomaly, row?.name || row?.errorCode, Number(row?.hits || 1) || 1))
     list(raw?.jobGroups).forEach((row) => add(jobs, row?.name || row?.jobName, Number(row?.hits || 1) || 1))
@@ -49,6 +59,7 @@ function buildRows(caseData) {
     jobs: rowsFromMap(jobs),
     programs: rowsFromMap(programs),
     confidence: confidence.slice(-8),
+    timeline: Array.from(timeline.values()).slice(-14),
   }
 }
 
@@ -62,23 +73,24 @@ function Insight({ label, value, hint }) {
   )
 }
 
-function Chart({ title, data, hint = 'Parsed evidence distribution' }) {
+function EmptyChart({ title, hint }) {
+  return (
+    <section>
+      <div className="caseAnalyticsChartHead">
+        <div>
+          <h3>{title}</h3>
+          <span>{hint}</span>
+        </div>
+      </div>
+      <div className="caseDetailChartEmpty">No chart data yet.</div>
+    </section>
+  )
+}
+
+function BarCard({ title, data, hint = 'Parsed evidence distribution' }) {
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
   const top = data[0]
-
-  if (!data.length) {
-    return (
-      <section>
-        <div className="caseAnalyticsChartHead">
-          <div>
-            <h3>{title}</h3>
-            <span>{hint}</span>
-          </div>
-        </div>
-        <div className="caseDetailChartEmpty">No chart data yet.</div>
-      </section>
-    )
-  }
+  if (!data.length) return <EmptyChart title={title} hint={hint} />
 
   return (
     <section>
@@ -101,6 +113,61 @@ function Chart({ title, data, hint = 'Parsed evidence distribution' }) {
         </ResponsiveContainer>
       </div>
       <p className="caseAnalyticsChartNote">Top signal: <b>{top.name}</b> · {top.value}</p>
+    </section>
+  )
+}
+
+function SeverityCard({ data }) {
+  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  if (!data.length) return <EmptyChart title="Severity Split" hint="INFO/WARN/CRIT result spread" />
+
+  return (
+    <section>
+      <div className="caseAnalyticsChartHead">
+        <div>
+          <h3>Severity Split</h3>
+          <span>INFO/WARN/CRIT result spread</span>
+        </div>
+        <b>{total}</b>
+      </div>
+      <div className="caseDetailChartBox caseDetailChartBox--donut">
+        <ResponsiveContainer width="100%" height={240}>
+          <PieChart>
+            <Tooltip />
+            <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={4} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <p className="caseAnalyticsChartNote">Dominant severity: <b>{data[0]?.name}</b> · {data[0]?.value}</p>
+    </section>
+  )
+}
+
+function TimelineCard({ data }) {
+  if (!data.length) return <EmptyChart title="Timeline Signal" hint="Parsed hits over time" />
+
+  return (
+    <section className="caseDetailAnalyticsWide">
+      <div className="caseAnalyticsChartHead">
+        <div>
+          <h3>Timeline Signal</h3>
+          <span>Parsed hits over time</span>
+        </div>
+        <b>{data.length}</b>
+      </div>
+      <div className="caseDetailChartBox">
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={data} margin={{ top: 8, right: 14, left: -18, bottom: 18 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip />
+            <Line type="monotone" dataKey="hits" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="crit" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="warn" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </section>
   )
 }
@@ -133,13 +200,14 @@ export default function CaseAnalytics({ caseData }) {
         <div className="caseDetailChartEmpty">No parsed analytics found for this case yet.</div>
       ) : (
         <div className="caseDetailAnalyticsGrid">
-          <Chart title="Severity Split" data={rows.severity} hint="INFO/WARN/CRIT result spread" />
-          <Chart title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" />
-          <Chart title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" />
-          <Chart title="Top JobName" data={rows.jobs} hint="Impacted job names" />
-          <Chart title="Top Program" data={rows.programs} hint="Impacted SAP programs" />
+          <TimelineCard data={rows.timeline} />
+          <SeverityCard data={rows.severity} />
+          <BarCard title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" />
+          <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" />
+          <BarCard title="Top JobName" data={rows.jobs} hint="Impacted job names" />
+          <BarCard title="Top Program" data={rows.programs} hint="Impacted SAP programs" />
           <section className="caseDetailAnalyticsWide">
-            <Chart title="Parsed Confidence" data={rows.confidence} hint="Confidence per parser result" />
+            <BarCard title="Parsed Confidence" data={rows.confidence} hint="Confidence per parser result" />
           </section>
         </div>
       )}
