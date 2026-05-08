@@ -1,0 +1,83 @@
+name: SAP DEV Validate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'src/**'
+      - 'backend/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+      - '.github/workflows/sap-dev-validate.yml'
+
+jobs:
+  validate:
+    name: Build and audit SAP DEV
+    runs-on: [self-hosted, sapdev]
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show context
+        run: |
+          echo "Branch: ${GITHUB_REF_NAME}"
+          echo "Commit: ${GITHUB_SHA}"
+          node -v || true
+          npm -v || true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: |
+          npm run build 2>&1 | tee /tmp/sap-build.log
+
+      - name: Generate validation report
+        if: always()
+        run: |
+          mkdir -p validation-report
+          cp /tmp/sap-build.log validation-report/build.log 2>/dev/null || true
+          {
+            echo "# SAP DEV Validation Report"
+            echo
+            echo "Generated: $(date)"
+            echo "Branch: ${GITHUB_REF_NAME}"
+            echo "Commit: ${GITHUB_SHA}"
+            echo
+            echo "## Git Status"
+            echo '```text'
+            git status --short || true
+            echo '```'
+            echo
+            echo "## Build Assets"
+            echo '```text'
+            find dist/assets -maxdepth 1 -type f -printf '%s %p\n' 2>/dev/null | sort -nr | awk '{printf "%.2f KB  %s\n", $1/1024, $2}' || true
+            echo '```'
+            echo
+            echo "## Large Chunks > 800 KB"
+            echo '```text'
+            find dist/assets -maxdepth 1 -type f -name '*.js' -size +800k -printf '%s %p\n' 2>/dev/null | sort -nr | awk '{printf "%.2f KB  %s\n", $1/1024, $2}' || true
+            echo '```'
+            echo
+            echo "## Active CSS Imports"
+            echo '```text'
+            grep -RIn "sapdev-final-force\|sapdev-premium-overhaul\|sapdev-polish\|sap-intelligent-ux\|sap-intelligent-investigation\|comparer-rca-final" src 2>/dev/null || true
+            echo '```'
+            echo
+            echo "## Aggressive CSS Rules"
+            echo '```text'
+            grep -RInE 'important|backdrop-filter|position:[[:space:]]*fixed|100vh|overflow:[[:space:]]*hidden|z-index' src/*.css src/app/*.css src/tools/*.css 2>/dev/null | head -250 || true
+            echo '```'
+          } > validation-report/sap-dev-validation.md
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sap-dev-validation-${{ github.run_number }}
+          path: validation-report/
