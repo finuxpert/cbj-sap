@@ -395,7 +395,7 @@
 .cmpCleanShell [class*="suspect"] li,
 .cmpCleanShell [class*="Ranking"] li,
 .cmpCleanShell [class*="ranking"] li {
-  line-height: 1.35;
+  line-height: 1.38;
   margin-bottom: 6px;
   padding-block: 7px !important;
   overflow-wrap: anywhere;
