@@ -87,6 +87,10 @@
   align-items: center;
 }
 
+.mobileBtn {
+  display: none !important;
+}
+
 .mobileNavDock {
   position: absolute;
   top: calc(100% + 8px);
@@ -267,6 +271,21 @@
   .mobileBtn {
     display: inline-flex !important;
   }
+
+  .mobileNavDock {
+    position: fixed;
+    top: 74px;
+    left: 10px;
+    right: 10px;
+    z-index: 999;
+    max-height: calc(100dvh - 88px);
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+
+  .mobileNavDock .mobilePanel {
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58);
+  }
 }
 
 @media (max-width: 460px) {
@@ -279,8 +298,10 @@
   }
 
   .mobileNavDock {
+    top: 66px;
     left: 8px;
     right: 8px;
+    max-height: calc(100dvh - 78px);
   }
 
   .mobileNavDock .mobilePanel {
