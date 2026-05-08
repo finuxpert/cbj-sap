@@ -41,7 +41,7 @@
 .caseDashboardMeta span,
 .caseDashboardMeta strong,
 .caseDashboardMeta a,
-.caseFullDetailHead a {
+.caseFullDetailDisclosure summary span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -232,22 +232,36 @@
 }
 
 .caseFullDetailShell {
-  padding-top: 8px;
-  padding-bottom: 0;
+  padding-top: 6px;
+  padding-bottom: 22px;
 }
 
-.caseFullDetailHead {
+.caseFullDetailDisclosure {
+  border: 1px solid rgba(214, 242, 240, 0.11);
+  border-radius: 22px;
+  background: rgba(10, 19, 23, 0.78);
+  overflow: hidden;
+}
+
+.caseFullDetailDisclosure summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  border: 1px solid rgba(214, 242, 240, 0.11);
-  border-radius: 22px;
   padding: 16px;
-  background: rgba(10, 19, 23, 0.78);
+  cursor: pointer;
+  list-style: none;
 }
 
-.caseFullDetailHead h2 {
+.caseFullDetailDisclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.caseFullDetailDisclosure summary:hover {
+  background: rgba(45, 212, 191, 0.045);
+}
+
+.caseFullDetailDisclosure summary h2 {
   margin: 4px 0 0;
   color: rgba(249, 251, 247, 0.94);
   font-size: clamp(20px, 3vw, 30px);
@@ -255,18 +269,32 @@
   letter-spacing: -0.035em;
 }
 
+.caseFullDetailDisclosure[open] summary span {
+  color: rgba(249, 251, 247, 0.94);
+  border-color: rgba(214, 242, 240, 0.14);
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.caseFullDetailDisclosure[open] summary span::before {
+  content: "Close ";
+}
+
+.caseFullDetailBody {
+  border-top: 1px solid rgba(214, 242, 240, 0.10);
+  padding-top: 10px;
+}
+
+.caseFullDetailBody .caseDetailPage {
+  width: 100%;
+  padding-top: 16px;
+}
+
 @media (max-width: 920px) {
   .caseDashboardHero,
   .caseDetailAnalyticsGrid,
   .caseAnalyticsInsights,
-  .caseAnalyticsQuickSummary,
-  .caseFullDetailHead {
+  .caseAnalyticsQuickSummary {
     grid-template-columns: 1fr;
-  }
-
-  .caseDashboardHero,
-  .caseFullDetailHead {
-    display: grid;
   }
 
   .caseDetailAnalyticsWide {
@@ -274,7 +302,12 @@
   }
 
   .caseDashboardMeta a,
-  .caseFullDetailHead a {
+  .caseFullDetailDisclosure summary span {
     width: 100%;
+  }
+
+  .caseFullDetailDisclosure summary {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
