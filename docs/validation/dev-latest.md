@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-08T15:05:19+07:00
+Generated: 2026-05-08T15:08:31+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: 8f8d38c
-- Commit subject: Trigger sapdev navigation polish deploy
+- Commit: b59b757
+- Commit subject: Trigger sapdev Log Evidence UX deploy
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -14,13 +14,13 @@ Generated: 2026-05-08T15:05:19+07:00
 - Status: green
 
 ```text
-dist/assets/LogEvidenceCharts-BceWjzEz.js          0.92 kB │ gzip:   0.45 kB
+dist/assets/LogEvidenceCharts-Cwxjc-9r.js          0.92 kB │ gzip:   0.45 kB
 dist/assets/jszip-Cyqpih6J.js                     96.72 kB │ gzip:  29.87 kB
-dist/assets/index-CfsMCimm.js                    228.28 kB │ gzip:  72.92 kB
+dist/assets/index-BE790Cgh.js                    228.28 kB │ gzip:  72.91 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
-dist/assets/jspdf.es.min-Cd33_gZN.js             385.13 kB │ gzip: 125.77 kB
+dist/assets/jspdf.es.min-DAJuq6h2.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DfFWPDbw.js                 415.91 kB │ gzip: 121.63 kB
-✓ built in 6.32s
+✓ built in 6.35s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DfFWPDbw.js                 415.91 kB │ gzip: 121.63 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Fri, 08 May 2026 08:05:18 GMT
+- Last modified: Fri, 08 May 2026 08:08:30 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Fri, 08 May 2026 08:05:18 GMT
+date: Fri, 08 May 2026 08:08:31 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tOUiVZe0BskuLWAunb%2FQ%2BeMi32isIWG7oTq%2BvzEy2bIKx%2FRpJ0XWXi7E3uRiFMMqDmAkVxDQxcYdBhlQ67OqNyhtRF%2FzRi%2BS%2BY0GTVelv%2B9i7LcCw51oOBmdY1Nsik1q5sp2m6yDhsSVIOo%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=QJFI%2BrWwR7SCdeC3PGPEMOXcsfZ7aYvdtrMj8DhRNjsmy74v9kvIVHC4dh4NgbNEnesSKfADa0snAdCWc%2FGT08zJLRvd4Ft4Op1Mg%2FuZM17SWvw8bY9Bqtu9IUyvH5nk2aXV%2FPCX6v89R6Q%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Fri, 08 May 2026 08:05:18 GMT
+last-modified: Fri, 08 May 2026 08:08:30 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f86f5687ed33dad-SIN
+cf-ray: 9f86fa1a6dc8dc13-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
