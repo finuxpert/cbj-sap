@@ -1,0 +1,402 @@
+/*
+ * WP-SCOUT Comparator UX polish.
+ * CSS-only layer: offender queue readability, filters, severity badges, charts, and action notes.
+ */
+.cmpCleanShell {
+  --cmp-bg: #071013;
+  --cmp-panel: rgba(10, 19, 23, 0.84);
+  --cmp-panel-strong: rgba(13, 24, 29, 0.92);
+  --cmp-line: rgba(214, 242, 240, 0.13);
+  --cmp-line-strong: rgba(45, 212, 191, 0.32);
+  --cmp-accent: #2dd4bf;
+  --cmp-blue: #38bdf8;
+  --cmp-warn: #f5b942;
+  --cmp-danger: #ef5f6f;
+  --cmp-muted: rgba(220, 238, 238, 0.68);
+  background:
+    radial-gradient(circle at 10% -4%, rgba(45, 212, 191, 0.16), transparent 30rem),
+    radial-gradient(circle at 92% 8%, rgba(56, 189, 248, 0.10), transparent 34rem),
+    linear-gradient(180deg, #071013 0%, #071012 56%, #05090b 100%) !important;
+  color: rgba(249, 251, 247, 0.96);
+}
+
+.cmpCleanHeader,
+.cmpCleanDrop,
+.cmpCleanFinding,
+.cmpCleanActionsPanel,
+.cmpCleanStat,
+.cmpCleanPanel {
+  border-color: var(--cmp-line) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.060), rgba(255, 255, 255, 0.022)),
+    var(--cmp-panel) !important;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+.cmpCleanHeader {
+  position: relative;
+  overflow: hidden;
+}
+
+.cmpCleanHeader::after {
+  content: "";
+  position: absolute;
+  right: -90px;
+  top: -110px;
+  width: 300px;
+  height: 300px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.16), transparent 62%);
+  pointer-events: none;
+}
+
+.cmpCleanKicker,
+.cmpCleanPanel h2,
+.cmpCleanActionsPanel > span,
+.cmpCleanFinding span {
+  color: var(--cmp-accent) !important;
+}
+
+.cmpCleanHeader h1 {
+  letter-spacing: -0.055em !important;
+  text-wrap: balance;
+}
+
+.cmpCleanHeader p,
+.cmpCleanLoadState,
+.cmpCleanPanel p,
+.cmpCleanDrop span,
+.cmpCleanActionsPanel li {
+  color: var(--cmp-muted) !important;
+}
+
+.cmpCleanPrimary {
+  position: relative;
+  z-index: 1;
+  min-height: 48px;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: #04110f !important;
+  background: linear-gradient(135deg, #6ee7b7, #2dd4bf 52%, #38bdf8) !important;
+  box-shadow: 0 18px 44px rgba(45, 212, 191, 0.18) !important;
+}
+
+.cmpCleanPrimary:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.cmpCleanDrop {
+  position: relative;
+  border-style: dashed !important;
+  border-color: rgba(45, 212, 191, 0.26) !important;
+  background: rgba(45, 212, 191, 0.055) !important;
+}
+
+.cmpCleanDrop::before {
+  content: "WP-SCOUT";
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #bffbf1;
+  background: rgba(45, 212, 191, 0.10);
+  border: 1px solid rgba(45, 212, 191, 0.22);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+}
+
+.cmpCleanStats {
+  gap: 10px !important;
+}
+
+.cmpCleanStat {
+  position: relative;
+  overflow: hidden;
+  min-height: 94px;
+  border-radius: 16px !important;
+}
+
+.cmpCleanStat::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.58);
+}
+
+.cmpCleanStat.crit::before {
+  background: rgba(239, 95, 111, 0.78);
+}
+
+.cmpCleanStat.warn::before {
+  background: rgba(245, 185, 66, 0.78);
+}
+
+.cmpCleanStat span {
+  color: rgba(220, 238, 238, 0.58) !important;
+}
+
+.cmpCleanStat strong {
+  color: rgba(249, 251, 247, 0.96) !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmpCleanFinding {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px !important;
+}
+
+.cmpCleanFinding::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 4px;
+  border-radius: 999px;
+  background: rgba(45, 212, 191, 0.62);
+}
+
+.cmpCleanFinding.crit::before {
+  background: rgba(239, 95, 111, 0.82);
+}
+
+.cmpCleanFinding.warn::before {
+  background: rgba(245, 185, 66, 0.82);
+}
+
+.cmpCleanFinding.ok::before {
+  background: rgba(34, 197, 94, 0.78);
+}
+
+.cmpCleanFinding strong {
+  color: rgba(249, 251, 247, 0.98) !important;
+}
+
+.cmpCleanActionsPanel {
+  border-radius: 18px !important;
+}
+
+.cmpCleanActionsPanel ol {
+  margin-bottom: 0;
+  padding-left: 21px;
+}
+
+.cmpCleanActionsPanel li {
+  line-height: 1.55;
+}
+
+.cmpCleanActionsPanel li + li {
+  margin-top: 6px;
+}
+
+.cmpCleanPanel {
+  border-radius: 18px !important;
+}
+
+.cmpCleanPanel h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cmpCleanPanel h2::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  min-width: 40px;
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0.34), transparent);
+}
+
+.cmpCleanFilters {
+  align-items: center;
+  gap: 8px !important;
+}
+
+.cmpCleanFilters input,
+.cmpCleanFilters select {
+  min-height: 38px;
+  border-radius: 12px !important;
+  border-color: rgba(214, 242, 240, 0.14) !important;
+  background: rgba(4, 10, 12, 0.62) !important;
+  color: rgba(249, 251, 247, 0.94) !important;
+}
+
+.cmpCleanSeg {
+  border-radius: 999px !important;
+  padding: 3px !important;
+  background: rgba(0, 0, 0, 0.20) !important;
+  border: 1px solid rgba(214, 242, 240, 0.10) !important;
+}
+
+.cmpCleanSeg button {
+  min-height: 30px;
+  border-radius: 999px !important;
+  color: rgba(220, 238, 238, 0.70) !important;
+}
+
+.cmpCleanSeg button[data-active="true"] {
+  color: #effffb !important;
+  background: rgba(45, 212, 191, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(45, 212, 191, 0.22);
+}
+
+.cmpCleanTableWrap {
+  max-height: min(58vh, 640px);
+  border-radius: 16px !important;
+  border: 1px solid rgba(214, 242, 240, 0.12) !important;
+  background: rgba(0, 0, 0, 0.16) !important;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(45, 212, 191, 0.42) rgba(255, 255, 255, 0.04);
+}
+
+.cmpCleanTable {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.cmpCleanTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: rgba(6, 15, 18, 0.98) !important;
+  color: rgba(220, 238, 238, 0.56) !important;
+  border-bottom: 1px solid rgba(214, 242, 240, 0.12) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.10em;
+}
+
+.cmpCleanTable tbody td {
+  border-bottom: 1px solid rgba(214, 242, 240, 0.065) !important;
+  color: rgba(249, 251, 247, 0.88) !important;
+  line-height: 1.4;
+}
+
+.cmpCleanTable tbody tr:hover td {
+  background: rgba(45, 212, 191, 0.055) !important;
+}
+
+.cmpCleanBadge {
+  min-width: 54px;
+  justify-content: center;
+  border-radius: 999px !important;
+  font-size: 10px !important;
+  letter-spacing: 0.06em;
+}
+
+.cmpCleanBadge.crit {
+  color: #fecdd3 !important;
+  background: rgba(239, 95, 111, 0.13) !important;
+  border-color: rgba(239, 95, 111, 0.34) !important;
+}
+
+.cmpCleanBadge.warn {
+  color: #fde68a !important;
+  background: rgba(245, 185, 66, 0.13) !important;
+  border-color: rgba(245, 185, 66, 0.32) !important;
+}
+
+.cmpCleanBadge.ok {
+  color: #bbf7d0 !important;
+  background: rgba(34, 197, 94, 0.11) !important;
+  border-color: rgba(34, 197, 94, 0.26) !important;
+}
+
+.cmpCleanChart {
+  border-radius: 16px !important;
+  background: rgba(0, 0, 0, 0.12) !important;
+  border: 1px solid rgba(214, 242, 240, 0.10) !important;
+}
+
+.cmpCleanEmptyChart,
+.cmpCleanEmpty {
+  color: rgba(220, 238, 238, 0.58) !important;
+}
+
+.cmpCleanShell .recharts-cartesian-grid line {
+  stroke: rgba(148, 163, 184, 0.24);
+  stroke-dasharray: 2 8;
+}
+
+.cmpCleanShell .recharts-text {
+  fill: rgba(224, 242, 241, 0.68);
+  font-size: 11px;
+}
+
+.cmpCleanShell .recharts-default-tooltip {
+  border: 1px solid rgba(45, 212, 191, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(8, 12, 15, 0.96) !important;
+  color: #f8fffd !important;
+}
+
+@media (max-width: 980px) {
+  .cmpCleanPanelHead {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .cmpCleanFilters {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cmpCleanFilters input,
+  .cmpCleanFilters select,
+  .cmpCleanSeg {
+    width: 100% !important;
+  }
+
+  .cmpCleanFilters input {
+    grid-column: 1 / -1;
+  }
+
+  .cmpCleanSeg {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 720px) {
+  .cmpCleanShell {
+    padding: 10px !important;
+  }
+
+  .cmpCleanHeader,
+  .cmpCleanTopRow,
+  .cmpCleanGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cmpCleanPrimary {
+    width: 100%;
+  }
+
+  .cmpCleanStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .cmpCleanFilters {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cmpCleanSeg {
+    grid-column: auto;
+  }
+
+  .cmpCleanTableWrap {
+    max-height: none;
+  }
+
+  .cmpCleanTable {
+    min-width: 820px;
+  }
+}
