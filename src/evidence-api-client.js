@@ -18,6 +18,14 @@ function buildSearch(params = {}) {
   return suffix
 }
 
+async function postJson(path, payload = {}) {
+  return toJson(await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }))
+}
+
 export async function evidenceHealth() {
   return toJson(await fetch(`${API_BASE}/health`, { cache: 'no-store' }))
 }
@@ -36,6 +44,15 @@ export async function uploadEvidence(file, meta = {}) {
   form.append('tags', Array.isArray(meta.tags) ? meta.tags.join(',') : (meta.tags || ''))
   if (meta.case_id) form.append('case_id', meta.case_id)
   return toJson(await fetch(`${API_BASE}/upload`, { method: 'POST', body: form }))
+}
+
+export async function createCase(payload = {}) {
+  return postJson('/cases', payload)
+}
+
+export async function saveParsedResult(caseId, payload = {}) {
+  if (!caseId) return { ok: false, detail: 'caseId is required' }
+  return postJson(`/cases/${encodeURIComponent(caseId)}/parsed-results`, payload)
 }
 
 export async function listMobileCases(params = {}) {
