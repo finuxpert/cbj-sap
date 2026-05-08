@@ -114,6 +114,17 @@ function normalizeCaseList(response) {
   return []
 }
 
+function caseItemId(item) {
+  return item?.id || item?.case_no || item?.case_id || item?.caseNo || ''
+}
+
+function findFallbackCase(items = [], title = '') {
+  const wanted = safe(title).toLowerCase()
+  if (!items.length) return null
+  if (!wanted) return items[0]
+  return items.find((item) => safe(item.title).toLowerCase() === wanted) || items[0]
+}
+
 function Group({ title, rows = [] }) {
   return <section className="evidencePanel"><h2>{title}</h2><div className="evidenceList compact">{rows.slice(0, 8).map((item) => <div key={item.name}><b>{item.name}</b><span>hits {item.hits} · CRIT {item.critHits}</span><small>{item.family || ''} {item.examples?.join(' · ')}</small></div>)}</div></section>
 }
@@ -139,11 +150,10 @@ function CaseLinkPanel({
           <b>Existing Case</b>
           <select value={caseId} onChange={(event) => onCaseIdChange(event.target.value)}>
             <option value="">Not linked</option>
-            {recentCases.map((item) => (
-              <option key={item.id || item.case_no} value={item.id || item.case_no}>
-                {(item.case_no || item.id)} · {item.title || 'Untitled'}
-              </option>
-            ))}
+            {recentCases.map((item) => {
+              const id = caseItemId(item)
+              return <option key={id || item.title} value={id}>{(item.case_no || id)} · {item.title || 'Untitled'}</option>
+            })}
           </select>
         </label>
         <label>
@@ -181,11 +191,17 @@ export default function ToolLogEvidenceV2() {
   const [savingCase, setSavingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
 
-  const loadCases = React.useCallback(() => {
-    import('../evidence-api-client.js')
-      .then(({ listMobileCases }) => listMobileCases({ limit: 20 }))
-      .then((response) => setRecentCases(normalizeCaseList(response)))
-      .catch(() => setRecentCases([]))
+  const loadCases = React.useCallback(async () => {
+    try {
+      const { listMobileCases } = await import('../evidence-api-client.js')
+      const response = await listMobileCases({ limit: 20 })
+      const items = normalizeCaseList(response)
+      setRecentCases(items)
+      return items
+    } catch {
+      setRecentCases([])
+      return []
+    }
   }, [])
 
   React.useEffect(() => {
@@ -240,8 +256,9 @@ export default function ToolLogEvidenceV2() {
     try {
       const { createCase } = await import('../evidence-api-client.js')
       const primary = analysis?.primary || {}
+      const title = caseTitle.trim() || primary.name || 'Log Evidence RCA Case'
       const payload = {
-        title: caseTitle.trim() || primary.name || 'Log Evidence RCA Case',
+        title,
         severity: analysis ? severityFromAnalysis(analysis) : 'INFO',
         summary: analysis?.summary || '',
         top_anomaly: primary.name || '',
@@ -251,11 +268,18 @@ export default function ToolLogEvidenceV2() {
       }
       const response = await createCase(payload)
       if (response?.ok === false) throw new Error(response?.detail || response?.raw || 'Failed to create case')
-      const nextId = normalizeCaseId(response)
-      if (!nextId) throw new Error('Case created, but API response did not return a case id. Refresh Cases and select it manually.')
+
+      let nextId = normalizeCaseId(response)
+      if (!nextId) {
+        const refreshedCases = await loadCases()
+        const fallback = findFallbackCase(refreshedCases, title)
+        nextId = caseItemId(fallback)
+      }
+      if (!nextId) throw new Error('Case was submitted, but no selectable case id was returned. Open Cases, refresh, then select the case manually.')
+
       setCaseId(nextId)
       setCaseTitle('')
-      setSaveStatus(`Case created: ${nextId}`)
+      setSaveStatus(`Case linked: ${nextId}`)
       loadCases()
     } catch (error) {
       setSaveStatus(error?.message || 'Failed to create case.')
