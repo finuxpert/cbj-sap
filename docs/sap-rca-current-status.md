@@ -27,15 +27,14 @@ Main deploy workflow:
 .github/workflows/deploy-dev.yml
 ```
 
-The workflow includes concurrency:
+Validation/report workflow:
 
-```yaml
-concurrency:
-  group: sapdev-deploy
-  cancel-in-progress: true
+```text
+.github/workflows/dev-validate-report.yml
+docs/validation/dev-latest.md
 ```
 
-This prevents multiple sapdev deploys from piling up.
+The validation report records build status, deployed asset count, live HTTP status, and Evidence API health.
 
 ## Active core tools
 
@@ -51,7 +50,7 @@ Secondary/helper tools must stay hidden or secondary unless explicitly requested
 
 ## Branding / logo status
 
-Navbar now uses a custom internal SAP RCA Workspace badge:
+Navbar uses a custom internal SAP RCA Workspace badge:
 
 ```text
 src/components/SapRcaLogo.jsx
@@ -66,15 +65,18 @@ This is a custom internal SAP RCA mark, not an official SAP logo asset.
 
 The badge text is `SAP RCA` and is designed to match the enterprise theme without committing external trademark image files.
 
-## Recent UI/UX work
+## Current CSS / UI state
 
-Newer UI polish is centralized through:
+UI polish has been centralized.
+
+`src/main.jsx` now imports only:
 
 ```text
+src/index.css
 src/app/enterprise-theme.css
 ```
 
-`main.jsx` should only import the enterprise theme entrypoint, not every polish file individually.
+Do not add new UI CSS imports directly to `src/main.jsx`.
 
 Current enterprise theme import order:
 
@@ -90,7 +92,7 @@ Current enterprise theme import order:
 @import './pdf-export-ux.css';
 ```
 
-## New UI/UX layers
+Current enterprise UI layers:
 
 ```text
 src/app/enterprise-ui-system.css        -> base enterprise tokens/cards/buttons/tables
@@ -103,6 +105,64 @@ src/app/st03n-impact-ux.css             -> ST03N Impact V2 readability
 src/app/comparer-process-ux.css         -> WP-SCOUT Comparator table/filter/chart UX
 src/app/pdf-export-ux.css               -> PDF dock and print fallback polish
 ```
+
+Legacy/direct CSS imports disabled but retained for rollback:
+
+```text
+src/sapdev-polish.css
+src/sapdev-comparer-fix.css
+src/sapdev-premium-overhaul.css
+src/sapdev-final-force.css
+src/sap-intelligent-ux.css
+src/sap-intelligent-investigation.css
+src/sap-dynatrace-rca.css
+src/app/shell-overrides.css
+src/app/rca-workspace.css
+src/features/evidence/evidence.css
+```
+
+Evidence structural layout was moved from:
+
+```text
+src/features/evidence/evidence.css
+```
+
+into:
+
+```text
+src/app/evidence-history-ux.css
+```
+
+CSS cleanup audit document:
+
+```text
+docs/css-cleanup-audit.md
+```
+
+## Latest validation status
+
+Latest runtime validation report seen:
+
+```text
+docs/validation/dev-latest.md
+```
+
+Last green runtime commit from the validation report:
+
+```text
+48f303a - Disable legacy evidence feature CSS import
+```
+
+Validation summary:
+
+```text
+Build      : green
+HTTP       : 200 on https://sapdev.cbj-kontruksi.com/sap/
+API Health : ok on /sap-api/health
+Asset count: 17
+```
+
+Note: documentation-only commits after runtime changes may not create a new runtime validation report immediately. Treat `docs/validation/dev-latest.md` as the runner-written source of truth for sapdev validation.
 
 ## PDF export status
 
@@ -146,6 +206,8 @@ Export PDF
 docs/enterprise-theme-notes.md      -> enterprise CSS structure and rules
 docs/ai-coding-workflow-style.md    -> preferred AI coding/audit workflow
 docs/dev-deploy-runbook.md          -> updated dev auto-deploy runbook
+docs/css-cleanup-audit.md           -> CSS cleanup/rollback audit
+docs/validation/dev-latest.md       -> runner-written latest DEV validation report
 docs/sap-rca-current-status.md      -> this status handoff file
 ```
 
@@ -194,13 +256,14 @@ hard-to-debug UI state
 
 Recommended next work, in order:
 
-1. Smoke test sapdev after auto deploy.
-2. Test custom SAP RCA badge on desktop/mobile navbar.
-3. Test Export PDF on all 3 core tools.
-4. If UI is stable, start CSS cleanup of older legacy files carefully.
-5. Improve Evidence History functionality, not only visual.
-6. Add TanStack Virtual only if large evidence tables are still heavy.
-7. Continue modularizing monolith files incrementally.
+1. Smoke test sapdev visually after CSS consolidation.
+2. Verify desktop/mobile navbar and custom SAP RCA badge.
+3. Test Evidence Archive/Uploader/History on the 3 core tool pages.
+4. Test Export PDF on all 3 core tools.
+5. If visual QA is green, delete or archive unused legacy CSS in a later dedicated cleanup only after rollback window.
+6. Improve Evidence History functionality, not only visual.
+7. Add TanStack Virtual only if large evidence tables are still heavy.
+8. Continue modularizing monolith files incrementally.
 
 ## New prompt continuation
 
@@ -218,6 +281,8 @@ Read first:
 - docs/ai-coding-workflow-style.md
 - docs/enterprise-theme-notes.md
 - docs/dev-deploy-runbook.md
+- docs/css-cleanup-audit.md
+- docs/validation/dev-latest.md
 
 Working style:
 - incremental only
