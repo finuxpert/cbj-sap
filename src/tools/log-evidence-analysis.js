@@ -61,12 +61,73 @@ export function buildTimeline(rows = []) {
   return Array.from(timelineMap.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
 }
 
+function clampPct(value) {
+  const number = Number(value || 0)
+  if (!Number.isFinite(number)) return 0
+  return Math.max(0, Math.min(100, number))
+}
+
+export function buildSystemResources(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    if (!row.timeLabel) return
+    const cpu = clampPct(row.cpu || row.cpuPct || row.cpuPercent)
+    const mem = clampPct(row.mem || row.memory || row.memoryPct || row.memPercent || row.rssPct)
+    const swap = clampPct(row.swap || row.swapPct || row.swapPercent)
+    if (!cpu && !mem && !swap) return
+
+    const current = map.get(row.timeLabel) || {
+      name: row.timeLabel,
+      cpuMax: 0,
+      cpuTotal: 0,
+      cpuCount: 0,
+      memMax: 0,
+      memTotal: 0,
+      memCount: 0,
+      swapMax: 0,
+      swapTotal: 0,
+      swapCount: 0,
+    }
+
+    if (cpu) {
+      current.cpuMax = Math.max(current.cpuMax, cpu)
+      current.cpuTotal += cpu
+      current.cpuCount += 1
+    }
+    if (mem) {
+      current.memMax = Math.max(current.memMax, mem)
+      current.memTotal += mem
+      current.memCount += 1
+    }
+    if (swap) {
+      current.swapMax = Math.max(current.swapMax, swap)
+      current.swapTotal += swap
+      current.swapCount += 1
+    }
+    map.set(row.timeLabel, current)
+  })
+
+  return Array.from(map.values())
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    .map((row) => ({
+      name: row.name,
+      cpu: Math.round(row.cpuCount ? row.cpuTotal / row.cpuCount : row.cpuMax),
+      mem: Math.round(row.memCount ? row.memTotal / row.memCount : row.memMax),
+      swap: Math.round(row.swapCount ? row.swapTotal / row.swapCount : row.swapMax),
+      cpuMax: Math.round(row.cpuMax),
+      memMax: Math.round(row.memMax),
+      swapMax: Math.round(row.swapMax),
+    }))
+    .slice(-30)
+}
+
 export function buildAnalysis(files, rows, evidenceServer) {
   const errorGroups = groupEvidenceRows(rows, 'errorCode')
   const jobGroups = groupEvidenceRows(rows, 'jobName')
   const programGroups = groupEvidenceRows(rows, 'program')
   const primary = errorGroups[0]
   const timeline = buildTimeline(rows)
+  const system_resources = buildSystemResources(rows)
   const sourceCount = new Set(rows.map((row) => row.source)).size
   const fileCount = new Set(rows.map((row) => row.fileName)).size
   const repeatedSignal = primary?.hits > 1 ? 16 : 0
@@ -89,6 +150,9 @@ export function buildAnalysis(files, rows, evidenceServer) {
     programGroups,
     primary,
     timeline,
+    system_resources,
+    resources: system_resources,
+    cpu_mem_swap: system_resources,
     confidence,
     confidenceText: confidenceLabel(confidence, rows, primary),
     verdict,
