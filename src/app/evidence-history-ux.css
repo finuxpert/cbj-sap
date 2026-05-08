@@ -3,6 +3,11 @@
  * CSS-only layer for reusable evidence panels used by RCA tools.
  */
 .toolEvidencePanel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(320px, 1fr) minmax(300px, 0.9fr);
+  gap: 12px;
+  align-items: stretch;
+  padding-block: 14px;
   padding-inline: clamp(10px, 1.4vw, 18px);
 }
 
@@ -19,8 +24,13 @@
 
 .toolEvidenceIntro {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
   overflow: hidden;
   min-height: 126px;
+  padding: 14px;
 }
 
 .toolEvidenceIntro::before {
@@ -36,6 +46,8 @@
 
 .toolEvidenceIntro strong {
   color: rgba(249, 251, 247, 0.96) !important;
+  font-size: 15px;
+  font-weight: 950;
   letter-spacing: -0.01em;
 }
 
@@ -45,11 +57,19 @@
 .evidenceItem span,
 .evidenceError {
   color: rgba(220, 238, 238, 0.66) !important;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .evidenceUploader {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
   min-height: 126px;
+  padding: 14px;
   border-style: dashed !important;
   border-color: rgba(45, 212, 191, 0.30) !important;
   background: rgba(45, 212, 191, 0.055) !important;
@@ -77,8 +97,21 @@
   box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12), 0 18px 44px rgba(0, 0, 0, 0.24) !important;
 }
 
+.evidenceUploader.isBusy {
+  opacity: 0.82;
+}
+
+.evidenceUploaderText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
 .evidenceUploaderText strong {
   color: rgba(249, 251, 247, 0.96) !important;
+  font-size: 14px;
+  font-weight: 950;
 }
 
 .evidenceUploader .btn,
@@ -88,14 +121,24 @@
 }
 
 .evidenceHistory {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
   min-height: 126px;
 }
 
 .evidenceHistoryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding-bottom: 2px;
 }
 
 .evidenceHistoryHead h3 {
+  margin: 4px 0 0;
+  font-size: 16px;
   letter-spacing: -0.02em;
 }
 
@@ -104,7 +147,10 @@
 }
 
 .evidenceHistory .evidenceList {
+  display: grid;
+  gap: 8px;
   max-height: 220px;
+  overflow: auto;
   padding-right: 5px;
   scrollbar-width: thin;
   scrollbar-color: rgba(45, 212, 191, 0.42) rgba(255, 255, 255, 0.04);
@@ -121,10 +167,13 @@
 
 .evidenceItem {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   border-radius: 12px !important;
   border-color: rgba(214, 242, 240, 0.11) !important;
   background: rgba(0, 0, 0, 0.16) !important;
-  padding-left: 14px !important;
+  padding: 10px 12px 10px 14px !important;
 }
 
 .evidenceItem::before {
@@ -146,12 +195,23 @@
 
 .evidenceItem strong {
   color: rgba(249, 251, 247, 0.94) !important;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .evidenceError {
   border-radius: 12px !important;
   border-color: rgba(239, 95, 111, 0.32) !important;
   background: rgba(239, 95, 111, 0.105) !important;
+  padding: 9px 10px;
+}
+
+@media (max-width: 1120px) {
+  .toolEvidencePanel {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -163,6 +223,12 @@
   .evidenceUploader,
   .evidenceHistory {
     min-height: auto;
+  }
+
+  .evidenceUploader,
+  .evidenceHistoryHead {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .evidenceUploader::before {
