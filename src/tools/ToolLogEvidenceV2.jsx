@@ -2,7 +2,6 @@ import React from 'react'
 import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from 'recharts'
 import {
   buildOwnerAction,
-  classifySapError,
   expandZipAwareFiles,
   fileExt,
   fmt,
@@ -11,6 +10,7 @@ import {
   safe,
   saveJson,
 } from './evidence-utils.js'
+import { buildTimeline, groupEvidenceRows } from './log-evidence-analysis.js'
 import { parseGenericErrors } from './log-evidence-parser.js'
 import {
   DecisionCard,
@@ -67,66 +67,6 @@ function parseWpRows(text = '', fileName = '') {
   return rows
 }
 
-function group(rows, key) {
-  const map = new Map()
-  rows.forEach((row) => {
-    const name = safe(row[key]) || '?'
-    const family = classifySapError(key === 'errorCode' ? name : row.errorCode)
-    const current = map.get(name) || {
-      name,
-      hits: 0,
-      critHits: 0,
-      warnHits: 0,
-      maxCpu: 0,
-      examples: new Set(),
-      jobs: new Set(),
-      programs: new Set(),
-      times: new Set(),
-      files: new Set(),
-      sources: new Set(),
-      family: family.family,
-      owner: family.owner,
-      meaning: family.meaning,
-    }
-    current.hits += 1
-    current.critHits += row.className === 'CRIT' ? 1 : 0
-    current.warnHits += row.className === 'WARN' ? 1 : 0
-    current.maxCpu = Math.max(current.maxCpu, row.cpu || 0)
-    if (row.program && key !== 'program') current.examples.add(row.program)
-    if (row.jobName && key !== 'jobName') current.examples.add(row.jobName)
-    if (row.program) current.programs.add(row.program)
-    if (row.jobName) current.jobs.add(row.jobName)
-    if (row.timeLabel) current.times.add(row.timeLabel)
-    if (row.fileName) current.files.add(row.fileName)
-    if (row.source) current.sources.add(row.source)
-    map.set(name, current)
-  })
-  return Array.from(map.values())
-    .map((item) => ({
-      ...item,
-      examples: Array.from(item.examples).slice(0, 3),
-      jobs: Array.from(item.jobs).filter((value) => value !== '?').slice(0, 5),
-      programs: Array.from(item.programs).filter((value) => value !== '?').slice(0, 5),
-      times: Array.from(item.times).slice(0, 10),
-      files: Array.from(item.files).slice(0, 5),
-      sources: Array.from(item.sources).slice(0, 5),
-    }))
-    .sort((a, b) => b.critHits - a.critHits || b.hits - a.hits)
-}
-
-function buildTimeline(rows = []) {
-  const timelineMap = new Map()
-  rows.forEach((row) => {
-    if (!row.timeLabel) return
-    const current = timelineMap.get(row.timeLabel) || { time: row.timeLabel, hits: 0, crit: 0, warn: 0 }
-    current.hits += 1
-    current.crit += row.className === 'CRIT' ? 1 : 0
-    current.warn += row.className === 'WARN' ? 1 : 0
-    timelineMap.set(row.timeLabel, current)
-  })
-  return Array.from(timelineMap.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
-}
-
 function confidenceLabel(confidence, rows, primary) {
   if (!primary) return 'No classified error pattern found.'
   if (rows.length < 3) return 'Low sample size; treat as initial clue, not final RCA.'
@@ -136,9 +76,9 @@ function confidenceLabel(confidence, rows, primary) {
 }
 
 function buildAnalysis(files, rows, evidenceServer) {
-  const errorGroups = group(rows, 'errorCode')
-  const jobGroups = group(rows, 'jobName')
-  const programGroups = group(rows, 'program')
+  const errorGroups = groupEvidenceRows(rows, 'errorCode')
+  const jobGroups = groupEvidenceRows(rows, 'jobName')
+  const programGroups = groupEvidenceRows(rows, 'program')
   const primary = errorGroups[0]
   const timeline = buildTimeline(rows)
   const sourceCount = new Set(rows.map((row) => row.source)).size
