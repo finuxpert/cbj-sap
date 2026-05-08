@@ -1,0 +1,208 @@
+/*
+ * ST03N Impact V2 UX polish.
+ * CSS-only layer: workload-focused readability, parse status, chart panels, and mobile ergonomics.
+ */
+.evidenceToolShell.refinedTool:has(.compactEvidenceHero span:first-child) {
+  --st03n-blue: #38bdf8;
+  --st03n-cyan: #22d3ee;
+  --st03n-amber: #f5b942;
+}
+
+.evidenceToolShell.refinedTool .compactEvidenceHero:has(span:first-child) {
+  isolation: isolate;
+}
+
+.evidenceToolShell.refinedTool .compactEvidenceHero span:first-child {
+  color: #38bdf8 !important;
+}
+
+.evidenceToolShell.refinedTool .compactEvidenceHero h1 {
+  text-wrap: balance;
+}
+
+.evidenceToolShell.refinedTool .statusList {
+  max-height: 430px;
+  overflow: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.42) rgba(255, 255, 255, 0.04);
+}
+
+.evidenceToolShell.refinedTool .statusList div {
+  position: relative;
+  min-height: 64px;
+  padding-left: 14px !important;
+}
+
+.evidenceToolShell.refinedTool .statusList div::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.48);
+}
+
+.evidenceToolShell.refinedTool .statusList div.ok {
+  background: rgba(34, 197, 94, 0.055) !important;
+  border-color: rgba(34, 197, 94, 0.24) !important;
+}
+
+.evidenceToolShell.refinedTool .statusList div.ok::before {
+  background: rgba(34, 197, 94, 0.78);
+}
+
+.evidenceToolShell.refinedTool .statusList div.missing {
+  background: rgba(245, 185, 66, 0.060) !important;
+  border-color: rgba(245, 185, 66, 0.26) !important;
+}
+
+.evidenceToolShell.refinedTool .statusList div.missing::before {
+  background: rgba(245, 185, 66, 0.78);
+}
+
+.evidenceToolShell.refinedTool .statusList b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.evidenceToolShell.refinedTool .statusList div.ok b::after,
+.evidenceToolShell.refinedTool .statusList div.missing b::after {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.evidenceToolShell.refinedTool .statusList div.ok b::after {
+  content: "ready";
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.24);
+}
+
+.evidenceToolShell.refinedTool .statusList div.missing b::after {
+  content: "missing";
+  color: #fde68a;
+  background: rgba(245, 185, 66, 0.12);
+  border: 1px solid rgba(245, 185, 66, 0.24);
+}
+
+.evidenceToolShell.refinedTool .chartPanel {
+  min-height: 390px;
+}
+
+.evidenceToolShell.refinedTool .chartPanel h2,
+.evidenceToolShell.refinedTool .evidencePanel h2 {
+  color: #38bdf8 !important;
+}
+
+.evidenceToolShell.refinedTool .chartPanel h2::after,
+.evidenceToolShell.refinedTool .evidencePanel h2::after {
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.34), transparent) !important;
+}
+
+.evidenceToolShell.refinedTool .recharts-wrapper {
+  margin-inline: auto;
+}
+
+.evidenceToolShell.refinedTool .recharts-surface {
+  overflow: visible;
+}
+
+.evidenceToolShell.refinedTool .recharts-legend-item-text,
+.evidenceToolShell.refinedTool .recharts-tooltip-label,
+.evidenceToolShell.refinedTool .recharts-tooltip-item {
+  color: rgba(240, 253, 250, 0.92) !important;
+}
+
+.evidenceToolShell.refinedTool .evidenceGrid.wide .evidencePanel:nth-child(2) {
+  min-height: 390px;
+}
+
+.evidenceToolShell.refinedTool .evidenceGrid.wide .evidencePanel:nth-child(2) .evidenceList {
+  margin-top: 12px;
+  max-height: 260px;
+}
+
+.evidenceToolShell.refinedTool .evidenceGrid.wide .evidencePanel:nth-child(2) .evidenceList div::before {
+  background: rgba(56, 189, 248, 0.62) !important;
+}
+
+.evidenceToolShell.refinedTool .evidenceGrid.wide .evidencePanel:nth-child(2) .evidenceList div:nth-child(-n + 3)::before {
+  background: rgba(245, 185, 66, 0.74) !important;
+}
+
+.evidenceToolShell.refinedTool .confidenceRows span {
+  border-color: rgba(56, 189, 248, 0.15) !important;
+}
+
+.evidenceToolShell.refinedTool .confidenceRows span:nth-child(1) b {
+  color: #38bdf8 !important;
+}
+
+.evidenceToolShell.refinedTool .confidenceRows span:nth-child(2) b {
+  color: #2dd4bf !important;
+}
+
+.evidenceToolShell.refinedTool .confidenceRows span:nth-child(3) b {
+  color: #f5b942 !important;
+}
+
+/* ST03N workload screens usually compare numeric dimensions: make cards more tabular. */
+.evidenceToolShell.refinedTool .evidenceList small {
+  font-variant-numeric: tabular-nums;
+}
+
+.evidenceToolShell.refinedTool .decisionCard:nth-child(1)::before {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.86), rgba(56, 189, 248, 0.58));
+}
+
+.evidenceToolShell.refinedTool .decisionCard:nth-child(2)::before {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.90), rgba(34, 211, 238, 0.58));
+}
+
+.evidenceToolShell.refinedTool .decisionCard:nth-child(3)::before {
+  background: linear-gradient(180deg, rgba(45, 212, 191, 0.86), rgba(56, 189, 248, 0.58));
+}
+
+.evidenceToolShell.refinedTool .decisionCard:nth-child(4)::before {
+  background: linear-gradient(180deg, rgba(245, 185, 66, 0.88), rgba(56, 189, 248, 0.52));
+}
+
+@media (max-width: 1120px) {
+  .evidenceToolShell.refinedTool .statusList {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .evidenceToolShell.refinedTool .chartPanel {
+    min-height: 330px;
+  }
+}
+
+@media (max-width: 760px) {
+  .evidenceToolShell.refinedTool .statusList b {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .evidenceToolShell.refinedTool .chartPanel {
+    min-height: 300px;
+  }
+
+  .evidenceToolShell.refinedTool .recharts-responsive-container {
+    min-height: 280px;
+  }
+}
