@@ -24,6 +24,7 @@ import './ToolEvidenceSpecialist.css'
 const LogEvidenceCharts = React.lazy(() => import('./LogEvidenceCharts.jsx'))
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
+const CASE_KEY = 'sap_log_evidence_v2_case_id'
 
 async function expandFiles(fileList) {
   const expanded = await expandZipAwareFiles(fileList, ['log', 'txt', 'csv'])
@@ -68,8 +69,90 @@ function parseWpRows(text = '', fileName = '') {
   return rows
 }
 
+function severityFromAnalysis(result) {
+  const primary = result?.primary || {}
+  if (primary.critHits > 0) return 'CRIT'
+  if ((primary.hits || 0) > 0) return 'WARN'
+  return 'INFO'
+}
+
+function buildParsedPayload(result) {
+  const primary = result?.primary || {}
+  return {
+    tool: 'Log Evidence V2',
+    verdict: primary.name || 'Log evidence parsed',
+    severity: severityFromAnalysis(result),
+    confidence: Number(result?.confidence || 0),
+    top_anomaly: primary.name || '',
+    top_suspect: primary.family || primary.owner || '',
+    summary: result?.summary || primary.meaning || 'Log evidence parsed and saved to Case History.',
+    result_json: {
+      summary: result?.summary || '',
+      nextAction: result?.nextAction || '',
+      confidenceText: result?.confidenceText || '',
+      primary,
+      errorGroups: (result?.errorGroups || []).slice(0, 20),
+      jobGroups: (result?.jobGroups || []).slice(0, 20),
+      programGroups: (result?.programGroups || []).slice(0, 20),
+      timeline: (result?.timeline || []).slice(0, 50),
+      files: result?.files || [],
+      rowCount: result?.rows?.length || 0,
+    },
+  }
+}
+
 function Group({ title, rows = [] }) {
   return <section className="evidencePanel"><h2>{title}</h2><div className="evidenceList compact">{rows.slice(0, 8).map((item) => <div key={item.name}><b>{item.name}</b><span>hits {item.hits} · CRIT {item.critHits}</span><small>{item.family || ''} {item.examples?.join(' · ')}</small></div>)}</div></section>
+}
+
+function CaseLinkPanel({
+  caseId,
+  caseTitle,
+  recentCases,
+  savingCase,
+  saveStatus,
+  onCaseIdChange,
+  onCaseTitleChange,
+  onCreateCase,
+  onSaveCurrent,
+  hasAnalysis,
+}) {
+  return (
+    <section className="evidencePanel">
+      <h2>Case History Link</h2>
+      <p className="mutedText">Pilih atau buat case supaya hasil parsing Log Evidence tersimpan dan bisa dibuka ulang dari #/cases maupun mobile.</p>
+      <div className="evidenceList compact">
+        <label>
+          <b>Existing Case</b>
+          <select value={caseId} onChange={(event) => onCaseIdChange(event.target.value)}>
+            <option value="">Not linked</option>
+            {recentCases.map((item) => (
+              <option key={item.id || item.case_no} value={item.id || item.case_no}>
+                {(item.case_no || item.id)} · {item.title || 'Untitled'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <b>New Case Title</b>
+          <input
+            value={caseTitle}
+            onChange={(event) => onCaseTitleChange(event.target.value)}
+            placeholder="Contoh: SAP job cancelled / dev_w error RCA"
+          />
+        </label>
+      </div>
+      <div className="caseHistoryActions">
+        <button className="btn" type="button" onClick={onCreateCase} disabled={savingCase}>
+          {savingCase ? 'Creating…' : 'Create Case'}
+        </button>
+        <button className="btn primary" type="button" onClick={onSaveCurrent} disabled={savingCase || !caseId || !hasAnalysis}>
+          {savingCase ? 'Saving…' : 'Save Parsed Summary'}
+        </button>
+      </div>
+      {saveStatus && <small>{saveStatus}</small>}
+    </section>
+  )
 }
 
 export default function ToolLogEvidenceV2() {
@@ -79,6 +162,18 @@ export default function ToolLogEvidenceV2() {
   const [status, setStatus] = React.useState('Upload WP-SCOUT/SM21/ST22/dev_w/job logs or ZIP to validate error evidence.')
   const [analysis, setAnalysis] = React.useState(() => loadJson(CACHE_KEY, null))
   const [serverInfo, setServerInfo] = React.useState(null)
+  const [recentCases, setRecentCases] = React.useState([])
+  const [caseId, setCaseId] = React.useState(() => loadJson(CASE_KEY, ''))
+  const [caseTitle, setCaseTitle] = React.useState('')
+  const [savingCase, setSavingCase] = React.useState(false)
+  const [saveStatus, setSaveStatus] = React.useState('')
+
+  const loadCases = React.useCallback(() => {
+    import('../evidence-api-client.js')
+      .then(({ listMobileCases }) => listMobileCases({ limit: 20 }))
+      .then((response) => setRecentCases(response?.items || response?.cases || []))
+      .catch(() => setRecentCases([]))
+  }, [])
 
   React.useEffect(() => {
     let active = true
@@ -88,6 +183,72 @@ export default function ToolLogEvidenceV2() {
       .catch(() => { if (active) setServerInfo({ ok: false }) })
     return () => { active = false }
   }, [])
+
+  React.useEffect(() => {
+    loadCases()
+  }, [loadCases])
+
+  React.useEffect(() => {
+    saveJson(CASE_KEY, caseId || '')
+  }, [caseId])
+
+  const persistAnalysis = React.useCallback(async (result, nextFiles = files) => {
+    if (!caseId || !result) return
+    setSavingCase(true)
+    setSaveStatus('Saving parsed summary to Case History…')
+    try {
+      const { saveParsedResult, uploadEvidence } = await import('../evidence-api-client.js')
+      const saved = await saveParsedResult(caseId, buildParsedPayload(result))
+      if (saved?.ok === false) throw new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
+
+      let uploaded = 0
+      for (const file of nextFiles.slice(0, 20)) {
+        const response = await uploadEvidence(file, {
+          case_id: caseId,
+          tool: 'Log Evidence V2',
+          title: file.name,
+          tags: ['log-evidence-v2', 'auto-linked'],
+        })
+        if (response?.ok !== false) uploaded += 1
+      }
+
+      setSaveStatus(`Saved to ${caseId}. Linked evidence files: ${uploaded}.`)
+      loadCases()
+    } catch (error) {
+      setSaveStatus(error?.message || 'Failed to save parsed summary.')
+    } finally {
+      setSavingCase(false)
+    }
+  }, [caseId, files, loadCases])
+
+  const createLinkedCase = React.useCallback(async () => {
+    setSavingCase(true)
+    setSaveStatus('Creating case…')
+    try {
+      const { createCase } = await import('../evidence-api-client.js')
+      const primary = analysis?.primary || {}
+      const payload = {
+        title: caseTitle.trim() || primary.name || 'Log Evidence RCA Case',
+        severity: analysis ? severityFromAnalysis(analysis) : 'INFO',
+        summary: analysis?.summary || '',
+        top_anomaly: primary.name || '',
+        top_suspect: primary.family || primary.owner || '',
+        status: 'OPEN',
+        created_by: 'sap-rca-workspace',
+      }
+      const response = await createCase(payload)
+      if (response?.ok === false) throw new Error(response?.detail || response?.raw || 'Failed to create case')
+      const nextId = response?.case?.id || response?.case?.case_no
+      setCaseId(nextId || '')
+      setCaseTitle('')
+      setSaveStatus(`Case created: ${nextId}`)
+      loadCases()
+    } catch (error) {
+      setSaveStatus(error?.message || 'Failed to create case.')
+    } finally {
+      setSavingCase(false)
+    }
+  }, [analysis, caseTitle, loadCases])
 
   const analyze = async (nextFiles = files) => {
     setBusy(true)
@@ -103,6 +264,7 @@ export default function ToolLogEvidenceV2() {
       setAnalysis(result)
       saveJson(CACHE_KEY, result)
       setStatus('Log evidence analysis complete.')
+      if (caseId) await persistAnalysis(result, nextFiles)
     } catch (error) {
       setStatus(error?.message || 'Failed to parse logs.')
     } finally {
@@ -127,5 +289,5 @@ export default function ToolLogEvidenceV2() {
   const primary = analysis?.primary
   const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: item.name.slice(0, 16), hits: item.hits, crit: item.critHits })) || []
 
-  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><span>Log Evidence Analyzer V2</span><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildLogEvidenceReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><section className="decisionBoard"><DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} /><DecisionCard label="Error Family" value={primary?.family || 'Unknown'} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" /><DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={analysis?.nextAction || 'Based only on uploaded evidence pattern'} /><DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} /></section><div className="evidenceGrid"><section className="evidencePanel"><h2>Primary Error Explanation</h2>{primary ? <><p><b>{primary.name}</b> points to <b>{primary.family}</b>.</p><p>{primary.meaning}</p><div className="confidenceRows"><span>Hits<b>{primary.hits}</b></span><span>CRIT<b>{primary.critHits}</b></span><span>Files<b>{primary.files?.length || 0}</b></span></div></> : <p>{status}</p>}</section><section className="evidencePanel"><h2>Error → Job / Program Mapping</h2>{primary ? <div className="evidenceList compact"><div><b>Jobs</b><span>{primary.jobs?.join(' · ') || 'No job extracted'}</span></div><div><b>Programs</b><span>{primary.programs?.join(' · ') || 'No program extracted'}</span></div><div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div></div> : <p>Upload logs to map errors to jobs and programs.</p>}</section></div>{analysis ? <div className="evidenceGrid wide"><React.Suspense fallback={<section className="evidencePanel"><h2>Loading Charts</h2><p>Preparing evidence visualization…</p></section>}><LogEvidenceCharts chartData={chartData} timeline={analysis.timeline} /></React.Suspense><section className="evidencePanel"><h2>Error Evidence Ranking</h2><div className="evidenceList">{analysis.errorGroups.slice(0, 12).map((item) => <div key={item.name}><b>{item.name}</b><span>{item.family} · owner {item.owner}</span><small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small></div>)}</div></section></div> : <EmptyState title="How to use this analyzer"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
+  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><span>Log Evidence Analyzer V2</span><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildLogEvidenceReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><div className="evidenceGrid"><CaseLinkPanel caseId={caseId} caseTitle={caseTitle} recentCases={recentCases} savingCase={savingCase} saveStatus={saveStatus} onCaseIdChange={setCaseId} onCaseTitleChange={setCaseTitle} onCreateCase={createLinkedCase} onSaveCurrent={() => persistAnalysis(analysis, files)} hasAnalysis={Boolean(analysis)} /><section className="evidencePanel"><h2>Persistence Flow</h2><div className="evidenceList compact"><div><b>Selected Case</b><span>{caseId || 'Not linked yet'}</span></div><div><b>Auto-save</b><span>{caseId ? 'Enabled after parsing' : 'Create/select case first'}</span></div><div><b>Mobile Path</b><span>Open #/cases/{caseId || ':id'} after save</span></div></div></section></div><section className="decisionBoard"><DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} /><DecisionCard label="Error Family" value={primary?.family || 'Unknown'} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" /><DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={analysis?.nextAction || 'Based only on uploaded evidence pattern'} /><DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} /></section><div className="evidenceGrid"><section className="evidencePanel"><h2>Primary Error Explanation</h2>{primary ? <><p><b>{primary.name}</b> points to <b>{primary.family}</b>.</p><p>{primary.meaning}</p><div className="confidenceRows"><span>Hits<b>{primary.hits}</b></span><span>CRIT<b>{primary.critHits}</b></span><span>Files<b>{primary.files?.length || 0}</b></span></div></> : <p>{status}</p>}</section><section className="evidencePanel"><h2>Error → Job / Program Mapping</h2>{primary ? <div className="evidenceList compact"><div><b>Jobs</b><span>{primary.jobs?.join(' · ') || 'No job extracted'}</span></div><div><b>Programs</b><span>{primary.programs?.join(' · ') || 'No program extracted'}</span></div><div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div></div> : <p>Upload logs to map errors to jobs and programs.</p>}</section></div>{analysis ? <div className="evidenceGrid wide"><React.Suspense fallback={<section className="evidencePanel"><h2>Loading Charts</h2><p>Preparing evidence visualization…</p></section>}><LogEvidenceCharts chartData={chartData} timeline={analysis.timeline} /></React.Suspense><section className="evidencePanel"><h2>Error Evidence Ranking</h2><div className="evidenceList">{analysis.errorGroups.slice(0, 12).map((item) => <div key={item.name}><b>{item.name}</b><span>{item.family} · owner {item.owner}</span><small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small></div>)}</div></section></div> : <EmptyState title="How to use this analyzer"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
 }
