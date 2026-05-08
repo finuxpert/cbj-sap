@@ -16,7 +16,27 @@ function rowsFromMap(map, limit = 8) {
     .slice(0, limit)
 }
 
-function buildRows(caseData) {
+function normalizeRows(rows = [], limit = 10) {
+  return list(rows)
+    .map((item) => ({
+      ...item,
+      name: String(item?.name || item?.label || 'Unknown').slice(0, 48),
+      value: Number(item?.value ?? item?.hits ?? item?.count ?? 0) || 0,
+    }))
+    .filter((item) => item.value > 0 || item.hits > 0 || item.crit > 0 || item.warn > 0)
+    .slice(0, limit)
+}
+
+function normalizeTimeline(rows = []) {
+  return list(rows).map((item) => ({
+    name: String(item?.name || item?.time || item?.timeLabel || '').slice(0, 32) || 'T',
+    hits: Number(item?.hits || 0) || 0,
+    crit: Number(item?.crit || 0) || 0,
+    warn: Number(item?.warn || 0) || 0,
+  })).slice(-20)
+}
+
+function buildFallbackRows(caseData) {
   const severity = new Map()
   const tools = new Map()
   const anomaly = new Map()
@@ -60,7 +80,27 @@ function buildRows(caseData) {
     programs: rowsFromMap(programs),
     confidence: confidence.slice(-8),
     timeline: Array.from(timeline.values()).slice(-14),
+    summary: null,
+    source: 'frontend-fallback',
   }
+}
+
+function buildRows(caseData) {
+  const analytics = caseData?.analytics || {}
+  if (analytics?.has_data) {
+    return {
+      severity: normalizeRows(analytics.severity, 4),
+      tools: normalizeRows(analytics.tools || analytics.evidence_sources, 8),
+      anomaly: normalizeRows(analytics.anomalies, 10),
+      jobs: normalizeRows(analytics.jobs, 10),
+      programs: normalizeRows(analytics.programs, 10),
+      confidence: normalizeRows(analytics.confidence, 10),
+      timeline: normalizeTimeline(analytics.timeline),
+      summary: analytics.summary || null,
+      source: 'backend',
+    }
+  }
+  return buildFallbackRows(caseData)
 }
 
 function Insight({ label, value, hint }) {
@@ -174,19 +214,19 @@ function TimelineCard({ data }) {
 
 export default function CaseAnalytics({ caseData }) {
   const rows = React.useMemo(() => buildRows(caseData), [caseData])
-  const hasData = Object.values(rows).some((row) => row.length > 0)
-  const topSignal = rows.anomaly[0]?.name || caseData?.top_anomaly || 'Pending'
-  const topTool = rows.tools[0]?.name || caseData?.tool || 'Unknown'
-  const avgConfidence = rows.confidence.length
+  const hasData = Object.values(rows).some((row) => Array.isArray(row) && row.length > 0)
+  const topSignal = rows.summary?.top_signal || rows.anomaly[0]?.name || caseData?.top_anomaly || 'Pending'
+  const topTool = rows.summary?.dominant_source || rows.tools[0]?.name || caseData?.tool || 'Unknown'
+  const avgConfidence = rows.summary?.avg_confidence || (rows.confidence.length
     ? Math.round(rows.confidence.reduce((sum, item) => sum + Number(item.value || 0), 0) / rows.confidence.length)
-    : 0
+    : 0)
 
   return (
-    <article className="caseDetailPanel caseDetailAnalyticsPanel">
+    <article className="caseDetailPanel caseDetailAnalyticsPanel" data-analytics-source={rows.source}>
       <div className="caseDetailSectionHead caseAnalyticsHeader">
         <div>
           <p className="sectionKicker">RCA Evidence Analytics</p>
-          <span>Auto-generated from parsed results and linked evidence.</span>
+          <span>{rows.source === 'backend' ? 'Backend-generated analytics from Case History API.' : 'Fallback analytics generated from parsed results in browser.'}</span>
         </div>
       </div>
 
