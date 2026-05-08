@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-08T19:58:20+07:00
+Generated: 2026-05-08T20:00:39+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: 7e02117
-- Commit subject: Document case history PDF export status
+- Commit: ad33baa
+- Commit subject: Add case parsed-result API client helpers
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-DuR1Q7QC.js                    251.38 kB │ gzip:  79.26 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-Bpzkjq2D.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DPpNiXWN.js                 415.93 kB │ gzip: 121.64 kB
-✓ built in 6.65s
+✓ built in 6.60s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DPpNiXWN.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Fri, 08 May 2026 12:58:19 GMT
+- Last modified: Fri, 08 May 2026 13:00:39 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Fri, 08 May 2026 12:58:20 GMT
+date: Fri, 08 May 2026 13:00:39 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=MoArtQUp2TXqMLXMxAIz4cOuNB%2FNliacgz%2F%2FXw6HS8D4zoSpCOq9VrF%2FrBat%2FetF5OJ8IwB0T5%2FpQx6sqYkxtYow0JghiHRYzATguOMCRB79brzm4GTZeSfW764nO2QrfbXppFIFM7JOwZQ%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=P3wJgewyQCrWuKFa4UNYQPZdkj%2Bnwt1km6KlvjPs6LvpTZPuvRUIF2mppzpkf%2BwHeMWdXgR2O6rlbr1lP9UNL6NdkhDdej3fdPDyA4vW5mRpoY9ZsPI2WpPZnQwnDlZzhOn%2Fl9ysGhLisqA%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Fri, 08 May 2026 12:58:19 GMT
+last-modified: Fri, 08 May 2026 13:00:39 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f88a2a3a8c70519-SIN
+cf-ray: 9f88a60c48a7ce6e-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
