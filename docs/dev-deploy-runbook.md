@@ -4,13 +4,14 @@ This document explains how the SAP RCA Workspace is built and deployed to the DE
 
 ## Current Deploy Model
 
-The project uses two GitHub Actions workflows:
+The project uses GitHub Actions with a self-hosted runner on the DEV server.
 
 1. **Build SAP RCA Workspace**
    - File: `.github/workflows/build.yml`
    - Runs on GitHub-hosted runner.
    - Executes `npm install` and `npm run build`.
    - Validates that the React/Vite app can build successfully.
+   - Runs for `main` and `dev` branches.
 
 2. **Deploy SAP RCA Workspace to DEV**
    - File: `.github/workflows/deploy-dev.yml`
@@ -18,6 +19,7 @@ The project uses two GitHub Actions workflows:
    - Runner label: `sapdev`
    - Runner name: `sapdev-pc-runner`
    - Deploys the app to `/var/www/svr01-dev/sap`.
+   - Auto deploys when branch `dev` receives a push.
 
 The DEV server is behind Cloudflare Tunnel and does not expose SSH publicly. Because of this, the deploy workflow must run on a self-hosted GitHub runner installed directly on the DEV server.
 
@@ -25,6 +27,7 @@ The DEV server is behind Cloudflare Tunnel and does not expose SSH publicly. Bec
 
 ```text
 Repository: finuxpert/cbj-sap
+Active DEV branch: dev
 Local project path: /home/sadmin/sap
 Deploy root: /var/www/svr01-dev/sap
 DEV URL: https://sapdev.cbj-kontruksi.com
@@ -39,8 +42,8 @@ The deploy workflow performs these steps locally on the DEV server:
 ```bash
 cd /home/sadmin/sap
 
-git fetch origin main
-git reset --hard origin/main
+git fetch origin dev
+git reset --hard origin/dev
 
 sudo chown -R sadmin:sadmin /home/sadmin/sap
 sudo rm -rf /home/sadmin/sap/dist
@@ -66,23 +69,36 @@ The `chown` and `rm -rf /home/sadmin/sap/dist` steps are intentional. Previous m
 
 ## GitHub Actions Flow
 
-Normal flow:
+Preferred automatic DEV flow:
 
 ```text
-Commit to main
-→ Build SAP RCA Workspace
-→ If build succeeds
+Commit/push to dev
 → Deploy SAP RCA Workspace to DEV
 → Self-hosted runner executes deploy locally on server
-→ Nginx reloads
-→ Health checks run
+→ npm install
+→ npm run build
+→ copy dist to /var/www/svr01-dev/sap
+→ nginx reloads
+→ health checks run
 ```
 
-Manual deploy flow:
+Manual deploy flow remains available:
 
 ```text
-GitHub → Actions → Deploy SAP RCA Workspace to DEV → Run workflow
+GitHub → Actions → Deploy SAP RCA Workspace to DEV → Run workflow → branch dev
 ```
+
+## Concurrency
+
+Deploy workflow uses concurrency:
+
+```yaml
+concurrency:
+  group: sapdev-deploy
+  cancel-in-progress: true
+```
+
+This prevents multiple sapdev deploys from piling up. If several commits are pushed quickly, the older in-progress deploy can be cancelled and the latest deploy wins.
 
 ## Self-hosted Runner
 
@@ -292,7 +308,7 @@ sudo chown -R sadmin:sadmin /home/sadmin/sap
 sudo rm -rf /home/sadmin/sap/dist
 ```
 
-Then rerun the deploy workflow.
+Then push to `dev` or rerun the deploy workflow.
 
 ### Deploy fails at `nginx -t`
 
@@ -331,8 +347,8 @@ If GitHub Actions is unavailable, deploy manually:
 ```bash
 cd /home/sadmin/sap
 
-git fetch origin main
-git reset --hard origin/main
+git fetch origin dev
+git reset --hard origin/dev
 
 sudo chown -R sadmin:sadmin /home/sadmin/sap
 sudo rm -rf /home/sadmin/sap/dist
@@ -358,6 +374,7 @@ curl https://sapdev.cbj-kontruksi.com/sap-api/health
 
 - Production deploy is not automated.
 - DEV deploy is safe to trigger from GitHub Actions because it targets only `/var/www/svr01-dev/sap`.
+- Current default working branch for SAP RCA UI iteration is `dev`.
 - Keep the runner service running; otherwise deploy jobs will stay queued.
-- If the server reboots, confirm the runner service is active before triggering deploy.
+- If the server reboots, confirm the runner service is active before pushing or triggering deploy.
 - Do not expose SSH publicly just for GitHub Actions. The self-hosted runner is the correct model for this server because the app is served through Cloudflare Tunnel.
