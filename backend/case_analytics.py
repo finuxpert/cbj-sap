@@ -32,6 +32,56 @@ def _top(bucket: dict[str, float], limit: int = 8) -> list[dict[str, Any]]:
     return sorted(rows, key=lambda item: item["value"], reverse=True)[:limit]
 
 
+def _first_number(row: dict, keys: list[str], default: float = 0) -> float:
+    for key in keys:
+        if key in row and row.get(key) is not None:
+            return _number(row.get(key), default)
+    return default
+
+
+def _resource_candidates(result_json: dict) -> list:
+    candidates: list = []
+    for key in ["system_resources", "resources", "cpu_mem_swap", "host_metrics", "resourceTimeline", "resource_timeline"]:
+        candidates.extend(_items(result_json.get(key)))
+
+    metrics = result_json.get("metrics") if isinstance(result_json.get("metrics"), dict) else {}
+    for key in ["system_resources", "resources", "cpu_mem_swap", "host_metrics", "resourceTimeline", "resource_timeline"]:
+        candidates.extend(_items(metrics.get(key)))
+
+    sap = result_json.get("sap") if isinstance(result_json.get("sap"), dict) else {}
+    candidates.extend(_items(sap.get("resources")))
+    candidates.extend(_items(sap.get("host_metrics")))
+    return candidates
+
+
+def _build_resource_row(raw: dict, index: int) -> dict[str, Any] | None:
+    if not isinstance(raw, dict):
+        return None
+
+    name = _label(
+        raw.get("name")
+        or raw.get("time")
+        or raw.get("timeLabel")
+        or raw.get("timestamp")
+        or raw.get("label")
+        or f"T{index + 1}",
+        max_len=32,
+    )
+    cpu = _first_number(raw, ["cpu", "cpu_pct", "cpu_percent", "cpu_usage", "cpuUsage", "cpuUtilization"])
+    mem = _first_number(raw, ["mem", "memory", "memory_pct", "mem_pct", "memory_percent", "mem_percent", "memory_usage", "memoryUsage"])
+    swap = _first_number(raw, ["swap", "swap_pct", "swap_percent", "swap_usage", "swapUsage"])
+
+    if cpu == 0 and mem == 0 and swap == 0:
+        return None
+
+    return {
+        "name": name,
+        "cpu": round(max(0, min(cpu, 100)), 2),
+        "mem": round(max(0, min(mem, 100)), 2),
+        "swap": round(max(0, min(swap, 100)), 2),
+    }
+
+
 def build_case_analytics(case_data: dict) -> dict:
     """Build chart-ready analytics for a mobile case detail response."""
     severity: dict[str, float] = defaultdict(float)
@@ -42,6 +92,7 @@ def build_case_analytics(case_data: dict) -> dict:
     evidence_sources: dict[str, float] = defaultdict(float)
     timeline: dict[str, dict[str, Any]] = {}
     confidence: list[dict[str, Any]] = []
+    system_resources: list[dict[str, Any]] = []
 
     for index, result in enumerate(_items(case_data.get("parsed_results"))):
         result_json = result.get("result_json") if isinstance(result.get("result_json"), dict) else {}
@@ -63,6 +114,11 @@ def build_case_analytics(case_data: dict) -> dict:
             current["crit"] += int(_number(row.get("crit"), 0))
             current["warn"] += int(_number(row.get("warn"), 0))
 
+        for resource_index, raw_resource in enumerate(_resource_candidates(result_json)):
+            row = _build_resource_row(raw_resource, len(system_resources) + resource_index)
+            if row:
+                system_resources.append(row)
+
         for row in _items(result_json.get("errorGroups")):
             _add(anomaly, row.get("name") or row.get("errorCode"), row.get("hits") or 1)
         for row in _items(result_json.get("jobGroups")):
@@ -76,6 +132,7 @@ def build_case_analytics(case_data: dict) -> dict:
         _add(evidence_sources, source)
 
     timeline_rows = list(timeline.values())[-20:]
+    resource_rows = system_resources[-30:]
     avg_confidence = round(sum(row["value"] for row in confidence) / len(confidence), 2) if confidence else 0
 
     analytics = {
@@ -87,6 +144,7 @@ def build_case_analytics(case_data: dict) -> dict:
         "programs": _top(programs, 10),
         "confidence": confidence[-10:],
         "timeline": timeline_rows,
+        "system_resources": resource_rows,
         "summary": {
             "top_signal": _top(anomaly, 1)[0]["name"] if anomaly else case_data.get("top_anomaly", ""),
             "dominant_source": _top(tools, 1)[0]["name"] if tools else case_data.get("tool", ""),
@@ -94,10 +152,11 @@ def build_case_analytics(case_data: dict) -> dict:
             "parsed_count": len(_items(case_data.get("parsed_results"))),
             "evidence_count": len(_items(case_data.get("evidence"))),
             "report_count": len(_items(case_data.get("reports"))),
+            "resource_points": len(resource_rows),
         },
     }
     analytics["has_data"] = any(
         analytics[key]
-        for key in ["severity", "tools", "evidence_sources", "anomalies", "jobs", "programs", "confidence", "timeline"]
+        for key in ["severity", "tools", "evidence_sources", "anomalies", "jobs", "programs", "confidence", "timeline", "system_resources"]
     )
     return analytics
