@@ -12,9 +12,9 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build and deploy to sapdev
+    name: Build, deploy, and QA sapdev
     runs-on: self-hosted
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -56,47 +56,7 @@ jobs:
           sudo nginx -t
           sudo systemctl reload nginx
 
-      - name: Verify deployed bundle contains case PDF export
+      - name: Run sapdev backend and frontend QA
         run: |
           set -euo pipefail
-          grep -R "sap-rca-case-history" /var/www/svr01-dev/sap/assets/*.js | head -1
-          grep -R "Export PDF" /var/www/svr01-dev/sap/assets/*.js | head -1
-
-      - name: Verify API health
-        run: |
-          set -euo pipefail
-          curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/health
-          echo
-
-      - name: Verify Case History parsed-result API flow
-        run: |
-          set -euo pipefail
-          API="https://sapdev.cbj-kontruksi.com/sap-api"
-          TITLE="Workflow Test Case ${GITHUB_RUN_ID:-manual}-${GITHUB_RUN_ATTEMPT:-1}"
-          echo "Creating case: ${TITLE}"
-
-          CREATE_RESPONSE=$(curl -fsS -X POST "${API}/cases" \
-            -H 'Content-Type: application/json' \
-            --data "{\"title\":\"${TITLE}\",\"severity\":\"INFO\",\"status\":\"OPEN\",\"summary\":\"Workflow validation case\",\"created_by\":\"github-actions\"}")
-          echo "Create response: ${CREATE_RESPONSE}"
-
-          CASE_ID=$(JSON_PAYLOAD="${CREATE_RESPONSE}" python3 -c 'import json, os; payload=json.loads(os.environ["JSON_PAYLOAD"]); candidate=payload.get("case") or payload.get("item") or payload.get("data") or payload; print(candidate.get("id") or candidate.get("case_no") or payload.get("case_id") or "")')
-
-          if [ -z "${CASE_ID}" ]; then
-            echo "Create response did not include case id; falling back to /mobile/cases lookup"
-            CASE_LIST=$(curl -fsS "${API}/mobile/cases?limit=25")
-            CASE_ID=$(JSON_PAYLOAD="${CASE_LIST}" TITLE="${TITLE}" python3 -c 'import json, os; payload=json.loads(os.environ["JSON_PAYLOAD"]); items=payload if isinstance(payload, list) else payload.get("items") or payload.get("cases") or payload.get("data") or []; title=os.environ.get("TITLE", ""); match=next((item for item in items if item.get("title") == title), None) or (items[0] if items else {}); print(match.get("id") or match.get("case_no") or "")')
-          fi
-
-          test -n "${CASE_ID}"
-          echo "Case id: ${CASE_ID}"
-
-          PARSED_RESPONSE=$(curl -fsS -X POST "${API}/cases/${CASE_ID}/parsed-results" \
-            -H 'Content-Type: application/json' \
-            --data '{"tool":"Workflow Case History Test","verdict":"parsed-result-api-ok","severity":"WARN","confidence":99,"top_anomaly":"WORKFLOW_CASE_HISTORY_TEST","top_suspect":"Log Evidence V2 integration","summary":"Workflow verified parsed-result persistence from DEV deploy.","result_json":{"source":"github-actions","check":"case-history-parsed-result"}}')
-          echo "Parsed response: ${PARSED_RESPONSE}"
-
-          DETAIL_RESPONSE=$(curl -fsS "${API}/mobile/cases/${CASE_ID}")
-          echo "Detail response: ${DETAIL_RESPONSE}"
-
-          JSON_PAYLOAD="${DETAIL_RESPONSE}" python3 -c 'import json, os; payload=json.loads(os.environ["JSON_PAYLOAD"]); case=payload.get("case") or payload; results=case.get("parsed_results") or []; assert results, "No parsed_results returned from mobile case detail"; assert any(item.get("top_anomaly") == "WORKFLOW_CASE_HISTORY_TEST" for item in results), "Workflow parsed result was not found in case detail"; print("OK: Case History parsed-result API flow verified")'
+          bash scripts/qa-sapdev.sh
