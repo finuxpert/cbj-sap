@@ -10,7 +10,7 @@ import {
   safe,
   saveJson,
 } from './evidence-utils.js'
-import { buildTimeline, groupEvidenceRows } from './log-evidence-analysis.js'
+import { buildAnalysis } from './log-evidence-analysis.js'
 import { parseGenericErrors } from './log-evidence-parser.js'
 import {
   DecisionCard,
@@ -65,52 +65,6 @@ function parseWpRows(text = '', fileName = '') {
     })
   })
   return rows
-}
-
-function confidenceLabel(confidence, rows, primary) {
-  if (!primary) return 'No classified error pattern found.'
-  if (rows.length < 3) return 'Low sample size; treat as initial clue, not final RCA.'
-  if (confidence >= 75) return 'Strong pattern from uploaded log evidence.'
-  if (confidence >= 45) return 'Moderate pattern; verify with ST03N/WP-SCOUT timeline.'
-  return 'Weak pattern; evidence is partial.'
-}
-
-function buildAnalysis(files, rows, evidenceServer) {
-  const errorGroups = groupEvidenceRows(rows, 'errorCode')
-  const jobGroups = groupEvidenceRows(rows, 'jobName')
-  const programGroups = groupEvidenceRows(rows, 'program')
-  const primary = errorGroups[0]
-  const timeline = buildTimeline(rows)
-  const sourceCount = new Set(rows.map((row) => row.source)).size
-  const fileCount = new Set(rows.map((row) => row.fileName)).size
-  const repeatedSignal = primary?.hits > 1 ? 16 : 0
-  const criticalSignal = Math.min(36, (primary?.critHits || 0) * 9)
-  const volumeSignal = Math.min(24, rows.length * 2)
-  const coverageSignal = Math.min(14, fileCount * 4 + sourceCount * 3)
-  const timelineSignal = Math.min(10, timeline.length * 2)
-  const confidence = primary ? Math.min(100, Math.round(criticalSignal + repeatedSignal + volumeSignal + coverageSignal + timelineSignal)) : 0
-  const verdict = primary ? 'Detected' : 'Not confirmed'
-  const nextAction = primary ? buildOwnerAction(primary) : 'Upload WP-SCOUT, SM21, ST22, dev_w, or job logs containing SAP error patterns.'
-  const summary = primary
-    ? `${primary.name} is strongest: ${primary.hits} hit(s), ${primary.critHits} CRIT, owner ${primary.owner}.`
-    : 'No known SAP error patterns detected from uploaded logs.'
-
-  return {
-    files,
-    rows,
-    errorGroups,
-    jobGroups,
-    programGroups,
-    primary,
-    timeline,
-    confidence,
-    confidenceText: confidenceLabel(confidence, rows, primary),
-    verdict,
-    nextAction,
-    summary,
-    evidenceServer,
-    createdAt: new Date().toISOString(),
-  }
 }
 
 function Group({ title, rows = [] }) {
