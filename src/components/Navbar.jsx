@@ -1,6 +1,7 @@
 import React from 'react'
 import { getCurrentHashRoute } from '../app/routeUtils.js'
 import { tools, preloadTool } from '../tools'
+import SapRcaLogo from './SapRcaLogo.jsx'
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
@@ -26,7 +27,7 @@ export default function Navbar() {
     <header className="navbar rcaNav">
       <div className="navInner rcaNavInner">
         <a className="brand rcaBrand" href="#/">
-          <span className="brandBadge">RCA</span>
+          <SapRcaLogo />
           <span className="brandText">
             <span className="brandTitle">SAP RCA Workspace</span>
             <span className="brandSub">Basis evidence console</span>
