@@ -49,6 +49,23 @@ Only these 3 RCA tools are core:
 
 Secondary/helper tools must stay hidden or secondary unless explicitly requested.
 
+## Branding / logo status
+
+Navbar now uses a custom internal SAP RCA Workspace badge:
+
+```text
+src/components/SapRcaLogo.jsx
+src/app/sap-rca-logo.css
+```
+
+Important note:
+
+```text
+This is a custom internal SAP RCA mark, not an official SAP logo asset.
+```
+
+The badge text is `SAP RCA` and is designed to match the enterprise theme without committing external trademark image files.
+
 ## Recent UI/UX work
 
 Newer UI polish is centralized through:
@@ -63,6 +80,7 @@ Current enterprise theme import order:
 
 ```css
 @import './enterprise-ui-system.css';
+@import './sap-rca-logo.css';
 @import './enterprise-navigation.css';
 @import './evidence-history-ux.css';
 @import './investigation-workspace-ux.css';
@@ -76,6 +94,7 @@ Current enterprise theme import order:
 
 ```text
 src/app/enterprise-ui-system.css        -> base enterprise tokens/cards/buttons/tables
+src/app/sap-rca-logo.css                -> custom SAP RCA badge styling
 src/app/enterprise-navigation.css       -> navbar, tool tabs, mobile nav
 src/app/evidence-history-ux.css         -> shared Evidence History / server evidence panels
 src/app/investigation-workspace-ux.css  -> home dashboard / evidence pack workflow
@@ -176,11 +195,12 @@ hard-to-debug UI state
 Recommended next work, in order:
 
 1. Smoke test sapdev after auto deploy.
-2. Test Export PDF on all 3 core tools.
-3. If UI is stable, start CSS cleanup of older legacy files carefully.
-4. Improve Evidence History functionality, not only visual.
-5. Add TanStack Virtual only if large evidence tables are still heavy.
-6. Continue modularizing monolith files incrementally.
+2. Test custom SAP RCA badge on desktop/mobile navbar.
+3. Test Export PDF on all 3 core tools.
+4. If UI is stable, start CSS cleanup of older legacy files carefully.
+5. Improve Evidence History functionality, not only visual.
+6. Add TanStack Virtual only if large evidence tables are still heavy.
+7. Continue modularizing monolith files incrementally.
 
 ## New prompt continuation
 
