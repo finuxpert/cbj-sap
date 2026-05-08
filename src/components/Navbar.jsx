@@ -56,6 +56,7 @@ export default function Navbar() {
 
         <nav className="navLinks rcaNavLinks" aria-label="Workspace navigation">
           <a href="#/" data-active={active('/')}>Dashboard</a>
+          <a href="#/cases" data-active={active('/cases')}>Cases</a>
           <a href="#/about" data-active={active('/about')}>Runbook</a>
           <a href="#/contact" data-active={active('/contact')}>Ops</a>
         </nav>
@@ -85,6 +86,10 @@ export default function Navbar() {
                 <a className="mobileMenuItem" href="#/" data-active={active('/')} onClick={closeMobile}>
                   <strong>Dashboard</strong>
                   <span>Upload evidence pack & incident workflow</span>
+                </a>
+                <a className="mobileMenuItem" href="#/cases" data-active={active('/cases')} onClick={closeMobile}>
+                  <strong>Case History</strong>
+                  <span>Mobile RCA summary, anomaly, status, and evidence count</span>
                 </a>
                 {coreTools.map((tool) => (
                   <a
