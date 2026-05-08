@@ -1,0 +1,97 @@
+.caseDetailAnalyticsPanel {
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.caseDetailAnalyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.caseDetailAnalyticsGrid section {
+  min-width: 0;
+  border: 1px solid rgba(214, 242, 240, 0.10);
+  border-radius: 18px;
+  padding: 14px;
+  background: radial-gradient(circle at top right, rgba(45, 212, 191, 0.07), transparent 36%), rgba(0, 0, 0, 0.15);
+}
+
+.caseDetailAnalyticsGrid h3 {
+  margin: 0 0 10px;
+  color: rgba(249, 251, 247, 0.94);
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.01em;
+}
+
+.caseDetailAnalyticsWide {
+  grid-column: 1 / -1;
+}
+
+.caseDetailChartBox {
+  width: 100%;
+  min-height: 240px;
+}
+
+.caseDetailChartBox .recharts-cartesian-grid line {
+  stroke: rgba(214, 242, 240, 0.08);
+}
+
+.caseDetailChartBox .recharts-text {
+  fill: rgba(220, 238, 238, 0.62);
+}
+
+.caseDetailChartBox .recharts-bar-rectangle path,
+.caseDetailChartBox .recharts-pie-sector path {
+  fill: rgba(45, 212, 191, 0.72);
+  stroke: rgba(191, 251, 241, 0.14);
+}
+
+.caseDetailChartBox .recharts-line path {
+  stroke: rgba(45, 212, 191, 0.88);
+}
+
+.caseDetailChartTooltip {
+  display: grid;
+  gap: 4px;
+  max-width: 260px;
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  border-radius: 14px;
+  padding: 10px 12px;
+  color: rgba(249, 251, 247, 0.94);
+  background: rgba(7, 16, 20, 0.96);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+}
+
+.caseDetailChartTooltip strong {
+  color: #bffbf1;
+  font-size: 12px;
+}
+
+.caseDetailChartTooltip span {
+  color: rgba(220, 238, 238, 0.72);
+  font-size: 12px;
+}
+
+.caseDetailChartEmpty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  border: 1px dashed rgba(214, 242, 240, 0.16);
+  border-radius: 16px;
+  color: rgba(220, 238, 238, 0.62);
+  background: rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 920px) {
+  .caseDetailAnalyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .caseDetailAnalyticsWide {
+    grid-column: auto;
+  }
+}
