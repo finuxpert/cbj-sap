@@ -51,6 +51,12 @@ def _resource_candidates(result_json: dict) -> list:
     sap = result_json.get("sap") if isinstance(result_json.get("sap"), dict) else {}
     candidates.extend(_items(sap.get("resources")))
     candidates.extend(_items(sap.get("host_metrics")))
+
+    # Existing saved Log Evidence results often keep raw parsed rows under result_json.rows.
+    # Those rows can contain cpu/rss/swap fields even when no system_resources array exists yet.
+    candidates.extend(_items(result_json.get("rows")))
+    candidates.extend(_items(result_json.get("evidenceRows")))
+    candidates.extend(_items(result_json.get("parsedRows")))
     return candidates
 
 
@@ -67,9 +73,15 @@ def _build_resource_row(raw: dict, index: int) -> dict[str, Any] | None:
         or f"T{index + 1}",
         max_len=32,
     )
-    cpu = _first_number(raw, ["cpu", "cpu_pct", "cpu_percent", "cpu_usage", "cpuUsage", "cpuUtilization"])
-    mem = _first_number(raw, ["mem", "memory", "memory_pct", "mem_pct", "memory_percent", "mem_percent", "memory_usage", "memoryUsage"])
-    swap = _first_number(raw, ["swap", "swap_pct", "swap_percent", "swap_usage", "swapUsage"])
+    cpu = _first_number(raw, ["cpu", "cpuPct", "cpu_percent", "cpu_pct", "cpu_usage", "cpuUsage", "cpuUtilization"])
+    mem = _first_number(raw, ["mem", "memory", "memoryPct", "memory_pct", "mem_pct", "memory_percent", "memPercent", "mem_percent", "memory_usage", "memoryUsage", "rssPct"])
+    swap = _first_number(raw, ["swap", "swapPct", "swap_pct", "swap_percent", "swapPercent", "swap_usage", "swapUsage"])
+
+    # Some SAP WP/log parsers store RSS in GB but not memory percentage. Keep it chartable as a bounded proxy.
+    if mem == 0:
+        rss_gb = _first_number(raw, ["rssGb", "rssGB", "rss_gb", "rss"], 0)
+        if rss_gb > 0:
+            mem = min(100, rss_gb * 10)
 
     if cpu == 0 and mem == 0 and swap == 0:
         return None
@@ -80,6 +92,32 @@ def _build_resource_row(raw: dict, index: int) -> dict[str, Any] | None:
         "mem": round(max(0, min(mem, 100)), 2),
         "swap": round(max(0, min(swap, 100)), 2),
     }
+
+
+def _aggregate_resource_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        key = row.get("name") or "T"
+        current = grouped.setdefault(key, {"name": key, "cpu": 0, "mem": 0, "swap": 0, "cpuCount": 0, "memCount": 0, "swapCount": 0})
+        if row.get("cpu", 0) > 0:
+            current["cpu"] += row["cpu"]
+            current["cpuCount"] += 1
+        if row.get("mem", 0) > 0:
+            current["mem"] += row["mem"]
+            current["memCount"] += 1
+        if row.get("swap", 0) > 0:
+            current["swap"] += row["swap"]
+            current["swapCount"] += 1
+
+    return [
+        {
+            "name": item["name"],
+            "cpu": round(item["cpu"] / item["cpuCount"], 2) if item["cpuCount"] else 0,
+            "mem": round(item["mem"] / item["memCount"], 2) if item["memCount"] else 0,
+            "swap": round(item["swap"] / item["swapCount"], 2) if item["swapCount"] else 0,
+        }
+        for item in grouped.values()
+    ][-30:]
 
 
 def build_case_analytics(case_data: dict) -> dict:
@@ -132,7 +170,7 @@ def build_case_analytics(case_data: dict) -> dict:
         _add(evidence_sources, source)
 
     timeline_rows = list(timeline.values())[-20:]
-    resource_rows = system_resources[-30:]
+    resource_rows = _aggregate_resource_rows(system_resources)
     avg_confidence = round(sum(row["value"] for row in confidence) / len(confidence), 2) if confidence else 0
 
     analytics = {
