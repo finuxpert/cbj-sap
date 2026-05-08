@@ -10,7 +10,7 @@ on:
 jobs:
   deploy-dev:
     name: Deploy to sapdev
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev') }}
     runs-on: [self-hosted, sapdev]
 
     steps:
@@ -21,8 +21,8 @@ jobs:
 
           cd /home/sadmin/sap
 
-          git fetch origin main
-          git reset --hard origin/main
+          git fetch origin dev
+          git reset --hard origin/dev
 
           # Previous manual/root builds may leave dist files owned by root/www-data.
           # Normalize ownership and remove old Vite output before npm build.
