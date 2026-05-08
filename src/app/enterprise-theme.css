@@ -5,10 +5,12 @@
  * Order matters:
  * 1. base enterprise tokens/surfaces
  * 2. navigation polish
- * 3. tool-specific UX polish
+ * 3. shared evidence panels
+ * 4. tool-specific UX polish
  */
 @import './enterprise-ui-system.css';
 @import './enterprise-navigation.css';
+@import './evidence-history-ux.css';
 @import './log-evidence-ux.css';
 @import './st03n-impact-ux.css';
 @import './comparer-process-ux.css';
