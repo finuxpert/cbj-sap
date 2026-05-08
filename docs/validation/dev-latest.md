@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-08T16:50:27+07:00
+Generated: 2026-05-08T16:52:33+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: f4fbaa4
-- Commit subject: Update QA checklist after CSS consolidation
+- Commit: 60603c6
+- Commit subject: Simplify main CSS entrypoint imports
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-CEjjbumt.js                    232.03 kB │ gzip:  74.39 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-BeFbrVC0.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DfFWPDbw.js                 415.91 kB │ gzip: 121.63 kB
-✓ built in 6.47s
+✓ built in 6.66s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DfFWPDbw.js                 415.91 kB │ gzip: 121.63 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Fri, 08 May 2026 09:50:27 GMT
+- Last modified: Fri, 08 May 2026 09:52:33 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Fri, 08 May 2026 09:50:27 GMT
+date: Fri, 08 May 2026 09:52:33 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=kC20xQxoXxSfl4MliHMsLKIx6Ck0Nje2Sjr3rcr5tpJfPO5evdH9GY7Ex8XymW640rWU05kln%2BCj3Xyd17455BdGeRTnOZkpSecTWagVjkFRTh%2BiIUA1khcib5FIagekQZ%2FunlQXvd0xbTE%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=OCZSetM45hRD7n4mnXerv6vZHN3O86x0fchVhYe2fbPjcS00XHVfZP4%2BTvxDbNNuGZUPIhzh%2B1oxqbenvoNpI%2B1eIOerLBdMldY2ZKpep9IAe7kgryJDjRWo04FAbr%2Fq8Cb5KMCFpY7jL5c%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Fri, 08 May 2026 09:50:27 GMT
+last-modified: Fri, 08 May 2026 09:52:33 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f878f6dba6955fc-SIN
+cf-ray: 9f8792821d79fdba-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
