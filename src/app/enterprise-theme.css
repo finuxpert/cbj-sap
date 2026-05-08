@@ -4,13 +4,14 @@
  *
  * Order matters:
  * 1. base enterprise tokens/surfaces
- * 2. navigation polish
+ * 2. brand/navigation polish
  * 3. shared evidence panels
  * 4. workspace/dashboard polish
  * 5. tool-specific UX polish
  * 6. export/print polish
  */
 @import './enterprise-ui-system.css';
+@import './sap-rca-logo.css';
 @import './enterprise-navigation.css';
 @import './evidence-history-ux.css';
 @import './investigation-workspace-ux.css';
