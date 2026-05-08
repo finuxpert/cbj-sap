@@ -101,6 +101,19 @@ function buildParsedPayload(result) {
   }
 }
 
+function normalizeCaseId(response) {
+  const candidate = response?.case || response?.item || response?.data || response
+  return candidate?.id || candidate?.case_no || response?.id || response?.case_id || response?.caseNo || ''
+}
+
+function normalizeCaseList(response) {
+  if (Array.isArray(response)) return response
+  if (Array.isArray(response?.items)) return response.items
+  if (Array.isArray(response?.cases)) return response.cases
+  if (Array.isArray(response?.data)) return response.data
+  return []
+}
+
 function Group({ title, rows = [] }) {
   return <section className="evidencePanel"><h2>{title}</h2><div className="evidenceList compact">{rows.slice(0, 8).map((item) => <div key={item.name}><b>{item.name}</b><span>hits {item.hits} · CRIT {item.critHits}</span><small>{item.family || ''} {item.examples?.join(' · ')}</small></div>)}</div></section>
 }
@@ -171,7 +184,7 @@ export default function ToolLogEvidenceV2() {
   const loadCases = React.useCallback(() => {
     import('../evidence-api-client.js')
       .then(({ listMobileCases }) => listMobileCases({ limit: 20 }))
-      .then((response) => setRecentCases(response?.items || response?.cases || []))
+      .then((response) => setRecentCases(normalizeCaseList(response)))
       .catch(() => setRecentCases([]))
   }, [])
 
@@ -238,8 +251,9 @@ export default function ToolLogEvidenceV2() {
       }
       const response = await createCase(payload)
       if (response?.ok === false) throw new Error(response?.detail || response?.raw || 'Failed to create case')
-      const nextId = response?.case?.id || response?.case?.case_no
-      setCaseId(nextId || '')
+      const nextId = normalizeCaseId(response)
+      if (!nextId) throw new Error('Case created, but API response did not return a case id. Refresh Cases and select it manually.')
+      setCaseId(nextId)
       setCaseTitle('')
       setSaveStatus(`Case created: ${nextId}`)
       loadCases()
