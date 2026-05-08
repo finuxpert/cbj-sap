@@ -18,7 +18,8 @@ import './index.css'
 import './features/evidence/evidence.css'
 // Legacy shell override kill-switch intentionally not imported anymore.
 // Keep src/app/shell-overrides.css for quick rollback if old floating nav/viewport QA regresses.
-import './app/rca-workspace.css'
+// Legacy RCA workspace shell polish intentionally not imported anymore.
+// Keep src/app/rca-workspace.css for quick rollback if nav/PDF/evidence shell QA regresses.
 // Legacy Dynatrace-inspired observability override intentionally not imported anymore.
 // Keep src/sap-dynatrace-rca.css for quick rollback if chart/tool QA finds regression.
 import './app/enterprise-theme.css'
