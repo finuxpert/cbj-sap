@@ -56,6 +56,13 @@ jobs:
           sudo nginx -t
           sudo systemctl reload nginx
 
+      - name: Restart Evidence API
+        run: |
+          set -euo pipefail
+          sudo systemctl restart sap-evidence-api.service
+          sleep 2
+          curl -f http://127.0.0.1:8090/health
+
       - name: Run sapdev backend and frontend QA
         run: |
           set -euo pipefail
