@@ -150,11 +150,36 @@ src/app/comparer-process-ux.css
 src/app/pdf-export-ux.css
 ```
 
-## Current legacy CSS imports still active in main.jsx
+## Cleanup patch 5
+
+Disabled this legacy SAP intelligent investigation override import in `src/main.jsx`:
+
+```js
+import './sap-intelligent-investigation.css'
+```
+
+The file was not deleted.
+
+### Why this was disabled now
+
+Despite the file name, this layer is mostly scoped to `.appShell.isTool`, not the current homepage `InvestigationWorkspaceV2` route. It contains broad tool-mode overrides for:
+
+- navbar glow and brand emphasis
+- upload workflow pseudo-copy
+- file input button styling
+- KPI/card/panel header emphasis
+- empty table helper text
+- button hover/active transforms
+- mobile tool background and panel shadows
+- chart drop shadows
+- disabled button styling
+
+These behaviors are now better centralized through enterprise theme layers and tool-specific UX files.
+
+## Current CSS imports still active in main.jsx
 
 ```text
 src/sapdev-comparer-fix.css
-src/sap-intelligent-investigation.css
 src/features/evidence/evidence.css
 src/app/shell-overrides.css
 src/app/rca-workspace.css
@@ -169,6 +194,7 @@ src/sapdev-polish.css
 src/sapdev-premium-overhaul.css
 src/sapdev-final-force.css
 src/sap-intelligent-ux.css
+src/sap-intelligent-investigation.css
 ```
 
 ## Rollback
@@ -180,6 +206,7 @@ import './sapdev-polish.css'
 import './sapdev-premium-overhaul.css'
 import './sapdev-final-force.css'
 import './sap-intelligent-ux.css'
+import './sap-intelligent-investigation.css'
 ```
 
 Then run:
@@ -215,4 +242,4 @@ Verify:
 
 ## Next recommended cleanup
 
-Audit `src/sap-intelligent-investigation.css` next. Do not disable it together with other remaining CSS files because it may still affect the Investigation Workspace route.
+Audit `src/sapdev-comparer-fix.css` next because it is still active and likely the last old sapdev-specific emergency layer. Do not delete it until the comparer route passes sapdev QA without it.
