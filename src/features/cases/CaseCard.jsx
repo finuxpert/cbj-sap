@@ -24,6 +24,7 @@ export default function CaseCard({ caseItem }) {
   const severity = item.severity || 'INFO'
   const status = item.status || 'OPEN'
   const title = item.title || item.case_no || 'Untitled RCA Case'
+  const caseId = item.id || item.case_no || ''
   const summary = item.summary || 'Belum ada management summary. Upload dan parse evidence untuk generate RCA summary.'
   const topProblem = item.top_suspect || item.top_anomaly || 'Pending analysis'
 
@@ -65,7 +66,7 @@ export default function CaseCard({ caseItem }) {
 
       <div className="caseHistoryCardFoot">
         <span>Updated {formatDate(item.updated_at || item.created_at)}</span>
-        <a href={`#/cases?case=${encodeURIComponent(item.id || item.case_no || '')}`} aria-label={`Open ${title}`}>
+        <a href={`#/cases/${encodeURIComponent(caseId)}`} aria-label={`Open ${title}`}>
           Open
         </a>
       </div>
