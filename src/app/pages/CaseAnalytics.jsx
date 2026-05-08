@@ -11,18 +11,27 @@ function add(map, key, value = 1) {
 
 function rowsFromMap(map, limit = 8) {
   return Array.from(map.entries())
-    .map(([name, value]) => ({ name: String(name).slice(0, 24), value }))
+    .map(([name, value]) => ({ name: String(name).slice(0, 24), fullName: String(name), value }))
     .sort((a, b) => b.value - a.value)
     .slice(0, limit)
 }
 
+function shortLabel(value, max = 24) {
+  const text = String(value || 'Unknown')
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
 function normalizeRows(rows = [], limit = 10) {
   return list(rows)
-    .map((item) => ({
-      ...item,
-      name: String(item?.name || item?.label || 'Unknown').slice(0, 48),
-      value: Number(item?.value ?? item?.hits ?? item?.count ?? 0) || 0,
-    }))
+    .map((item) => {
+      const fullName = String(item?.name || item?.label || 'Unknown')
+      return {
+        ...item,
+        name: shortLabel(fullName, 28),
+        fullName,
+        value: Number(item?.value ?? item?.hits ?? item?.count ?? 0) || 0,
+      }
+    })
     .filter((item) => item.value > 0 || item.hits > 0 || item.crit > 0 || item.warn > 0)
     .slice(0, limit)
 }
@@ -107,7 +116,7 @@ function Insight({ label, value, hint }) {
   return (
     <div className="caseAnalyticsInsight">
       <span>{label}</span>
-      <strong>{value || '-'}</strong>
+      <strong title={value || ''}>{value || '-'}</strong>
       <small>{hint}</small>
     </div>
   )
@@ -127,9 +136,10 @@ function EmptyChart({ title, hint }) {
   )
 }
 
-function BarCard({ title, data, hint = 'Parsed evidence distribution' }) {
+function BarCard({ title, data, hint = 'Parsed evidence distribution', horizontal = false }) {
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
   const top = data[0]
+  const height = horizontal ? Math.max(260, data.length * 34 + 80) : 240
   if (!data.length) return <EmptyChart title={title} hint={hint} />
 
   return (
@@ -141,18 +151,27 @@ function BarCard({ title, data, hint = 'Parsed evidence distribution' }) {
         </div>
         <b>{total}</b>
       </div>
-      <div className="caseDetailChartBox">
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={data} margin={{ top: 8, right: 14, left: -18, bottom: 18 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={52} />
-            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-            <Tooltip />
-            <Bar dataKey="value" radius={[8, 8, 0, 0]} />
+      <div className={`caseDetailChartBox ${horizontal ? 'caseDetailChartBox--horizontal' : ''}`}>
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} layout={horizontal ? 'vertical' : 'horizontal'} margin={horizontal ? { top: 8, right: 18, left: 118, bottom: 8 } : { top: 8, right: 14, left: -18, bottom: 18 }}>
+            <CartesianGrid strokeDasharray="3 3" horizontal={!horizontal} vertical={horizontal} />
+            {horizontal ? (
+              <>
+                <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={126} />
+              </>
+            ) : (
+              <>
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-12} textAnchor="end" height={52} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+              </>
+            )}
+            <Tooltip labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName || payload?.[0]?.payload?.name || ''} />
+            <Bar dataKey="value" radius={horizontal ? [0, 8, 8, 0] : [8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <p className="caseAnalyticsChartNote">Top signal: <b>{top.name}</b> · {top.value}</p>
+      <p className="caseAnalyticsChartNote">Top signal: <b title={top.fullName || top.name}>{top.fullName || top.name}</b> · {top.value}</p>
     </section>
   )
 }
@@ -215,8 +234,8 @@ function TimelineCard({ data }) {
 export default function CaseAnalytics({ caseData }) {
   const rows = React.useMemo(() => buildRows(caseData), [caseData])
   const hasData = Object.values(rows).some((row) => Array.isArray(row) && row.length > 0)
-  const topSignal = rows.summary?.top_signal || rows.anomaly[0]?.name || caseData?.top_anomaly || 'Pending'
-  const topTool = rows.summary?.dominant_source || rows.tools[0]?.name || caseData?.tool || 'Unknown'
+  const topSignal = rows.summary?.top_signal || rows.anomaly[0]?.fullName || rows.anomaly[0]?.name || caseData?.top_anomaly || 'Pending'
+  const topTool = rows.summary?.dominant_source || rows.tools[0]?.fullName || rows.tools[0]?.name || caseData?.tool || 'Unknown'
   const avgConfidence = rows.summary?.avg_confidence || (rows.confidence.length
     ? Math.round(rows.confidence.reduce((sum, item) => sum + Number(item.value || 0), 0) / rows.confidence.length)
     : 0)
@@ -242,10 +261,10 @@ export default function CaseAnalytics({ caseData }) {
         <div className="caseDetailAnalyticsGrid">
           <TimelineCard data={rows.timeline} />
           <SeverityCard data={rows.severity} />
-          <BarCard title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" />
-          <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" />
-          <BarCard title="Top JobName" data={rows.jobs} hint="Impacted job names" />
-          <BarCard title="Top Program" data={rows.programs} hint="Impacted SAP programs" />
+          <BarCard title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" horizontal />
+          <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" horizontal />
+          <BarCard title="Top JobName" data={rows.jobs} hint="Impacted job names" horizontal />
+          <BarCard title="Top Program" data={rows.programs} hint="Impacted SAP programs" horizontal />
           <section className="caseDetailAnalyticsWide">
             <BarCard title="Parsed Confidence" data={rows.confidence} hint="Confidence per parser result" />
           </section>
