@@ -11,6 +11,18 @@ log() {
   printf '\n[qa-sapdev] %s\n' "$*"
 }
 
+bundle_grep() {
+  local marker="$1"
+  local label="$2"
+  if grep -R "${marker}" "${WEB_ROOT}/assets"/*.js | head -1 >/tmp/qa-marker-hit.txt; then
+    echo "OK: ${label} marker found (${marker})"
+    head -1 /tmp/qa-marker-hit.txt
+  else
+    echo "ERROR: ${label} marker missing (${marker})" >&2
+    return 1
+  fi
+}
+
 json_get_case_id() {
   JSON_PAYLOAD="$1" python3 -c 'import json, os
 payload=json.loads(os.environ["JSON_PAYLOAD"])
@@ -52,7 +64,7 @@ HEALTH=$(curl -fsS "${API}/health")
 echo "${HEALTH}"
 echo "${HEALTH}" | grep -q 'SAP Intelligent RCA Evidence API'
 
-log "Create QA case"
+log "Backend Case History API contract"
 CREATE_RESPONSE=$(curl -fsS -X POST "${API}/cases" \
   -H 'Content-Type: application/json' \
   --data "{\"title\":\"${TITLE}\",\"severity\":\"INFO\",\"status\":\"OPEN\",\"summary\":\"QA validation case\",\"created_by\":\"qa-sapdev\"}")
@@ -68,19 +80,19 @@ fi
 test -n "${CASE_ID}"
 log "Case id: ${CASE_ID}"
 
-log "Save parsed result"
+log "Backend parsed-result persistence"
 PARSED_RESPONSE=$(curl -fsS -X POST "${API}/cases/${CASE_ID}/parsed-results" \
   -H 'Content-Type: application/json' \
   --data '{"tool":"QA Workflow Test","verdict":"qa-backend-ok","severity":"WARN","confidence":99,"top_anomaly":"QA_WORKFLOW_PARSED_RESULT","top_suspect":"Case History persistence","summary":"QA verified parsed result persistence.","result_json":{"source":"qa-sapdev","scope":"backend-frontend"}}')
 echo "${PARSED_RESPONSE}"
 echo "${PARSED_RESPONSE}" | grep -q 'QA_WORKFLOW_PARSED_RESULT'
 
-log "Verify mobile case detail parsed result"
+log "Backend mobile case detail"
 DETAIL_RESPONSE=$(curl -fsS "${API}/mobile/cases/${CASE_ID}")
 echo "${DETAIL_RESPONSE}"
 assert_case_detail_has_parsed_result "${DETAIL_RESPONSE}"
 
-log "Upload linked QA evidence"
+log "Backend linked evidence upload"
 TMP_EVIDENCE=$(mktemp)
 printf 'QA evidence for %s\n' "${CASE_ID}" > "${TMP_EVIDENCE}"
 UPLOAD_RESPONSE=$(curl -fsS -X POST "${API}/upload" \
@@ -94,7 +106,7 @@ rm -f "${TMP_EVIDENCE}"
 echo "${UPLOAD_RESPONSE}"
 echo "${UPLOAD_RESPONSE}" | grep -q 'qa-evidence.txt'
 
-log "Verify linked evidence in mobile case detail"
+log "Backend linked evidence in mobile detail"
 DETAIL_AFTER_UPLOAD=$(curl -fsS "${API}/mobile/cases/${CASE_ID}")
 echo "${DETAIL_AFTER_UPLOAD}"
 assert_case_detail_has_evidence "${DETAIL_AFTER_UPLOAD}"
@@ -103,9 +115,19 @@ log "Frontend deployed bundle smoke"
 test -d "${WEB_ROOT}/assets"
 ls -la "${WEB_ROOT}/assets" | head
 
-grep -R "Case History Link" "${WEB_ROOT}/assets"/*.js | head -1
-grep -R "Save Parsed Summary" "${WEB_ROOT}/assets"/*.js | head -1
-grep -R "sap-rca-case-history" "${WEB_ROOT}/assets"/*.js | head -1
-grep -R "Export PDF" "${WEB_ROOT}/assets"/*.js | head -1
+log "Frontend core RCA tool markers"
+bundle_grep "WP-SCOUT" "WP-SCOUT / RCA Comparator"
+bundle_grep "ST03N Impact" "ST03N Impact V2"
+bundle_grep "Log Evidence" "Log Evidence V2"
+bundle_grep "Case History Link" "Log Evidence to Case History panel"
+bundle_grep "Save Parsed Summary" "parsed summary save action"
+bundle_grep "sap-rca-case-history" "Case History PDF export"
+bundle_grep "Export PDF" "PDF export controls"
 
-log "QA PASS: backend API, case persistence, linked evidence, and frontend bundle smoke verified"
+log "Frontend route markers"
+bundle_grep "#/tool/comparer" "WP-SCOUT route"
+bundle_grep "#/tool/analyzer" "ST03N route"
+bundle_grep "#/tool/logs" "Log Evidence route"
+bundle_grep "#/cases" "Case History route"
+
+log "QA PASS: backend API, case persistence, linked evidence, and all core frontend RCA tool markers verified"
