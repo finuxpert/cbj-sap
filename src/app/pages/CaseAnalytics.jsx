@@ -235,9 +235,9 @@ function TimelineCard({ data }) {
             <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
             <Tooltip />
-            <Line type="monotone" dataKey="hits" strokeWidth={3} dot={false} />
-            <Line type="monotone" dataKey="crit" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="warn" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="hits" stroke="#2dd4bf" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="crit" stroke="#f87171" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="warn" stroke="#f59e0b" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -258,9 +258,9 @@ function ResourceChart({ data }) {
         <b>{data.length}</b>
       </div>
       <div className="caseResourceLegend">
-        <span>CPU %</span>
-        <span>Memory %</span>
-        <span>Swap %</span>
+        <span className="isCpu">CPU %</span>
+        <span className="isMem">Memory %</span>
+        <span className="isSwap">Swap %</span>
       </div>
       <div className="caseDetailChartBox">
         <ResponsiveContainer width="100%" height={280}>
@@ -268,10 +268,10 @@ function ResourceChart({ data }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
             <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} />
-            <Tooltip />
-            <Line type="monotone" dataKey="cpu" name="CPU %" strokeWidth={3} dot={false} />
-            <Line type="monotone" dataKey="mem" name="Memory %" strokeWidth={3} dot={false} />
-            <Line type="monotone" dataKey="swap" name="Swap %" strokeWidth={3} dot={false} />
+            <Tooltip formatter={(value, name) => [`${value}%`, name]} />
+            <Line type="monotone" dataKey="cpu" name="CPU" stroke="#38bdf8" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="mem" name="Memory" stroke="#2dd4bf" strokeWidth={3} dot={false} />
+            <Line type="monotone" dataKey="swap" name="Swap" stroke="#f59e0b" strokeWidth={3} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
