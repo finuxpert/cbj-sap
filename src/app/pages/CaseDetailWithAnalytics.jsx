@@ -43,6 +43,28 @@ function AnalyticsQuickSummary({ caseData }) {
   )
 }
 
+function AnalyticsBlock({ caseData, loadingAnalytics }) {
+  return (
+    <section className="caseDetailPage container section caseDetailAnalyticsMount">
+      <div className="caseAnalyticsTopbar">
+        <span>Analytics Overview</span>
+        <a href="#case-detail-full">Continue to Case Detail</a>
+        <small>{loadingAnalytics ? 'Loading analytics data…' : 'Loaded from Case History API'}</small>
+      </div>
+      {caseData ? (
+        <>
+          <AnalyticsQuickSummary caseData={caseData} />
+          <CaseAnalytics caseData={caseData} />
+        </>
+      ) : (
+        <article className="caseDetailPanel caseDetailAnalyticsPanel">
+          <div className="caseDetailChartEmpty">Analytics data is not available yet.</div>
+        </article>
+      )}
+    </section>
+  )
+}
+
 export default function CaseDetailWithAnalytics({ caseId }) {
   const [caseData, setCaseData] = React.useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(false)
@@ -71,23 +93,10 @@ export default function CaseDetailWithAnalytics({ caseId }) {
 
   return (
     <>
-      <CaseDetail caseId={caseId} />
-      <section className="caseDetailPage container section caseDetailAnalyticsMount">
-        <div className="caseAnalyticsTopbar">
-          <a href="#case-analytics">Jump to Analytics</a>
-          <span>{loadingAnalytics ? 'Loading analytics data…' : 'Analytics loaded from Case History API'}</span>
-        </div>
-        {caseData ? (
-          <>
-            <AnalyticsQuickSummary caseData={caseData} />
-            <CaseAnalytics caseData={caseData} />
-          </>
-        ) : (
-          <article className="caseDetailPanel caseDetailAnalyticsPanel">
-            <div className="caseDetailChartEmpty">Analytics data is not available yet.</div>
-          </article>
-        )}
-      </section>
+      <AnalyticsBlock caseData={caseData} loadingAnalytics={loadingAnalytics} />
+      <div id="case-detail-full">
+        <CaseDetail caseId={caseId} />
+      </div>
     </>
   )
 }
