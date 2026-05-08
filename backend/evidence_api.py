@@ -14,6 +14,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+try:
+    from .case_analytics import build_case_analytics
+except Exception:
+    from case_analytics import build_case_analytics
+
 APP_NAME = "SAP Intelligent RCA Evidence API"
 STORAGE_ROOT = Path(os.getenv("SAP_EVIDENCE_ROOT", "/var/www/svr01-dev/sap-data"))
 EVIDENCE_DIR = STORAGE_ROOT / "evidence"
@@ -33,7 +38,7 @@ ALLOWED_EXT = {
     ".json",
 }
 
-app = FastAPI(title=APP_NAME, version="1.1.0")
+app = FastAPI(title=APP_NAME, version="1.2.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -130,6 +135,23 @@ def summarize_case(case_data: dict) -> dict:
     }
 
 
+def mobile_case_payload(case_data: dict) -> dict:
+    summary = summarize_case(case_data)
+    return {
+        **summary,
+        "executive_summary": summary.get("summary") or "No RCA summary saved yet.",
+        "top_problem": {
+            "label": summary.get("top_suspect") or summary.get("top_anomaly") or "Pending analysis",
+            "reason": summary.get("top_anomaly") or "Upload and parse evidence to generate anomaly detail.",
+        },
+        "timeline": case_data.get("timeline", [])[-20:],
+        "parsed_results": case_data.get("parsed_results", [])[-10:],
+        "reports": case_data.get("reports", []),
+        "evidence": case_data.get("evidence", []),
+        "analytics": build_case_analytics(case_data),
+    }
+
+
 class EvidenceUpdate(BaseModel):
     title: Optional[str] = None
     sid: Optional[str] = None
@@ -186,6 +208,7 @@ def health() -> dict:
         "storage_root": str(STORAGE_ROOT),
         "max_upload_mb": MAX_UPLOAD_MB,
         "case_history": "file-backed",
+        "analytics": "enabled",
     }
 
 
@@ -294,7 +317,7 @@ def add_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict:
     })
     case_data["updated_at"] = now_iso()
     write_case(case_data)
-    return {"ok": True, "result": result, "case": summarize_case(case_data)}
+    return {"ok": True, "result": result, "case": summarize_case(case_data), "analytics": build_case_analytics(case_data)}
 
 
 @app.get("/mobile/cases")
@@ -305,22 +328,13 @@ def list_mobile_cases(limit: int = 50) -> dict:
 @app.get("/mobile/cases/{case_id}")
 def get_mobile_case(case_id: str) -> dict:
     case_data = read_case(case_id)
-    summary = summarize_case(case_data)
-    return {
-        "ok": True,
-        "case": {
-            **summary,
-            "executive_summary": summary.get("summary") or "No RCA summary saved yet.",
-            "top_problem": {
-                "label": summary.get("top_suspect") or summary.get("top_anomaly") or "Pending analysis",
-                "reason": summary.get("top_anomaly") or "Upload and parse evidence to generate anomaly detail.",
-            },
-            "timeline": case_data.get("timeline", [])[-20:],
-            "parsed_results": case_data.get("parsed_results", [])[-10:],
-            "reports": case_data.get("reports", []),
-            "evidence": case_data.get("evidence", []),
-        },
-    }
+    return {"ok": True, "case": mobile_case_payload(case_data)}
+
+
+@app.get("/mobile/cases/{case_id}/analytics")
+def get_mobile_case_analytics(case_id: str) -> dict:
+    case_data = read_case(case_id)
+    return {"ok": True, "case_id": case_data.get("id") or case_data.get("case_no"), "analytics": build_case_analytics(case_data)}
 
 
 @app.post("/upload")
