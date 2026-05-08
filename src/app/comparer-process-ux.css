@@ -88,6 +88,8 @@
 
 .cmpCleanDrop {
   position: relative;
+  min-height: 186px !important;
+  padding: 26px 28px !important;
   border-style: dashed !important;
   border-color: rgba(45, 212, 191, 0.26) !important;
   background: rgba(45, 212, 191, 0.055) !important;
@@ -95,9 +97,15 @@
 
 .cmpCleanDrop::before {
   content: "WP-SCOUT";
+  position: absolute;
+  top: 14px;
+  right: 16px;
   display: inline-flex;
-  width: fit-content;
-  margin-bottom: 8px;
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
   padding: 4px 9px;
   border-radius: 999px;
   color: #bffbf1;
@@ -105,7 +113,16 @@
   border: 1px solid rgba(45, 212, 191, 0.22);
   font-size: 10px;
   font-weight: 950;
+  line-height: 1;
   letter-spacing: 0.08em;
+  pointer-events: none;
+  transform: none;
+}
+
+.cmpCleanDrop strong,
+.cmpCleanDrop span {
+  position: relative;
+  z-index: 1;
 }
 
 .cmpCleanStats {
@@ -378,6 +395,16 @@
 
   .cmpCleanPrimary {
     width: 100%;
+  }
+
+  .cmpCleanDrop {
+    min-height: 150px !important;
+    padding: 22px 18px !important;
+  }
+
+  .cmpCleanDrop::before {
+    position: static;
+    margin-bottom: 8px;
   }
 
   .cmpCleanStats {
