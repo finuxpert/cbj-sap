@@ -358,7 +358,7 @@ export default function ToolComparerClean() {
     <section className="cmpCleanShell">
       <header className="cmpCleanHeader">
         <div>
-          <span className="cmpCleanKicker">WP-SCOUT Comparator</span>
+          <a className="cmpCleanKicker" href="#/tool/comparer">WP-SCOUT / RCA Comparator</a>
           <h1>SAP RCA Workspace</h1>
           <p>Upload WP-SCOUT log. Rank offender. Export RCA evidence.</p>
           {lastLoad ? <small className="cmpCleanLoadState">{lastLoad}</small> : null}

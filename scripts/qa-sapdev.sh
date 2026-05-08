@@ -14,7 +14,7 @@ log() {
 bundle_grep() {
   local marker="$1"
   local label="$2"
-  if grep -R "${marker}" "${WEB_ROOT}/assets"/*.js | head -1 >/tmp/qa-marker-hit.txt; then
+  if grep -R -m1 "${marker}" "${WEB_ROOT}/assets"/*.js >/tmp/qa-marker-hit.txt; then
     echo "OK: ${label} marker found (${marker})"
     head -1 /tmp/qa-marker-hit.txt
   else
