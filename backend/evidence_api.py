@@ -117,6 +117,7 @@ def summarize_case(case_data: dict) -> dict:
         "title": case_data.get("title"),
         "sid": case_data.get("sid", ""),
         "environment": case_data.get("environment", ""),
+        "tool": case_data.get("tool") or latest_result.get("tool", ""),
         "severity": case_data.get("severity", latest_result.get("severity", "INFO")),
         "status": case_data.get("status", "OPEN"),
         "summary": case_data.get("summary") or latest_result.get("summary", ""),
@@ -233,7 +234,7 @@ def list_cases(q: str = "", sid: str = "", severity: str = "", status: str = "",
         if status and str(item.get("status", "")).lower() != status.lower():
             continue
         if q:
-            hay = " ".join(str(item.get(k, "")) for k in ["case_no", "title", "summary", "top_anomaly", "top_suspect", "sid"])
+            hay = " ".join(str(item.get(k, "")) for k in ["case_no", "title", "summary", "top_anomaly", "top_suspect", "sid", "tool"])
             if q.lower() not in hay.lower():
                 continue
         items.append(item)

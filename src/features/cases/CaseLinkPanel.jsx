@@ -18,6 +18,12 @@ export default function CaseLinkPanel({
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
 }) {
+  const selectableCases = recentCases.filter((item) => {
+    const id = caseItemId(item)
+    const status = String(item?.status || '').toUpperCase()
+    return status !== 'ARCHIVED' || id === caseId
+  })
+
   return (
     <section className="evidencePanel caseHistoryLinkPanel">
       <h2>{title}</h2>
@@ -27,9 +33,11 @@ export default function CaseLinkPanel({
           <b>Existing Case</b>
           <select value={caseId} onChange={(event) => onCaseIdChange(event.target.value)}>
             <option value="">Not linked</option>
-            {recentCases.map((item) => {
+            {selectableCases.map((item) => {
               const id = caseItemId(item)
-              return <option key={id || item.title} value={id}>{(item.case_no || id)} · {item.title || 'Untitled'}</option>
+              const status = String(item?.status || '').toUpperCase()
+              const suffix = status === 'ARCHIVED' ? ' [ARCHIVED]' : ''
+              return <option key={id || item.title} value={id}>{(item.case_no || id)} · {item.title || 'Untitled'}{suffix}</option>
             })}
           </select>
         </label>

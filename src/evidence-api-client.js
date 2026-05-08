@@ -26,6 +26,14 @@ async function postJson(path, payload = {}) {
   }))
 }
 
+async function patchJson(path, payload = {}) {
+  return toJson(await fetch(`${API_BASE}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }))
+}
+
 export async function evidenceHealth() {
   return toJson(await fetch(`${API_BASE}/health`, { cache: 'no-store' }))
 }
@@ -48,6 +56,19 @@ export async function uploadEvidence(file, meta = {}) {
 
 export async function createCase(payload = {}) {
   return postJson('/cases', payload)
+}
+
+export async function updateCase(caseId, payload = {}) {
+  if (!caseId) return { ok: false, detail: 'caseId is required' }
+  return patchJson(`/cases/${encodeURIComponent(caseId)}`, payload)
+}
+
+export async function archiveCase(caseId) {
+  return updateCase(caseId, { status: 'ARCHIVED' })
+}
+
+export async function closeCase(caseId) {
+  return updateCase(caseId, { status: 'CLOSED' })
 }
 
 export async function saveParsedResult(caseId, payload = {}) {

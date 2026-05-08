@@ -19,7 +19,7 @@ function severityClass(value) {
   return 'isInfo'
 }
 
-export default function CaseCard({ caseItem }) {
+export default function CaseCard({ caseItem, onArchive, archiving = false }) {
   const item = caseItem || {}
   const severity = item.severity || 'INFO'
   const status = item.status || 'OPEN'
@@ -27,6 +27,9 @@ export default function CaseCard({ caseItem }) {
   const caseId = item.id || item.case_no || ''
   const summary = item.summary || 'Belum ada management summary. Upload dan parse evidence untuk generate RCA summary.'
   const topProblem = item.top_suspect || item.top_anomaly || 'Pending analysis'
+  const tool = item.tool || '-'
+  const isArchived = String(status).toUpperCase() === 'ARCHIVED'
+  const detailHref = `#/cases/${encodeURIComponent(caseId)}`
 
   return (
     <article className="caseHistoryCard">
@@ -45,30 +48,51 @@ export default function CaseCard({ caseItem }) {
         <strong>{topProblem}</strong>
       </div>
 
-      <dl className="caseHistoryFacts">
-        <div>
-          <dt>SID</dt>
-          <dd>{item.sid || '-'}</dd>
-        </div>
-        <div>
-          <dt>Env</dt>
-          <dd>{item.environment || '-'}</dd>
-        </div>
+      <dl className="caseHistoryFacts caseHistoryFacts--expanded">
         <div>
           <dt>Status</dt>
           <dd>{status}</dd>
         </div>
         <div>
+          <dt>Tool</dt>
+          <dd>{tool}</dd>
+        </div>
+        <div>
+          <dt>SID</dt>
+          <dd>{item.sid || '-'}</dd>
+        </div>
+        <div>
           <dt>Evidence</dt>
           <dd>{item.evidence_count ?? 0}</dd>
         </div>
+        <div>
+          <dt>Updated</dt>
+          <dd>{formatDate(item.updated_at || item.created_at)}</dd>
+        </div>
+        <div>
+          <dt>Created</dt>
+          <dd>{formatDate(item.created_at)}</dd>
+        </div>
       </dl>
 
-      <div className="caseHistoryCardFoot">
-        <span>Updated {formatDate(item.updated_at || item.created_at)}</span>
-        <a href={`#/cases/${encodeURIComponent(caseId)}`} aria-label={`Open ${title}`}>
-          Open
-        </a>
+      <div className="caseHistoryCardFoot caseHistoryCardFoot--actions">
+        <span>{caseId}</span>
+        <div className="caseHistoryCardActions">
+          <a href={detailHref} aria-label={`Open ${title}`}>
+            View
+          </a>
+          <a href={detailHref} aria-label={`Edit ${title}`}>
+            Edit
+          </a>
+          <button
+            className="caseHistoryActionBtn isDanger"
+            type="button"
+            onClick={() => onArchive?.(item)}
+            disabled={archiving || isArchived}
+          >
+            {isArchived ? 'Archived' : (archiving ? 'Archiving…' : 'Archive')}
+          </button>
+        </div>
       </div>
     </article>
   )

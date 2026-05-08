@@ -240,10 +240,40 @@
 
 .caseHistoryToolbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) minmax(180px, 260px);
+  grid-template-columns: minmax(240px, 1.2fr) repeat(2, minmax(170px, 220px));
   gap: 12px;
   margin-bottom: 14px;
   padding: 14px !important;
+}
+
+.caseHistorySummaryBar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 14px !important;
+}
+
+.caseHistorySummaryBar div {
+  display: grid;
+  gap: 4px;
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.caseHistorySummaryBar strong {
+  color: rgba(249, 251, 247, 0.96);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.caseHistorySummaryBar span {
+  color: rgba(220, 238, 238, 0.58);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .caseHistoryToolbar label {
@@ -402,6 +432,10 @@
   margin: 0;
 }
 
+.caseHistoryFacts--expanded {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .caseHistoryFacts div {
   min-width: 0;
   border-radius: 14px;
@@ -428,6 +462,10 @@
   white-space: nowrap;
 }
 
+.caseHistoryFacts--expanded dd {
+  white-space: normal;
+}
+
 .caseHistoryCardFoot {
   align-items: center;
   margin-top: auto;
@@ -447,6 +485,41 @@
   background: rgba(45, 212, 191, 0.10);
   font-weight: 950;
   text-decoration: none;
+}
+
+.caseHistoryCardFoot--actions {
+  align-items: flex-end;
+}
+
+.caseHistoryCardActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.caseHistoryActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid rgba(214, 242, 240, 0.14);
+  border-radius: 999px;
+  padding: 0 13px;
+  color: rgba(249, 251, 247, 0.92);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.caseHistoryActionBtn.isDanger {
+  border-color: rgba(248, 113, 113, 0.34);
+  color: #fecdd3;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.caseHistoryActionBtn:disabled {
+  opacity: 0.6;
 }
 
 .caseHistoryNotice,
@@ -622,6 +695,74 @@
   line-height: 1.58;
 }
 
+.caseDetailFormPanel {
+  margin-top: 14px;
+}
+
+.caseDetailActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.caseDetailForm {
+  display: grid;
+  gap: 14px;
+}
+
+.caseDetailEditGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.caseDetailEditWide {
+  grid-column: 1 / -1;
+}
+
+.caseDetailForm label {
+  display: grid;
+  gap: 7px;
+}
+
+.caseDetailForm label span {
+  color: rgba(220, 238, 238, 0.66);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.caseDetailForm input,
+.caseDetailForm select,
+.caseDetailForm textarea {
+  width: 100%;
+  border: 1px solid rgba(214, 242, 240, 0.14);
+  border-radius: 14px;
+  padding: 11px 12px;
+  color: rgba(249, 251, 247, 0.94);
+  background: rgba(0, 0, 0, 0.22);
+  outline: none;
+}
+
+.caseDetailForm textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.caseDetailForm input:focus,
+.caseDetailForm select:focus,
+.caseDetailForm textarea:focus {
+  border-color: rgba(45, 212, 191, 0.52);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.12);
+}
+
+.caseDetailFormFoot {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .caseDetailMiniCounts {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -792,7 +933,10 @@
 
   .caseHistoryHero .btn,
   .caseHistoryCardFoot a,
-  .caseDetailBackRow .btn {
+  .caseDetailBackRow .btn,
+  .caseHistoryActionBtn,
+  .caseDetailActionRow .btn,
+  .caseDetailFormFoot .btn {
     width: 100%;
   }
 
@@ -802,7 +946,9 @@
 
   .caseHistoryToolbar,
   .caseHistoryGrid,
-  .caseDetailBadgeStack {
+  .caseDetailBadgeStack,
+  .caseHistorySummaryBar,
+  .caseDetailEditGrid {
     grid-template-columns: 1fr;
   }
 
