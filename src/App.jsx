@@ -11,7 +11,7 @@ import ToolExportDock from './features/pdf/ToolExportDock.jsx'
 import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
 import ComparatorUiGuard from './features/comparer/ComparatorUiGuard.jsx'
 
-const APP_BUILD_STAMP = 'sap-20260508-evidence-history-ux-docs'
+const APP_BUILD_STAMP = 'sap-20260508-auto-dev-deploy-enabled'
 
 export default function App() {
   const route = useRoute()
