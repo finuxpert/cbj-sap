@@ -4,7 +4,8 @@ import App from './App.jsx'
 import './index.css'
 // Legacy base sapdev polish intentionally not imported anymore.
 // Keep src/sapdev-polish.css for quick rollback if sapdev QA finds regression.
-import './sapdev-comparer-fix.css'
+// Legacy comparer emergency fix intentionally not imported anymore.
+// Keep src/sapdev-comparer-fix.css for quick rollback if comparer QA finds regression.
 // Legacy premium overhaul intentionally not imported anymore.
 // Keep src/sapdev-premium-overhaul.css for quick rollback if sapdev QA finds regression.
 // Legacy force layer intentionally not imported anymore.
