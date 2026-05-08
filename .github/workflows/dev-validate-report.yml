@@ -17,6 +17,9 @@ jobs:
   validate-dev:
     name: Build, deploy DEV, and write validation report
     runs-on: self-hosted
+    env:
+      FORCE_COLOR: "0"
+      NO_COLOR: "1"
     steps:
       - name: Checkout dev
         uses: actions/checkout@v4
@@ -44,7 +47,7 @@ jobs:
       - name: Build
         run: |
           set -o pipefail
-          npm run build 2>&1 | tee /tmp/sap-dev-build.log
+          npm run build -- --clearScreen false 2>&1 | tee /tmp/sap-dev-build.log
 
       - name: Deploy to DEV path
         run: |
