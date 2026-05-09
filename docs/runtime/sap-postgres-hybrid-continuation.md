@@ -118,3 +118,53 @@ Next Targets:
 3. Refactor DB-first patch from backend/evidence_api.py into a small helper module.
 4. Keep fallback behavior unchanged.
 5. Do not deploy PROD yet.
+
+## Update - 2026-05-10 DB-first helper refactor
+
+Latest commit:
+- 06f8e00 Extract DB-first read helpers
+
+Completed:
+- Added DB-first parsed results history endpoint:
+  - GET /sap-api/parsed-results-history
+  - read_source: postgres
+  - mode: hybrid
+  - fallback_reason: null
+- Extracted DB-first read helper implementation from backend/evidence_api.py into:
+  - backend/dbfirst_read_helpers.py
+- backend/evidence_api.py now imports helper functions back using the same internal names, preserving endpoint/middleware behavior.
+
+Validation:
+- python3 -m py_compile backend/evidence_api.py backend/dbfirst_read_helpers.py: OK
+- sap-evidence-api.service: active/running
+- /sap-api/health:
+  - status: ok
+  - case_history: hybrid
+  - database.status: ok
+- /sap-api/cases:
+  - read_source: postgres
+  - mode: hybrid
+  - count: 198
+- /sap-api/evidence-history:
+  - read_source: postgres
+  - mode: hybrid
+  - count: 149
+  - fallback_reason: null
+- /sap-api/parsed-results-history:
+  - read_source: postgres
+  - mode: hybrid
+  - count: 5
+  - fallback_reason: null
+
+No changes:
+- PROD untouched.
+- Frontend untouched.
+- DB schema untouched.
+- Nginx/Cloudflare untouched.
+- JSON/file-backed fallback preserved.
+
+Next safe targets:
+1. Add small frontend mini panel for parsed_results history, if useful.
+2. Add parsed-results-history check into any repo-tracked validation/runbook if not already tracked.
+3. Continue cleanup of backend/evidence_api.py only in small chunks.
+4. Do not remove fallback yet.
