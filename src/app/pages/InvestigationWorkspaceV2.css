@@ -172,9 +172,45 @@
   grid-template-columns: 1fr;
 }
 
+.parsedResultsHistoryFilters {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) minmax(180px, 2fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin: 14px 0 16px;
+}
+
+.parsedResultsHistoryFilters label {
+  display: grid;
+  gap: 6px;
+}
+
+.parsedResultsHistoryFilters span {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+}
+
+.parsedResultsHistoryFilters input,
+.parsedResultsHistoryFilters select {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: rgba(15, 23, 42, 0.72);
+  color: rgba(248, 250, 252, 0.92);
+}
+
 @media (max-width: 1180px) {
   .groupGrid,
   .evidenceColumns {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .parsedResultsHistoryFilters {
     grid-template-columns: 1fr;
   }
 }
