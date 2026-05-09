@@ -19,6 +19,15 @@ try:
 except Exception:
     from case_analytics import build_case_analytics
 
+try:
+    from .db.session import check_database
+except Exception:
+    try:
+        from db.session import check_database
+    except Exception:
+        def check_database() -> dict:
+            return {"enabled": False, "configured": False, "status": "unavailable"}
+
 APP_NAME = "SAP Intelligent RCA Evidence API"
 STORAGE_ROOT = Path(os.getenv("SAP_EVIDENCE_ROOT", "/var/www/svr01-dev/sap-data"))
 EVIDENCE_DIR = STORAGE_ROOT / "evidence"
@@ -202,13 +211,16 @@ def startup() -> None:
 @app.get("/health")
 def health() -> dict:
     ensure_dirs()
+    db_status = check_database()
+    case_history = "hybrid" if db_status.get("enabled") and db_status.get("status") == "ok" else "file-backed"
     return {
         "status": "ok",
         "service": APP_NAME,
         "storage_root": str(STORAGE_ROOT),
         "max_upload_mb": MAX_UPLOAD_MB,
-        "case_history": "file-backed",
+        "case_history": case_history,
         "analytics": "enabled",
+        "database": db_status,
     }
 
 
