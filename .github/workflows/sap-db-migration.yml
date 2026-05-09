@@ -1,0 +1,103 @@
+name: SAP RCA DB Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_runner:
+        description: "Target self-hosted runner"
+        required: true
+        default: "sapdev-pc-runner"
+        type: choice
+        options:
+          - sapdev-pc-runner
+      action:
+        description: "Action to run"
+        required: true
+        default: "migrate-and-status"
+        type: choice
+        options:
+          - migrate-and-status
+          - status-only
+
+permissions:
+  contents: write
+  actions: read
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: sap-db-migration-${{ inputs.target_runner }}
+  cancel-in-progress: false
+
+jobs:
+  sap-db-migration:
+    name: SAP RCA DB ${{ inputs.action }}
+    runs-on: [self-hosted, "${{ inputs.target_runner }}"]
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout SAP repository
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Sync local SAP repo
+        run: |
+          set -euo pipefail
+          cd /home/sadmin/sap
+          git fetch origin
+          git checkout dev
+          git pull origin dev
+
+      - name: Run migration
+        if: ${{ inputs.action == 'migrate-and-status' }}
+        run: |
+          set -euo pipefail
+          cd /home/sadmin/sap
+          chmod +x scripts/run-sap-db-migration.sh
+          scripts/run-sap-db-migration.sh
+
+      - name: Collect status only
+        if: ${{ inputs.action == 'status-only' }}
+        run: |
+          set -euo pipefail
+          cd /home/sadmin/sap
+          chmod +x scripts/run-sap-db-migration.sh
+          APP_DIR=/home/sadmin/sap scripts/run-sap-db-migration.sh
+
+      - name: Copy runtime status into repository workspace
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          mkdir -p docs/runtime
+          if [ -f /home/sadmin/sap/runtime-status/sap-db-migration-status.md ]; then
+            cp /home/sadmin/sap/runtime-status/sap-db-migration-status.md docs/runtime/sap-db-migration-status.md
+          else
+            {
+              echo "# SAP RCA DB Migration Status"
+              echo ""
+              echo "Last checked: $(date -Is)"
+              echo "Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+              echo ""
+              echo "Status file was not generated on runner."
+            } > docs/runtime/sap-db-migration-status.md
+          fi
+          cat docs/runtime/sap-db-migration-status.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit runtime status
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin dev
+          git add docs/runtime/sap-db-migration-status.md
+          if git diff --cached --quiet; then
+            echo "No SAP DB migration status changes to commit."
+            exit 0
+          fi
+          git commit -m "Update SAP RCA DB migration status [skip ci]"
+          git push origin dev
