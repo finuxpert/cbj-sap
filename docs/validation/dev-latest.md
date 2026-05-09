@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-09T14:45:43+07:00
+Generated: 2026-05-09T14:48:35+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: ae34b7d
-- Commit subject: Add case delete API client
+- Commit: 95c0913
+- Commit subject: Add case delete endpoint
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-jUPksTuI.js                    272.84 kB │ gzip:  84.93 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-DDpWjRwQ.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
-✓ built in 6.71s
+✓ built in 6.62s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Sat, 09 May 2026 07:45:42 GMT
+- Last modified: Sat, 09 May 2026 07:48:35 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Sat, 09 May 2026 07:45:43 GMT
+date: Sat, 09 May 2026 07:48:35 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=yfyqoBbgK6G9M%2FHs4tuR6Mmm3XEftXY8nMN%2B5B4lDRMPkumPRfgg988OROhK1e1VVaZt2MOoFDl0D3nVqjYLaFCj5XLg8QMlAfuOjv4Lvly8Wg0hLSBXW9ExykTLnfHdyJpkLxWzS7DCOL8%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=IiuPsKtFsPwRET3%2BccCDKKTRdviOCYXG5zG338vvZtIZYGRDtbQ6WDfcQkUGdzj53cSTzyS8nLVUjAm7IIKwMzlTme4VWeKyaiplhJpBhifG1rrvd1XwnL6Lu%2B6iPnArr4VnoiT7j26Hg0Y%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Sat, 09 May 2026 07:45:42 GMT
+last-modified: Sat, 09 May 2026 07:48:35 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f8f16141da29f7f-SIN
+cf-ray: 9f8f1a4a1f58d47e-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
