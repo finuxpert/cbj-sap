@@ -283,6 +283,16 @@ def update_case(case_id: str, patch: CaseUpdate) -> dict:
     return {"ok": True, "case": case_data}
 
 
+@app.delete("/cases/{case_id}")
+def delete_case(case_id: str) -> dict:
+    p = case_path(case_id)
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="Case not found")
+    deleted_id = safe_case_id(case_id)
+    p.unlink(missing_ok=True)
+    return {"ok": True, "deleted": deleted_id}
+
+
 @app.post("/cases/{case_id}/parsed-results")
 def add_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict:
     case_data = read_case(case_id)
