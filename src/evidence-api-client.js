@@ -34,6 +34,10 @@ async function patchJson(path, payload = {}) {
   }))
 }
 
+async function deleteJson(path) {
+  return toJson(await fetch(`${API_BASE}${path}`, { method: 'DELETE' }))
+}
+
 export async function evidenceHealth() {
   return toJson(await fetch(`${API_BASE}/health`, { cache: 'no-store' }))
 }
@@ -61,6 +65,11 @@ export async function createCase(payload = {}) {
 export async function updateCase(caseId, payload = {}) {
   if (!caseId) return { ok: false, detail: 'caseId is required' }
   return patchJson(`/cases/${encodeURIComponent(caseId)}`, payload)
+}
+
+export async function deleteCase(caseId) {
+  if (!caseId) return { ok: false, detail: 'caseId is required' }
+  return deleteJson(`/cases/${encodeURIComponent(caseId)}`)
 }
 
 export async function archiveCase(caseId) {
