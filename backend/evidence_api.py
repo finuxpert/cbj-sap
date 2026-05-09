@@ -375,6 +375,73 @@ def add_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict:
     }
 
 
+@app.get("/parsed-results-history")
+def list_parsed_results_history(case_id: str = "", tool: str = "", limit: int = 100) -> dict:
+    """
+    DB-first parsed result history.
+
+    Safe behavior:
+    - Reads PostgreSQL first when runtime DB is enabled.
+    - Falls back to JSON/file-backed case parsed_results if DB read fails or DB is disabled.
+    - Does not remove existing case JSON fallback.
+    """
+    ensure_dirs()
+    limit = max(1, min(limit, 500))
+
+    if _cbj_dbfirst_runtime_enabled():
+        try:
+            rows = _cbj_dbfirst_fetch_parsed_results_history(
+                case_id=case_id,
+                tool=tool,
+                limit=limit,
+            )
+            return {
+                "ok": True,
+                "read_source": "postgres",
+                "mode": "hybrid",
+                "count": len(rows),
+                "parsed_results": rows,
+                "fallback_reason": None,
+            }
+        except Exception as exc:
+            fallback_reason = str(exc)
+    else:
+        fallback_reason = "database_disabled"
+
+    rows = []
+    for case_file in sorted(CASE_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+        try:
+            case_data = json.loads(case_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        current_case_id = str(case_data.get("id") or case_data.get("case_no") or "")
+        if case_id and current_case_id != str(case_id):
+            continue
+
+        for item in case_data.get("parsed_results", []) or []:
+            if tool and str(item.get("tool", "")).lower() != tool.lower():
+                continue
+            row = dict(item)
+            row.setdefault("case_id", current_case_id)
+            rows.append(row)
+            if len(rows) >= limit:
+                break
+
+        if len(rows) >= limit:
+            break
+
+    return {
+        "ok": True,
+        "read_source": "file",
+        "mode": "hybrid",
+        "count": len(rows),
+        "parsed_results": rows,
+        "fallback_reason": fallback_reason,
+    }
+
+
+
 @app.get("/mobile/cases")
 def list_mobile_cases(limit: int = 50) -> dict:
     return list_cases(limit=limit)
@@ -774,6 +841,60 @@ def _cbj_dbfirst_fetch_case_detail(case_key):
     case_obj.setdefault("evidence", evidence_rows)
     case_obj.setdefault("parsed_results", parsed_rows)
     return case_obj
+
+
+def _cbj_dbfirst_fetch_parsed_results_history(case_id="", tool="", limit=100):
+    import psycopg
+    from psycopg.rows import dict_row
+
+    conn_url = _cbj_dbfirst_psycopg_url()
+    with psycopg.connect(conn_url, row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'parsed_results'
+                ORDER BY ordinal_position
+            """)
+            columns = [r["column_name"] for r in cur.fetchall()]
+
+            if not columns:
+                return []
+
+            where = []
+            params = []
+
+            case_col = _cbj_pick_existing_column(columns, ["case_id", "case_key", "case_ref", "case_uuid"])
+            tool_col = _cbj_pick_existing_column(columns, ["tool", "parser", "tool_name"])
+            order_col = _cbj_pick_existing_column(columns, ["created_at", "updated_at", "timestamp", "id"])
+
+            if case_id and case_col:
+                where.append(f'"{case_col}"::text = %s')
+                params.append(str(case_id))
+
+            if tool and tool_col:
+                where.append(f'LOWER("{tool_col}"::text) = LOWER(%s)')
+                params.append(str(tool))
+
+            sql = "SELECT * FROM parsed_results"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
+            if order_col:
+                sql += f' ORDER BY "{order_col}" DESC NULLS LAST'
+            sql += " LIMIT %s"
+            params.append(limit)
+
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
+
+    result = []
+    for row in rows:
+        item = _cbj_json_safe(dict(row))
+        item.setdefault("read_source", "postgres")
+        result.append(item)
+    return result
+
 
 
 def _cbj_dbfirst_fetch_evidence_history(limit=300):
