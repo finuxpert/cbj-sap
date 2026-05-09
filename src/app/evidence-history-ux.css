@@ -1091,3 +1091,40 @@
     width: 100%;
   }
 }
+
+
+.parsedResultsHistoryDbPanel {
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.parsedResultsHistoryRows > div {
+  gap: 0.35rem;
+}
+
+.severityPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-style: normal;
+}
+
+.severityPill.success {
+  background: rgba(22, 163, 74, 0.12);
+  color: #166534;
+}
+
+.severityPill.warning {
+  background: rgba(245, 158, 11, 0.14);
+  color: #92400e;
+}
+
+.severityPill.danger {
+  background: rgba(220, 38, 38, 0.12);
+  color: #991b1b;
+}

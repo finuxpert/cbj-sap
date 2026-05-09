@@ -100,3 +100,7 @@ export async function listEvidenceHistory(params = {}) {
 export function evidenceDownloadUrl(id) {
   return `${API_BASE}/evidence/${encodeURIComponent(id)}/download`
 }
+
+export async function listParsedResultsHistory(params = {}) {
+  return toJson(await fetch(`${API_BASE}/parsed-results-history${buildSearch(params)}`, { cache: 'no-store' }))
+}
