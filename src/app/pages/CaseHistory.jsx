@@ -1,5 +1,5 @@
 import React from 'react'
-import { archiveCase, listMobileCases } from '../../evidence-api-client.js'
+import { archiveCase, deleteCase, listMobileCases } from '../../evidence-api-client.js'
 import CaseCard from '../../features/cases/CaseCard.jsx'
 import { exportCaseHistoryListPdf } from '../../features/cases/casePdfExport.js'
 
@@ -19,6 +19,10 @@ function caseTimestamp(item) {
   return Date.parse(item?.updated_at || item?.created_at || '') || 0
 }
 
+function caseIdentity(item) {
+  return item?.id || item?.case_no || ''
+}
+
 function sortNewestFirst(items = []) {
   return [...items].sort((left, right) => caseTimestamp(right) - caseTimestamp(left))
 }
@@ -35,6 +39,8 @@ export default function CaseHistory() {
   const [loading, setLoading] = React.useState(true)
   const [exporting, setExporting] = React.useState(false)
   const [archivingId, setArchivingId] = React.useState('')
+  const [selectedIds, setSelectedIds] = React.useState(() => new Set())
+  const [bulkMode, setBulkMode] = React.useState('')
   const [error, setError] = React.useState('')
 
   const loadCases = React.useCallback(async () => {
@@ -86,6 +92,39 @@ export default function CaseHistory() {
     }))
   }, [cases, query, status, tool])
 
+  React.useEffect(() => {
+    const visibleIds = new Set(filteredCases.map(caseIdentity).filter(Boolean))
+    setSelectedIds((current) => new Set([...current].filter((id) => visibleIds.has(id))))
+  }, [filteredCases])
+
+  const selectedCount = selectedIds.size
+  const visibleIds = React.useMemo(() => filteredCases.map(caseIdentity).filter(Boolean), [filteredCases])
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id))
+
+  const setCaseSelected = React.useCallback((caseId, checked) => {
+    if (!caseId) return
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (checked) next.add(caseId)
+      else next.delete(caseId)
+      return next
+    })
+  }, [])
+
+  const toggleSelectVisible = React.useCallback(() => {
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (allVisibleSelected) {
+        visibleIds.forEach((id) => next.delete(id))
+      } else {
+        visibleIds.forEach((id) => next.add(id))
+      }
+      return next
+    })
+  }, [allVisibleSelected, visibleIds])
+
+  const clearSelection = React.useCallback(() => setSelectedIds(new Set()), [])
+
   const archiveSelectedCase = React.useCallback(async (item) => {
     const nextId = item?.id || item?.case_no || ''
     if (!nextId) return
@@ -104,6 +143,47 @@ export default function CaseHistory() {
       setArchivingId('')
     }
   }, [loadCases])
+
+  const bulkArchive = React.useCallback(async () => {
+    const ids = [...selectedIds]
+    if (!ids.length) return
+    if (!window.confirm(`Archive ${ids.length} selected case(s)?`)) return
+    setBulkMode('archive')
+    setError('')
+    try {
+      for (const id of ids) {
+        const payload = await archiveCase(id)
+        if (payload?.ok === false) throw new Error(payload?.detail || payload?.raw || `Failed to archive ${id}`)
+      }
+      clearSelection()
+      await loadCases()
+    } catch (err) {
+      setError(err?.message || 'Failed to bulk archive cases')
+    } finally {
+      setBulkMode('')
+    }
+  }, [clearSelection, loadCases, selectedIds])
+
+  const bulkDelete = React.useCallback(async () => {
+    const ids = [...selectedIds]
+    if (!ids.length) return
+    const typed = window.prompt(`DELETE ${ids.length} selected case(s)? This permanently removes case JSON only. Type DELETE to continue.`)
+    if (typed !== 'DELETE') return
+    setBulkMode('delete')
+    setError('')
+    try {
+      for (const id of ids) {
+        const payload = await deleteCase(id)
+        if (payload?.ok === false) throw new Error(payload?.detail || payload?.raw || `Failed to delete ${id}`)
+      }
+      clearSelection()
+      await loadCases()
+    } catch (err) {
+      setError(err?.message || 'Failed to bulk delete cases')
+    } finally {
+      setBulkMode('')
+    }
+  }, [clearSelection, loadCases, selectedIds])
 
   const exportPdf = React.useCallback(async () => {
     if (exporting) return
@@ -185,6 +265,27 @@ export default function CaseHistory() {
         </div>
       </div>
 
+      <div className="caseMaintenanceBar card">
+        <div>
+          <strong>Case Maintenance</strong>
+          <span>{selectedCount} selected from {filteredCases.length} visible case(s)</span>
+        </div>
+        <div className="caseMaintenanceActions">
+          <button type="button" className="btn" onClick={toggleSelectVisible} disabled={!visibleIds.length || Boolean(bulkMode)}>
+            {allVisibleSelected ? 'Unselect visible' : 'Select visible'}
+          </button>
+          <button type="button" className="btn" onClick={clearSelection} disabled={!selectedCount || Boolean(bulkMode)}>
+            Clear
+          </button>
+          <button type="button" className="btn" onClick={bulkArchive} disabled={!selectedCount || Boolean(bulkMode)}>
+            {bulkMode === 'archive' ? 'Archiving…' : 'Archive selected'}
+          </button>
+          <button type="button" className="btn danger" onClick={bulkDelete} disabled={!selectedCount || Boolean(bulkMode)}>
+            {bulkMode === 'delete' ? 'Deleting…' : 'Delete selected'}
+          </button>
+        </div>
+      </div>
+
       {error && <div className="caseHistoryNotice isError">{error}</div>}
 
       {!error && loading && (
@@ -208,6 +309,8 @@ export default function CaseHistory() {
                 caseItem={item}
                 onArchive={archiveSelectedCase}
                 archiving={archivingId === (item.id || item.case_no)}
+                selected={selectedIds.has(caseIdentity(item))}
+                onSelect={setCaseSelected}
               />
             )
           })}
