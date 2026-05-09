@@ -19,7 +19,7 @@ function severityClass(value) {
   return 'isInfo'
 }
 
-export default function CaseCard({ caseItem, onArchive, archiving = false }) {
+export default function CaseCard({ caseItem, onArchive, archiving = false, selected = false, onSelect }) {
   const item = caseItem || {}
   const severity = item.severity || 'INFO'
   const status = item.status || 'OPEN'
@@ -32,7 +32,19 @@ export default function CaseCard({ caseItem, onArchive, archiving = false }) {
   const detailHref = `#/cases/${encodeURIComponent(caseId)}`
 
   return (
-    <article className="caseHistoryCard">
+    <article className={`caseHistoryCard ${selected ? 'isSelected' : ''}`}>
+      <div className="caseHistorySelectRow">
+        <label className="caseHistorySelectBox">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(event) => onSelect?.(caseId, event.target.checked)}
+            aria-label={`Select ${title}`}
+          />
+          <span>Select</span>
+        </label>
+      </div>
+
       <div className="caseHistoryCardTop">
         <div className="caseHistoryMetaStack">
           <span className="caseHistoryCaseNo">{item.case_no || item.id || 'CASE-DRAFT'}</span>
