@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-09T23:33:42+07:00
+Generated: 2026-05-09T23:51:57+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: f449b92
-- Commit subject: Add SAP RCA DB hybrid continuation notes
+- Commit: 84a50b9
+- Commit subject: Add JSON to PostgreSQL migration script
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-DqFFfhCt.js                    275.31 kB │ gzip:  85.70 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-BLMNNGmb.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
-✓ built in 7.85s
+✓ built in 6.99s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Sat, 09 May 2026 16:33:41 GMT
+- Last modified: Sat, 09 May 2026 16:51:57 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Sat, 09 May 2026 16:33:42 GMT
+date: Sat, 09 May 2026 16:51:57 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=fULFTOFEI9k3KCvD%2BsuPp9Wo5Vyeu2Ph52%2B77bYJZvARwnJi5mkm0x%2B1LBuz%2F%2FLhae43qAHeg1keBA%2BJpcZvkeczeUPbgFfNyk7HDv8zMb1KQy90gaLSmt8uiCuR8d5PI3IHf0mu96K4hHQ%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rGKTrM2rl26ojVxD3GFd5yf73M2T5ttIwhLKYWk8FKMro1VQBHS%2B%2BMTF1YBurx%2ByJ60BeilHej2zSg7W7aGatBKJeZ8J0na4TeeG2hQrIN214Mnb5CNa7pGFdyVFWOnj%2BOTod2HKk5ZNOO0%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Sat, 09 May 2026 16:33:41 GMT
+last-modified: Sat, 09 May 2026 16:51:57 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f921b7e0dd9290d-SIN
+cf-ray: 9f92363ba9e79ba8-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
@@ -55,5 +55,5 @@ alt-svc: h3=":443"; ma=86400
 ## API Health
 
 ```json
-{"status":"ok","service":"SAP Intelligent RCA Evidence API","storage_root":"/var/www/svr01-dev/sap-data","max_upload_mb":500,"case_history":"file-backed","analytics":"enabled","database":{"enabled":false,"configured":false,"mode":"file","status":"not_configured"}}
+{"status":"ok","service":"SAP Intelligent RCA Evidence API","storage_root":"/var/www/svr01-dev/sap-data","max_upload_mb":500,"case_history":"hybrid","analytics":"enabled","database":{"enabled":true,"configured":true,"mode":"hybrid","status":"ok"}}
 ```
