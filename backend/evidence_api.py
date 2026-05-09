@@ -28,6 +28,29 @@ except Exception:
         def check_database() -> dict:
             return {"enabled": False, "configured": False, "status": "unavailable"}
 
+try:
+    from .db.repositories import (
+        insert_parsed_result_best_effort,
+        upsert_case_best_effort,
+        upsert_evidence_best_effort,
+    )
+except Exception:
+    try:
+        from db.repositories import (
+            insert_parsed_result_best_effort,
+            upsert_case_best_effort,
+            upsert_evidence_best_effort,
+        )
+    except Exception:
+        def upsert_case_best_effort(case_data: dict) -> dict:
+            return {"enabled": False, "written": False, "status": "unavailable"}
+
+        def upsert_evidence_best_effort(meta: dict) -> dict:
+            return {"enabled": False, "written": False, "status": "unavailable"}
+
+        def insert_parsed_result_best_effort(case_id: str, result: dict) -> dict:
+            return {"enabled": False, "written": False, "status": "unavailable"}
+
 APP_NAME = "SAP Intelligent RCA Evidence API"
 STORAGE_ROOT = Path(os.getenv("SAP_EVIDENCE_ROOT", "/var/www/svr01-dev/sap-data"))
 EVIDENCE_DIR = STORAGE_ROOT / "evidence"
@@ -248,7 +271,8 @@ def create_case(payload: CaseCreate) -> dict:
         "timeline": [],
     }
     write_case(data)
-    return {"ok": True, "case": data}
+    db_write = upsert_case_best_effort(data)
+    return {"ok": True, "case": data, "db_write": db_write}
 
 
 @app.get("/cases")
@@ -292,7 +316,8 @@ def update_case(case_id: str, patch: CaseUpdate) -> dict:
             case_data[key] = value.upper() if key in {"severity", "status"} else value
     case_data["updated_at"] = now_iso()
     write_case(case_data)
-    return {"ok": True, "case": case_data}
+    db_write = upsert_case_best_effort(case_data)
+    return {"ok": True, "case": case_data, "db_write": db_write}
 
 
 @app.delete("/cases/{case_id}")
@@ -339,7 +364,15 @@ def add_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict:
     })
     case_data["updated_at"] = now_iso()
     write_case(case_data)
-    return {"ok": True, "result": result, "case": summarize_case(case_data), "analytics": build_case_analytics(case_data)}
+    db_case_write = upsert_case_best_effort(case_data)
+    db_result_write = insert_parsed_result_best_effort(case_data.get("id") or case_id, result)
+    return {
+        "ok": True,
+        "result": result,
+        "case": summarize_case(case_data),
+        "analytics": build_case_analytics(case_data),
+        "db_write": {"case": db_case_write, "parsed_result": db_result_write},
+    }
 
 
 @app.get("/mobile/cases")
@@ -409,13 +442,16 @@ async def upload_evidence(
         "case_id": case_id or "",
         "original_filename": original,
         "stored_filename": stored_name,
+        "stored_path": str(target),
         "size_bytes": size,
         "ext": ext,
         "download_url": f"/sap-api/evidence/{evidence_id}/download",
     }
     write_meta(evidence_id, meta)
+    db_evidence_write = upsert_evidence_best_effort(meta)
 
     linked_case = None
+    db_case_write = None
     if case_id:
         try:
             case_data = read_case(case_id)
@@ -431,11 +467,17 @@ async def upload_evidence(
             case_data.setdefault("evidence", []).append(evidence_item)
             case_data["updated_at"] = now_iso()
             write_case(case_data)
+            db_case_write = upsert_case_best_effort(case_data)
             linked_case = summarize_case(case_data)
         except HTTPException:
             linked_case = {"warning": "case_id was provided but case was not found"}
 
-    return {"ok": True, "evidence": meta, "case": linked_case}
+    return {
+        "ok": True,
+        "evidence": meta,
+        "case": linked_case,
+        "db_write": {"evidence": db_evidence_write, "case": db_case_write},
+    }
 
 
 @app.get("/evidence")
@@ -477,7 +519,8 @@ def update_evidence(evidence_id: str, patch: EvidenceUpdate) -> dict:
             meta[k] = v
     meta["updated_at"] = now_iso()
     write_meta(evidence_id, meta)
-    return {"ok": True, "evidence": meta}
+    db_write = upsert_evidence_best_effort(meta)
+    return {"ok": True, "evidence": meta, "db_write": db_write}
 
 
 @app.get("/evidence/{evidence_id}/download")
