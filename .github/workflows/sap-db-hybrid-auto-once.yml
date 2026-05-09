@@ -1,11 +1,12 @@
 name: SAP RCA DB Hybrid Auto Once
 
+# Temporary DEV-only validation workflow for PostgreSQL hybrid migration/smoke.
+# Safe to delete after docs/runtime/sap-db-hybrid-auto-once-status.md is green.
+
 on:
   push:
     branches:
       - dev
-    paths:
-      - ".github/workflows/sap-db-hybrid-auto-once.yml"
   workflow_dispatch:
 
 permissions:
