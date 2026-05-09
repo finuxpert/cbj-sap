@@ -53,12 +53,40 @@ function severityClass(value) {
   return 'success'
 }
 
+function severityValue(value) {
+  return String(value || 'INFO').trim().toUpperCase()
+}
+
+function toolValue(value) {
+  return String(value || 'Unknown tool').trim() || 'Unknown tool'
+}
+
+function uniqueValues(rows, getter) {
+  return [...new Set(rows.map(getter).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+}
+
+function searchableText(item) {
+  return [
+    item?.case_id,
+    item?.tool,
+    item?.severity,
+    item?.summary,
+    item?.top_anomaly,
+    item?.top_suspect,
+    item?.verdict,
+    item?.id,
+  ].filter(Boolean).join(' ').toLowerCase()
+}
+
 export default function ParsedResultsHistoryMiniPanel() {
   const [state, setState] = useState({
     loading: true,
     error: '',
     payload: null,
   })
+  const [toolFilter, setToolFilter] = useState('all')
+  const [severityFilter, setSeverityFilter] = useState('all')
+  const [caseSearch, setCaseSearch] = useState('')
 
   async function loadParsedResultsHistory() {
     setState((prev) => ({ ...prev, loading: true, error: '' }))
@@ -83,9 +111,29 @@ export default function ParsedResultsHistoryMiniPanel() {
     loadParsedResultsHistory()
   }, [])
 
-  const rows = useMemo(() => {
-    return state.payload?.parsedResults?.slice(0, 8) || []
-  }, [state.payload])
+  const allRows = useMemo(() => state.payload?.parsedResults || [], [state.payload])
+  const toolOptions = useMemo(() => uniqueValues(allRows, (item) => toolValue(item?.tool)), [allRows])
+  const severityOptions = useMemo(() => uniqueValues(allRows, (item) => severityValue(item?.severity)), [allRows])
+
+  const filteredRows = useMemo(() => {
+    const expectedTool = toolFilter === 'all' ? '' : toolFilter
+    const expectedSeverity = severityFilter === 'all' ? '' : severityFilter
+    const query = caseSearch.trim().toLowerCase()
+
+    return allRows.filter((item) => {
+      if (expectedTool && toolValue(item?.tool) !== expectedTool) return false
+      if (expectedSeverity && severityValue(item?.severity) !== expectedSeverity) return false
+      return !query || searchableText(item).includes(query)
+    })
+  }, [allRows, caseSearch, severityFilter, toolFilter])
+
+  const rows = useMemo(() => filteredRows.slice(0, 8), [filteredRows])
+
+  function resetFilters() {
+    setToolFilter('all')
+    setSeverityFilter('all')
+    setCaseSearch('')
+  }
 
   return (
     <section className="resultPanel evidenceHistoryDbPanel parsedResultsHistoryDbPanel">
@@ -117,17 +165,46 @@ export default function ParsedResultsHistoryMiniPanel() {
           <span>Source: <b>{state.payload?.readSource || '-'}</b></span>
           <span>Mode: <b>{state.payload?.mode || '-'}</b></span>
           <span>Total: <b>{state.payload?.count ?? '-'}</b></span>
+          <span>Visible: <b>{filteredRows.length}</b></span>
           {state.payload?.fallbackReason && (
             <span>Fallback: <b>{state.payload.fallbackReason}</b></span>
           )}
         </div>
       )}
 
+      <div className="parsedResultsHistoryFilters">
+        <label>
+          <span>Tool</span>
+          <select value={toolFilter} onChange={(event) => setToolFilter(event.target.value)}>
+            <option value="all">All tools</option>
+            {toolOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Severity</span>
+          <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
+            <option value="all">All severity</option>
+            {severityOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label>
+          <span>Case / keyword</span>
+          <input
+            value={caseSearch}
+            onChange={(event) => setCaseSearch(event.target.value)}
+            placeholder="case_id, summary, suspect…"
+          />
+        </label>
+        <button type="button" className="investSecondary" onClick={resetFilters}>
+          Reset
+        </button>
+      </div>
+
       <div className="miniTable evidenceHistoryRows parsedResultsHistoryRows">
         {rows.length === 0 && (
           <div>
             <b>{state.loading ? 'Loading parsed results…' : 'No parsed results found'}</b>
-            <span>Run and save RCA parser results to populate this panel.</span>
+            <span>{allRows.length ? 'Adjust filters to show more rows.' : 'Run and save RCA parser results to populate this panel.'}</span>
           </div>
         )}
 
@@ -141,7 +218,7 @@ export default function ParsedResultsHistoryMiniPanel() {
             </span>
             <span>
               <em className={`severityPill ${severityClass(item.severity)}`}>
-                {String(item.severity || 'INFO').toUpperCase()}
+                {severityValue(item.severity)}
               </em>
               {' '}
               Confidence: {Number(item.confidence ?? 0).toFixed(2)}
