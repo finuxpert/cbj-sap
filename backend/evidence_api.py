@@ -562,3 +562,384 @@ def cleanup(days: int = 90) -> dict:
             except Exception:
                 pass
     return {"ok": True, "deleted": deleted, "retention_days": days}
+
+
+# === CBJ SAP RCA DB-FIRST READ PATCH V1 ===
+# Incremental DB-first read layer.
+# Purpose:
+# - In DB_MODE=hybrid/postgres, GET case list/history reads PostgreSQL first.
+# - Existing JSON/file-backed endpoints remain as fallback via call_next().
+# - No credential is hardcoded here; runtime DATABASE_URL stays in systemd env.
+
+try:
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+    from datetime import datetime, date
+    import os
+    import json
+    import uuid
+except Exception:
+    pass
+
+
+def _cbj_dbfirst_runtime_enabled():
+    # Be flexible because existing runtime/health may derive DB mode from app settings,
+    # while systemd environment can use DB_MODE, DATABASE_MODE, DB_ENABLED, or only DATABASE_URL.
+    mode = str(os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "hybrid").strip().lower()
+    enabled = str(os.getenv("DB_ENABLED") or os.getenv("DATABASE_ENABLED") or "true").strip().lower()
+    db_url = str(os.getenv("DATABASE_URL", "")).strip()
+
+    if enabled in ("0", "false", "no", "off"):
+        return False
+
+    if db_url and mode in ("hybrid", "postgres", "postgresql", "db", "database"):
+        return True
+
+    # Last safe fallback: DATABASE_URL exists, so DB runtime is configured.
+    # Existing file-backed fallback remains available if DB read fails.
+    return bool(db_url)
+
+
+def _cbj_dbfirst_psycopg_url():
+    url = str(os.getenv("DATABASE_URL", "")).strip()
+
+    # Runtime DATABASE_URL uses SQLAlchemy driver style:
+    # postgresql+psycopg://...
+    #
+    # Do not hand-split the URL because credentials may contain special chars.
+    # Use SQLAlchemy's URL parser, then render a psycopg-compatible URL.
+    try:
+        from sqlalchemy.engine import make_url
+        parsed = make_url(url)
+        if parsed.drivername.startswith("postgresql"):
+            parsed = parsed.set(drivername="postgresql")
+        elif parsed.drivername.startswith("postgres"):
+            parsed = parsed.set(drivername="postgres")
+        return parsed.render_as_string(hide_password=False)
+    except Exception:
+        # Safe fallback for simple URLs only.
+        if url.startswith("postgresql+psycopg://"):
+            return "postgresql://" + url.split("postgresql+psycopg://", 1)[1]
+        if url.startswith("postgres+psycopg://"):
+            return "postgres://" + url.split("postgres+psycopg://", 1)[1]
+        return url
+
+
+def _cbj_json_safe(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, bytes):
+        try:
+            return value.decode("utf-8", "replace")
+        except Exception:
+            return str(value)
+    if isinstance(value, dict):
+        return {str(k): _cbj_json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_cbj_json_safe(v) for v in value]
+    return value
+
+
+def _cbj_pick_existing_column(columns, candidates):
+    for name in candidates:
+        if name in columns:
+            return name
+    return None
+
+
+def _cbj_dbfirst_fetch_cases(limit=300):
+    import psycopg
+    from psycopg.rows import dict_row
+
+    conn_url = _cbj_dbfirst_psycopg_url()
+    with psycopg.connect(conn_url, row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'cases'
+                ORDER BY ordinal_position
+            """)
+            columns = [r["column_name"] for r in cur.fetchall()]
+
+            if not columns:
+                return []
+
+            order_col = _cbj_pick_existing_column(
+                columns,
+                ["updated_at", "created_at", "timestamp", "case_date", "id"]
+            )
+
+            sql = "SELECT * FROM cases"
+            if order_col:
+                sql += f' ORDER BY "{order_col}" DESC NULLS LAST'
+            sql += " LIMIT %s"
+
+            cur.execute(sql, (limit,))
+            rows = cur.fetchall()
+
+    result = []
+    for row in rows:
+        item = _cbj_json_safe(dict(row))
+        item.setdefault("read_source", "postgres")
+        result.append(item)
+    return result
+
+
+def _cbj_dbfirst_fetch_case_detail(case_key):
+    import psycopg
+    from psycopg.rows import dict_row
+
+    conn_url = _cbj_dbfirst_psycopg_url()
+    with psycopg.connect(conn_url, row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'cases'
+                ORDER BY ordinal_position
+            """)
+            case_columns = [r["column_name"] for r in cur.fetchall()]
+            if not case_columns:
+                return None
+
+            id_col = _cbj_pick_existing_column(
+                case_columns,
+                ["id", "case_id", "case_key", "slug", "name", "title"]
+            )
+            if not id_col:
+                return None
+
+            cur.execute(f'SELECT * FROM cases WHERE "{id_col}"::text = %s LIMIT 1', (str(case_key),))
+            case_row = cur.fetchone()
+            if not case_row:
+                return None
+
+            case_obj = _cbj_json_safe(dict(case_row))
+            case_obj.setdefault("read_source", "postgres")
+
+            # Attach related evidence when possible.
+            evidence_rows = []
+            try:
+                cur.execute("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'evidence'
+                    ORDER BY ordinal_position
+                """)
+                evidence_columns = [r["column_name"] for r in cur.fetchall()]
+                evidence_case_col = _cbj_pick_existing_column(
+                    evidence_columns,
+                    ["case_id", "case_key", "case_ref", "case_uuid"]
+                )
+                if evidence_case_col:
+                    cur.execute(
+                        f'SELECT * FROM evidence WHERE "{evidence_case_col}"::text = %s ORDER BY 1 DESC LIMIT 500',
+                        (str(case_key),),
+                    )
+                    evidence_rows = [_cbj_json_safe(dict(r)) for r in cur.fetchall()]
+            except Exception as exc:
+                case_obj["evidence_read_warning"] = str(exc)
+
+            # Attach parsed results when possible.
+            parsed_rows = []
+            try:
+                cur.execute("""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'parsed_results'
+                    ORDER BY ordinal_position
+                """)
+                parsed_columns = [r["column_name"] for r in cur.fetchall()]
+                parsed_case_col = _cbj_pick_existing_column(
+                    parsed_columns,
+                    ["case_id", "case_key", "case_ref", "case_uuid"]
+                )
+                if parsed_case_col:
+                    cur.execute(
+                        f'SELECT * FROM parsed_results WHERE "{parsed_case_col}"::text = %s ORDER BY 1 DESC LIMIT 200',
+                        (str(case_key),),
+                    )
+                    parsed_rows = [_cbj_json_safe(dict(r)) for r in cur.fetchall()]
+            except Exception as exc:
+                case_obj["parsed_results_read_warning"] = str(exc)
+
+    # Keep compatible but additive.
+    case_obj.setdefault("evidence", evidence_rows)
+    case_obj.setdefault("parsed_results", parsed_rows)
+    return case_obj
+
+
+def _cbj_dbfirst_fetch_evidence_history(limit=300):
+    import psycopg
+    from psycopg.rows import dict_row
+
+    conn_url = _cbj_dbfirst_psycopg_url()
+    with psycopg.connect(conn_url, row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'evidence'
+                ORDER BY ordinal_position
+            """)
+            columns = [r["column_name"] for r in cur.fetchall()]
+
+            if not columns:
+                return []
+
+            order_col = _cbj_pick_existing_column(
+                columns,
+                ["updated_at", "created_at", "timestamp", "id"]
+            )
+
+            sql = "SELECT * FROM evidence"
+            if order_col:
+                sql += f' ORDER BY "{order_col}" DESC NULLS LAST'
+            sql += " LIMIT %s"
+
+            cur.execute(sql, (limit,))
+            rows = cur.fetchall()
+
+    result = []
+    for row in rows:
+        item = _cbj_json_safe(dict(row))
+        item.setdefault("read_source", "postgres")
+        result.append(item)
+    return result
+
+
+@app.middleware("http")
+async def _cbj_sap_rca_dbfirst_read_middleware(request: Request, call_next):
+    path = request.url.path.rstrip("/") or "/"
+    method = request.method.upper()
+
+    if method != "GET" or not _cbj_dbfirst_runtime_enabled():
+        return await call_next(request)
+
+    # Nginx normally strips /sap-api, but this supports both internal/public path forms.
+    normalized = path
+    if normalized.startswith("/sap-api/"):
+        normalized = normalized[len("/sap-api"):]
+    normalized = normalized.rstrip("/") or "/"
+
+    # DB-first list/history endpoints.
+    case_list_paths = {
+        "/cases",
+        "/case-history",
+        "/history/cases",
+        "/cases/history",
+    }
+
+    evidence_history_paths = {
+        "/evidence-history",
+        "/evidence/history",
+        "/history/evidence",
+    }
+
+    try:
+        if normalized in case_list_paths:
+            rows = _cbj_dbfirst_fetch_cases()
+            if rows:
+                return JSONResponse({
+                    "ok": True,
+                    "read_source": "postgres",
+                    "mode": os.getenv("DB_MODE", "hybrid"),
+                    "count": len(rows),
+                    "cases": rows,
+                })
+
+        if normalized in evidence_history_paths:
+            rows = _cbj_dbfirst_fetch_evidence_history()
+            if rows:
+                return JSONResponse({
+                    "ok": True,
+                    "read_source": "postgres",
+                    "mode": os.getenv("DB_MODE", "hybrid"),
+                    "count": len(rows),
+                    "evidence": rows,
+                })
+
+        # DB-first single case detail:
+        # /cases/<id>
+        if normalized.startswith("/cases/"):
+            case_key = normalized.split("/cases/", 1)[1].strip("/")
+            if case_key and "/" not in case_key:
+                item = _cbj_dbfirst_fetch_case_detail(case_key)
+                if item:
+                    return JSONResponse({
+                        "ok": True,
+                        "read_source": "postgres",
+                        "mode": os.getenv("DB_MODE", "hybrid"),
+                        "case": item,
+                    })
+
+    except Exception as exc:
+        # Existing JSON/file-backed route becomes fallback.
+        request.state.dbfirst_fallback_reason = str(exc)
+        return await call_next(request)
+
+    # If DB empty/no match, keep existing JSON/file-backed behavior.
+    return await call_next(request)
+# === END CBJ SAP RCA DB-FIRST READ PATCH V1 ===
+
+
+# === CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
+# Explicit additive routes for endpoints that may not exist in legacy file-backed API.
+# Existing fallback remains untouched.
+
+@app.get("/evidence-history")
+async def _cbj_dbfirst_evidence_history_route():
+    if not _cbj_dbfirst_runtime_enabled():
+        return JSONResponse(
+            {
+                "ok": False,
+                "read_source": "file_fallback",
+                "mode": os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "unknown",
+                "count": 0,
+                "evidence": [],
+                "warning": "database runtime not enabled/configured",
+            },
+            status_code=200,
+        )
+
+    try:
+        rows = _cbj_dbfirst_fetch_evidence_history()
+        return JSONResponse({
+            "ok": True,
+            "read_source": "postgres",
+            "mode": os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "hybrid",
+            "count": len(rows),
+            "evidence": rows,
+        })
+    except Exception as exc:
+        return JSONResponse(
+            {
+                "ok": False,
+                "read_source": "file_fallback",
+                "mode": os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "hybrid",
+                "count": 0,
+                "evidence": [],
+                "fallback_reason": str(exc),
+            },
+            status_code=200,
+        )
+
+
+@app.get("/history/evidence")
+async def _cbj_dbfirst_history_evidence_route():
+    return await _cbj_dbfirst_evidence_history_route()
+
+
+@app.get("/evidence/history")
+async def _cbj_dbfirst_evidence_slash_history_route():
+    return await _cbj_dbfirst_evidence_history_route()
+# === END CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
+
