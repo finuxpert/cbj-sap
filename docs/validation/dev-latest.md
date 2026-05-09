@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-09T23:20:13+07:00
+Generated: 2026-05-09T23:29:58+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: f215fa6
-- Commit subject: Update SAP RCA DB manual check status
+- Commit: 3d5a9b1
+- Commit subject: Add SAP RCA DB green validation status
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-DqFFfhCt.js                    275.31 kB │ gzip:  85.70 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-BLMNNGmb.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
-✓ built in 8.68s
+✓ built in 6.84s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Sat, 09 May 2026 16:20:13 GMT
+- Last modified: Sat, 09 May 2026 16:29:58 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Sat, 09 May 2026 16:20:13 GMT
+date: Sat, 09 May 2026 16:29:58 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1W0WwNZvjbHnbyAoGoSm7moiUs1Z4cZIsuZnQj6Z6vh1y5Otj2ZXSRFhIkY8vTlNnBOSkLdCXvRBKzNRyxmLz1tYz4isQ1tMhFJrng0LgqTsb0jlQ8muWn8WCG6nLn2OjP4Z6EwUGKDAIm0%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gNGScazeofTdWDQBVNhYViFcoSnuGycIp45pC3Kqp9dKRmfDzQLmDfCDXHABl16usa1HS5XmfN%2FeTQ66EUgaoujJCvn8iPekRbkYNLDXSOQld3Jzn6ib1aVlVg9oj%2BRiHH2xFe2c1ujqy1w%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Sat, 09 May 2026 16:20:13 GMT
+last-modified: Sat, 09 May 2026 16:29:58 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f9207bddd118de2-SIN
+cf-ray: 9f9216099f888932-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
