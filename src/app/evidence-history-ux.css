@@ -246,12 +246,51 @@
   padding: 14px !important;
 }
 
-.caseHistorySummaryBar {
+.caseHistorySummaryBar,
+.caseMaintenanceBar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 14px;
   padding: 14px !important;
+}
+
+.caseHistorySummaryBar {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.caseMaintenanceBar {
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: center;
+  border-color: rgba(45, 212, 191, 0.18) !important;
+  background: rgba(45, 212, 191, 0.055) !important;
+}
+
+.caseMaintenanceBar > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.caseMaintenanceBar strong {
+  color: rgba(249, 251, 247, 0.96);
+  font-size: 15px;
+}
+
+.caseMaintenanceBar span {
+  color: rgba(220, 238, 238, 0.62);
+  font-size: 12px;
+}
+
+.caseMaintenanceActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.caseMaintenanceActions .btn.danger {
+  border-color: rgba(248, 113, 113, 0.42);
+  color: #fecdd3;
+  background: rgba(248, 113, 113, 0.12);
 }
 
 .caseHistorySummaryBar div {
@@ -322,6 +361,33 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.056), rgba(255, 255, 255, 0.02)),
     rgba(10, 19, 23, 0.86);
   box-shadow: 0 20px 46px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.caseHistoryCard.isSelected {
+  border-color: rgba(45, 212, 191, 0.55);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.10), 0 20px 46px rgba(0, 0, 0, 0.24);
+}
+
+.caseHistorySelectRow {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 24px;
+}
+
+.caseHistorySelectBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(220, 238, 238, 0.68);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.caseHistorySelectBox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2dd4bf;
 }
 
 .caseHistoryCardTop,
@@ -877,8 +943,13 @@
 @media (max-width: 860px) {
   .caseDetailStats,
   .caseDetailMainGrid,
-  .caseDetailSections {
+  .caseDetailSections,
+  .caseMaintenanceBar {
     grid-template-columns: 1fr;
+  }
+
+  .caseMaintenanceActions {
+    justify-content: stretch;
   }
 }
 
@@ -936,7 +1007,8 @@
   .caseDetailBackRow .btn,
   .caseHistoryActionBtn,
   .caseDetailActionRow .btn,
-  .caseDetailFormFoot .btn {
+  .caseDetailFormFoot .btn,
+  .caseMaintenanceActions .btn {
     width: 100%;
   }
 
