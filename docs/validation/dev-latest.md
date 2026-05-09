@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-09T23:54:19+07:00
+Generated: 2026-05-10T00:02:17+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: e5eb9d5
-- Commit subject: Document SAP PostgreSQL hybrid GREEN status
+- Commit: 4fecd9c
+- Commit subject: Add PostgreSQL-first reads for SAP RCA hybrid mode
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-DqFFfhCt.js                    275.31 kB │ gzip:  85.70 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-BLMNNGmb.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
-✓ built in 6.84s
+✓ built in 8.49s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Sat, 09 May 2026 16:54:18 GMT
+- Last modified: Sat, 09 May 2026 17:02:16 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Sat, 09 May 2026 16:54:18 GMT
+date: Sat, 09 May 2026 17:02:16 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=U6FL98twg1pAhXgW%2F0p0HqxmM23t3mdltrMvF7r4H%2BkKXlnBKSvw%2BQNw2DgjIssQrOly3tlg2LTxEiYY9BIhafZ3xxLCImAgLL1GyYJqHdocAJqQdas4gdJCWLC2sVfrKYhVXE2CUa30tw8%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=U3RZaXtXObsh%2BazulOLNl8auLD%2BbdKvOSdqfJMiywXPrLmbYZcxNJ5hf6FeaQH5YrbGcxPIy5HHgFGAs9NGixkgEWWcVRrVUlQCNMLIBvVhLOOQo8tX%2Bc3z%2FxTH8el1K%2BOkCb%2BmuWiZiIu4%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Sat, 09 May 2026 16:54:18 GMT
+last-modified: Sat, 09 May 2026 17:02:16 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f9239af5ed05f71-SIN
+cf-ray: 9f9245599f68c826-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
