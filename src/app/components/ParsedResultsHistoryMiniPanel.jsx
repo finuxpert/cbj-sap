@@ -87,6 +87,7 @@ export default function ParsedResultsHistoryMiniPanel() {
   const [toolFilter, setToolFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [caseSearch, setCaseSearch] = useState('')
+  const [copiedCaseId, setCopiedCaseId] = useState('')
 
   async function loadParsedResultsHistory() {
     setState((prev) => ({ ...prev, loading: true, error: '' }))
@@ -133,6 +134,13 @@ export default function ParsedResultsHistoryMiniPanel() {
     setToolFilter('all')
     setSeverityFilter('all')
     setCaseSearch('')
+  }
+
+  async function copyCaseId(caseId) {
+    if (!caseId || !navigator?.clipboard?.writeText) return
+    await navigator.clipboard.writeText(caseId)
+    setCopiedCaseId(caseId)
+    window.setTimeout(() => setCopiedCaseId(''), 1400)
   }
 
   return (
@@ -208,24 +216,37 @@ export default function ParsedResultsHistoryMiniPanel() {
           </div>
         )}
 
-        {rows.map((item) => (
-          <div key={item.id || `${item.case_id}-${item.created_at}-${item.tool}`}>
-            <b>
-              {item.summary || item.top_anomaly || item.verdict || item.id || 'Parsed result'}
-            </b>
-            <span>
-              {(item.case_id || 'No case')} · {(item.tool || 'Unknown tool')} · {fmtDate(item.created_at)}
-            </span>
-            <span>
-              <em className={`severityPill ${severityClass(item.severity)}`}>
-                {severityValue(item.severity)}
-              </em>
-              {' '}
-              Confidence: {Number(item.confidence ?? 0).toFixed(2)}
-              {item.top_suspect ? ` · Suspect: ${item.top_suspect}` : ''}
-            </span>
-          </div>
-        ))}
+        {rows.map((item) => {
+          const caseId = item.case_id || ''
+          return (
+            <div key={item.id || `${item.case_id}-${item.created_at}-${item.tool}`}>
+              <b>
+                {item.summary || item.top_anomaly || item.verdict || item.id || 'Parsed result'}
+              </b>
+              <span>
+                {caseId || 'No case'} · {(item.tool || 'Unknown tool')} · {fmtDate(item.created_at)}
+                {caseId && (
+                  <button
+                    type="button"
+                    className="parsedResultCaseCopy"
+                    onClick={() => copyCaseId(caseId)}
+                    title="Copy case ID"
+                  >
+                    {copiedCaseId === caseId ? 'Copied' : 'Copy case'}
+                  </button>
+                )}
+              </span>
+              <span>
+                <em className={`severityPill ${severityClass(item.severity)}`}>
+                  {severityValue(item.severity)}
+                </em>
+                {' '}
+                Confidence: {Number(item.confidence ?? 0).toFixed(2)}
+                {item.top_suspect ? ` · Suspect: ${item.top_suspect}` : ''}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </section>
   )
