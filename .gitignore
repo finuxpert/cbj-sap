@@ -44,3 +44,5 @@ docs/*_PRIVATE.md
 backend-venv/
 __pycache__/
 *.pyc
+.venv-db/
+runtime-status/

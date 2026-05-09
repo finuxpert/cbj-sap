@@ -3,13 +3,16 @@ set -euo pipefail
 
 APP_DIR="${APP_DIR:-/home/sadmin/sap}"
 POSTGRES_ENV="${POSTGRES_ENV:-/opt/postgres-sap-dev/.env}"
+VENV_DIR="${VENV_DIR:-${APP_DIR}/.venv-db}"
 STATUS_DIR="${APP_DIR}/runtime-status"
 STATUS_FILE="${STATUS_DIR}/sap-db-migration-status.md"
+
 DB_HOST="${DB_HOST:-127.0.0.1}"
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-sap_rca_dev}"
 DB_USER="${DB_USER:-sap_rca_app}"
 DB_MODE="${DB_MODE:-hybrid}"
+POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-cbj-postgres-dev}"
 
 log() {
   printf '\n[sap-db-migration] %s\n' "$*"
@@ -20,27 +23,41 @@ fail() {
   exit 1
 }
 
+require_file() {
+  [ -f "$1" ] || fail "Required file not found: $1"
+}
+
 log "Validating app directory"
 [ -d "$APP_DIR" ] || fail "APP_DIR not found: ${APP_DIR}"
 cd "$APP_DIR"
 
 log "Validating PostgreSQL credential file"
-[ -f "$POSTGRES_ENV" ] || fail "Credential file not found: ${POSTGRES_ENV}"
+require_file "$POSTGRES_ENV"
+
+set -a
 # shellcheck disable=SC1090
 source "$POSTGRES_ENV"
+set +a
 
 : "${SAP_RCA_APP_PASSWORD:?SAP_RCA_APP_PASSWORD missing in ${POSTGRES_ENV}}"
-DATABASE_URL="postgresql://${DB_USER}:${SAP_RCA_APP_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
-export DATABASE_URL DB_MODE
 
-log "Installing backend dependencies"
-python3 -m pip install -r backend/requirements.txt
+log "Preparing project-local Python virtualenv"
+python3 -m venv "$VENV_DIR"
+# shellcheck disable=SC1091
+source "${VENV_DIR}/bin/activate"
+
+python -m pip install --upgrade pip >/dev/null
+python -m pip install -r backend/requirements.txt >/dev/null
+
+export DB_MODE
+export DATABASE_URL="postgresql+psycopg://${DB_USER}:${SAP_RCA_APP_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 
 log "Running Alembic migration"
-python3 -m alembic -c backend/alembic.ini upgrade head
+python -m alembic -c backend/alembic.ini upgrade head
 
-log "Collecting DB status"
+log "Collecting safe DB status"
 mkdir -p "$STATUS_DIR"
+
 {
   echo "# SAP RCA DB Migration Status"
   echo ""
@@ -51,24 +68,25 @@ mkdir -p "$STATUS_DIR"
   echo "DB name: ${DB_NAME}"
   echo "DB user: ${DB_USER}"
   echo "DB mode: ${DB_MODE}"
+  echo "Driver: postgresql+psycopg"
+  echo "Virtualenv: ${VENV_DIR}"
   echo ""
   echo "## Alembic Version"
   echo '```text'
-  docker exec cbj-postgres-dev psql -U cbj_admin -d "${DB_NAME}" -tAc "SELECT version_num FROM alembic_version;" 2>/dev/null || true
+  docker exec "$POSTGRES_CONTAINER" psql -U cbj_admin -d "${DB_NAME}" -tAc "SELECT version_num FROM alembic_version;" 2>/dev/null || true
   echo '```'
   echo ""
   echo "## Tables"
   echo '```text'
-  docker exec cbj-postgres-dev psql -U cbj_admin -d "${DB_NAME}" -c "\\dt" 2>/dev/null || true
+  docker exec "$POSTGRES_CONTAINER" psql -U cbj_admin -d "${DB_NAME}" -tAc "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;" 2>/dev/null || true
   echo '```'
   echo ""
-  echo "## Health Import Check"
-  echo '```text'
-  python3 - <<'PY'
-import os
-os.environ.setdefault('DB_MODE', 'hybrid')
+  echo "## DB Health"
+  echo '```json'
+  python - <<'PY'
+import json
 from backend.db.session import check_database
-print(check_database())
+print(json.dumps(check_database(), indent=2, sort_keys=True))
 PY
   echo '```'
   echo ""
