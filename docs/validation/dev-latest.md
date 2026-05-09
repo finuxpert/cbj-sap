@@ -1,12 +1,12 @@
 # SAP DEV Validation Latest
 
-Generated: 2026-05-09T23:51:57+07:00
+Generated: 2026-05-09T23:54:19+07:00
 
 ## Git
 
 - Branch: dev
-- Commit: 84a50b9
-- Commit subject: Add JSON to PostgreSQL migration script
+- Commit: e5eb9d5
+- Commit subject: Document SAP PostgreSQL hybrid GREEN status
 - Runner host: sadmin-HP-280-G2-MT-Legacy
 
 ## Build
@@ -20,7 +20,7 @@ dist/assets/index-DqFFfhCt.js                    275.31 kB │ gzip:  85.70 kB
 dist/assets/xlsx-DFH0qU2H.js                     332.70 kB │ gzip: 113.73 kB
 dist/assets/jspdf.es.min-BLMNNGmb.js             385.13 kB │ gzip: 125.77 kB
 dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
-✓ built in 6.99s
+✓ built in 6.84s
 ```
 
 ## Deploy
@@ -32,22 +32,22 @@ dist/assets/recharts-DQhBIJL9.js                 415.93 kB │ gzip: 121.64 kB
 
 - URL: https://sapdev.cbj-kontruksi.com/sap/
 - HTTP status: 200
-- Last modified: Sat, 09 May 2026 16:51:57 GMT
+- Last modified: Sat, 09 May 2026 16:54:18 GMT
 
 ```text
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                        Dload  Upload   Total   Spent    Left  Speed
   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
 HTTP/2 200 
-date: Sat, 09 May 2026 16:51:57 GMT
+date: Sat, 09 May 2026 16:54:18 GMT
 content-type: text/html
-report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rGKTrM2rl26ojVxD3GFd5yf73M2T5ttIwhLKYWk8FKMro1VQBHS%2B%2BMTF1YBurx%2ByJ60BeilHej2zSg7W7aGatBKJeZ8J0na4TeeG2hQrIN214Mnb5CNa7pGFdyVFWOnj%2BOTod2HKk5ZNOO0%3D"}]}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=U6FL98twg1pAhXgW%2F0p0HqxmM23t3mdltrMvF7r4H%2BkKXlnBKSvw%2BQNw2DgjIssQrOly3tlg2LTxEiYY9BIhafZ3xxLCImAgLL1GyYJqHdocAJqQdas4gdJCWLC2sVfrKYhVXE2CUa30tw8%3D"}]}
 speculation-rules: "/cdn-cgi/speculation"
-last-modified: Sat, 09 May 2026 16:51:57 GMT
+last-modified: Sat, 09 May 2026 16:54:18 GMT
 server: cloudflare
 cf-cache-status: DYNAMIC
 nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
-cf-ray: 9f92363ba9e79ba8-SIN
+cf-ray: 9f9239af5ed05f71-SIN
 alt-svc: h3=":443"; ma=86400
 
 ```
