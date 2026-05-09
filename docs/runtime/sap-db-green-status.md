@@ -38,4 +38,3 @@ PostgreSQL Hybrid DB validation is GREEN.
 - Use virtualenv on Ubuntu 24.04 because system pip is blocked by PEP 668.
 - Use SQLAlchemy driver URL `postgresql+psycopg://` because repo dependency uses `psycopg[binary]`, not `psycopg2`.
 - Ensure database/schema ownership and privileges before running Alembic.
-
