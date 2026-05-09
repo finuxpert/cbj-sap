@@ -93,6 +93,10 @@ export async function getMobileCase(caseId) {
   return toJson(await fetch(`${API_BASE}/mobile/cases/${encodeURIComponent(caseId)}`, { cache: 'no-store' }))
 }
 
+export async function listEvidenceHistory(params = {}) {
+  return toJson(await fetch(`${API_BASE}/evidence-history${buildSearch(params)}`, { cache: 'no-store' }))
+}
+
 export function evidenceDownloadUrl(id) {
   return `${API_BASE}/evidence/${encodeURIComponent(id)}/download`
 }

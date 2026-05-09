@@ -1035,3 +1035,59 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* DB-backed Evidence History panel */
+.evidenceHistoryDbPanel {
+  margin-top: 1rem;
+}
+
+.panelTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.panelTitleRow p {
+  margin: .25rem 0 0;
+  color: rgba(15, 23, 42, .68);
+  font-size: .92rem;
+}
+
+.evidenceHistoryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: .8rem 0;
+}
+
+.evidenceHistoryMeta span {
+  border: 1px solid rgba(15, 23, 42, .12);
+  border-radius: 999px;
+  padding: .35rem .65rem;
+  background: rgba(255, 255, 255, .72);
+  font-size: .82rem;
+}
+
+.evidenceHistoryRows a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.investStatus.danger {
+  border-color: rgba(220, 38, 38, .22);
+  background: rgba(254, 242, 242, .92);
+  color: #991b1b;
+}
+
+@media (max-width: 720px) {
+  .panelTitleRow {
+    flex-direction: column;
+  }
+
+  .panelTitleRow .investSecondary {
+    width: 100%;
+  }
+}
