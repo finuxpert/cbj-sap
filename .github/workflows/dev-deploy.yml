@@ -1,0 +1,66 @@
+name: DEV Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DEPLOY_DEV to confirm DEV deployment"
+        required: true
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sap-dev-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-dev:
+    name: Deploy SAP RCA Workspace to DEV
+    if: github.event.inputs.confirm == 'DEPLOY_DEV'
+    runs-on:
+      - self-hosted
+      - sapdev-pc-runner
+
+    steps:
+      - name: Show runner context
+        run: |
+          set -euo pipefail
+          hostname
+          whoami
+          pwd
+
+      - name: Validate local project path
+        run: |
+          set -euo pipefail
+          test -d /home/sadmin/sap
+          test -x /home/sadmin/deploy-sap-dev.sh
+
+      - name: Sync DEV branch and validate build
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          git fetch origin dev
+          git checkout dev
+          git reset --hard origin/dev
+          npm ci
+          npm run build
+
+      - name: Deploy DEV
+        run: |
+          set -euo pipefail
+          /home/sadmin/deploy-sap-dev.sh
+
+      - name: Validate public API
+        run: |
+          set -euo pipefail
+          curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/health | jq '{status:.status, case_history:.case_history, database:.database}'
+          curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/cases | jq '{ok:.ok, read_source:.read_source, mode:.mode, count:.count}'
+          curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/evidence-history | jq '{ok:.ok, read_source:.read_source, mode:.mode, count:.count, fallback_reason:(.fallback_reason // null)}'
+          curl -fsS https://sapdev.cbj-kontruksi.com/sap-api/parsed-results-history | jq '{ok:.ok, read_source:.read_source, mode:.mode, count:.count, fallback_reason:(.fallback_reason // null)}'
+
+      - name: Show recent deploy log
+        if: always()
+        run: |
+          tail -n 120 /home/sadmin/deploy-sap-dev.log || true
