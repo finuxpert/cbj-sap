@@ -240,3 +240,31 @@ Recommended next development:
 4. Add a safe case drill-down action from parsed result rows.
 5. Add small test/validation docs for hybrid DB endpoints.
 6. Keep all future changes incremental.
+
+## DEV Deploy Workflow Validation - GREEN
+
+Latest validated DEV/sapdev manual deploy uses the registered GitHub Actions workflow:
+
+- Workflow name: Deploy SAP RCA Workspace to sapdev
+- Workflow file: `.github/workflows/deploy-sapdev.yml`
+- Workflow ID: `273264105`
+- Trigger: `workflow_dispatch`
+- Branch: `dev`
+- Runner: `sapdev-pc-runner`
+
+Command used:
+
+\```bash
+gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
+\```
+
+Latest validation after deploy:
+
+- `/sap-api/health`: status `ok`, case_history `hybrid`, database status `ok`
+- `/sap-api/cases`: read_source `postgres`, mode `hybrid`, count `203`
+- `/sap-api/evidence-history`: read_source `postgres`, mode `hybrid`, count `154`, fallback_reason `null`
+- `/sap-api/parsed-results-history`: read_source `postgres`, mode `hybrid`, count `10`, fallback_reason `null`
+
+Note:
+
+`.github/workflows/dev-deploy.yml` exists locally/on branch work, but GitHub CLI returned `HTTP 404` for direct workflow dispatch by filename. Current operational manual deploy path is `deploy-sapdev.yml`.
