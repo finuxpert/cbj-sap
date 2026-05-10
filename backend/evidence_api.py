@@ -7,17 +7,20 @@ import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
 
 try:
     from .case_analytics import build_case_analytics
 except Exception:
     from case_analytics import build_case_analytics
+
+try:
+    from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
+except Exception:
+    from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 
 try:
     from .db.session import check_database
@@ -182,48 +185,6 @@ def mobile_case_payload(case_data: dict) -> dict:
         "evidence": case_data.get("evidence", []),
         "analytics": build_case_analytics(case_data),
     }
-
-
-class EvidenceUpdate(BaseModel):
-    title: Optional[str] = None
-    sid: Optional[str] = None
-    tool: Optional[str] = None
-    note: Optional[str] = None
-    tags: Optional[list[str]] = None
-
-
-class CaseCreate(BaseModel):
-    title: str
-    sid: Optional[str] = ""
-    environment: Optional[str] = ""
-    severity: Optional[str] = "INFO"
-    status: Optional[str] = "OPEN"
-    summary: Optional[str] = ""
-    top_anomaly: Optional[str] = ""
-    top_suspect: Optional[str] = ""
-    created_by: Optional[str] = ""
-
-
-class CaseUpdate(BaseModel):
-    title: Optional[str] = None
-    sid: Optional[str] = None
-    environment: Optional[str] = None
-    severity: Optional[str] = None
-    status: Optional[str] = None
-    summary: Optional[str] = None
-    top_anomaly: Optional[str] = None
-    top_suspect: Optional[str] = None
-
-
-class ParsedResultCreate(BaseModel):
-    tool: str
-    verdict: Optional[str] = ""
-    severity: Optional[str] = "INFO"
-    confidence: Optional[float] = 0
-    top_anomaly: Optional[str] = ""
-    top_suspect: Optional[str] = ""
-    summary: Optional[str] = ""
-    result_json: Optional[dict] = None
 
 
 @app.on_event("startup")
@@ -786,4 +747,3 @@ async def _cbj_dbfirst_history_evidence_route():
 async def _cbj_dbfirst_evidence_slash_history_route():
     return await _cbj_dbfirst_evidence_history_route()
 # === END CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
-
