@@ -5,12 +5,14 @@ on:
   push:
     branches:
       - dev
+    paths-ignore:
+      - 'docs/validation/**'
 
 permissions:
   contents: write
 
 concurrency:
-  group: sap-dev-validate-report
+  group: sapdev-deploy
   cancel-in-progress: false
 
 jobs:
