@@ -46,3 +46,12 @@ __pycache__/
 *.pyc
 .venv-db/
 runtime-status/
+
+# Local GitHub Actions/backend virtualenv
+.venv-github-actions/
+
+# Local GitHub Actions/backend virtualenv
+.venv-github-actions/
+
+# Local GitHub Actions/backend virtualenv
+.venv-github-actions/
