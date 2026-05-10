@@ -24,44 +24,44 @@ bundle_grep() {
 }
 
 json_get_case_id() {
-  JSON_PAYLOAD="$1" python3 -c 'import json, os
-payload=json.loads(os.environ["JSON_PAYLOAD"])
+  python3 -c 'import json, sys
+payload=json.load(sys.stdin)
 candidate=payload.get("case") or payload.get("item") or payload.get("data") or payload
-print(candidate.get("id") or candidate.get("case_no") or payload.get("case_id") or "")'
+print(candidate.get("id") or candidate.get("case_no") or payload.get("case_id") or "")' <<< "$1"
 }
 
 json_find_case_id_by_title() {
-  JSON_PAYLOAD="$1" TITLE="$2" python3 -c 'import json, os
-payload=json.loads(os.environ["JSON_PAYLOAD"])
+  TITLE="$2" python3 -c 'import json, os, sys
+payload=json.load(sys.stdin)
 items=payload if isinstance(payload, list) else payload.get("items") or payload.get("cases") or payload.get("data") or []
 title=os.environ.get("TITLE", "")
 match=next((item for item in items if item.get("title") == title), None) or (items[0] if items else {})
-print(match.get("id") or match.get("case_no") or match.get("case_id") or "")'
+print(match.get("id") or match.get("case_no") or match.get("case_id") or "")' <<< "$1"
 }
 
 assert_case_detail_has_parsed_result() {
-  JSON_PAYLOAD="$1" python3 -c 'import json, os
-payload=json.loads(os.environ["JSON_PAYLOAD"])
+  python3 -c 'import json, sys
+payload=json.load(sys.stdin)
 case=payload.get("case") or payload
 results=case.get("parsed_results") or []
 assert results, "No parsed_results returned from mobile case detail"
 assert any(item.get("top_anomaly") == "QA_WORKFLOW_PARSED_RESULT" for item in results), "QA parsed result was not found in case detail"
-print("OK: parsed result found")'
+print("OK: parsed result found")' <<< "$1"
 }
 
 assert_case_detail_has_evidence() {
-  JSON_PAYLOAD="$1" python3 -c 'import json, os
-payload=json.loads(os.environ["JSON_PAYLOAD"])
+  python3 -c 'import json, sys
+payload=json.load(sys.stdin)
 case=payload.get("case") or payload
 evidence=case.get("evidence") or []
 assert evidence, "No linked evidence returned from mobile case detail"
 assert any((item.get("title") or item.get("original_filename") or "").endswith("qa-evidence.txt") for item in evidence), "QA evidence file was not linked to case"
-print("OK: linked evidence found")'
+print("OK: linked evidence found")' <<< "$1"
 }
 
 assert_runtime_source() {
-  JSON_PAYLOAD="$1" LABEL="$2" python3 -c 'import json, os
-payload=json.loads(os.environ["JSON_PAYLOAD"])
+  LABEL="$2" python3 -c 'import json, os, sys
+payload=json.load(sys.stdin)
 label=os.environ.get("LABEL", "runtime")
 assert payload.get("ok", True) is True, f"{label} did not return ok=true"
 read_source=payload.get("read_source")
@@ -70,7 +70,7 @@ count=payload.get("count")
 assert read_source in {"postgres", "file", "legacy_array", None}, f"{label} unexpected read_source={read_source}"
 assert mode in {"hybrid", "unknown", None}, f"{label} unexpected mode={mode}"
 assert count is None or isinstance(count, int), f"{label} count is not integer"
-print(f"OK: {label} read_source={read_source} mode={mode} count={count}")'
+print(f"OK: {label} read_source={read_source} mode={mode} count={count}")' <<< "$1"
 }
 
 log "Backend health"
