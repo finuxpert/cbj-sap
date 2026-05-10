@@ -31,9 +31,17 @@ except Exception:
     from evidence_upload_service import handle_upload_evidence
 
 try:
-    from .evidence_history_service import get_evidence_item, list_evidence_items
+    from .evidence_history_service import (
+        get_evidence_item,
+        list_evidence_history_dbfirst,
+        list_evidence_items,
+    )
 except Exception:
-    from evidence_history_service import get_evidence_item, list_evidence_items
+    from evidence_history_service import (
+        get_evidence_item,
+        list_evidence_history_dbfirst,
+        list_evidence_items,
+    )
 
 try:
     from .history_serializers import collect_file_parsed_results_history
@@ -515,48 +523,15 @@ async def _cbj_sap_rca_dbfirst_read_middleware(request: Request, call_next):
 
 @app.get("/evidence-history")
 async def _cbj_dbfirst_evidence_history_route():
-    if not _cbj_dbfirst_runtime_enabled():
-        return JSONResponse(
-            {
-                "ok": False,
-                "read_source": "file_fallback",
-                "mode": os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "unknown",
-                "count": 0,
-                "evidence": [],
-                "warning": "database runtime not enabled/configured",
-            },
-            status_code=200,
-        )
-
-    try:
-        rows = _cbj_dbfirst_fetch_evidence_history()
-        return JSONResponse({
-            "ok": True,
-            "read_source": "postgres",
-            "mode": os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "hybrid",
-            "count": len(rows),
-            "evidence": rows,
-        })
-    except Exception as exc:
-        return JSONResponse(
-            {
-                "ok": False,
-                "read_source": "file_fallback",
-                "mode": os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "hybrid",
-                "count": 0,
-                "evidence": [],
-                "fallback_reason": str(exc),
-            },
-            status_code=200,
-        )
+    return JSONResponse(list_evidence_history_dbfirst(), status_code=200)
 
 
 @app.get("/history/evidence")
 async def _cbj_dbfirst_history_evidence_route():
-    return await _cbj_dbfirst_evidence_history_route()
+    return JSONResponse(list_evidence_history_dbfirst(), status_code=200)
 
 
 @app.get("/evidence/history")
 async def _cbj_dbfirst_evidence_slash_history_route():
-    return await _cbj_dbfirst_evidence_history_route()
+    return JSONResponse(list_evidence_history_dbfirst(), status_code=200)
 # === END CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
