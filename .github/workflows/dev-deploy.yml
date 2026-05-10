@@ -21,7 +21,7 @@ jobs:
     if: github.event.inputs.confirm == 'DEPLOY_DEV'
     runs-on:
       - self-hosted
-      - sapdev-pc-runner
+      - sapdev
     timeout-minutes: 25
 
     steps:
