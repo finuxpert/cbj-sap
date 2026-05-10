@@ -62,8 +62,12 @@ jobs:
         working-directory: /home/sadmin/sap
         run: |
           set -euo pipefail
-          python3 -m pip install --user -r backend/requirements.txt
-          python3 - <<'PY'
+          python3 -m venv .venv-github-actions
+          . .venv-github-actions/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+          echo "/home/sadmin/sap/.venv-github-actions/bin" >> "$GITHUB_PATH"
+          python - <<'PY'
           import fastapi
           import pydantic
           import sqlalchemy
