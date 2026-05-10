@@ -1,6 +1,9 @@
-name: OFFICIAL - SAPDEV Deploy Manual
+name: OFFICIAL - SAPDEV Deploy
 
 on:
+  push:
+    branches:
+      - dev
   workflow_dispatch:
     inputs:
       confirm:
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   deploy-dev:
     name: Build, deploy, and QA SAPDEV
-    if: github.event.inputs.confirm == 'DEPLOY_DEV'
+    if: github.event_name == 'push' || github.event.inputs.confirm == 'DEPLOY_DEV'
     runs-on:
       - self-hosted
       - sapdev
@@ -33,6 +36,7 @@ jobs:
           echo "Workspace: $(pwd)"
           echo "Workflow commit: ${GITHUB_SHA}"
           echo "Official workflow file: .github/workflows/dev-deploy.yml"
+          echo "Trigger: ${GITHUB_EVENT_NAME}"
 
       - name: Validate local project and deploy script
         run: |
@@ -111,6 +115,7 @@ jobs:
             echo "- Runner: $(hostname)"
             echo "- Workflow: ${GITHUB_WORKFLOW}"
             echo "- Workflow file: .github/workflows/dev-deploy.yml"
+            echo "- Trigger: ${GITHUB_EVENT_NAME}"
             echo "- Status: SUCCESS"
             echo "- URL: https://sapdev.cbj-kontruksi.com/sap/"
             echo "- API: https://sapdev.cbj-kontruksi.com/sap-api/health"
@@ -131,6 +136,7 @@ jobs:
             echo "- Runner: $(hostname)"
             echo "- Workflow: ${GITHUB_WORKFLOW}"
             echo "- Workflow file: .github/workflows/dev-deploy.yml"
+            echo "- Trigger: ${GITHUB_EVENT_NAME}"
             echo "- Status: FAILED"
             echo
             echo "Check failed job logs and /home/sadmin/deploy-sap-dev.log."
