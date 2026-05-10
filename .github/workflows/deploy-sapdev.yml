@@ -36,6 +36,11 @@ jobs:
           set -euo pipefail
           npm ci
 
+      - name: Backend syntax QA
+        run: |
+          set -euo pipefail
+          bash scripts/qa-backend-syntax.sh
+
       - name: Build Vite app
         run: |
           set -euo pipefail
