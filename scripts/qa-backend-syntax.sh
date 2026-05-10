@@ -33,6 +33,22 @@ assert ParsedResultCreate(tool='QA').tool == 'QA'
 print('OK: backend.models import smoke passed')
 PY
 
+log "Validate external model handoff"
+python3 - <<'PY'
+from backend.external_models import (
+    CaseCreate,
+    CaseUpdate,
+    EvidenceUpdate,
+    ParsedResultCreate,
+)
+
+assert CaseCreate(title='QA').title == 'QA'
+assert CaseUpdate(status='OPEN').status == 'OPEN'
+assert EvidenceUpdate(tool='QA').tool == 'QA'
+assert ParsedResultCreate(tool='QA').tool == 'QA'
+print('OK: external backend model handoff passed')
+PY
+
 log "Validate backend model contracts"
 python3 - <<'PY'
 from backend.model_contracts import validate_model_contracts
