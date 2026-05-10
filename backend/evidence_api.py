@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,6 +19,11 @@ try:
     from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 except Exception:
     from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
+
+try:
+    from .history_serializers import collect_file_parsed_results_history
+except Exception:
+    from history_serializers import collect_file_parsed_results_history
 
 try:
     from .storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
@@ -276,28 +280,12 @@ def list_parsed_results_history(case_id: str = "", tool: str = "", limit: int = 
     else:
         fallback_reason = "database_disabled"
 
-    rows = []
-    for case_file in sorted(CASE_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
-        try:
-            case_data = json.loads(case_file.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-
-        current_case_id = str(case_data.get("id") or case_data.get("case_no") or "")
-        if case_id and current_case_id != str(case_id):
-            continue
-
-        for item in case_data.get("parsed_results", []) or []:
-            if tool and str(item.get("tool", "")).lower() != tool.lower():
-                continue
-            row = dict(item)
-            row.setdefault("case_id", current_case_id)
-            rows.append(row)
-            if len(rows) >= limit:
-                break
-
-        if len(rows) >= limit:
-            break
+    rows = collect_file_parsed_results_history(
+        CASE_DIR,
+        case_id=case_id,
+        tool=tool,
+        limit=limit,
+    )
 
     return {
         "ok": True,
