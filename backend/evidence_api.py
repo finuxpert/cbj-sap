@@ -44,9 +44,9 @@ except Exception:
     )
 
 try:
-    from .history_serializers import collect_file_parsed_results_history
+    from .parsed_results_history_service import list_parsed_results_history_dbfirst
 except Exception:
-    from history_serializers import collect_file_parsed_results_history
+    from parsed_results_history_service import list_parsed_results_history_dbfirst
 
 try:
     from .maintenance_helpers import cleanup_old_evidence_files
@@ -277,52 +277,11 @@ def add_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict:
 
 @app.get("/parsed-results-history")
 def list_parsed_results_history(case_id: str = "", tool: str = "", limit: int = 100) -> dict:
-    """
-    DB-first parsed result history.
-
-    Safe behavior:
-    - Reads PostgreSQL first when runtime DB is enabled.
-    - Falls back to JSON/file-backed case parsed_results if DB read fails or DB is disabled.
-    - Does not remove existing case JSON fallback.
-    """
-    ensure_dirs()
-    limit = max(1, min(limit, 500))
-
-    if _cbj_dbfirst_runtime_enabled():
-        try:
-            rows = _cbj_dbfirst_fetch_parsed_results_history(
-                case_id=case_id,
-                tool=tool,
-                limit=limit,
-            )
-            return {
-                "ok": True,
-                "read_source": "postgres",
-                "mode": "hybrid",
-                "count": len(rows),
-                "parsed_results": rows,
-                "fallback_reason": None,
-            }
-        except Exception as exc:
-            fallback_reason = str(exc)
-    else:
-        fallback_reason = "database_disabled"
-
-    rows = collect_file_parsed_results_history(
-        CASE_DIR,
+    return list_parsed_results_history_dbfirst(
         case_id=case_id,
         tool=tool,
         limit=limit,
     )
-
-    return {
-        "ok": True,
-        "read_source": "file",
-        "mode": "hybrid",
-        "count": len(rows),
-        "parsed_results": rows,
-        "fallback_reason": fallback_reason,
-    }
 
 
 @app.get("/mobile/cases")
@@ -430,7 +389,6 @@ try:
         _cbj_dbfirst_fetch_cases,
         _cbj_dbfirst_fetch_case_detail,
         _cbj_dbfirst_fetch_evidence_history,
-        _cbj_dbfirst_fetch_parsed_results_history,
     )
 except Exception:
     from dbfirst_read_helpers import (
@@ -438,7 +396,6 @@ except Exception:
         _cbj_dbfirst_fetch_cases,
         _cbj_dbfirst_fetch_case_detail,
         _cbj_dbfirst_fetch_evidence_history,
-        _cbj_dbfirst_fetch_parsed_results_history,
     )
 
 
