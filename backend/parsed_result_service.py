@@ -19,6 +19,11 @@ except Exception:
     from storage_helpers import now_iso, read_case, write_case
 
 try:
+    from .timeline_service import append_parsed_result_timeline_event
+except Exception:
+    from timeline_service import append_parsed_result_timeline_event
+
+try:
     from .db.repositories import insert_parsed_result_best_effort, upsert_case_best_effort
 except Exception:
     try:
@@ -55,14 +60,7 @@ def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[st
         case_data["top_anomaly"] = result["top_anomaly"]
     if result["top_suspect"]:
         case_data["top_suspect"] = result["top_suspect"]
-    case_data.setdefault("timeline", []).append({
-        "id": result["id"],
-        "time": result["created_at"],
-        "severity": result["severity"],
-        "title": result["top_anomaly"] or f"{result['tool']} parsed result saved",
-        "description": result["summary"],
-        "tool": result["tool"],
-    })
+    append_parsed_result_timeline_event(case_data, result)
     case_data["updated_at"] = now_iso()
     write_case(case_data)
     db_case_write = upsert_case_best_effort(case_data)
