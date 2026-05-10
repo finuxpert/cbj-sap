@@ -98,6 +98,7 @@ Recent important commits already pushed:
 - Document SAP PostgreSQL hybrid continuation
 - Document validated sapdev deploy workflow
 - Refresh next chat runtime continuation prompt
+- Document next Log Triage modularization target
 
 Branch state:
 - dev -> origin/dev
@@ -178,6 +179,17 @@ Priority order:
 3. modularize ToolLogEvidenceV2
 4. bundle optimization
 5. virtualized rendering with react-window
+
+Immediate next execution plan:
+1. locate all buildAnalysis() dependencies
+2. move pure analysis logic into src/tools/logtriage/analysis/buildAnalysis.js
+3. export/import without changing runtime behavior
+4. run npm build
+5. validate no blank screen
+6. deploy DEV
+7. validate /sap-api/health
+8. validate Evidence History UI
+9. commit incremental diff only
 
 Reason:
 - reduce render weight
