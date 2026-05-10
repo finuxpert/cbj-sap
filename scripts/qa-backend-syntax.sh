@@ -200,6 +200,54 @@ assert 'analytics' in mobile
 print('OK: case helper contracts passed')
 PY
 
+log "Validate history serializers"
+TMP_HISTORY_ROOT="$(mktemp -d)" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+from backend.history_serializers import collect_file_parsed_results_history
+
+case_dir = Path(os.environ['TMP_HISTORY_ROOT']) / 'cases'
+case_dir.mkdir(parents=True, exist_ok=True)
+
+(case_dir / 'CASE-HIST-001.json').write_text(json.dumps({
+    'id': 'CASE-HIST-001',
+    'case_no': 'CASE-HIST-001',
+    'parsed_results': [
+        {'id': 'r1', 'tool': 'Log Evidence', 'top_anomaly': 'A1'},
+        {'id': 'r2', 'tool': 'ST03N', 'top_anomaly': 'A2'},
+    ],
+}), encoding='utf-8')
+
+(case_dir / 'CASE-HIST-002.json').write_text(json.dumps({
+    'id': 'CASE-HIST-002',
+    'case_no': 'CASE-HIST-002',
+    'parsed_results': [
+        {'id': 'r3', 'tool': 'Log Evidence', 'top_anomaly': 'A3'},
+    ],
+}), encoding='utf-8')
+
+all_rows = collect_file_parsed_results_history(case_dir, limit=10)
+assert len(all_rows) == 3
+assert {row['case_id'] for row in all_rows} == {'CASE-HIST-001', 'CASE-HIST-002'}
+
+case_rows = collect_file_parsed_results_history(case_dir, case_id='CASE-HIST-001', limit=10)
+assert len(case_rows) == 2
+assert all(row['case_id'] == 'CASE-HIST-001' for row in case_rows)
+
+tool_rows = collect_file_parsed_results_history(case_dir, tool='Log Evidence', limit=10)
+assert len(tool_rows) == 2
+assert all(row['tool'] == 'Log Evidence' for row in tool_rows)
+
+limited_rows = collect_file_parsed_results_history(case_dir, limit=1)
+assert len(limited_rows) == 1
+
+missing_rows = collect_file_parsed_results_history(case_dir / 'missing', limit=10)
+assert missing_rows == []
+print('OK: history serializer contracts passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
