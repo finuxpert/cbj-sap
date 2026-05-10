@@ -104,6 +104,8 @@ Recent important commits already pushed:
 - Convert legacy log evidence analysis file to compatibility re-export
 - Convert legacy confidence label module to compatibility re-export
 - Add Log Triage summary strip component
+- Wire Log Triage summary strip component
+- Refresh Log Triage continuation after SummaryStrip wiring
 
 Important latest status:
 - buildAnalysis() was already outside ToolLogEvidenceV2 in src/tools/log-evidence-analysis.js.
@@ -115,8 +117,14 @@ Important latest status:
   - src/tools/log-evidence-confidence.js
 - SummaryStrip component created:
   - src/tools/logtriage/components/SummaryStrip.jsx
-- SummaryStrip is NOT YET wired into ToolLogEvidenceV2.jsx.
-- Last attempted next step was to replace inline decisionBoard JSX with SummaryStrip, but stop before final update.
+- SummaryStrip is now WIRED into ToolLogEvidenceV2.jsx.
+- ToolLogEvidenceV2.jsx now imports SummaryStrip from:
+  - ./logtriage/components/SummaryStrip.jsx
+- Inline decisionBoard JSX has been replaced with:
+  - <SummaryStrip analysis={analysis} primary={primary} status={status} />
+- Unused DecisionCard import was removed from ToolLogEvidenceV2.jsx.
+- Latest GitHub commit for wiring:
+  - 5c19fe4723c3c46877bda6b94338f19e3da805ed
 
 Branch state:
 - dev -> origin/dev
@@ -165,25 +173,35 @@ Already extracted or modularized:
 - buildSystemResources()
 - buildAnalysis()
 - confidenceLabel()
-- SummaryStrip.jsx created but not wired
+- SummaryStrip.jsx created and wired
 
 Current safest target:
 1. fetch latest dev
-2. inspect src/tools/ToolLogEvidenceV2.jsx
-3. import SummaryStrip:
-   import SummaryStrip from './logtriage/components/SummaryStrip.jsx'
-4. remove unused DecisionCard import from EvidenceDecisionKit.jsx
-5. replace inline decisionBoard section with:
-   <SummaryStrip analysis={analysis} primary={primary} status={status} />
-6. run npm build
-7. if build GREEN, deploy DEV
-8. validate /sap-api/health and Log Evidence UI
-9. commit only if build passes
+2. run npm build
+3. if build GREEN, deploy DEV
+4. validate /sap-api/health and Log Evidence UI
+5. verify SummaryStrip renders the same four cards:
+   - Primary Error
+   - Error Family
+   - Owner Direction
+   - Confidence
+6. if validation GREEN, continue next incremental extraction
+
+Next incremental extraction target:
+1. extract Primary Error Explanation panel
+2. extract Error Job / Program Mapping panel
+3. extract Error Evidence Ranking panel
+4. extract Uploaded / Persistence panels if safe
+5. bundle optimization
+6. virtualized rendering with react-window
 
 Recommended next architecture target:
 src/tools/logtriage/
 ├── components/
 │   ├── SummaryStrip.jsx
+│   ├── PrimaryErrorPanel.jsx
+│   ├── JobProgramMappingPanel.jsx
+│   ├── ErrorEvidenceRanking.jsx
 │   ├── AnalyticsStrip.jsx
 │   ├── EvidenceTable.jsx
 │   ├── TimelinePanel.jsx
@@ -201,16 +219,6 @@ src/tools/logtriage/
 │   └── useTimeline.js
 │
 └── ToolLogEvidenceV2.jsx
-
-Priority order from here:
-1. wire SummaryStrip safely
-2. validate build
-3. extract Primary Error Explanation panel
-4. extract Error Job/Program Mapping panel
-5. extract Error Evidence Ranking panel
-6. extract Uploaded/Persistence panels if safe
-7. bundle optimization
-8. virtualized rendering with react-window
 
 Reason:
 - reduce render weight
@@ -278,5 +286,5 @@ Preferred workflow:
 - commit/push
 
 Continuation objective:
-Continue incremental Log Triage modularization. Start by wiring SummaryStrip into ToolLogEvidenceV2, then validate build/deploy before extracting the next panel.
+Continue incremental Log Triage modularization. First validate the already-wired SummaryStrip build/deploy, then extract the next small panel from ToolLogEvidenceV2 without changing behavior.
 ```
