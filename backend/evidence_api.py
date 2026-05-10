@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -29,6 +29,11 @@ try:
     from .history_serializers import collect_file_parsed_results_history
 except Exception:
     from history_serializers import collect_file_parsed_results_history
+
+try:
+    from .maintenance_helpers import cleanup_old_evidence_files
+except Exception:
+    from maintenance_helpers import cleanup_old_evidence_files
 
 try:
     from .storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
@@ -460,22 +465,7 @@ def delete_evidence(evidence_id: str) -> dict:
 @app.post("/maintenance/cleanup")
 def cleanup(days: int = 90) -> dict:
     ensure_dirs()
-    cutoff = datetime.now(timezone.utc).timestamp() - max(1, days) * 86400
-    deleted = 0
-    for meta_file in META_DIR.glob("*.json"):
-        try:
-            meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            created = datetime.fromisoformat(str(meta.get("created_at", "")).replace("Z", "+00:00")).timestamp()
-        except Exception:
-            created = meta_file.stat().st_mtime
-        if created < cutoff:
-            try:
-                stored = json.loads(meta_file.read_text(encoding="utf-8")).get("stored_filename", "")
-                (EVIDENCE_DIR / stored).unlink(missing_ok=True)
-                meta_file.unlink(missing_ok=True)
-                deleted += 1
-            except Exception:
-                pass
+    deleted = cleanup_old_evidence_files(META_DIR, EVIDENCE_DIR, days=days)
     return {"ok": True, "deleted": deleted, "retention_days": days}
 
 
