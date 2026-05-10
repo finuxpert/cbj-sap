@@ -13,6 +13,10 @@ on:
       - 'vite.config.*'
       - '.github/workflows/sap-dev-validate.yml'
 
+concurrency:
+  group: sap-dev-validate
+  cancel-in-progress: true
+
 jobs:
   validate:
     name: Build and audit SAP DEV
