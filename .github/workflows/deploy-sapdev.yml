@@ -72,3 +72,30 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/qa-sapdev.sh
+
+      - name: Workflow success summary
+        if: success()
+        run: |
+          {
+            echo "# SAPDEV Deploy Success"
+            echo
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Runner: $(hostname)"
+            echo "- Workflow: ${GITHUB_WORKFLOW}"
+            echo "- Status: SUCCESS"
+            echo "- URL: https://sapdev.cbj-kontruksi.com/sap/"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Workflow failure summary
+        if: failure()
+        run: |
+          {
+            echo "# SAPDEV Deploy Failed"
+            echo
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Runner: $(hostname)"
+            echo "- Workflow: ${GITHUB_WORKFLOW}"
+            echo "- Status: FAILED"
+            echo
+            echo "Check failed job logs in GitHub Actions."
+          } >> "$GITHUB_STEP_SUMMARY"
