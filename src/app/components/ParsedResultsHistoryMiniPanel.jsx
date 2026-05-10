@@ -87,7 +87,7 @@ export default function ParsedResultsHistoryMiniPanel() {
   const [toolFilter, setToolFilter] = useState('all')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [caseSearch, setCaseSearch] = useState('')
-  const [copiedCaseId, setCopiedCaseId] = useState('')
+  const [copiedKey, setCopiedKey] = useState('')
 
   async function loadParsedResultsHistory() {
     setState((prev) => ({ ...prev, loading: true, error: '' }))
@@ -136,11 +136,11 @@ export default function ParsedResultsHistoryMiniPanel() {
     setCaseSearch('')
   }
 
-  async function copyCaseId(caseId) {
-    if (!caseId || !navigator?.clipboard?.writeText) return
-    await navigator.clipboard.writeText(caseId)
-    setCopiedCaseId(caseId)
-    window.setTimeout(() => setCopiedCaseId(''), 1400)
+  async function copyValue(value, key) {
+    if (!value || !navigator?.clipboard?.writeText) return
+    await navigator.clipboard.writeText(value)
+    setCopiedKey(key)
+    window.setTimeout(() => setCopiedKey(''), 1400)
   }
 
   return (
@@ -218,8 +218,12 @@ export default function ParsedResultsHistoryMiniPanel() {
 
         {rows.map((item) => {
           const caseId = item.case_id || ''
+          const suspect = item.top_suspect || ''
+          const rowId = item.id || `${item.case_id}-${item.created_at}-${item.tool}`
+          const copiedCase = copiedKey === `${rowId}:case`
+          const copiedSuspect = copiedKey === `${rowId}:suspect`
           return (
-            <div key={item.id || `${item.case_id}-${item.created_at}-${item.tool}`}>
+            <div key={rowId}>
               <b>
                 {item.summary || item.top_anomaly || item.verdict || item.id || 'Parsed result'}
               </b>
@@ -229,10 +233,10 @@ export default function ParsedResultsHistoryMiniPanel() {
                   <button
                     type="button"
                     className="parsedResultCaseCopy"
-                    onClick={() => copyCaseId(caseId)}
+                    onClick={() => copyValue(caseId, `${rowId}:case`)}
                     title="Copy case ID"
                   >
-                    {copiedCaseId === caseId ? 'Copied' : 'Copy case'}
+                    {copiedCase ? 'Copied' : 'Copy case'}
                   </button>
                 )}
               </span>
@@ -242,7 +246,17 @@ export default function ParsedResultsHistoryMiniPanel() {
                 </em>
                 {' '}
                 Confidence: {Number(item.confidence ?? 0).toFixed(2)}
-                {item.top_suspect ? ` · Suspect: ${item.top_suspect}` : ''}
+                {suspect ? ` · Suspect: ${suspect}` : ''}
+                {suspect && (
+                  <button
+                    type="button"
+                    className="parsedResultCaseCopy"
+                    onClick={() => copyValue(suspect, `${rowId}:suspect`)}
+                    title="Copy top suspect"
+                  >
+                    {copiedSuspect ? 'Copied' : 'Copy suspect'}
+                  </button>
+                )}
               </span>
             </div>
           )
