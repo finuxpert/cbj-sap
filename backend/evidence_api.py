@@ -26,6 +26,11 @@ except Exception:
     from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 
 try:
+    from .evidence_upload_service import handle_upload_evidence
+except Exception:
+    from evidence_upload_service import handle_upload_evidence
+
+try:
     from .history_serializers import collect_file_parsed_results_history
 except Exception:
     from history_serializers import collect_file_parsed_results_history
@@ -334,82 +339,15 @@ async def upload_evidence(
     tags: str = Form(""),
     case_id: str = Form(""),
 ) -> dict:
-    ensure_dirs()
-    original = safe_name(file.filename or "evidence.bin")
-    ext = Path(original).suffix.lower()
-    if ext not in ALLOWED_EXT:
-        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
-
-    evidence_id = datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
-    stored_name = f"{evidence_id}__{original}"
-    target = EVIDENCE_DIR / stored_name
-
-    size = 0
-    max_bytes = MAX_UPLOAD_MB * 1024 * 1024
-    try:
-        with target.open("wb") as out:
-            while True:
-                chunk = await file.read(1024 * 1024)
-                if not chunk:
-                    break
-                size += len(chunk)
-                if size > max_bytes:
-                    out.close()
-                    target.unlink(missing_ok=True)
-                    raise HTTPException(status_code=413, detail=f"File too large. Max {MAX_UPLOAD_MB} MB")
-                out.write(chunk)
-    finally:
-        await file.close()
-
-    tag_list = [x.strip() for x in tags.split(",") if x.strip()]
-    meta = {
-        "id": evidence_id,
-        "created_at": now_iso(),
-        "updated_at": now_iso(),
-        "tool": tool or "unknown",
-        "sid": sid or "",
-        "title": title or original,
-        "note": note or "",
-        "tags": tag_list,
-        "case_id": case_id or "",
-        "original_filename": original,
-        "stored_filename": stored_name,
-        "stored_path": str(target),
-        "size_bytes": size,
-        "ext": ext,
-        "download_url": f"/sap-api/evidence/{evidence_id}/download",
-    }
-    write_meta(evidence_id, meta)
-    db_evidence_write = upsert_evidence_best_effort(meta)
-
-    linked_case = None
-    db_case_write = None
-    if case_id:
-        try:
-            case_data = read_case(case_id)
-            evidence_item = {
-                "id": evidence_id,
-                "tool": meta["tool"],
-                "title": meta["title"],
-                "original_filename": original,
-                "size_bytes": size,
-                "download_url": meta["download_url"],
-                "created_at": meta["created_at"],
-            }
-            case_data.setdefault("evidence", []).append(evidence_item)
-            case_data["updated_at"] = now_iso()
-            write_case(case_data)
-            db_case_write = upsert_case_best_effort(case_data)
-            linked_case = summarize_case(case_data)
-        except HTTPException:
-            linked_case = {"warning": "case_id was provided but case was not found"}
-
-    return {
-        "ok": True,
-        "evidence": meta,
-        "case": linked_case,
-        "db_write": {"evidence": db_evidence_write, "case": db_case_write},
-    }
+    return await handle_upload_evidence(
+        file=file,
+        tool=tool,
+        sid=sid,
+        title=title,
+        note=note,
+        tags=tags,
+        case_id=case_id,
+    )
 
 
 @app.get("/evidence")
