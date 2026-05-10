@@ -16,6 +16,11 @@ except Exception:
     from case_helpers import make_case_no, mobile_case_payload, summarize_case
 
 try:
+    from .evidence_helpers import collect_file_evidence
+except Exception:
+    from evidence_helpers import collect_file_evidence
+
+try:
     from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 except Exception:
     from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
@@ -405,25 +410,13 @@ async def upload_evidence(
 @app.get("/evidence")
 def list_evidence(tool: str = "", sid: str = "", q: str = "", limit: int = 100) -> dict:
     ensure_dirs()
-    items = []
-    limit = max(1, min(limit, 500))
-    for p in sorted(META_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
-        try:
-            m = json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if tool and str(m.get("tool", "")).lower() != tool.lower():
-            continue
-        if sid and str(m.get("sid", "")).lower() != sid.lower():
-            continue
-        if q:
-            hay = " ".join(str(m.get(k, "")) for k in ["title", "note", "original_filename", "sid", "tool"])
-            hay += " " + " ".join(m.get("tags", []) or [])
-            if q.lower() not in hay.lower():
-                continue
-        items.append(m)
-        if len(items) >= limit:
-            break
+    items = collect_file_evidence(
+        META_DIR,
+        tool=tool,
+        sid=sid,
+        q=q,
+        limit=limit,
+    )
     return {"ok": True, "count": len(items), "items": items}
 
 
