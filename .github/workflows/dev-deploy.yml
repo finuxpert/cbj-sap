@@ -41,6 +41,7 @@ jobs:
           test -x /home/sadmin/deploy-sap-dev.sh
           test -f /home/sadmin/sap/package.json
           test -f /home/sadmin/sap/backend/evidence_api.py
+          test -f /home/sadmin/sap/backend/requirements.txt
           test -f /home/sadmin/sap/src/evidence-api-client.js
 
       - name: Sync DEV branch and validate build
@@ -56,6 +57,18 @@ jobs:
           npm run build
           test -f dist/index.html
           test -d dist/assets
+
+      - name: Install backend Python requirements
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user -r backend/requirements.txt
+          python3 - <<'PY'
+          import fastapi
+          import pydantic
+          import sqlalchemy
+          print('Backend Python requirements available')
+          PY
 
       - name: Deploy DEV web bundle
         run: |
