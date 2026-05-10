@@ -1,25 +1,20 @@
-name: SAP DEV Validate
+name: LEGACY - SAPDEV Validation Manual Only
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - dev
-    paths:
-      - 'src/**'
-      - 'backend/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'vite.config.*'
-      - '.github/workflows/sap-dev-validate.yml'
+    inputs:
+      note:
+        description: "Optional validation note"
+        required: false
+        default: "manual check"
 
 concurrency:
-  group: sap-dev-validate
+  group: sapdev-legacy-validation
   cancel-in-progress: true
 
 jobs:
   validate:
-    name: Build and audit SAP DEV
+    name: Manual build and audit only
     runs-on: [self-hosted, sapdev]
     timeout-minutes: 20
 
@@ -31,6 +26,7 @@ jobs:
         run: |
           echo "Branch: ${GITHUB_REF_NAME}"
           echo "Commit: ${GITHUB_SHA}"
+          echo "This is a legacy manual-only validation workflow. Use OFFICIAL - SAPDEV Deploy Manual for normal deploy."
           node -v || true
           npm -v || true
 
@@ -47,11 +43,14 @@ jobs:
           mkdir -p validation-report
           cp /tmp/sap-build.log validation-report/build.log 2>/dev/null || true
           {
-            echo "# SAP DEV Validation Report"
+            echo "# SAPDEV Legacy Manual Validation Report"
             echo
             echo "Generated: $(date)"
             echo "Branch: ${GITHUB_REF_NAME}"
             echo "Commit: ${GITHUB_SHA}"
+            echo "Note: ${{ github.event.inputs.note }}"
+            echo
+            echo "Use OFFICIAL - SAPDEV Deploy Manual for regular DEV deployment."
             echo
             echo "## Git Status"
             echo '```text'
@@ -67,21 +66,11 @@ jobs:
             echo '```text'
             find dist/assets -maxdepth 1 -type f -name '*.js' -size +800k -printf '%s %p\n' 2>/dev/null | sort -nr | awk '{printf "%.2f KB  %s\n", $1/1024, $2}' || true
             echo '```'
-            echo
-            echo "## Active CSS Imports"
-            echo '```text'
-            grep -RIn "sapdev-final-force\|sapdev-premium-overhaul\|sapdev-polish\|sap-intelligent-ux\|sap-intelligent-investigation\|comparer-rca-final" src 2>/dev/null || true
-            echo '```'
-            echo
-            echo "## Aggressive CSS Rules"
-            echo '```text'
-            grep -RInE 'important|backdrop-filter|position:[[:space:]]*fixed|100vh|overflow:[[:space:]]*hidden|z-index' src/*.css src/app/*.css src/tools/*.css 2>/dev/null | head -250 || true
-            echo '```'
           } > validation-report/sap-dev-validation.md
 
       - name: Upload validation report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sap-dev-validation-${{ github.run_number }}
+          name: sapdev-legacy-validation-${{ github.run_number }}
           path: validation-report/
