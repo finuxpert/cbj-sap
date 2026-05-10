@@ -3,7 +3,7 @@
 Use this prompt to continue work in a new ChatGPT conversation.
 
 ```text
-Lanjut SAP Intelligent RCA Workspace dari state Log Triage modularization in progress.
+Lanjut SAP Intelligent RCA Workspace dari state Log Triage modularization validated GREEN.
 
 Project:
 SAP Intelligent RCA Workspace
@@ -33,7 +33,7 @@ Current Architecture:
 - PostgreSQL Hybrid runtime active
 - filesystem fallback wajib tetap ada
 - PostgreSQL primary for evidence history reads
-- DEV deploy via GitHub Actions self-hosted runner
+- DEV deploy via GitHub Actions self-hosted runner / manual server deploy
 
 Evidence Paths:
 - /var/www/svr01-dev/sap-data/evidence
@@ -75,15 +75,65 @@ Previously caused:
 - mobile freeze
 - excessive DOM mutation
 
-Current verified GREEN baseline before latest modularization:
-- build success
-- DEV deploy success
-- backend API success
-- PostgreSQL hybrid mode success
-- Evidence History panel active
-- filesystem fallback active
-- public /sap-api reachable
-- nginx proxy healthy
+Current verified GREEN baseline:
+- npm run build GREEN on server /home/sadmin/sap
+- build validated after latest Log Triage modularization
+- Vite version shown: v7.3.2
+- modules transformed: 988
+- build time around 7.53s
+- latest HEAD after fetch/reset: a560ccbb0ec97f9f9d6b33dfea1fa23a12522259
+- screenshot validation from mobile terminal showed build completed successfully
+
+Current latest git state:
+- origin/dev -> a560ccbb0ec97f9f9d6b33dfea1fa23a12522259
+- HEAD is now at a560ccbb Wire Log Triage job program mapping panel
+
+Recent important commits already pushed:
+- Add PostgreSQL-first reads for SAP RCA hybrid mode
+- Add DB-backed evidence history panel
+- Document SAP PostgreSQL hybrid continuation
+- Document validated sapdev deploy workflow
+- Add modular Log Triage analysis module
+- Convert legacy log evidence analysis file to compatibility re-export
+- Convert legacy confidence label module to compatibility re-export
+- Add Log Triage summary strip component
+- Wire Log Triage summary strip component
+- Extract Log Triage primary error panel
+- Wire Log Triage primary error panel
+- Extract Log Triage job program mapping panel
+- Wire Log Triage job program mapping panel
+
+Important recovery note:
+- A bad placeholder overwrite previously happened on ToolLogEvidenceV2.jsx with content REPLACED_FOR_BREVITY.
+- It was recovered by force-moving dev back to safe commit b34f3a61e6d49a2cffd39fbd507d2245409735f5.
+- Then proper full-content wiring was applied safely.
+- Current latest commit a560ccbb is good and build GREEN.
+- Never update ToolLogEvidenceV2.jsx with placeholder or abbreviated content.
+
+Current modularization status:
+Already extracted or modularized:
+- parseGenericErrors()
+- groupEvidenceRows()
+- buildTimeline()
+- buildSystemResources()
+- buildAnalysis()
+- confidenceLabel()
+- SummaryStrip.jsx created and wired
+- PrimaryErrorPanel.jsx created and wired
+- JobProgramMappingPanel.jsx created and wired
+
+Current component paths:
+- src/tools/logtriage/components/SummaryStrip.jsx
+- src/tools/logtriage/components/PrimaryErrorPanel.jsx
+- src/tools/logtriage/components/JobProgramMappingPanel.jsx
+
+Current ToolLogEvidenceV2 wiring:
+- imports SummaryStrip from ./logtriage/components/SummaryStrip.jsx
+- imports PrimaryErrorPanel from ./logtriage/components/PrimaryErrorPanel.jsx
+- imports JobProgramMappingPanel from ./logtriage/components/JobProgramMappingPanel.jsx
+- inline decisionBoard replaced with SummaryStrip
+- inline Primary Error Explanation panel replaced with PrimaryErrorPanel
+- inline Error Job / Program Mapping panel replaced with JobProgramMappingPanel
 
 Health validation baseline:
 - /sap-api/health
@@ -92,62 +142,22 @@ Health validation baseline:
   - database.configured true
   - database.mode hybrid
 
-Recent important commits already pushed:
-- Add PostgreSQL-first reads for SAP RCA hybrid mode
-- Add DB-backed evidence history panel
-- Document SAP PostgreSQL hybrid continuation
-- Document validated sapdev deploy workflow
-- Refresh next chat runtime continuation prompt
-- Document next Log Triage modularization target
-- Add immediate execution plan for next refactor phase
-- Add modular Log Triage analysis module
-- Convert legacy log evidence analysis file to compatibility re-export
-- Convert legacy confidence label module to compatibility re-export
-- Add Log Triage summary strip component
-- Wire Log Triage summary strip component
-- Refresh Log Triage continuation after SummaryStrip wiring
-
-Important latest status:
-- buildAnalysis() was already outside ToolLogEvidenceV2 in src/tools/log-evidence-analysis.js.
-- New modular analysis path created:
-  - src/tools/logtriage/analysis/buildAnalysis.js
-  - src/tools/logtriage/analysis/confidenceLabel.js
-- Legacy compatibility re-export kept:
-  - src/tools/log-evidence-analysis.js
-  - src/tools/log-evidence-confidence.js
-- SummaryStrip component created:
-  - src/tools/logtriage/components/SummaryStrip.jsx
-- SummaryStrip is now WIRED into ToolLogEvidenceV2.jsx.
-- ToolLogEvidenceV2.jsx now imports SummaryStrip from:
-  - ./logtriage/components/SummaryStrip.jsx
-- Inline decisionBoard JSX has been replaced with:
-  - <SummaryStrip analysis={analysis} primary={primary} status={status} />
-- Unused DecisionCard import was removed from ToolLogEvidenceV2.jsx.
-- Latest GitHub commit for wiring:
-  - 5c19fe4723c3c46877bda6b94338f19e3da805ed
-
-Branch state:
-- dev -> origin/dev
-
-Validated deploy flow:
+Validated build command already run successfully:
 cd /home/sadmin/sap
-
 sudo -u sadmin git fetch origin
 sudo -u sadmin git reset --hard origin/dev
-
 npm run build
 
+Deploy flow when ready:
+cd /home/sadmin/sap
 sudo rm -rf /var/www/svr01-dev/sap/*
 sudo cp -rv dist/* /var/www/svr01-dev/sap/
-
 sudo chown -R www-data:www-data /var/www/svr01-dev/sap
-
 sudo find /var/www/svr01-dev/sap -type d -exec chmod 755 {} \;
 sudo find /var/www/svr01-dev/sap -type f -exec chmod 644 {} \;
-
 sudo nginx -t && sudo systemctl reload nginx
 
-Validation commands:
+Validation commands after deploy:
 curl http://127.0.0.1:8090/health
 curl https://sapdev.cbj-kontruksi.com/sap-api/health
 
@@ -165,35 +175,21 @@ NEVER leave:
 - duplicate enabled configs
 inside /etc/nginx/sites-enabled
 
-Current incremental refactor status:
-Already extracted or modularized:
-- parseGenericErrors()
-- groupEvidenceRows()
-- buildTimeline()
-- buildSystemResources()
-- buildAnalysis()
-- confidenceLabel()
-- SummaryStrip.jsx created and wired
-
-Current safest target:
-1. fetch latest dev
-2. run npm build
-3. if build GREEN, deploy DEV
-4. validate /sap-api/health and Log Evidence UI
-5. verify SummaryStrip renders the same four cards:
-   - Primary Error
-   - Error Family
-   - Owner Direction
-   - Confidence
-6. if validation GREEN, continue next incremental extraction
+Current safest next target:
+1. Deploy current GREEN build to DEV if not deployed yet.
+2. Validate public /sap-api/health.
+3. Open Log Evidence UI and verify:
+   - SummaryStrip renders four cards: Primary Error, Error Family, Owner Direction, Confidence
+   - PrimaryErrorPanel renders same content as before
+   - JobProgramMappingPanel renders same jobs/program/times mapping as before
+4. If UI is GREEN, continue next extraction.
 
 Next incremental extraction target:
-1. extract Primary Error Explanation panel
-2. extract Error Job / Program Mapping panel
-3. extract Error Evidence Ranking panel
-4. extract Uploaded / Persistence panels if safe
-5. bundle optimization
-6. virtualized rendering with react-window
+1. Extract Error Evidence Ranking panel into:
+   - src/tools/logtriage/components/ErrorEvidenceRanking.jsx
+2. Keep behavior identical.
+3. Do not touch backend, nginx, DB schema, Cloudflare, PROD.
+4. After extraction, run npm run build before any deploy.
 
 Recommended next architecture target:
 src/tools/logtriage/
@@ -243,6 +239,8 @@ Rules:
 - no nginx/cloudflare changes unless explicitly requested
 - do not modify DB schema unless explicitly requested
 - do not reintroduce runtime injectors
+- do not use placeholder content in GitHub updates
+- do not commit secrets, token, .env asli, Cloudflare credential JSON, or DB dumps
 
 GitHub / Runner status:
 SAP repo:
@@ -259,32 +257,6 @@ Infra repo:
 Infra runner active:
 - actions.runner.finuxpert-infra.infra-svr-01-runner.service
 
-Collect Server Info:
-- GREEN
-
-Next infra target:
-- add runner on public server
-- add runner on web-dev
-- labels:
-  - svr-public,infra,public
-  - web-dev,infra,dev
-
-DO NOT:
-- commit secrets
-- commit .env
-- commit token
-- commit Cloudflare credential JSON
-- commit DB dumps
-- touch PROD unnecessarily
-
-Preferred workflow:
-- local validate
-- build
-- deploy DEV
-- verify API
-- verify UI
-- commit/push
-
 Continuation objective:
-Continue incremental Log Triage modularization. First validate the already-wired SummaryStrip build/deploy, then extract the next small panel from ToolLogEvidenceV2 without changing behavior.
+Current code is build-validated GREEN after SummaryStrip, PrimaryErrorPanel, and JobProgramMappingPanel wiring. Continue by deploying/validating DEV UI, then extract ErrorEvidenceRanking.jsx as the next small incremental refactor.
 ```
