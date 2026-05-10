@@ -86,6 +86,26 @@ assert snapshot['app_name'] == APP_NAME
 print('OK: backend storage config passed')
 PY
 
+log "Validate backend storage helpers"
+python3 - <<'PY'
+from backend.storage_helpers import (
+    case_path,
+    ensure_dirs,
+    meta_path,
+    now_iso,
+    safe_case_id,
+    safe_name,
+)
+
+ensure_dirs()
+assert safe_name('SAP LOG 01.txt')
+assert safe_case_id('CASE/2026:01')
+assert str(case_path('CASE-1')).endswith('.json')
+assert str(meta_path('meta-1')).endswith('.json')
+assert 'T' in now_iso()
+print('OK: backend storage helpers passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
