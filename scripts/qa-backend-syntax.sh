@@ -305,6 +305,55 @@ assert missing_items == []
 print('OK: evidence helper contracts passed')
 PY
 
+log "Validate maintenance helpers"
+TMP_MAINT_ROOT="$(mktemp -d)" python3 - <<'PY'
+import json
+import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from backend.maintenance_helpers import cleanup_old_evidence_files
+
+root = Path(os.environ['TMP_MAINT_ROOT'])
+meta_dir = root / 'metadata'
+evidence_dir = root / 'evidence'
+meta_dir.mkdir(parents=True, exist_ok=True)
+evidence_dir.mkdir(parents=True, exist_ok=True)
+
+old_time = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+new_time = datetime.now(timezone.utc).isoformat()
+
+(evidence_dir / 'old.log').write_text('old evidence', encoding='utf-8')
+(meta_dir / 'old.json').write_text(json.dumps({
+    'id': 'old',
+    'created_at': old_time,
+    'stored_filename': 'old.log',
+}), encoding='utf-8')
+
+(evidence_dir / 'new.log').write_text('new evidence', encoding='utf-8')
+(meta_dir / 'new.json').write_text(json.dumps({
+    'id': 'new',
+    'created_at': new_time,
+    'stored_filename': 'new.log',
+}), encoding='utf-8')
+
+(meta_dir / 'broken-old.json').write_text('{broken-json', encoding='utf-8')
+old_mtime = (datetime.now(timezone.utc) - timedelta(days=120)).timestamp()
+os.utime(meta_dir / 'broken-old.json', (old_mtime, old_mtime))
+
+deleted = cleanup_old_evidence_files(meta_dir, evidence_dir, days=90)
+assert deleted == 1
+assert not (meta_dir / 'old.json').exists()
+assert not (evidence_dir / 'old.log').exists()
+assert (meta_dir / 'new.json').exists()
+assert (evidence_dir / 'new.log').exists()
+assert (meta_dir / 'broken-old.json').exists()
+
+missing_deleted = cleanup_old_evidence_files(meta_dir / 'missing', evidence_dir, days=90)
+assert missing_deleted == 0
+print('OK: maintenance helper contracts passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
