@@ -1,0 +1,61 @@
+name: Backend Storage Refactor
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backend-storage-refactor
+  cancel-in-progress: false
+
+jobs:
+  refactor:
+    name: Apply backend storage refactor
+    runs-on: self-hosted
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show runner and commit
+        run: |
+          set -euo pipefail
+          echo "Runner: $(hostname)"
+          echo "User: $(whoami)"
+          echo "Commit: $GITHUB_SHA"
+          git status --short
+
+      - name: Apply deterministic storage refactor
+        run: |
+          set -euo pipefail
+          python3 scripts/refactor-evidence-api-storage.py
+
+      - name: Backend syntax and import QA
+        run: |
+          set -euo pipefail
+          bash scripts/qa-backend-syntax.sh
+
+      - name: Show storage refactor diff
+        run: |
+          set -euo pipefail
+          git diff -- backend/evidence_api.py backend/storage_config.py backend/storage_helpers.py scripts/qa-backend-syntax.sh
+
+      - name: Commit refactor if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No backend storage refactor changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/evidence_api.py backend/storage_config.py backend/storage_helpers.py scripts/qa-backend-syntax.sh
+          git commit -m "Use external backend storage helpers"
+          git push origin HEAD:dev
