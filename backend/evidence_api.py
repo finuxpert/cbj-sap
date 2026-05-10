@@ -54,6 +54,11 @@ except Exception:
     from maintenance_helpers import cleanup_old_evidence_files
 
 try:
+    from .dbfirst_middleware import dbfirst_read_middleware
+except Exception:
+    from dbfirst_middleware import dbfirst_read_middleware
+
+try:
     from .storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
 except Exception:
     from storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
@@ -124,6 +129,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
+
+app.middleware("http")(dbfirst_read_middleware)
 
 
 @app.on_event("startup")
@@ -370,108 +377,6 @@ def cleanup(days: int = 90) -> dict:
     ensure_dirs()
     deleted = cleanup_old_evidence_files(META_DIR, EVIDENCE_DIR, days=days)
     return {"ok": True, "deleted": deleted, "retention_days": days}
-
-
-# === CBJ SAP RCA DB-FIRST READ PATCH V1 ===
-# Incremental DB-first read layer.
-# Helper/fetch implementation lives in backend/dbfirst_read_helpers.py.
-# Existing JSON/file-backed fallback remains available.
-
-try:
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
-except Exception:
-    pass
-
-try:
-    from .dbfirst_read_helpers import (
-        _cbj_dbfirst_runtime_enabled,
-        _cbj_dbfirst_fetch_cases,
-        _cbj_dbfirst_fetch_case_detail,
-        _cbj_dbfirst_fetch_evidence_history,
-    )
-except Exception:
-    from dbfirst_read_helpers import (
-        _cbj_dbfirst_runtime_enabled,
-        _cbj_dbfirst_fetch_cases,
-        _cbj_dbfirst_fetch_case_detail,
-        _cbj_dbfirst_fetch_evidence_history,
-    )
-
-
-@app.middleware("http")
-async def _cbj_sap_rca_dbfirst_read_middleware(request: Request, call_next):
-    path = request.url.path.rstrip("/") or "/"
-    method = request.method.upper()
-
-    if method != "GET" or not _cbj_dbfirst_runtime_enabled():
-        return await call_next(request)
-
-    # Nginx normally strips /sap-api, but this supports both internal/public path forms.
-    normalized = path
-    if normalized.startswith("/sap-api/"):
-        normalized = normalized[len("/sap-api"):]
-    normalized = normalized.rstrip("/") or "/"
-
-    # DB-first list/history endpoints.
-    case_list_paths = {
-        "/cases",
-        "/case-history",
-        "/history/cases",
-        "/cases/history",
-    }
-
-    evidence_history_paths = {
-        "/evidence-history",
-        "/evidence/history",
-        "/history/evidence",
-    }
-
-    try:
-        if normalized in case_list_paths:
-            rows = _cbj_dbfirst_fetch_cases()
-            if rows:
-                return JSONResponse({
-                    "ok": True,
-                    "read_source": "postgres",
-                    "mode": os.getenv("DB_MODE", "hybrid"),
-                    "count": len(rows),
-                    "cases": rows,
-                })
-
-        if normalized in evidence_history_paths:
-            rows = _cbj_dbfirst_fetch_evidence_history()
-            if rows:
-                return JSONResponse({
-                    "ok": True,
-                    "read_source": "postgres",
-                    "mode": os.getenv("DB_MODE", "hybrid"),
-                    "count": len(rows),
-                    "evidence": rows,
-                })
-
-        # DB-first single case detail:
-        # /cases/<id>
-        if normalized.startswith("/cases/"):
-            case_key = normalized.split("/cases/", 1)[1].strip("/")
-            if case_key and "/" not in case_key:
-                item = _cbj_dbfirst_fetch_case_detail(case_key)
-                if item:
-                    return JSONResponse({
-                        "ok": True,
-                        "read_source": "postgres",
-                        "mode": os.getenv("DB_MODE", "hybrid"),
-                        "case": item,
-                    })
-
-    except Exception as exc:
-        # Existing JSON/file-backed route becomes fallback.
-        request.state.dbfirst_fallback_reason = str(exc)
-        return await call_next(request)
-
-    # If DB empty/no match, keep existing JSON/file-backed behavior.
-    return await call_next(request)
-# === END CBJ SAP RCA DB-FIRST READ PATCH V1 ===
 
 
 # === CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
