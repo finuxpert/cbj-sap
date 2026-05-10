@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -21,6 +20,36 @@ try:
     from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 except Exception:
     from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
+
+try:
+    from .storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
+except Exception:
+    from storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
+
+try:
+    from .storage_helpers import (
+        case_path,
+        ensure_dirs,
+        now_iso,
+        read_case,
+        read_meta,
+        safe_case_id,
+        safe_name,
+        write_case,
+        write_meta,
+    )
+except Exception:
+    from storage_helpers import (
+        case_path,
+        ensure_dirs,
+        now_iso,
+        read_case,
+        read_meta,
+        safe_case_id,
+        safe_name,
+        write_case,
+        write_meta,
+    )
 
 try:
     from .db.session import check_database
@@ -54,24 +83,6 @@ except Exception:
         def insert_parsed_result_best_effort(case_id: str, result: dict) -> dict:
             return {"enabled": False, "written": False, "status": "unavailable"}
 
-APP_NAME = "SAP Intelligent RCA Evidence API"
-STORAGE_ROOT = Path(os.getenv("SAP_EVIDENCE_ROOT", "/var/www/svr01-dev/sap-data"))
-EVIDENCE_DIR = STORAGE_ROOT / "evidence"
-META_DIR = STORAGE_ROOT / "metadata"
-REPORT_DIR = STORAGE_ROOT / "reports"
-CASE_DIR = STORAGE_ROOT / "cases"
-MAX_UPLOAD_MB = int(os.getenv("SAP_EVIDENCE_MAX_UPLOAD_MB", "500"))
-
-ALLOWED_EXT = {
-    ".zip",
-    ".log",
-    ".txt",
-    ".csv",
-    ".xlsx",
-    ".xls",
-    ".pdf",
-    ".json",
-}
 
 app = FastAPI(title=APP_NAME, version="1.2.0")
 app.add_middleware(
@@ -81,63 +92,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
-
-
-def ensure_dirs() -> None:
-    for d in (EVIDENCE_DIR, META_DIR, REPORT_DIR, CASE_DIR):
-        d.mkdir(parents=True, exist_ok=True)
-
-
-def safe_name(name: str) -> str:
-    base = Path(name or "evidence.bin").name
-    base = re.sub(r"[^A-Za-z0-9._ -]+", "_", base).strip(" .")
-    return base[:180] or "evidence.bin"
-
-
-def safe_case_id(value: str) -> str:
-    text = re.sub(r"[^A-Za-z0-9._-]+", "-", str(value or "")).strip("-._")
-    return text[:80]
-
-
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
-def read_meta(evidence_id: str) -> dict:
-    p = META_DIR / f"{evidence_id}.json"
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="Evidence not found")
-    return json.loads(p.read_text(encoding="utf-8"))
-
-
-def write_meta(evidence_id: str, data: dict) -> None:
-    ensure_dirs()
-    (META_DIR / f"{evidence_id}.json").write_text(
-        json.dumps(data, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-
-def case_path(case_id: str) -> Path:
-    safe_id = safe_case_id(case_id)
-    if not safe_id:
-        raise HTTPException(status_code=400, detail="Invalid case id")
-    return CASE_DIR / f"{safe_id}.json"
-
-
-def read_case(case_id: str) -> dict:
-    p = case_path(case_id)
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="Case not found")
-    return json.loads(p.read_text(encoding="utf-8"))
-
-
-def write_case(data: dict) -> None:
-    ensure_dirs()
-    case_id = data.get("id") or data.get("case_no")
-    if not case_id:
-        raise HTTPException(status_code=400, detail="Case id missing")
-    case_path(case_id).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def make_case_no() -> str:
@@ -400,7 +354,6 @@ def list_parsed_results_history(case_id: str = "", tool: str = "", limit: int = 
         "parsed_results": rows,
         "fallback_reason": fallback_reason,
     }
-
 
 
 @app.get("/mobile/cases")
