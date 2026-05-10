@@ -31,6 +31,11 @@ except Exception:
     from evidence_upload_service import handle_upload_evidence
 
 try:
+    from .evidence_history_service import get_evidence_item, list_evidence_items
+except Exception:
+    from evidence_history_service import get_evidence_item, list_evidence_items
+
+try:
     from .history_serializers import collect_file_parsed_results_history
 except Exception:
     from history_serializers import collect_file_parsed_results_history
@@ -353,19 +358,12 @@ async def upload_evidence(
 @app.get("/evidence")
 def list_evidence(tool: str = "", sid: str = "", q: str = "", limit: int = 100) -> dict:
     ensure_dirs()
-    items = collect_file_evidence(
-        META_DIR,
-        tool=tool,
-        sid=sid,
-        q=q,
-        limit=limit,
-    )
-    return {"ok": True, "count": len(items), "items": items}
+    return list_evidence_items(tool=tool, sid=sid, q=q, limit=limit)
 
 
 @app.get("/evidence/{evidence_id}")
 def get_evidence(evidence_id: str) -> dict:
-    return {"ok": True, "evidence": read_meta(evidence_id)}
+    return get_evidence_item(evidence_id)
 
 
 @app.post("/evidence/{evidence_id}")
