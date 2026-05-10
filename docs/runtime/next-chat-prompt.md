@@ -24,6 +24,8 @@ https://sapdev.cbj-kontruksi.com/sap-api/health
 ## Current Status
 
 - SAPDEV deploy workflow GREEN.
+- Official SAPDEV deploy workflow now supports automatic deploy on push to `dev`.
+- Manual workflow dispatch is still available as fallback.
 - Latest official manual deploy run GREEN.
 - Latest verified run ID: `25622541221`.
 - Latest verified job ID: `75211731726`.
@@ -54,18 +56,25 @@ https://sapdev.cbj-kontruksi.com/sap-api/health
   - Run full SAPDEV QA suite
   - Workflow success summary
   - Show recent deploy log
+- Updated `.github/workflows/dev-deploy.yml` so pushes to `dev` trigger SAPDEV build/deploy/QA automatically.
 
 ## Official Workflow Notes
 
 - Single official deploy workflow:
   `.github/workflows/dev-deploy.yml`
 - Workflow name:
-  `OFFICIAL - SAPDEV Deploy Manual`
+  `OFFICIAL - SAPDEV Deploy`
 - Workflow ID:
   `274021726`
 - Active runner label:
   `sapdev`
-- Official deploy command:
+- Automatic deploy trigger:
+
+```bash
+git push origin dev
+```
+
+- Manual deploy fallback:
 
 ```bash
 cd /home/sadmin/sap
@@ -87,7 +96,8 @@ gh run watch RUN_ID
 Important:
 - Do not recreate duplicate deploy/validate workflows.
 - Official workflow must stay the single source of truth.
-- GitHub connector can inspect workflow jobs/logs after a run exists, but local/CLI is still the reliable path for fresh `workflow_dispatch` with input `confirm=DEPLOY_DEV`.
+- Pushes to `dev` should auto trigger the SAPDEV deploy workflow.
+- If GitHub does not start a run for a connector-created workflow edit, push a normal code/docs commit to `dev` and check the workflow run list again.
 
 ## Current Architecture
 
@@ -111,7 +121,7 @@ Important:
 
 - Jangan sentuh PROD.
 - Jangan ubah nginx kalau tidak diminta.
-- Jangan ubah GitHub workflow kalau tidak diminta.
+- Jangan recreate duplicate GitHub workflows.
 - Jangan reintroduce MutationObserver/runtime injector.
 - Jangan bikin rewrite besar.
 - Incremental only.
@@ -207,6 +217,8 @@ Local:
 
 Status terakhir:
 - SAPDEV deploy workflow GREEN.
+- Official workflow auto deploy on push to `dev` sudah aktif.
+- Manual dispatch tetap tersedia sebagai fallback.
 - Latest verified run ID: `25622541221`.
 - PR #3 sudah merged ke `dev`.
 - Merge/head deployed: `d1b1601`.
@@ -218,7 +230,7 @@ Status terakhir:
 Rules:
 - Jangan sentuh PROD.
 - Jangan ubah nginx.
-- Jangan ubah workflow.
+- Jangan recreate duplicate workflow.
 - Jangan rewrite besar.
 - Incremental only.
 - Jangan reintroduce MutationObserver/runtime injector.
@@ -235,5 +247,10 @@ cd /home/sadmin/sap
 npm run build
 bash scripts/qa-backend-syntax.sh
 bash scripts/qa-sapdev.sh
-gh workflow run 274021726 -r dev -f confirm=DEPLOY_DEV
+```
+
+Deploy DEV otomatis:
+
+```bash
+git push origin dev
 ```
