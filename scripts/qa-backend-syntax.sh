@@ -248,6 +248,63 @@ assert missing_rows == []
 print('OK: history serializer contracts passed')
 PY
 
+log "Validate evidence helpers"
+TMP_EVIDENCE_ROOT="$(mktemp -d)" python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+from backend.evidence_helpers import collect_file_evidence
+
+meta_dir = Path(os.environ['TMP_EVIDENCE_ROOT']) / 'metadata'
+meta_dir.mkdir(parents=True, exist_ok=True)
+
+(meta_dir / 'ev1.json').write_text(json.dumps({
+    'id': 'ev1',
+    'tool': 'Log Evidence',
+    'sid': 'QA1',
+    'title': 'Workprocess log',
+    'note': 'Dispatcher issue',
+    'original_filename': 'dev_w0.log',
+    'tags': ['wp', 'dispatcher'],
+}), encoding='utf-8')
+
+(meta_dir / 'ev2.json').write_text(json.dumps({
+    'id': 'ev2',
+    'tool': 'ST03N',
+    'sid': 'QA2',
+    'title': 'ST03N workload',
+    'note': 'Dialog response time',
+    'original_filename': 'st03n.xlsx',
+    'tags': ['workload'],
+}), encoding='utf-8')
+
+(meta_dir / 'broken.json').write_text('{broken-json', encoding='utf-8')
+
+all_items = collect_file_evidence(meta_dir, limit=10)
+assert len(all_items) == 2
+assert {item['id'] for item in all_items} == {'ev1', 'ev2'}
+
+log_items = collect_file_evidence(meta_dir, tool='Log Evidence', limit=10)
+assert len(log_items) == 1
+assert log_items[0]['id'] == 'ev1'
+
+sid_items = collect_file_evidence(meta_dir, sid='QA2', limit=10)
+assert len(sid_items) == 1
+assert sid_items[0]['id'] == 'ev2'
+
+query_items = collect_file_evidence(meta_dir, q='dispatcher', limit=10)
+assert len(query_items) == 1
+assert query_items[0]['id'] == 'ev1'
+
+limited_items = collect_file_evidence(meta_dir, limit=1)
+assert len(limited_items) == 1
+
+missing_items = collect_file_evidence(meta_dir / 'missing', limit=10)
+assert missing_items == []
+print('OK: evidence helper contracts passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
