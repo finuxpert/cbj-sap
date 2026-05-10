@@ -97,6 +97,7 @@ Recent important commits already pushed:
 - Add DB-backed evidence history panel
 - Document SAP PostgreSQL hybrid continuation
 - Document validated sapdev deploy workflow
+- Refresh next chat runtime continuation prompt
 
 Branch state:
 - dev -> origin/dev
@@ -149,12 +150,56 @@ Current target:
 - reduce ToolLogEvidenceV2 monolith
 - reduce bundle size (~1 MB warning still exists)
 
+Recommended next architecture target:
+src/tools/logtriage/
+├── components/
+│   ├── SummaryStrip.jsx
+│   ├── AnalyticsStrip.jsx
+│   ├── EvidenceTable.jsx
+│   ├── TimelinePanel.jsx
+│   ├── CorrelationPanel.jsx
+│   └── HeatmapPanel.jsx
+│
+├── analysis/
+│   ├── buildAnalysis.js
+│   ├── confidenceLabel.js
+│   ├── scoring.js
+│   └── correlations.js
+│
+├── hooks/
+│   ├── useEvidenceFilters.js
+│   └── useTimeline.js
+│
+└── ToolLogEvidenceV2.jsx
+
+Priority order:
+1. extract buildAnalysis()
+2. extract confidenceLabel()
+3. modularize ToolLogEvidenceV2
+4. bundle optimization
+5. virtualized rendering with react-window
+
+Reason:
+- reduce render weight
+- avoid browser freeze
+- improve scalability
+- easier rollback
+- easier future AI narrative integration
+
+Next high-impact feature AFTER cleanup:
+- AI-assisted RCA narrative
+- RCA correlation engine
+- virtualized evidence rendering
+- persistent evidence sessions
+- RCA replay timeline
+
 Rules:
 - incremental only
 - no massive rewrite
 - no PROD change
 - keep frontend behavior compatible
 - keep fallback active
+- no nginx/cloudflare changes unless explicitly requested
 
 Next high impact targets:
 1. split App.jsx further
