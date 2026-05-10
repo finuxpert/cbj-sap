@@ -5,17 +5,21 @@ log() {
   printf '\n[qa-backend-syntax] %s\n' "$*"
 }
 
-log "Compile FastAPI backend modules"
-python3 -m py_compile backend/evidence_api.py
-python3 -m py_compile backend/case_analytics.py
-python3 -m py_compile backend/dbfirst_read_helpers.py
+log "Discover backend Python modules"
+mapfile -t PY_FILES < <(find backend -type f -name '*.py' \
+  ! -path '*/__pycache__/*' \
+  ! -path '*/.venv/*' \
+  ! -path '*/venv/*' \
+  | sort)
 
-if [ -f backend/db/session.py ]; then
-  python3 -m py_compile backend/db/session.py
+if [ "${#PY_FILES[@]}" -eq 0 ]; then
+  echo "ERROR: no backend Python files found" >&2
+  exit 1
 fi
 
-if [ -f backend/db/repositories.py ]; then
-  python3 -m py_compile backend/db/repositories.py
-fi
+printf '%s\n' "${PY_FILES[@]}"
 
-log "Backend syntax QA PASS"
+log "Compile backend Python modules"
+python3 -m py_compile "${PY_FILES[@]}"
+
+log "Backend syntax QA PASS (${#PY_FILES[@]} files)"
