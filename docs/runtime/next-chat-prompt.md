@@ -4,10 +4,10 @@ Project:
 SAP Intelligent RCA Workspace
 
 Repo:
-finuxpert/cbj-sap
+`finuxpert/cbj-sap`
 
 Branch aktif:
-dev
+`dev`
 
 Local path:
 `/home/sadmin/sap`
@@ -23,134 +23,55 @@ https://sapdev.cbj-kontruksi.com/sap-api/health
 
 ## Current Status
 
-- SAPDEV deploy workflow GREEN from previous verified manual run.
-- Official SAPDEV deploy workflow now supports automatic deploy on push to `dev`.
-- Manual workflow dispatch is still available as fallback.
-- Latest verified manual run ID: `25622541221`.
-- Latest verified manual job ID: `75211731726`.
-- Previous verified deployed merge/head: `d1b1601`.
-- Frontend build passed in verified run.
-- Backend syntax QA passed in verified run.
-- SAPDEV QA suite passed in verified run.
-- Public API contract validation passed in verified run.
-- Evidence upload refactor tahap 1 selesai.
-- Evidence history/read refactor tahap 1 selesai.
+- SAPDEV deploy workflow auto-deploy on push to `dev` sudah aktif.
+- Manual workflow dispatch tetap tersedia sebagai fallback.
+- Single official workflow tetap `.github/workflows/dev-deploy.yml`.
+- Workflow name: `OFFICIAL - SAPDEV Deploy`.
+- Workflow ID: `274021726`.
+- Active runner label: `sapdev`.
+- Latest verified manual deploy:
+  - Run ID: `25622541221`
+  - Job ID: `75211731726`
+  - Result: success
+- Latest observed successful auto deploy after helper script commit:
+  - Run ID: `25628363768`
+  - Conclusion: success
+  - Title: `Add helper to watch latest SAPDEV deploy run`
+- Helper script added:
+  - `scripts/watch-latest-sapdev-run.sh`
 
-## Latest Commits / Recent Repo Updates
+## GitHub-only / ChatGPT-only Working Mode
 
-Recent commits pushed to `dev`:
+Current working preference:
+- Lanjut via ChatGPT + GitHub connector only.
+- Jangan test lewat local CLI unless explicitly allowed later.
+- Use GitHub auto deploy workflow result after each push as validation signal.
+- Do not ask user to run CLI for every small step.
 
-```text
-49cf82b9 Delegate evidence history routes to service
-8a1f14a8 Move DB-first evidence history response logic to service
-4a8a9846 Delegate evidence read routes to service
-c5e82f40 Add evidence history service wrapper
-0be9174 Document automatic SAPDEV deploy trigger
-78d5810 Enable automatic SAPDEV deploy on dev push
-```
-
-Important note:
-- GitHub connector did not show workflow runs for connector-created commits during the previous chat.
-- Auto-deploy trigger is already present in `.github/workflows/dev-deploy.yml`.
-- From terminal/local runner, verify with:
+Useful GitHub helper when local CLI is allowed:
 
 ```bash
-gh run list --workflow 274021726 --limit 10
+bash scripts/watch-latest-sapdev-run.sh
 ```
 
-## Completed Recently
+## Core Guardrails
 
-### Deploy workflow
-
-- Updated `.github/workflows/dev-deploy.yml`.
-- Workflow name changed to `OFFICIAL - SAPDEV Deploy`.
-- Pushes to branch `dev` now trigger SAPDEV build/deploy/QA automatically.
-- Manual `workflow_dispatch` remains available as fallback with `confirm=DEPLOY_DEV`.
-- Official workflow remains the single source of truth.
-
-### Evidence upload refactor
-
-- Created `backend/evidence_upload_service.py`.
-- `/upload` route in `backend/evidence_api.py` is thin.
-- Upload implementation moved from `backend/evidence_api.py` to `backend/evidence_upload_service.py`.
-- Upload flow preserves existing endpoint contract and response shape.
-- Optional case linking preserved.
-- PostgreSQL hybrid best-effort writes preserved.
-- File fallback behavior preserved.
-
-### Evidence history/read refactor
-
-Created:
-
-```text
-backend/evidence_history_service.py
-```
-
-Current service functions:
-
-```python
-list_evidence_items()
-get_evidence_item()
-list_evidence_history_dbfirst()
-```
-
-Routes now delegated to service:
-
-```text
-GET /evidence
-GET /evidence/{evidence_id}
-GET /evidence-history
-GET /history/evidence
-GET /evidence/history
-```
-
-Preserved behavior:
-- API response shape remains compatible.
-- DB-first evidence history still reads PostgreSQL first.
-- File fallback/warning behavior preserved.
-- Hybrid mode preserved.
-- Route layer in `backend/evidence_api.py` is thinner.
-
-## Official Workflow Notes
-
-- Single official deploy workflow:
-  `.github/workflows/dev-deploy.yml`
-- Workflow name:
-  `OFFICIAL - SAPDEV Deploy`
-- Workflow ID:
-  `274021726`
-- Active runner label:
-  `sapdev`
-- Automatic deploy trigger:
-
-```bash
-git push origin dev
-```
-
-- Manual deploy fallback:
-
-```bash
-cd /home/sadmin/sap
-gh workflow run 274021726 -r dev -f confirm=DEPLOY_DEV
-```
-
-- Check latest runs:
-
-```bash
-gh run list --workflow 274021726 --limit 10
-```
-
-- Watch run:
-
-```bash
-gh run watch RUN_ID
-```
-
-Important:
-- Do not recreate duplicate deploy/validate workflows.
-- Official workflow must stay the single source of truth.
-- Pushes to `dev` should auto trigger the SAPDEV deploy workflow.
-- If GitHub does not start a run for a connector-created workflow edit, push a normal code/docs commit to `dev` and check the workflow run list again.
+- Jangan sentuh PROD.
+- Jangan ubah nginx.
+- Jangan recreate duplicate workflow.
+- Jangan rewrite besar.
+- Incremental only.
+- Jangan reintroduce MutationObserver/runtime injector.
+- DB-first/PostgreSQL hybrid behavior jangan diubah kecuali memang targetnya.
+- API response contract harus tetap sama.
+- Keep file fallback safe.
+- Avoid breaking existing endpoints:
+  - `/sap-api/health`
+  - `/sap-api/history`
+  - `/sap-api/evidence`
+  - `/sap-api/upload`
+  - `/sap-api/evidence-history`
+  - `/sap-api/parsed-results-history`
 
 ## Current Architecture
 
@@ -176,35 +97,287 @@ DB-first Read Helpers
 PostgreSQL / File fallback
 ```
 
-Current service files:
-
-```text
-backend/evidence_upload_service.py
-backend/evidence_history_service.py
-backend/dbfirst_read_helpers.py
-```
-
 ## Core RCA Tools Only
 
 1. RCA Comparator / WP-SCOUT Analyzer
 2. ST03N Analyzer
 3. Log Triage / Log Evidence V2
 
-## Hard Rules
+## Completed Backend Modularization
 
-- Jangan sentuh PROD.
-- Jangan ubah nginx kalau tidak diminta.
-- Jangan recreate duplicate GitHub workflows.
-- Jangan reintroduce MutationObserver/runtime injector.
-- Jangan bikin rewrite besar.
-- Incremental only.
-- Keep DB-first / PostgreSQL hybrid behavior unchanged unless specifically targeted.
-- Keep file fallback safe.
-- Avoid breaking existing `/sap-api/health`, `/sap-api/history`, `/sap-api/evidence`, `/sap-api/upload`, `/sap-api/evidence-history`, `/sap-api/parsed-results-history`.
-- Keep API response contract exactly the same unless intentionally versioned.
-- Validate after every small backend change.
+### Evidence upload
 
-## Known Good Local Validation
+File:
+`backend/evidence_upload_service.py`
+
+Status:
+- `/upload` route is already thin.
+- Upload behavior preserved.
+- Case linking preserved.
+- PostgreSQL hybrid best-effort write preserved.
+- File fallback behavior preserved.
+
+### Evidence history/read
+
+File:
+`backend/evidence_history_service.py`
+
+Service functions:
+
+```python
+list_evidence_items()
+get_evidence_item()
+list_evidence_history_dbfirst()
+```
+
+Routes already delegated:
+
+```text
+GET /evidence
+GET /evidence/{evidence_id}
+GET /evidence-history
+GET /history/evidence
+GET /evidence/history
+```
+
+### Parsed results history
+
+File:
+`backend/parsed_results_history_service.py`
+
+Service function:
+
+```python
+list_parsed_results_history_dbfirst()
+```
+
+Route already delegated:
+
+```text
+GET /parsed-results-history
+```
+
+Contract preserved:
+
+```text
+ok
+read_source
+mode
+count
+parsed_results
+fallback_reason
+```
+
+### Case service foundation
+
+File:
+`backend/case_service.py`
+
+Service functions:
+
+```python
+create_case_item()
+list_case_items()
+get_case_item()
+update_case_item()
+delete_case_item()
+```
+
+Status:
+- Service file exists.
+- Route delegation from `backend/evidence_api.py` is not completed yet because a full-file GitHub connector update was blocked.
+- Next attempt should patch route imports/functions in smaller chunks, or do local CLI when allowed later.
+
+### Parsed result write service
+
+File:
+`backend/parsed_result_service.py`
+
+Service function:
+
+```python
+add_case_parsed_result()
+```
+
+Status:
+- Service file exists.
+- It preserves existing response contract:
+
+```text
+ok
+result
+case
+analytics
+db_write
+```
+
+- It now uses `timeline_service.py` for timeline event append.
+- Route delegation from `backend/evidence_api.py` is pending.
+
+### Timeline service
+
+File:
+`backend/timeline_service.py`
+
+Service functions:
+
+```python
+build_parsed_result_timeline_event()
+append_parsed_result_timeline_event()
+```
+
+Status:
+- Used by `parsed_result_service.py`.
+- Timeline event shape preserved:
+
+```text
+id
+time
+severity
+title
+description
+tool
+```
+
+### Mobile case service
+
+File:
+`backend/mobile_case_service.py`
+
+Service functions:
+
+```python
+list_mobile_case_items()
+get_mobile_case_item()
+get_mobile_case_analytics_item()
+```
+
+Status:
+- Service file exists.
+- Route delegation from `backend/evidence_api.py` is pending.
+
+### Evidence mutation service
+
+File:
+`backend/evidence_mutation_service.py`
+
+Service functions:
+
+```python
+update_evidence_item()
+get_evidence_download_response()
+delete_evidence_item()
+```
+
+Status:
+- Service file exists.
+- Route delegation from `backend/evidence_api.py` is pending.
+- Response contracts preserved:
+  - update evidence metadata
+  - download evidence FileResponse
+  - delete evidence metadata/file
+
+### Backend modularization status doc
+
+File:
+`docs/runtime/backend-modularization-status.md`
+
+Status:
+- Documents service layer status, pending route delegation, blocked maintenance service attempt, and next safe targets.
+
+## Current Service Layer Files
+
+```text
+backend/case_service.py
+backend/evidence_history_service.py
+backend/evidence_mutation_service.py
+backend/evidence_upload_service.py
+backend/mobile_case_service.py
+backend/parsed_result_service.py
+backend/parsed_results_history_service.py
+backend/timeline_service.py
+backend/dbfirst_read_helpers.py
+```
+
+## Latest Relevant Commits
+
+```text
+30ec693d Document backend modularization status
+945e3e37 Add evidence mutation service helpers
+72048a6f Use timeline service in parsed result writes
+d11a5d78 Add timeline service helpers
+8901df06 Add mobile case service wrapper
+0f0544de Add parsed result write service
+d74d74c7 Add case service wrapper
+0134f0e1 Add helper to watch latest SAPDEV deploy run
+8fdf5784 Delegate parsed results history route to service
+702f5650 Add parsed results history service
+```
+
+## Attempted But Blocked
+
+### Maintenance cleanup service
+
+Attempted target:
+`backend/maintenance_service.py`
+
+Reason not completed:
+- GitHub connector safety blocked the create-file call because the code contained cleanup/delete operations.
+
+Recommended handling:
+- Do not force this via connector.
+- Defer until local CLI work is allowed, or make the change manually with normal repo review.
+
+### Full-file evidence_api.py route delegation
+
+Attempted target:
+- delegate case routes to `case_service.py`
+
+Reason not completed:
+- GitHub connector blocked large full-file update.
+
+Recommended handling:
+- Use smaller patches only.
+- Prefer creating service files and documenting status via GitHub connector.
+- If local CLI is allowed later, do the import/body route delegation locally and validate.
+
+## Next Safest Targets
+
+Recommended next target:
+
+```text
+backend/dbfirst_middleware.py
+```
+
+Goal:
+- isolate DB-first read middleware logic out of `backend/evidence_api.py`.
+- keep API contract unchanged.
+- keep hybrid PostgreSQL/file fallback behavior unchanged.
+
+Alternative next targets:
+
+```text
+backend/correlation_service.py
+backend/session_service.py
+```
+
+Or, if small patching to `evidence_api.py` is possible:
+
+```text
+thin-route delegation one route group at a time:
+/cases
+/cases/{case_id}
+/cases/{case_id}/parsed-results
+/mobile/cases
+/mobile/cases/{case_id}
+/mobile/cases/{case_id}/analytics
+/evidence/{evidence_id}/download
+/evidence/{evidence_id} update/delete
+```
+
+## Validation Commands
+
+Use only when CLI/local validation is allowed:
 
 ```bash
 cd /home/sadmin/sap
@@ -219,73 +392,9 @@ Expected QA result:
 [qa-sapdev] QA PASS: backend API, hybrid reads, case persistence, linked evidence, and all core frontend RCA tool markers verified
 ```
 
-## Known Good Deploy Validation
-
-Latest verified manual deploy:
-
-```text
-Run ID : 25622541221
-Job ID : 75211731726
-Result : success
-```
-
-Successful workflow steps:
-
-```text
-Sync DEV branch and validate build
-Install backend Python requirements
-Deploy DEV web bundle
-Validate local Evidence API
-Validate public SAPDEV API contracts
-Run full SAPDEV QA suite
-Workflow success summary
-Show recent deploy log
-```
-
-`Workflow failure summary` may be skipped when there is no failure; that is normal.
-
-## Next Recommended Target
-
-Continue backend modularization incrementally.
-
-Best next module candidate:
-
-```text
-Split parsed-results-history logic from backend/evidence_api.py into a service.
-Suggested new service file: backend/parsed_results_history_service.py
-```
-
-Suggested target route:
-
-```text
-@app.get("/parsed-results-history")
-```
-
-Scope guidance:
-
-1. Keep route in `backend/evidence_api.py` thin.
-2. Move DB-first parsed results history logic to service/helper function.
-3. Keep response contract exactly the same:
-   - `ok`
-   - `read_source`
-   - `mode`
-   - `count`
-   - `parsed_results`
-   - `fallback_reason`
-4. Keep PostgreSQL hybrid mode safe.
-5. Keep file fallback safe via `collect_file_parsed_results_history()`.
-6. Do not rewrite DB-first middleware yet.
-7. Do not touch PROD/nginx.
-8. Validate after the patch.
-
-After that:
-
-```text
-case service layer
-timeline service
-correlation engine
-persistent RCA session
-```
+For GitHub-only flow:
+- rely on auto deploy workflow run status after each push to `dev`.
+- use GitHub Actions run result as validation signal.
 
 ## Suggested Prompt For New Chat
 
@@ -297,46 +406,40 @@ Repo:
 Branch:
 `dev`
 
-Local:
-`/home/sadmin/sap`
+Mode kerja:
+Full ChatGPT + GitHub connector only. Jangan test lewat local CLI kecuali saya izinkan. Jangan sentuh PROD/nginx/workflow.
+
+Baca juga:
+`docs/runtime/backend-modularization-status.md`
 
 Status terakhir:
-- SAPDEV deploy workflow auto-deploy on push to `dev` sudah aktif.
-- Manual dispatch tetap tersedia sebagai fallback.
-- Latest verified manual run ID: `25622541221`.
-- Evidence upload refactor tahap 1 selesai.
-- `backend/evidence_upload_service.py` sudah aktif.
-- `/upload` route di `backend/evidence_api.py` sudah tipis.
-- Evidence history/read refactor tahap 1 selesai.
-- `backend/evidence_history_service.py` sudah aktif.
-- Routes `/evidence`, `/evidence/{id}`, `/evidence-history`, `/history/evidence`, `/evidence/history` sudah delegate ke service.
-- Recent latest commit: `49cf82b9 Delegate evidence history routes to service`.
-- Build/QA verified previously; latest auto-deploy run should be checked with `gh run list --workflow 274021726 --limit 10`.
+- SAPDEV auto deploy on push to `dev` sudah aktif.
+- Manual dispatch tetap fallback.
+- Latest observed successful auto deploy: Run ID `25628363768`, conclusion `success`.
+- Helper script exists: `scripts/watch-latest-sapdev-run.sh`.
+- Backend service modularization sudah lanjut.
+- Services sudah ada:
+  - `backend/case_service.py`
+  - `backend/evidence_history_service.py`
+  - `backend/evidence_mutation_service.py`
+  - `backend/evidence_upload_service.py`
+  - `backend/mobile_case_service.py`
+  - `backend/parsed_result_service.py`
+  - `backend/parsed_results_history_service.py`
+  - `backend/timeline_service.py`
+- `parsed_result_service.py` sudah pakai `timeline_service.py`.
+- `parsed-results-history` route sudah delegate ke service.
+- Evidence upload/history/read sudah delegate ke service.
+- Case/mobile/evidence mutation service files sudah ada, tapi route delegation dari `evidence_api.py` masih pending.
+- Maintenance cleanup service attempt diblok GitHub connector safety, jangan dipaksa via connector.
 
 Rules:
-- Jangan sentuh PROD.
-- Jangan ubah nginx.
-- Jangan recreate duplicate workflow.
 - Jangan rewrite besar.
 - Incremental only.
+- Jangan recreate duplicate workflow.
 - Jangan reintroduce MutationObserver/runtime injector.
-- DB-first/PostgreSQL hybrid behavior jangan diubah kecuali memang targetnya.
+- DB-first/PostgreSQL hybrid behavior jangan diubah kecuali targetnya.
 - API response contract harus tetap sama.
 
 Target berikutnya:
-Split `parsed-results-history` logic dari `backend/evidence_api.py` ke `backend/parsed_results_history_service.py`.
-
-Wajib validasi:
-
-```bash
-cd /home/sadmin/sap
-npm run build
-bash scripts/qa-backend-syntax.sh
-bash scripts/qa-sapdev.sh
-```
-
-Deploy DEV otomatis:
-
-```bash
-git push origin dev
-```
+Prioritaskan isolate DB-first middleware ke `backend/dbfirst_middleware.py`, atau lanjut service-layer foundation yang tidak butuh full-file rewrite.
