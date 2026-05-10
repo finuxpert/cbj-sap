@@ -18,6 +18,16 @@ function buildSearch(params = {}) {
   return suffix
 }
 
+function normalizeCaseResponse(response = {}) {
+  return response?.case || response?.item || response?.data || response || {}
+}
+
+function limitItems(items = [], params = {}) {
+  const limit = Number(params.limit || 0)
+  if (!limit || limit < 1) return items
+  return items.slice(0, limit)
+}
+
 async function postJson(path, payload = {}) {
   return toJson(await fetch(`${API_BASE}${path}`, {
     method: 'POST',
@@ -92,17 +102,39 @@ export async function saveParsedResult(caseId, payload = {}) {
 
 export async function listCaseParsedResults(caseId, params = {}) {
   if (!caseId) return { ok: false, detail: 'caseId is required', parsed_results: [] }
-  return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}/parsed-results${buildSearch(params)}`, { cache: 'no-store' }))
+  const response = await getCase(caseId)
+  if (response?.ok === false) return { ...response, parsed_results: [] }
+  const caseData = normalizeCaseResponse(response)
+  const items = limitItems(Array.isArray(caseData.parsed_results) ? caseData.parsed_results : [], params)
+  return { ok: true, case_id: caseId, count: items.length, parsed_results: items }
 }
 
 export async function listCaseEvidence(caseId, params = {}) {
   if (!caseId) return { ok: false, detail: 'caseId is required', evidence: [] }
-  return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}/evidence${buildSearch(params)}`, { cache: 'no-store' }))
+  const response = await getCase(caseId)
+  if (response?.ok === false) return { ...response, evidence: [] }
+  const caseData = normalizeCaseResponse(response)
+  const items = limitItems(Array.isArray(caseData.evidence) ? caseData.evidence : [], params)
+  return { ok: true, case_id: caseId, count: items.length, evidence: items }
 }
 
 export async function getCaseReplay(caseId) {
   if (!caseId) return { ok: false, detail: 'caseId is required' }
-  return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}/replay`, { cache: 'no-store' }))
+  const response = await getCase(caseId)
+  if (response?.ok === false) return response
+  const caseData = normalizeCaseResponse(response)
+  const parsedResults = Array.isArray(caseData.parsed_results) ? caseData.parsed_results : []
+  const evidence = Array.isArray(caseData.evidence) ? caseData.evidence : []
+  const latestParsedResult = parsedResults[parsedResults.length - 1] || null
+  return {
+    ok: true,
+    case_id: caseId,
+    case: caseData,
+    parsed_results: parsedResults,
+    evidence,
+    latest_parsed_result: latestParsedResult,
+    replay_ready: Boolean(latestParsedResult || evidence.length),
+  }
 }
 
 export async function listMobileCases(params = {}) {
