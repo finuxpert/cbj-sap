@@ -22,4 +22,27 @@ printf '%s\n' "${PY_FILES[@]}"
 log "Compile backend Python modules"
 python3 -m py_compile "${PY_FILES[@]}"
 
+log "Import backend models"
+python3 - <<'PY'
+from backend.models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
+
+assert CaseCreate(title='QA').title == 'QA'
+assert CaseUpdate(status='CLOSED').status == 'CLOSED'
+assert EvidenceUpdate(title='Evidence').title == 'Evidence'
+assert ParsedResultCreate(tool='QA').tool == 'QA'
+print('OK: backend.models import smoke passed')
+PY
+
+log "Import FastAPI app"
+python3 - <<'PY'
+from backend.evidence_api import app
+
+assert app.title == 'SAP Intelligent RCA Evidence API'
+paths = {route.path for route in app.routes}
+required = {'/health', '/cases', '/upload', '/parsed-results-history', '/evidence-history'}
+missing = sorted(required - paths)
+assert not missing, f'Missing FastAPI routes: {missing}'
+print(f'OK: evidence_api app import smoke passed ({len(paths)} routes)')
+PY
+
 log "Backend syntax QA PASS (${#PY_FILES[@]} files)"
