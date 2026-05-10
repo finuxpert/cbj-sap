@@ -202,6 +202,25 @@
   color: rgba(248, 250, 252, 0.92);
 }
 
+.parsedResultCaseCopy {
+  margin-left: 8px;
+  border: 1px solid rgba(124, 227, 139, 0.26);
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: rgba(124, 227, 139, 0.08);
+  color: rgba(213, 250, 221, 0.92);
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.parsedResultCaseCopy:hover,
+.parsedResultCaseCopy:focus-visible {
+  border-color: rgba(124, 227, 139, 0.52);
+  background: rgba(124, 227, 139, 0.14);
+  outline: none;
+}
+
 @media (max-width: 1180px) {
   .groupGrid,
   .evidenceColumns {
@@ -212,5 +231,12 @@
 @media (max-width: 760px) {
   .parsedResultsHistoryFilters {
     grid-template-columns: 1fr;
+  }
+
+  .parsedResultCaseCopy {
+    display: inline-flex;
+    margin-left: 0;
+    margin-top: 6px;
+    width: fit-content;
   }
 }
