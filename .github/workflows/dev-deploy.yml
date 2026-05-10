@@ -1,4 +1,4 @@
-name: SAPDEV Manual Deploy
+name: OFFICIAL - SAPDEV Deploy Manual
 
 on:
   workflow_dispatch:
@@ -32,6 +32,7 @@ jobs:
           echo "User: $(whoami)"
           echo "Workspace: $(pwd)"
           echo "Workflow commit: ${GITHUB_SHA}"
+          echo "Official workflow file: .github/workflows/dev-deploy.yml"
 
       - name: Validate local project and deploy script
         run: |
@@ -87,11 +88,12 @@ jobs:
         if: success()
         run: |
           {
-            echo "# SAPDEV Manual Deploy Success"
+            echo "# OFFICIAL SAPDEV Deploy Success"
             echo
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Runner: $(hostname)"
             echo "- Workflow: ${GITHUB_WORKFLOW}"
+            echo "- Workflow file: .github/workflows/dev-deploy.yml"
             echo "- Status: SUCCESS"
             echo "- URL: https://sapdev.cbj-kontruksi.com/sap/"
             echo "- API: https://sapdev.cbj-kontruksi.com/sap-api/health"
@@ -106,11 +108,12 @@ jobs:
         if: failure()
         run: |
           {
-            echo "# SAPDEV Manual Deploy Failed"
+            echo "# OFFICIAL SAPDEV Deploy Failed"
             echo
             echo "- Commit: ${GITHUB_SHA}"
             echo "- Runner: $(hostname)"
             echo "- Workflow: ${GITHUB_WORKFLOW}"
+            echo "- Workflow file: .github/workflows/dev-deploy.yml"
             echo "- Status: FAILED"
             echo
             echo "Check failed job logs and /home/sadmin/deploy-sap-dev.log."
