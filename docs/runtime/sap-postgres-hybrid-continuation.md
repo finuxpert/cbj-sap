@@ -25,12 +25,17 @@ Current GREEN Status:
 - Latest known sync state: ## dev...origin/dev.
 
 Important commits:
+- 08df09c Remove redundant backend storage refactor workflow
+- cebd1bf Remove redundant backend model refactor workflow
+- 55caa29 Add combined backend safe refactor workflow
+- 89fb65b Add backend storage refactor workflow
+- a4bfb38 Add deterministic backend storage refactor helper
+- 7cfba86 Validate backend storage helpers in QA
+- bd3b292 Add backend storage helper module
 - 3c14979 Add deploy workflow failure summary
 - 2d8f121 Remove redundant DEV validation deploy workflow
-- 482cf9a Serialize DEV validation report deploy
 - d0ebf41 Validate backend storage config module
 - cd338f1 Add backend storage config module
-- e057fbc Add backend model refactor workflow
 - f75b46d Add deterministic backend model refactor helper
 - 1f33774 Validate external backend model handoff
 - 7c5f570 Add external model handoff module
@@ -106,16 +111,21 @@ Backend Completed:
 - Runtime uses psycopg v3 style: postgresql+psycopg://...
 - Do not add psycopg2.
 - Backend QA now compiles all backend Python files.
-- Backend QA now validates model imports, model contracts, external model handoff, storage config, and FastAPI route imports.
+- Backend QA now validates model imports, model contracts, external model handoff, storage config, storage helpers, and FastAPI route imports.
 - Added backend modularization prep modules:
   - backend/models.py
   - backend/model_contracts.py
   - backend/external_models.py
   - backend/storage_config.py
-- Added deterministic refactor helper:
+  - backend/storage_helpers.py
+- Added deterministic refactor helpers:
   - scripts/refactor-evidence-api-models.py
-- Added manual backend model refactor workflow:
+  - scripts/refactor-evidence-api-storage.py
+- Added combined manual backend safe refactor workflow:
+  - .github/workflows/backend-safe-refactor.yml
+- Removed redundant individual refactor workflows:
   - .github/workflows/backend-model-refactor.yml
+  - .github/workflows/backend-storage-refactor.yml
 
 Frontend Completed:
 - DB-backed Evidence History mini panel.
@@ -162,14 +172,15 @@ GitHub Actions / Workflow Status:
 - SAP DEV Validate workflow:
   - File: .github/workflows/sap-dev-validate.yml
   - Safe audit/artifact workflow, does not deploy runtime.
-- Backend model refactor workflow:
-  - File: .github/workflows/backend-model-refactor.yml
+- Backend safe refactor workflow:
+  - File: .github/workflows/backend-safe-refactor.yml
   - Manual workflow_dispatch only.
-  - Serialized with group backend-model-refactor.
-  - Runs deterministic model refactor helper, backend QA, then commits model-refactor diff to dev if changed.
-- Removed workflow:
+  - Confirmation input required: APPLY_BACKEND_REFACTOR.
+  - Runs deterministic model refactor, backend QA, deterministic storage refactor, backend QA, then commits diff to dev if changed.
+- Removed workflows:
   - .github/workflows/dev-validate-report.yml
-  - Removed because it duplicated deployment to /var/www/svr01-dev/sap and created deploy race risk.
+  - .github/workflows/backend-model-refactor.yml
+  - .github/workflows/backend-storage-refactor.yml
 
 Deploy:
 - Local script: /home/sadmin/deploy-sap-dev.sh
@@ -191,6 +202,17 @@ GitHub DEV Deploy Workflow:
 gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
 ```
 
+Backend Safe Refactor Workflow:
+- Current workflow file: .github/workflows/backend-safe-refactor.yml
+- Trigger: workflow_dispatch only.
+- Required confirmation input: APPLY_BACKEND_REFACTOR
+- Purpose:
+  - Switch backend/evidence_api.py to external backend models.
+  - Switch backend/evidence_api.py to external storage config/helpers.
+  - Run backend QA after each phase.
+  - Commit diff to dev only if QA passes.
+- Run only when ready because successful commit to dev will trigger normal deploy workflow.
+
 Validation Commands:
 - cd /home/sadmin/sap
 - git status -sb
@@ -208,8 +230,8 @@ No changes:
 
 Next safe targets:
 1. Let deploy-sapdev workflow validate the latest workflow cleanup commit.
-2. Run backend-model-refactor workflow manually only when ready to switch evidence_api.py to external models.
-3. After model switch is green, extract storage helper functions in small chunks.
+2. Run backend-safe-refactor workflow manually only when ready to switch evidence_api.py to external models and storage helpers.
+3. After backend-safe-refactor is green, validate runtime endpoints.
 4. Keep backend/evidence_api.py cleanup incremental.
 5. Do not remove fallback yet.
 6. Do not touch DB schema without explicit approval.
@@ -335,12 +357,13 @@ Note:
 ## Update - 2026-05-10 Workflow cleanup and backend QA hardening
 
 Latest commits:
+- 08df09c Remove redundant backend storage refactor workflow
+- cebd1bf Remove redundant backend model refactor workflow
+- 55caa29 Add combined backend safe refactor workflow
 - 3c14979 Add deploy workflow failure summary
 - 2d8f121 Remove redundant DEV validation deploy workflow
 - d0ebf41 Validate backend storage config module
 - cd338f1 Add backend storage config module
-- e057fbc Add backend model refactor workflow
-- f75b46d Add deterministic backend model refactor helper
 - 1f33774 Validate external backend model handoff
 - 7c5f570 Add external model handoff module
 - 6b23178 Validate backend model contracts in QA
@@ -348,14 +371,14 @@ Latest commits:
 
 Completed:
 - Removed redundant `dev-validate-report.yml` workflow because it duplicated deploy behavior and could race with `deploy-sapdev.yml`.
+- Removed individual backend model/storage refactor workflows after adding the combined backend safe refactor workflow.
 - Kept `deploy-sapdev.yml` as the only workflow that deploys to `/var/www/svr01-dev/sap`.
 - Added success/failure GitHub Actions summaries to the deploy workflow.
-- Added backend syntax/import/contract QA coverage.
-- Added backend model modularization preparation.
-- Added backend storage config module and QA validation.
+- Added backend syntax/import/contract/storage QA coverage.
+- Added backend model and storage modularization preparation.
 
 Current workflow policy:
 - Build/audit workflows may run in parallel.
 - Runtime deploy workflows must be serialized through `sapdev-deploy`.
-- Refactor workflows that push to `dev` must be manually triggered and serialized.
+- Backend refactor workflow is manual-only and requires explicit confirmation.
 - External Telegram/Slack notification is not enabled yet because it requires GitHub Actions secrets.
