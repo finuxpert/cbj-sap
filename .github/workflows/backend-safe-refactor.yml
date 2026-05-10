@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       CONFIRM_BACKEND_REFACTOR:
-        description: "Type APPLY_BACKEND_REFACTOR to run model + storage refactor"
+        description: "Type APPLY_BACKEND_MODEL_REFACTOR to run model-only backend refactor"
         required: true
         default: ""
 
@@ -17,16 +17,16 @@ concurrency:
 
 jobs:
   refactor:
-    name: Apply safe backend refactors
-    runs-on: self-hosted
+    name: Apply safe backend model refactor
+    runs-on: [self-hosted, sapdev]
     timeout-minutes: 15
 
     steps:
       - name: Validate confirmation
         run: |
           set -euo pipefail
-          if [ "${{ github.event.inputs.CONFIRM_BACKEND_REFACTOR }}" != "APPLY_BACKEND_REFACTOR" ]; then
-            echo "Confirmation input mismatch. Refactor intentionally skipped."
+          if [ "${{ github.event.inputs.CONFIRM_BACKEND_REFACTOR }}" != "APPLY_BACKEND_MODEL_REFACTOR" ]; then
+            echo "Confirmation input mismatch. Model refactor intentionally skipped."
             exit 1
           fi
 
@@ -55,32 +55,22 @@ jobs:
           set -euo pipefail
           bash scripts/qa-backend-syntax.sh
 
-      - name: Apply deterministic storage refactor
+      - name: Show model refactor diff
         run: |
           set -euo pipefail
-          python3 scripts/refactor-evidence-api-storage.py
+          git diff -- backend/evidence_api.py backend/models.py backend/external_models.py scripts/qa-backend-syntax.sh
 
-      - name: QA after storage refactor
-        run: |
-          set -euo pipefail
-          bash scripts/qa-backend-syntax.sh
-
-      - name: Show combined refactor diff
-        run: |
-          set -euo pipefail
-          git diff -- backend/evidence_api.py backend/models.py backend/external_models.py backend/storage_config.py backend/storage_helpers.py scripts/qa-backend-syntax.sh
-
-      - name: Commit refactor if changed
+      - name: Commit model refactor if changed
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo "No backend refactor changes to commit."
+            echo "No backend model refactor changes to commit."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/evidence_api.py backend/models.py backend/external_models.py backend/storage_config.py backend/storage_helpers.py scripts/qa-backend-syntax.sh
-          git commit -m "Use external backend models and storage helpers"
+          git add backend/evidence_api.py backend/models.py backend/external_models.py scripts/qa-backend-syntax.sh
+          git commit -m "Use external backend model contracts"
           git push origin HEAD:dev
 
       - name: Refactor summary
@@ -94,5 +84,5 @@ jobs:
             echo "- Workflow: ${GITHUB_WORKFLOW}"
             echo "- Result: ${{ job.status }}"
             echo
-            echo "This workflow runs model refactor first, then storage refactor, with backend QA after each phase."
+            echo "This workflow currently runs model-only refactor. Storage refactor is intentionally excluded until storage helpers are backward-compatible with evidence_api.py."
           } >> "$GITHUB_STEP_SUMMARY"
