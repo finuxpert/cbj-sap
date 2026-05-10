@@ -59,10 +59,38 @@ assert any((item.get("title") or item.get("original_filename") or "").endswith("
 print("OK: linked evidence found")'
 }
 
+assert_runtime_source() {
+  JSON_PAYLOAD="$1" LABEL="$2" python3 -c 'import json, os
+payload=json.loads(os.environ["JSON_PAYLOAD"])
+label=os.environ.get("LABEL", "runtime")
+assert payload.get("ok", True) is True, f"{label} did not return ok=true"
+read_source=payload.get("read_source")
+mode=payload.get("mode")
+count=payload.get("count")
+assert read_source in {"postgres", "file", "legacy_array", None}, f"{label} unexpected read_source={read_source}"
+assert mode in {"hybrid", "unknown", None}, f"{label} unexpected mode={mode}"
+assert count is None or isinstance(count, int), f"{label} count is not integer"
+print(f"OK: {label} read_source={read_source} mode={mode} count={count}")'
+}
+
 log "Backend health"
 HEALTH=$(curl -fsS "${API}/health")
 echo "${HEALTH}"
 echo "${HEALTH}" | grep -q 'SAP Intelligent RCA Evidence API'
+echo "${HEALTH}" | grep -q '"status":"ok"'
+
+log "Backend hybrid runtime read contracts"
+CASES_CONTRACT=$(curl -fsS "${API}/cases?limit=20")
+echo "${CASES_CONTRACT}"
+assert_runtime_source "${CASES_CONTRACT}" "cases"
+
+EVIDENCE_HISTORY_CONTRACT=$(curl -fsS "${API}/evidence-history?limit=20")
+echo "${EVIDENCE_HISTORY_CONTRACT}"
+assert_runtime_source "${EVIDENCE_HISTORY_CONTRACT}" "evidence-history"
+
+PARSED_HISTORY_CONTRACT=$(curl -fsS "${API}/parsed-results-history?limit=20")
+echo "${PARSED_HISTORY_CONTRACT}"
+assert_runtime_source "${PARSED_HISTORY_CONTRACT}" "parsed-results-history"
 
 log "Backend Case History API contract"
 CREATE_RESPONSE=$(curl -fsS -X POST "${API}/cases" \
@@ -111,6 +139,13 @@ DETAIL_AFTER_UPLOAD=$(curl -fsS "${API}/mobile/cases/${CASE_ID}")
 echo "${DETAIL_AFTER_UPLOAD}"
 assert_case_detail_has_evidence "${DETAIL_AFTER_UPLOAD}"
 
+log "Close QA case to avoid OPEN-case pollution"
+CLOSE_RESPONSE=$(curl -fsS -X PATCH "${API}/cases/${CASE_ID}" \
+  -H 'Content-Type: application/json' \
+  --data '{"status":"CLOSED","summary":"QA validation passed; case closed automatically by qa-sapdev."}')
+echo "${CLOSE_RESPONSE}"
+echo "${CLOSE_RESPONSE}" | grep -q 'CLOSED'
+
 log "Frontend deployed bundle smoke"
 test -d "${WEB_ROOT}/assets"
 ls -la "${WEB_ROOT}/assets" | head
@@ -130,4 +165,4 @@ bundle_grep "#/tool/analyzer" "ST03N route"
 bundle_grep "#/tool/logs" "Log Evidence route"
 bundle_grep "#/cases" "Case History route"
 
-log "QA PASS: backend API, case persistence, linked evidence, and all core frontend RCA tool markers verified"
+log "QA PASS: backend API, hybrid reads, case persistence, linked evidence, and all core frontend RCA tool markers verified"
