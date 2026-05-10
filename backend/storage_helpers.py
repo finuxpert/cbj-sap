@@ -15,7 +15,10 @@ except Exception:  # pragma: no cover - keeps helper importable outside FastAPI 
             self.status_code = status_code
             self.detail = detail
 
-from .storage_config import CASE_DIR, EVIDENCE_DIR, META_DIR, REPORT_DIR
+try:
+    from .storage_config import CASE_DIR, EVIDENCE_DIR, META_DIR, REPORT_DIR
+except Exception:
+    from storage_config import CASE_DIR, EVIDENCE_DIR, META_DIR, REPORT_DIR
 
 
 _MISSING = object()
