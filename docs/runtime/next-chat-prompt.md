@@ -267,3 +267,23 @@ Rules:
 
 Next task:
 Extract logic dari `upload_evidence` di `backend/evidence_api.py` ke helper/service kecil, misalnya `backend/evidence_upload_service.py`, tanpa mengubah contract endpoint `/upload`. Setelah itu jalankan build + backend QA + SAPDEV QA, lalu official deploy workflow.
+
+## Completed - Evidence Upload Service Refactor
+
+Status:
+- PR #3 merged into dev.
+- Merge/head deployed: d1b1601.
+- Official SAPDEV deploy workflow GREEN.
+- Run ID: 25622541221.
+- `/upload` route in `backend/evidence_api.py` is now thin.
+- Upload implementation moved to `backend/evidence_upload_service.py`.
+- Validation passed:
+  - npm run build
+  - scripts/qa-backend-syntax.sh
+  - scripts/qa-sapdev.sh
+  - official DEV deploy workflow
+
+Next recommended target:
+- Continue backend modularization incrementally.
+- Do not touch PROD/nginx/workflow.
+- Keep DB-first middleware unchanged unless specifically targeted.
