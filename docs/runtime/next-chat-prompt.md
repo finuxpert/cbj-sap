@@ -3,7 +3,7 @@
 Use this prompt to continue work in a new ChatGPT conversation.
 
 ```text
-Lanjut SAP Intelligent RCA Workspace dari state hybrid PostgreSQL GREEN.
+Lanjut SAP Intelligent RCA Workspace dari state Log Triage modularization in progress.
 
 Project:
 SAP Intelligent RCA Workspace
@@ -75,7 +75,7 @@ Previously caused:
 - mobile freeze
 - excessive DOM mutation
 
-Current verified GREEN status:
+Current verified GREEN baseline before latest modularization:
 - build success
 - DEV deploy success
 - backend API success
@@ -85,7 +85,7 @@ Current verified GREEN status:
 - public /sap-api reachable
 - nginx proxy healthy
 
-Health validation:
+Health validation baseline:
 - /sap-api/health
   - status ok
   - database.enabled true
@@ -99,6 +99,24 @@ Recent important commits already pushed:
 - Document validated sapdev deploy workflow
 - Refresh next chat runtime continuation prompt
 - Document next Log Triage modularization target
+- Add immediate execution plan for next refactor phase
+- Add modular Log Triage analysis module
+- Convert legacy log evidence analysis file to compatibility re-export
+- Convert legacy confidence label module to compatibility re-export
+- Add Log Triage summary strip component
+
+Important latest status:
+- buildAnalysis() was already outside ToolLogEvidenceV2 in src/tools/log-evidence-analysis.js.
+- New modular analysis path created:
+  - src/tools/logtriage/analysis/buildAnalysis.js
+  - src/tools/logtriage/analysis/confidenceLabel.js
+- Legacy compatibility re-export kept:
+  - src/tools/log-evidence-analysis.js
+  - src/tools/log-evidence-confidence.js
+- SummaryStrip component created:
+  - src/tools/logtriage/components/SummaryStrip.jsx
+- SummaryStrip is NOT YET wired into ToolLogEvidenceV2.jsx.
+- Last attempted next step was to replace inline decisionBoard JSX with SummaryStrip, but stop before final update.
 
 Branch state:
 - dev -> origin/dev
@@ -140,16 +158,27 @@ NEVER leave:
 inside /etc/nginx/sites-enabled
 
 Current incremental refactor status:
-Already extracted:
+Already extracted or modularized:
 - parseGenericErrors()
 - groupEvidenceRows()
 - buildTimeline()
+- buildSystemResources()
+- buildAnalysis()
+- confidenceLabel()
+- SummaryStrip.jsx created but not wired
 
-Current target:
-- extract buildAnalysis()
-- extract confidenceLabel()
-- reduce ToolLogEvidenceV2 monolith
-- reduce bundle size (~1 MB warning still exists)
+Current safest target:
+1. fetch latest dev
+2. inspect src/tools/ToolLogEvidenceV2.jsx
+3. import SummaryStrip:
+   import SummaryStrip from './logtriage/components/SummaryStrip.jsx'
+4. remove unused DecisionCard import from EvidenceDecisionKit.jsx
+5. replace inline decisionBoard section with:
+   <SummaryStrip analysis={analysis} primary={primary} status={status} />
+6. run npm build
+7. if build GREEN, deploy DEV
+8. validate /sap-api/health and Log Evidence UI
+9. commit only if build passes
 
 Recommended next architecture target:
 src/tools/logtriage/
@@ -173,23 +202,15 @@ src/tools/logtriage/
 │
 └── ToolLogEvidenceV2.jsx
 
-Priority order:
-1. extract buildAnalysis()
-2. extract confidenceLabel()
-3. modularize ToolLogEvidenceV2
-4. bundle optimization
-5. virtualized rendering with react-window
-
-Immediate next execution plan:
-1. locate all buildAnalysis() dependencies
-2. move pure analysis logic into src/tools/logtriage/analysis/buildAnalysis.js
-3. export/import without changing runtime behavior
-4. run npm build
-5. validate no blank screen
-6. deploy DEV
-7. validate /sap-api/health
-8. validate Evidence History UI
-9. commit incremental diff only
+Priority order from here:
+1. wire SummaryStrip safely
+2. validate build
+3. extract Primary Error Explanation panel
+4. extract Error Job/Program Mapping panel
+5. extract Error Evidence Ranking panel
+6. extract Uploaded/Persistence panels if safe
+7. bundle optimization
+8. virtualized rendering with react-window
 
 Reason:
 - reduce render weight
@@ -212,25 +233,13 @@ Rules:
 - keep frontend behavior compatible
 - keep fallback active
 - no nginx/cloudflare changes unless explicitly requested
-
-Next high impact targets:
-1. split App.jsx further
-2. unify CSS layers
-3. unified ZIP uploader
-4. persistent evidence sessions
-5. RCA timeline replay
-6. Comparer ↔ Logs correlation
-7. virtualized log rendering
-8. AI-assisted RCA narrative
-9. bundle optimization
-
-Long-term direction:
-Transform app from React parser utility into internal SAP observability + RCA workspace platform.
+- do not modify DB schema unless explicitly requested
+- do not reintroduce runtime injectors
 
 GitHub / Runner status:
 SAP repo:
-- build workflow GREEN
-- DEV deploy workflow GREEN
+- build workflow GREEN baseline
+- DEV deploy workflow GREEN baseline
 - self-hosted runner active
 
 Runner service:
@@ -269,5 +278,5 @@ Preferred workflow:
 - commit/push
 
 Continuation objective:
-Continue incremental cleanup and modularization while keeping hybrid PostgreSQL runtime stable and DEV deployment GREEN.
+Continue incremental Log Triage modularization. Start by wiring SummaryStrip into ToolLogEvidenceV2, then validate build/deploy before extracting the next panel.
 ```
