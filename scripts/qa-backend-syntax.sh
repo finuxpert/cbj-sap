@@ -58,6 +58,34 @@ assert not missing, f'Model contract mismatch: {missing}'
 print('OK: backend model contracts passed')
 PY
 
+log "Validate backend storage config"
+python3 - <<'PY'
+from backend.storage_config import (
+    ALLOWED_EXT,
+    APP_NAME,
+    CASE_DIR,
+    EVIDENCE_DIR,
+    MAX_UPLOAD_MB,
+    META_DIR,
+    REPORT_DIR,
+    STORAGE_ROOT,
+    storage_snapshot,
+)
+
+snapshot = storage_snapshot()
+assert APP_NAME == 'SAP Intelligent RCA Evidence API'
+assert str(STORAGE_ROOT)
+assert str(EVIDENCE_DIR).startswith(str(STORAGE_ROOT))
+assert str(META_DIR).startswith(str(STORAGE_ROOT))
+assert str(REPORT_DIR).startswith(str(STORAGE_ROOT))
+assert str(CASE_DIR).startswith(str(STORAGE_ROOT))
+assert '.zip' in ALLOWED_EXT
+assert '.log' in ALLOWED_EXT
+assert MAX_UPLOAD_MB >= 100
+assert snapshot['app_name'] == APP_NAME
+print('OK: backend storage config passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
