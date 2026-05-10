@@ -25,6 +25,22 @@ Current GREEN Status:
 - Latest known sync state: ## dev...origin/dev.
 
 Important commits:
+- 3c14979 Add deploy workflow failure summary
+- 2d8f121 Remove redundant DEV validation deploy workflow
+- 482cf9a Serialize DEV validation report deploy
+- d0ebf41 Validate backend storage config module
+- cd338f1 Add backend storage config module
+- e057fbc Add backend model refactor workflow
+- f75b46d Add deterministic backend model refactor helper
+- 1f33774 Validate external backend model handoff
+- 7c5f570 Add external model handoff module
+- 6b23178 Validate backend model contracts in QA
+- aa2b2d6 Add backend model contract helpers
+- cf6a736 Add backend Pydantic models module
+- f39a92e Compile all backend python files in QA
+- bb8dd66 Tighten sapdev QA runtime checks
+- 3238843 Style parsed results history filters
+- b62787a Add parsed results history filters
 - 2a45d59 Add parsed results history mini panel
 - 06f8e00 Extract DB-first read helpers
 - 77cf204 Add DB-first parsed results history endpoint
@@ -59,18 +75,18 @@ Runtime GREEN:
   - ok: true
   - read_source: postgres
   - mode: hybrid
-  - count: 200 or newer
+  - count: 203 or newer
 - /sap-api/evidence-history:
   - ok: true
   - read_source: postgres
   - mode: hybrid
-  - count: 151 or newer
+  - count: 154 or newer
   - fallback_reason: null
 - /sap-api/parsed-results-history:
   - ok: true
   - read_source: postgres
   - mode: hybrid
-  - count: 7 or newer
+  - count: 10 or newer
   - fallback_reason: null
 
 Runtime Env:
@@ -89,6 +105,17 @@ Backend Completed:
 - psycopg URL handling uses SQLAlchemy parser.
 - Runtime uses psycopg v3 style: postgresql+psycopg://...
 - Do not add psycopg2.
+- Backend QA now compiles all backend Python files.
+- Backend QA now validates model imports, model contracts, external model handoff, storage config, and FastAPI route imports.
+- Added backend modularization prep modules:
+  - backend/models.py
+  - backend/model_contracts.py
+  - backend/external_models.py
+  - backend/storage_config.py
+- Added deterministic refactor helper:
+  - scripts/refactor-evidence-api-models.py
+- Added manual backend model refactor workflow:
+  - .github/workflows/backend-model-refactor.yml
 
 Frontend Completed:
 - DB-backed Evidence History mini panel.
@@ -98,6 +125,7 @@ Frontend Completed:
 - Added src/app/components/ParsedResultsHistoryMiniPanel.jsx.
 - Inserted both mini panels into src/app/pages/InvestigationWorkspaceV2.jsx.
 - Added styling in src/app/evidence-history-ux.css.
+- Parsed Results History now has frontend-only tool filter, severity filter, case/keyword search, visible count, reset, copy case, and copy suspect actions.
 - DEV build validated.
 
 Expected UI:
@@ -105,10 +133,43 @@ Expected UI:
 - Investigation Workspace shows Parsed Results History panel.
 - Source: postgres.
 - Mode: hybrid.
-- Evidence total: 151 or newer.
-- Parsed results total: 7 or newer.
+- Evidence total: 154 or newer.
+- Parsed results total: 10 or newer.
 - Severity pill appears in Parsed Results History.
 - Refresh buttons work.
+- Parsed Results filters work:
+  - Tool
+  - Severity
+  - Case / keyword
+  - Reset
+- Quick copy actions work:
+  - Copy case
+  - Copy suspect
+
+GitHub Actions / Workflow Status:
+- Operational deploy workflow:
+  - Name: Deploy SAP RCA Workspace to sapdev
+  - File: .github/workflows/deploy-sapdev.yml
+  - Workflow ID: 273264105
+  - Trigger: push to dev and workflow_dispatch
+  - Concurrency group: sapdev-deploy
+  - cancel-in-progress: true
+  - Runs backend syntax QA, npm build, deploy to /var/www/svr01-dev/sap, nginx reload, sap-evidence-api restart, and sapdev QA.
+  - Adds success/failure summary in GitHub Actions UI.
+- Build workflow:
+  - File: .github/workflows/build.yml
+  - Safe parallel build-only workflow.
+- SAP DEV Validate workflow:
+  - File: .github/workflows/sap-dev-validate.yml
+  - Safe audit/artifact workflow, does not deploy runtime.
+- Backend model refactor workflow:
+  - File: .github/workflows/backend-model-refactor.yml
+  - Manual workflow_dispatch only.
+  - Serialized with group backend-model-refactor.
+  - Runs deterministic model refactor helper, backend QA, then commits model-refactor diff to dev if changed.
+- Removed workflow:
+  - .github/workflows/dev-validate-report.yml
+  - Removed because it duplicated deployment to /var/www/svr01-dev/sap and created deploy race risk.
 
 Deploy:
 - Local script: /home/sadmin/deploy-sap-dev.sh
@@ -119,14 +180,16 @@ Deploy:
   tail -f /home/sadmin/deploy-sap-dev.log
 
 GitHub DEV Deploy Workflow:
-- Workflow file: .github/workflows/dev-deploy.yml
-- Trigger: workflow_dispatch only.
-- Confirmation input: DEPLOY_DEV
-- Runner labels:
-  - self-hosted
-  - sapdev-pc-runner
-- The workflow validates local path, syncs /home/sadmin/sap to origin/dev, runs npm ci, runs npm run build, runs /home/sadmin/deploy-sap-dev.sh, then validates public API endpoints.
-- If runner label is wrong or offline, GitHub Actions job will stay pending.
+- Current operational workflow file: .github/workflows/deploy-sapdev.yml
+- Workflow name: Deploy SAP RCA Workspace to sapdev
+- Workflow ID: 273264105
+- Trigger: push to dev or workflow_dispatch.
+- Runner: self-hosted sapdev-pc-runner.
+- Manual command:
+
+```bash
+gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
+```
 
 Validation Commands:
 - cd /home/sadmin/sap
@@ -144,13 +207,13 @@ No changes:
 - JSON/file-backed fallback preserved.
 
 Next safe targets:
-1. Validate GitHub Actions DEV Deploy workflow using manual Run workflow with confirm=DEPLOY_DEV.
-2. If workflow is pending, verify runner labels for sapdev-pc-runner and adjust .github/workflows/dev-deploy.yml only if needed.
-3. Improve Parsed Results History mini panel UX with filters for tool, severity, and case_id.
-4. Add drill-down from Parsed Results History row to case detail/mobile case view if existing route supports it.
-5. Add lightweight backend query filters for parsed-results-history if needed, while preserving response shape and fallback.
-6. Continue cleanup of backend/evidence_api.py only in small chunks.
-7. Do not remove fallback yet.
+1. Let deploy-sapdev workflow validate the latest workflow cleanup commit.
+2. Run backend-model-refactor workflow manually only when ready to switch evidence_api.py to external models.
+3. After model switch is green, extract storage helper functions in small chunks.
+4. Keep backend/evidence_api.py cleanup incremental.
+5. Do not remove fallback yet.
+6. Do not touch DB schema without explicit approval.
+7. Optional later: add external notification via Telegram/Slack only after secrets are configured safely in GitHub Actions.
 
 ## Update - 2026-05-10 DB-first helper refactor
 
@@ -254,9 +317,9 @@ Latest validated DEV/sapdev manual deploy uses the registered GitHub Actions wor
 
 Command used:
 
-\```bash
+```bash
 gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
-\```
+```
 
 Latest validation after deploy:
 
@@ -268,3 +331,31 @@ Latest validation after deploy:
 Note:
 
 `.github/workflows/dev-deploy.yml` exists locally/on branch work, but GitHub CLI returned `HTTP 404` for direct workflow dispatch by filename. Current operational manual deploy path is `deploy-sapdev.yml`.
+
+## Update - 2026-05-10 Workflow cleanup and backend QA hardening
+
+Latest commits:
+- 3c14979 Add deploy workflow failure summary
+- 2d8f121 Remove redundant DEV validation deploy workflow
+- d0ebf41 Validate backend storage config module
+- cd338f1 Add backend storage config module
+- e057fbc Add backend model refactor workflow
+- f75b46d Add deterministic backend model refactor helper
+- 1f33774 Validate external backend model handoff
+- 7c5f570 Add external model handoff module
+- 6b23178 Validate backend model contracts in QA
+- cf6a736 Add backend Pydantic models module
+
+Completed:
+- Removed redundant `dev-validate-report.yml` workflow because it duplicated deploy behavior and could race with `deploy-sapdev.yml`.
+- Kept `deploy-sapdev.yml` as the only workflow that deploys to `/var/www/svr01-dev/sap`.
+- Added success/failure GitHub Actions summaries to the deploy workflow.
+- Added backend syntax/import/contract QA coverage.
+- Added backend model modularization preparation.
+- Added backend storage config module and QA validation.
+
+Current workflow policy:
+- Build/audit workflows may run in parallel.
+- Runtime deploy workflows must be serialized through `sapdev-deploy`.
+- Refactor workflows that push to `dev` must be manually triggered and serialized.
+- External Telegram/Slack notification is not enabled yet because it requires GitHub Actions secrets.
