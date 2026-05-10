@@ -1,4 +1,4 @@
-# SAP Intelligent RCA Workspace - Next Chat Prompt
+# Next Chat Prompt - SAP Intelligent RCA Workspace
 
 Project:
 SAP Intelligent RCA Workspace
@@ -13,53 +13,81 @@ Local path:
 `/home/sadmin/sap`
 
 DEV URL:
-https://sapdev.cbj-kontruksi.com/sap/
+https://sapdev.cbj-kontruksi.com
+
+Backend Evidence API:
+http://127.0.0.1:8090
 
 Public API:
 https://sapdev.cbj-kontruksi.com/sap-api/health
 
 ## Current Status
 
-- OFFICIAL SAPDEV deploy workflow is GREEN.
-- Only one active workflow should be used:
+- SAPDEV deploy workflow GREEN.
+- Latest official manual deploy run GREEN.
+- Latest verified run ID: `25622541221`.
+- Latest verified job ID: `75211731726`.
+- Job: `Build, deploy, and QA SAPDEV`.
+- PR #3 already merged into `dev`.
+- Merge/head deployed: `d1b1601`.
+- Frontend build passed.
+- Backend syntax QA passed.
+- SAPDEV QA suite passed.
+- Public API contract validation passed.
+- Evidence upload refactor tahap 1 selesai.
+
+## Completed Recently
+
+- Created `backend/evidence_upload_service.py`.
+- `/upload` route in `backend/evidence_api.py` is now thin.
+- Upload implementation moved from `backend/evidence_api.py` to `backend/evidence_upload_service.py`.
+- Upload flow still preserves existing endpoint contract and response shape.
+- Optional case linking still preserved.
+- PostgreSQL hybrid best-effort writes still preserved.
+- File fallback behavior still preserved.
+- Official deploy workflow verified these steps successfully:
+  - Sync DEV branch and validate build
+  - Install backend Python requirements
+  - Deploy DEV web bundle
+  - Validate local Evidence API
+  - Validate public SAPDEV API contracts
+  - Run full SAPDEV QA suite
+  - Workflow success summary
+  - Show recent deploy log
+
+## Official Workflow Notes
+
+- Single official deploy workflow:
   `.github/workflows/dev-deploy.yml`
 - Workflow name:
   `OFFICIAL - SAPDEV Deploy Manual`
 - Workflow ID:
   `274021726`
-- Latest known successful run:
-  `25621865480`
-- Runner:
-  `sapdev-pc-runner`
-- Active runner label used by workflow:
+- Active runner label:
   `sapdev`
-- DEV deploy, frontend build, backend QA, and public API validation passed.
-- Runtime prompt has been updated after workflow cleanup and backend audit.
+- Official deploy command:
 
-## Official Workflow Notes
+```bash
+cd /home/sadmin/sap
+gh workflow run 274021726 -r dev -f confirm=DEPLOY_DEV
+```
 
-- Old/temporary workflows were removed or disabled.
+- Check latest runs:
+
+```bash
+gh run list --workflow 274021726 --limit 5
+```
+
+- Watch run:
+
+```bash
+gh run watch RUN_ID
+```
+
+Important:
 - Do not recreate duplicate deploy/validate workflows.
 - Official workflow must stay the single source of truth.
-- Official deploy command:
-  `gh workflow run 274021726 -r dev -f confirm=DEPLOY_DEV`
-- Check latest runs:
-  `gh run list --workflow 274021726 --limit 5`
-- Watch run:
-  `gh run watch RUN_ID`
-
-## Recent Workflow Fixes
-
-- Workflow now installs backend Python dependencies inside:
-  `.venv-github-actions`
-- Reason:
-  Ubuntu 24 blocks direct pip install with PEP 668 / externally-managed-environment.
-- Do not use:
-  `pip install --break-system-packages`
-- `scripts/qa-sapdev.sh` was fixed to read large JSON through stdin instead of environment variables.
-- Reason:
-  PostgreSQL case data is now large and caused:
-  `Argument list too long`
+- GitHub connector can inspect workflow jobs/logs after a run exists, but local/CLI is still the reliable path for fresh `workflow_dispatch` with input `confirm=DEPLOY_DEV`.
 
 ## Current Architecture
 
@@ -67,11 +95,11 @@ https://sapdev.cbj-kontruksi.com/sap-api/health
 - Backend: FastAPI Evidence API
 - DB mode: PostgreSQL hybrid
 - API health expected:
-  `case_history=hybrid`
-  `database.enabled=true`
-  `database.configured=true`
-  `database.mode=hybrid`
-  `database.status=ok`
+  - `case_history=hybrid`
+  - `database.enabled=true`
+  - `database.configured=true`
+  - `database.mode=hybrid`
+  - `database.status=ok`
 
 ## Core RCA Tools Only
 
@@ -81,146 +109,19 @@ https://sapdev.cbj-kontruksi.com/sap-api/health
 
 ## Hard Rules
 
-- Fokus rapihin backend dulu.
-- Incremental only.
-- Jangan rewrite besar.
 - Jangan sentuh PROD.
+- Jangan ubah nginx kalau tidak diminta.
+- Jangan ubah GitHub workflow kalau tidak diminta.
 - Jangan reintroduce MutationObserver/runtime injector.
-- Jangan bikin workflow baru kalau tidak perlu.
-- Official workflow harus tetap single source of truth.
-- Hindari kode sampah: helper kecil, contract jelas, QA tetap jalan.
-- Jangan ubah API contract tanpa validasi QA.
+- Jangan bikin rewrite besar.
+- Incremental only.
+- Keep DB-first / PostgreSQL hybrid behavior unchanged unless specifically targeted.
+- Keep file fallback safe.
+- Avoid breaking existing `/sap-api/health`, `/sap-api/history`, `/sap-api/evidence`, and `/sap-api/upload`.
+- Keep API response contract exactly the same unless intentionally versioned.
+- Validate after every small backend change.
 
-## Latest Backend Audit
-
-Command used:
-
-```bash
-cd /home/sadmin/sap
-
-wc -l backend/*.py backend/db/*.py 2>/dev/null | sort -n
-
-grep -nE "^@app\\.(get|post|patch|put|delete)" backend/evidence_api.py
-
-python3 - <<'PY'
-import ast
-from pathlib import Path
-
-path = Path("backend/evidence_api.py")
-tree = ast.parse(path.read_text())
-items = []
-for node in ast.walk(tree):
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        start = node.lineno
-        end = getattr(node, "end_lineno", start)
-        items.append((end-start+1, start, node.name))
-for size, start, name in sorted(items, reverse=True)[:30]:
-    print(f"{size:4} lines  L{start:<4} {name}")
-PY
-```
-
-Backend file sizes:
-
-```text
-0 backend/__init__.py
-6 backend/db/__init__.py
-14 backend/external_models.py
-37 backend/storage_config.py
-47 backend/maintenance_helpers.py
-47 backend/models.py
-51 backend/history_serializers.py
-54 backend/evidence_helpers.py
-61 backend/case_helpers.py
-66 backend/model_contracts.py
-106 backend/db/session.py
-120 backend/storage_helpers.py
-121 backend/db/models.py
-123 backend/db/repositories.py
-200 backend/case_analytics.py
-292 backend/dbfirst_read_helpers.py
-626 backend/evidence_api.py
-1971 total
-```
-
-Routes in `backend/evidence_api.py`:
-
-```text
-116:@app.get("/health")
-132:@app.post("/cases")
-160:@app.get("/cases")
-187:@app.get("/cases/{case_id}")
-192:@app.patch("/cases/{case_id}")
-205:@app.delete("/cases/{case_id}")
-215:@app.post("/cases/{case_id}/parsed-results")
-260:@app.get("/parsed-results-history")
-310:@app.get("/mobile/cases")
-315:@app.get("/mobile/cases/{case_id}")
-321:@app.get("/mobile/cases/{case_id}/analytics")
-327:@app.post("/upload")
-415:@app.get("/evidence")
-428:@app.get("/evidence/{evidence_id}")
-433:@app.post("/evidence/{evidence_id}")
-446:@app.get("/evidence/{evidence_id}/download")
-455:@app.delete("/evidence/{evidence_id}")
-465:@app.post("/maintenance/cleanup")
-580:@app.get("/evidence-history")
-618:@app.get("/history/evidence")
-623:@app.get("/evidence/history")
-```
-
-Large functions in `backend/evidence_api.py`:
-
-```text
-85 lines  L328  upload_evidence
-71 lines  L502  _cbj_sap_rca_dbfirst_read_middleware
-47 lines  L261  list_parsed_results_history
-42 lines  L216  add_parsed_result
-35 lines  L581  _cbj_dbfirst_evidence_history_route
-25 lines  L133  create_case
-24 lines  L161  list_cases
-13 lines  L117  health
-10 lines  L434  update_evidence
-10 lines  L416  list_evidence
-10 lines  L193  update_case
-7 lines  L456  delete_evidence
-7 lines  L206  delete_case
-6 lines  L447  download_evidence
-4 lines  L466  cleanup
-3 lines  L322  get_mobile_case_analytics
-3 lines  L316  get_mobile_case
-2 lines  L624  _cbj_dbfirst_evidence_slash_history_route
-2 lines  L619  _cbj_dbfirst_history_evidence_route
-2 lines  L429  get_evidence
-2 lines  L311  list_mobile_cases
-2 lines  L188  get_case
-2 lines  L112  startup
-2 lines  L97   insert_parsed_result_best_effort
-2 lines  L94   upsert_evidence_best_effort
-2 lines  L91   upsert_case_best_effort
-2 lines  L74   check_database
-```
-
-## Next Recommended Target
-
-Backend modularization tahap 1. Prioritas aman:
-
-1. Extract logic dari `upload_evidence`.
-   - Target helper/service candidate:
-     `backend/evidence_upload_service.py`
-   - Jangan ubah route contract `/upload`.
-   - Route harus tetap tipis: validate input, call service, return response.
-
-2. Setelah itu extract parsed result flow.
-   - Target helper/service candidate:
-     `backend/parsed_result_service.py`
-   - Functions target:
-     `add_parsed_result`
-     `list_parsed_results_history`
-
-3. Middleware DB-first dibahas belakangan.
-   - Jangan langsung rewrite `_cbj_sap_rca_dbfirst_read_middleware` karena itu area sensitif hybrid fallback.
-
-4. Setelah patch backend, wajib validasi:
+## Known Good Local Validation
 
 ```bash
 cd /home/sadmin/sap
@@ -229,61 +130,110 @@ bash scripts/qa-backend-syntax.sh
 bash scripts/qa-sapdev.sh
 ```
 
-5. Setelah local QA aman, deploy official:
+Expected QA result:
 
-```bash
-gh workflow run 274021726 -r dev -f confirm=DEPLOY_DEV
-gh run list --workflow 274021726 --limit 5
-gh run watch RUN_ID
+```text
+[qa-sapdev] QA PASS: backend API, hybrid reads, case persistence, linked evidence, and all core frontend RCA tool markers verified
+```
+
+## Known Good Deploy Validation
+
+Latest verified deploy:
+
+```text
+Run ID : 25622541221
+Job ID : 75211731726
+Result : success
+```
+
+Successful workflow steps:
+
+```text
+Sync DEV branch and validate build
+Install backend Python requirements
+Deploy DEV web bundle
+Validate local Evidence API
+Validate public SAPDEV API contracts
+Run full SAPDEV QA suite
+Workflow success summary
+Show recent deploy log
+```
+
+`Workflow failure summary` may be skipped when there is no failure; that is normal.
+
+## Next Recommended Target
+
+Continue backend modularization incrementally.
+
+Best next module candidate:
+
+```text
+Split evidence history/list/read logic from backend/evidence_api.py
+Suggested new service file: backend/evidence_history_service.py
+```
+
+Scope guidance:
+
+1. Keep routes in `backend/evidence_api.py` thin.
+2. Move read/list/history logic to service/helper functions.
+3. Keep API response contracts exactly the same.
+4. Keep PostgreSQL hybrid mode safe.
+5. Keep file fallback safe.
+6. Do not rewrite DB-first middleware yet.
+7. Validate after every small patch.
+
+Suggested target functions/routes to inspect first:
+
+```text
+@app.get("/evidence")
+@app.get("/evidence/{evidence_id}")
+@app.get("/evidence-history")
+@app.get("/history/evidence")
+@app.get("/evidence/history")
 ```
 
 ## Suggested Prompt For New Chat
 
-Lanjut SAP Intelligent RCA Workspace.
+Lanjut SAP Intelligent RCA Workspace dari `docs/runtime/next-chat-prompt.md`.
 
-Repo: `finuxpert/cbj-sap`
-Branch: `dev`
-Local: `/home/sadmin/sap`
-Runtime doc: `docs/runtime/next-chat-prompt.md`
+Repo:
+`finuxpert/cbj-sap`
+
+Branch:
+`dev`
+
+Local:
+`/home/sadmin/sap`
 
 Status terakhir:
-- Official SAPDEV workflow sudah GREEN.
-- Workflow tunggal: `.github/workflows/dev-deploy.yml`
-- Workflow ID: `274021726`
-- Runner label: `sapdev`
-- Latest known successful run: `25621865480`
-- Backend audit selesai.
-- `backend/evidence_api.py` masih paling besar: 626 lines.
-- Target sekarang backend cleanup dulu, bukan UI/UX.
+- SAPDEV deploy workflow GREEN.
+- Latest verified run ID: `25622541221`.
+- PR #3 sudah merged ke `dev`.
+- Merge/head deployed: `d1b1601`.
+- Evidence upload refactor tahap 1 selesai.
+- `backend/evidence_upload_service.py` sudah aktif.
+- `/upload` route di `backend/evidence_api.py` sudah tipis.
+- Build, backend syntax QA, SAPDEV QA, dan public API contract validation passed.
 
 Rules:
-- Incremental only.
-- Jangan rewrite besar.
 - Jangan sentuh PROD.
-- Jangan bikin workflow baru.
+- Jangan ubah nginx.
+- Jangan ubah workflow.
+- Jangan rewrite besar.
+- Incremental only.
 - Jangan reintroduce MutationObserver/runtime injector.
-- Jaga API contract tetap sama.
-- QA harus tetap jalan.
+- DB-first/PostgreSQL hybrid behavior jangan diubah kecuali memang targetnya.
+- API response contract harus tetap sama.
 
-Next task:
-Extract logic dari `upload_evidence` di `backend/evidence_api.py` ke helper/service kecil, misalnya `backend/evidence_upload_service.py`, tanpa mengubah contract endpoint `/upload`. Setelah itu jalankan build + backend QA + SAPDEV QA, lalu official deploy workflow.
+Target berikutnya:
+Split evidence history/list/read logic dari `backend/evidence_api.py` ke `backend/evidence_history_service.py`.
 
-## Completed - Evidence Upload Service Refactor
+Wajib validasi:
 
-Status:
-- PR #3 merged into dev.
-- Merge/head deployed: d1b1601.
-- Official SAPDEV deploy workflow GREEN.
-- Run ID: 25622541221.
-- `/upload` route in `backend/evidence_api.py` is now thin.
-- Upload implementation moved to `backend/evidence_upload_service.py`.
-- Validation passed:
-  - npm run build
-  - scripts/qa-backend-syntax.sh
-  - scripts/qa-sapdev.sh
-  - official DEV deploy workflow
-
-Next recommended target:
-- Continue backend modularization incrementally.
-- Do not touch PROD/nginx/workflow.
-- Keep DB-first middleware unchanged unless specifically targeted.
+```bash
+cd /home/sadmin/sap
+npm run build
+bash scripts/qa-backend-syntax.sh
+bash scripts/qa-sapdev.sh
+gh workflow run 274021726 -r dev -f confirm=DEPLOY_DEV
+```
