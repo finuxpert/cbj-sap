@@ -33,6 +33,15 @@ assert ParsedResultCreate(tool='QA').tool == 'QA'
 print('OK: backend.models import smoke passed')
 PY
 
+log "Validate backend model contracts"
+python3 - <<'PY'
+from backend.model_contracts import validate_model_contracts
+
+missing = validate_model_contracts()
+assert not missing, f'Model contract mismatch: {missing}'
+print('OK: backend model contracts passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
