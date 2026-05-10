@@ -164,6 +164,42 @@ assert (root / 'metadata' / 'evidence-qa-001.json').exists()
 print('OK: storage helper compatibility contracts passed')
 PY
 
+log "Validate case helpers"
+python3 - <<'PY'
+from backend.case_helpers import mobile_case_payload, summarize_case
+
+case_data = {
+    'id': 'CASE-QA-HELPERS',
+    'case_no': 'CASE-QA-HELPERS',
+    'title': 'Case helper QA',
+    'sid': 'QA1',
+    'environment': 'DEV',
+    'status': 'OPEN',
+    'evidence': [{'id': 'ev1'}],
+    'reports': [{'id': 'r1'}],
+    'parsed_results': [{
+        'tool': 'Log Evidence',
+        'severity': 'WARN',
+        'summary': 'Parsed summary',
+        'top_anomaly': 'QA_ANOMALY',
+        'top_suspect': 'QA_SUSPECT',
+    }],
+    'timeline': [{'id': 't1'}],
+}
+summary = summarize_case(case_data)
+assert summary['id'] == 'CASE-QA-HELPERS'
+assert summary['tool'] == 'Log Evidence'
+assert summary['severity'] == 'WARN'
+assert summary['evidence_count'] == 1
+assert summary['report_count'] == 1
+mobile = mobile_case_payload(case_data)
+assert mobile['executive_summary'] == 'Parsed summary'
+assert mobile['top_problem']['label'] == 'QA_SUSPECT'
+assert mobile['parsed_results'][0]['top_anomaly'] == 'QA_ANOMALY'
+assert 'analytics' in mobile
+print('OK: case helper contracts passed')
+PY
+
 log "Import FastAPI app"
 python3 - <<'PY'
 from backend.evidence_api import app
