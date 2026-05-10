@@ -98,12 +98,70 @@ from backend.storage_helpers import (
 )
 
 ensure_dirs()
-assert safe_name('SAP LOG 01.txt')
-assert safe_case_id('CASE/2026:01')
+assert safe_name('SAP LOG 01.txt') == 'SAP LOG 01.txt'
+assert safe_name('../unsafe?.txt') == 'unsafe_.txt'
+assert safe_case_id('CASE/2026:01') == 'CASE-2026-01'
 assert str(case_path('CASE-1')).endswith('.json')
 assert str(meta_path('meta-1')).endswith('.json')
 assert 'T' in now_iso()
 print('OK: backend storage helpers passed')
+PY
+
+log "Validate storage helper compatibility contracts"
+TMP_STORAGE_ROOT="$(mktemp -d)" python3 - <<'PY'
+import importlib
+import os
+from pathlib import Path
+
+os.environ['SAP_EVIDENCE_ROOT'] = os.environ['TMP_STORAGE_ROOT']
+
+import backend.storage_config as storage_config
+storage_config = importlib.reload(storage_config)
+
+import backend.storage_helpers as storage_helpers
+storage_helpers = importlib.reload(storage_helpers)
+
+storage_helpers.ensure_dirs()
+
+legacy_case = {
+    'id': 'CASE-QA-LEGACY',
+    'case_no': 'CASE-QA-LEGACY',
+    'title': 'Legacy write_case(dict) QA',
+}
+storage_helpers.write_case(legacy_case)
+assert storage_helpers.read_case('CASE-QA-LEGACY')['title'] == 'Legacy write_case(dict) QA'
+
+explicit_case = {
+    'id': 'CASE-QA-EXPLICIT',
+    'case_no': 'CASE-QA-EXPLICIT',
+    'title': 'Explicit write_case(id, dict) QA',
+}
+storage_helpers.write_case('CASE-QA-EXPLICIT', explicit_case)
+assert storage_helpers.read_case('CASE-QA-EXPLICIT')['title'] == 'Explicit write_case(id, dict) QA'
+
+meta = {'id': 'evidence-qa-001', 'title': 'Meta QA'}
+storage_helpers.write_meta('evidence-qa-001', meta)
+assert storage_helpers.read_meta('evidence-qa-001')['title'] == 'Meta QA'
+
+try:
+    storage_helpers.read_case('CASE-NOT-FOUND')
+except Exception as exc:
+    assert getattr(exc, 'status_code', None) == 404
+else:
+    raise AssertionError('read_case missing object should raise HTTPException 404')
+
+try:
+    storage_helpers.read_meta('evidence-not-found')
+except Exception as exc:
+    assert getattr(exc, 'status_code', None) == 404
+else:
+    raise AssertionError('read_meta missing object should raise HTTPException 404')
+
+root = Path(os.environ['TMP_STORAGE_ROOT'])
+assert (root / 'cases' / 'CASE-QA-LEGACY.json').exists()
+assert (root / 'cases' / 'CASE-QA-EXPLICIT.json').exists()
+assert (root / 'metadata' / 'evidence-qa-001.json').exists()
+print('OK: storage helper compatibility contracts passed')
 PY
 
 log "Import FastAPI app"
