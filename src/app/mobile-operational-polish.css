@@ -1,0 +1,209 @@
+/* Mobile operational polish for SAP RCA tool pages.
+   CSS-only patch: keeps backend/API contracts untouched. */
+
+@media (max-width: 760px) {
+  .appShell.isTool main {
+    padding-bottom: 88px;
+  }
+
+  .evidenceToolShell {
+    padding: 10px;
+  }
+
+  .evidenceHero,
+  .sessionBanner,
+  .evidencePanel,
+  .decisionCard {
+    border-radius: 16px;
+  }
+
+  .evidenceHero,
+  .compactEvidenceHero {
+    padding: 13px;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .evidenceHero h1,
+  .compactEvidenceHero h1 {
+    margin: 6px 0;
+    font-size: clamp(25px, 8vw, 32px);
+    line-height: 1;
+    letter-spacing: -0.045em;
+  }
+
+  .evidenceHero p,
+  .evidencePanel p {
+    font-size: 13px;
+    line-height: 1.42;
+  }
+
+  .evidenceUpload {
+    min-height: 46px;
+    border-radius: 16px;
+    font-size: 14px;
+  }
+
+  .evidenceGrid,
+  .evidenceGrid.wide,
+  .evidenceGrid.triple,
+  .decisionBoard {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .evidencePanel {
+    padding: 13px;
+  }
+
+  .evidencePanel h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    letter-spacing: .12em;
+  }
+
+  .evidencePanel h2::after {
+    content: "";
+    flex: 1 1 auto;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(90,176,255,.45), transparent);
+  }
+
+  .caseHistoryLinkPanel .mutedText {
+    margin: 0 0 12px;
+    font-size: 13px;
+    line-height: 1.42;
+  }
+
+  .caseHistoryLinkPanel .evidenceList.compact {
+    gap: 8px;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .caseHistoryLinkPanel .evidenceList label {
+    display: grid;
+    gap: 4px;
+  }
+
+  .caseHistoryLinkPanel .evidenceList b {
+    font-size: 12px;
+  }
+
+  .caseHistoryLinkPanel select,
+  .caseHistoryLinkPanel input {
+    width: 100%;
+    min-height: 36px;
+    padding: 8px 9px;
+    border-radius: 11px;
+    font-size: 13px;
+  }
+
+  .caseHistoryActions {
+    display: grid;
+    grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .caseHistoryActions .btn {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .evidenceList,
+  .statusList,
+  .confidenceRows {
+    gap: 8px;
+  }
+
+  .statusList div,
+  .evidenceList div,
+  .confidenceRows span {
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .evidenceList b,
+  .statusList b,
+  .confidenceRows b {
+    font-size: 13px;
+    line-height: 1.25;
+  }
+
+  .evidenceList span,
+  .evidenceList small,
+  .statusList span,
+  .decisionCard small {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .decisionCard {
+    min-height: unset;
+    padding: 12px;
+    gap: 5px;
+  }
+
+  .decisionCard b {
+    font-size: 20px;
+  }
+
+  .evidencePanel .btn,
+  .evidenceToolShell .btn {
+    min-height: 38px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+
+  .sapPdfDock {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 8px;
+    border-radius: 999px;
+    transform: scale(.86);
+    transform-origin: bottom right;
+    opacity: .94;
+  }
+
+  .sapPdfDock::before {
+    content: "PDF";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    margin-right: 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(45,212,191,.28);
+    background: rgba(45,212,191,.12);
+    color: rgba(220,255,250,.92);
+    font-size: 12px;
+    font-weight: 950;
+    letter-spacing: .08em;
+  }
+
+  .sapPdfDock button {
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 999px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 420px) {
+  .caseHistoryActions {
+    grid-template-columns: 1fr;
+  }
+
+  .sapPdfDock {
+    transform: scale(.78);
+  }
+}
