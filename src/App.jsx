@@ -1,4 +1,6 @@
 import React from 'react'
+import './app/mobile-operational-polish.css'
+import './app/pages/case-history-mobile-density.css'
 import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
 import { tools } from './tools'
