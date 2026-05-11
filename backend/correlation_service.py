@@ -20,6 +20,8 @@ TOOL_ALIASES = {
     "rca-comparator": "wp_scout",
     "comparator": "wp_scout",
     "st03n": "st03n",
+    "st03n-impact-v2": "st03n",
+    "st03n-impact-v2": "st03n",
     "log-triage": "log_triage",
     "log_evidence": "log_triage",
     "logs": "log_triage",
@@ -57,6 +59,8 @@ def _extract_list(value: Any) -> list[Any]:
         return value
     if isinstance(value, tuple):
         return list(value)
+    if value not in (None, ""):
+        return [value]
     return []
 
 
@@ -65,13 +69,47 @@ def _extract_result_json(result: dict[str, Any]) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _extract_normalized_rca(result: dict[str, Any]) -> dict[str, Any]:
+    payload = result.get("normalized_rca")
+    return payload if isinstance(payload, dict) else {}
+
+
+def _get_first(result: dict[str, Any], *keys: str) -> Any:
+    normalized = _extract_normalized_rca(result)
+    payload = _extract_result_json(result)
+    for key in keys:
+        if key in result and result.get(key) not in (None, "", [], {}):
+            return result.get(key)
+        if key in normalized and normalized.get(key) not in (None, "", [], {}):
+            return normalized.get(key)
+        if key in payload and payload.get(key) not in (None, "", [], {}):
+            return payload.get(key)
+    return None
+
+
+def _dedupe_text(values: list[Any]) -> list[str]:
+    normalized: list[str] = []
+    for value in values:
+        for item in _extract_list(value):
+            text = _as_text(item)
+            if text and text not in normalized:
+                normalized.append(text)
+    return normalized
+
+
 def _collect_terms(result: dict[str, Any]) -> list[str]:
+    normalized = _extract_normalized_rca(result)
     payload = _extract_result_json(result)
     fields = [
         result.get("top_anomaly"),
         result.get("top_suspect"),
         result.get("summary"),
         result.get("verdict"),
+        normalized.get("correlation_keys"),
+        normalized.get("error_signatures"),
+        normalized.get("log_families"),
+        normalized.get("programs"),
+        normalized.get("transactions"),
         payload.get("top_anomaly"),
         payload.get("top_suspect"),
         payload.get("summary"),
@@ -79,50 +117,65 @@ def _collect_terms(result: dict[str, Any]) -> list[str]:
     ]
     terms: list[str] = []
     for value in fields:
+        if isinstance(value, (list, tuple)):
+            terms.extend(_dedupe_text(list(value)))
+            continue
         text = _as_text(value)
         if text:
             terms.append(text)
-    return terms
+    return _dedupe_text(terms)
 
 
 def _collect_hosts(result: dict[str, Any]) -> list[str]:
-    payload = _extract_result_json(result)
-    candidates: list[Any] = []
-    for key in ("hosts", "affected_hosts", "servers", "instances"):
-        candidates.extend(_extract_list(payload.get(key)))
-    for key in ("host", "hostname", "server", "instance"):
-        value = payload.get(key)
-        if value:
-            candidates.append(value)
-    normalized = []
-    for value in candidates:
-        host = _as_text(value)
-        if host and host not in normalized:
-            normalized.append(host)
-    return normalized
+    candidates = [
+        _get_first(result, "hosts"),
+        _get_first(result, "affected_hosts"),
+        _get_first(result, "servers"),
+        _get_first(result, "instances"),
+        _get_first(result, "host", "hostname", "server", "instance"),
+    ]
+    return _dedupe_text(candidates)
 
 
 def _collect_workprocesses(result: dict[str, Any]) -> list[str]:
-    payload = _extract_result_json(result)
-    candidates: list[Any] = []
-    for key in ("workprocesses", "work_processes", "wp", "wps"):
-        candidates.extend(_extract_list(payload.get(key)))
-    for key in ("workprocess", "work_process", "wp_no", "pid"):
-        value = payload.get(key)
-        if value:
-            candidates.append(value)
-    normalized = []
-    for value in candidates:
-        wp = _as_text(value)
-        if wp and wp not in normalized:
-            normalized.append(wp)
-    return normalized
+    candidates = [
+        _get_first(result, "workprocesses"),
+        _get_first(result, "work_processes"),
+        _get_first(result, "wp"),
+        _get_first(result, "wps"),
+        _get_first(result, "workprocess", "work_process", "wp_no", "pid"),
+    ]
+    return _dedupe_text(candidates)
+
+
+def _collect_dimension(result: dict[str, Any], *keys: str) -> list[str]:
+    return _dedupe_text([_get_first(result, *keys)])
+
+
+def _collect_incident_window(result: dict[str, Any]) -> dict[str, str]:
+    return {
+        "start": _as_text(_get_first(result, "incident_start", "start_time", "from_time")),
+        "end": _as_text(_get_first(result, "incident_end", "end_time", "to_time")),
+    }
+
+
+def _build_signal_key(item: dict[str, Any]) -> str:
+    parts = [
+        item.get("tool") or "unknown",
+        item.get("sid") or "",
+        ",".join(item.get("hosts") or []),
+        ",".join(item.get("workprocesses") or []),
+        ",".join(item.get("programs") or []),
+        ",".join(item.get("error_signatures") or []),
+    ]
+    compact = [str(part).strip().lower() for part in parts if str(part).strip()]
+    return "|".join(compact[:6])
 
 
 def normalize_parsed_result(result: dict[str, Any]) -> dict[str, Any]:
     """Normalize one parsed result into a correlation-friendly shape."""
     severity = _normalize_severity(result.get("severity"))
-    return {
+    normalized = {
         "id": result.get("id"),
         "created_at": result.get("created_at"),
         "tool": _normalize_tool(result.get("tool")),
@@ -132,10 +185,26 @@ def normalize_parsed_result(result: dict[str, Any]) -> dict[str, Any]:
         "top_anomaly": _as_text(result.get("top_anomaly")),
         "top_suspect": _as_text(result.get("top_suspect")),
         "summary": _as_text(result.get("summary")),
+        "sid": _as_text(_get_first(result, "sid")),
+        "environment": _as_text(_get_first(result, "environment")),
+        "client": _as_text(_get_first(result, "client")),
+        "incident_window": _collect_incident_window(result),
         "terms": _collect_terms(result),
         "hosts": _collect_hosts(result),
         "workprocesses": _collect_workprocesses(result),
+        "jobs": _collect_dimension(result, "jobs", "job", "job_names"),
+        "programs": _collect_dimension(result, "programs", "program", "reports"),
+        "transactions": _collect_dimension(result, "transactions", "transaction", "tcodes"),
+        "users": _collect_dimension(result, "users", "user", "sap_users"),
+        "error_signatures": _collect_dimension(result, "error_signatures", "error_signature", "errors", "messages"),
+        "log_families": _collect_dimension(result, "log_families", "log_family", "families"),
+        "correlation_keys": _collect_dimension(result, "correlation_keys", "correlation_key"),
+        "evidence_ids": _collect_dimension(result, "evidence_ids", "evidence_id"),
     }
+    generated_key = _build_signal_key(normalized)
+    if generated_key and generated_key not in normalized["correlation_keys"]:
+        normalized["correlation_keys"].append(generated_key)
+    return normalized
 
 
 def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -164,18 +233,27 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
     tools = sorted({item["tool"] for item in normalized if item.get("tool")})
     hosts = sorted({host for item in normalized for host in item.get("hosts", [])})
     workprocesses = sorted({wp for item in normalized for wp in item.get("workprocesses", [])})
+    jobs = sorted({job for item in normalized for job in item.get("jobs", [])})
+    programs = sorted({program for item in normalized for program in item.get("programs", [])})
+    error_signatures = sorted({error for item in normalized for error in item.get("error_signatures", [])})
+    correlation_keys = sorted({key for item in normalized for key in item.get("correlation_keys", [])})
 
     suspect_counter: Counter[str] = Counter()
     for item in normalized:
         suspect = item.get("top_suspect") or item.get("top_anomaly") or item.get("summary")
         if suspect:
             suspect_counter[suspect] += 1
+        for key in item.get("error_signatures", []):
+            suspect_counter[key] += 1
+        for key in item.get("programs", []):
+            suspect_counter[key] += 1
     top_root_cause = suspect_counter.most_common(1)[0][0] if suspect_counter else ""
 
     avg_confidence = sum(item.get("confidence", 0) for item in normalized) / max(len(normalized), 1)
     tool_bonus = min(len(tools) * 5, 15)
     severity_bonus = min(severity_rank.get("severity_score", 0) // 10, 10)
-    confidence = max(0, min(100, round(avg_confidence + tool_bonus + severity_bonus)))
+    model_bonus = min((len(hosts) + len(workprocesses) + len(programs) + len(error_signatures)) * 2, 12)
+    confidence = max(0, min(100, round(avg_confidence + tool_bonus + severity_bonus + model_bonus)))
 
     timeline_correlation = [
         {
@@ -184,6 +262,11 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
             "tool": item.get("tool"),
             "severity": item.get("severity"),
             "title": item.get("top_anomaly") or item.get("top_suspect") or item.get("summary"),
+            "incident_window": item.get("incident_window"),
+            "hosts": item.get("hosts", []),
+            "workprocesses": item.get("workprocesses", []),
+            "programs": item.get("programs", []),
+            "correlation_keys": item.get("correlation_keys", []),
         }
         for item in sorted(normalized, key=lambda value: _as_text(value.get("created_at")))
     ]
@@ -204,6 +287,10 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
         "tools": tools,
         "affected_hosts": hosts,
         "related_workprocesses": workprocesses,
+        "related_jobs": jobs,
+        "related_programs": programs,
+        "error_signatures": error_signatures,
+        "correlation_keys": correlation_keys,
         "timeline_correlation": timeline_correlation,
         "recommended_actions": recommended_actions,
         "signals": normalized,
