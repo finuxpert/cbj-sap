@@ -82,6 +82,11 @@ export async function getCaseCorrelation(caseId) {
   return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}/correlation`, { cache: 'no-store' }))
 }
 
+export async function getCaseSession(caseId) {
+  if (!caseId) return { ok: false, detail: 'caseId is required' }
+  return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}/session`, { cache: 'no-store' }))
+}
+
 export async function updateCase(caseId, payload = {}) {
   if (!caseId) return { ok: false, detail: 'caseId is required' }
   return patchJson(`/cases/${encodeURIComponent(caseId)}`, payload)
@@ -125,6 +130,18 @@ export async function listCaseEvidence(caseId, params = {}) {
 
 export async function getCaseReplay(caseId) {
   if (!caseId) return { ok: false, detail: 'caseId is required' }
+  const session = await getCaseSession(caseId)
+  if (session?.ok !== false && session?.replay) {
+    return {
+      ok: true,
+      case_id: session.case_id || caseId,
+      session,
+      replay_ready: Boolean(session.replay?.replay_ready),
+      count: Number(session.replay?.count || 0),
+      events: Array.isArray(session.replay?.events) ? session.replay.events : [],
+    }
+  }
+
   const response = await getCase(caseId)
   if (response?.ok === false) return response
   const caseData = normalizeCaseResponse(response)
