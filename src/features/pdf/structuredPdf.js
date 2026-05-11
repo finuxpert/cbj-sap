@@ -54,6 +54,19 @@ function collectDecisionCards(root) {
   return collectTextCards(root, selectors, 14)
 }
 
+function collectCorrelationSummary(root) {
+  const panel = root.querySelector('[data-rca-correlation="true"], .caseCorrelationSummary')
+  if (!panel || cleanText(panel.textContent).length < 20) return null
+
+  return {
+    severity: cleanText(panel.querySelector('[data-correlation-severity]')?.textContent || ''),
+    confidence: cleanText(panel.querySelector('[data-correlation-confidence]')?.textContent || ''),
+    rootCause: cleanText(panel.querySelector('[data-correlation-root-cause]')?.textContent || ''),
+    metrics: collectTextCards(panel, ['.opsMetric', '.intelSteps > div'], 8),
+    actions: collectTextCards(panel, ['.workbenchCheck'], 6),
+  }
+}
+
 function collectPanels(root) {
   const selectors = [
     '.evidencePanel',
@@ -65,6 +78,7 @@ function collectPanels(root) {
     '.validatePanel',
     '.toolEvidenceIntro',
     '.evidenceHistory',
+    '.caseCorrelationSummary',
   ]
   const nodes = selectors.flatMap((selector) => Array.from(root.querySelectorAll(selector)))
   const panels = []
@@ -140,11 +154,13 @@ function detectToolTitle(slug) {
 
 function buildReportFromDom(slug) {
   const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
+  const pageRoot = document.querySelector('main') || root
   const now = new Date().toLocaleString('id-ID')
   const meta = detectToolTitle(slug)
   const decisionCards = collectDecisionCards(root)
   const topRows = collectRows(root, 20)
   const panels = collectPanels(root)
+  const correlation = collectCorrelationSummary(pageRoot)
   const session = textOf('.sessionBanner', '') || textOf('[data-build]', '')
   const status = textOf('.cmpCleanLoadState,.investStatus,.evidenceError', '')
   const uploadState = textOf('.evidenceUpload,.cmpCleanPrimary,.bigDrop', '')
@@ -158,6 +174,7 @@ function buildReportFromDom(slug) {
     decisionCards,
     topRows,
     panels,
+    correlation,
   }
 }
 
@@ -213,6 +230,7 @@ export async function exportStructuredPdf(slug) {
   }
 
   const bullet = (text, idx, size = 9.2) => line(`${idx + 1}. ${text}`, size, 'normal', 3)
+  const sectionNo = (withoutCorrelation, withCorrelation) => (report.correlation ? withCorrelation : withoutCorrelation)
 
   pdf.setFillColor(5, 22, 22)
   pdf.rect(0, 0, page.w, 35, 'F')
@@ -232,30 +250,45 @@ export async function exportStructuredPdf(slug) {
   if (report.status) line(`Status: ${report.status}`, 9)
   line('Purpose: structured SAP RCA report generated from the active tool state. This report avoids screenshot-based export and summarizes visible evidence, rankings, and recommended checks.', 10)
 
-  section('2. Decision Summary')
+  if (report.correlation) {
+    section('2. RCA Correlation Summary')
+    if (report.correlation.severity) line(`Severity: ${report.correlation.severity}`, 9.5, 'bold')
+    if (report.correlation.confidence) line(`Confidence: ${report.correlation.confidence}`, 9.5, 'bold')
+    if (report.correlation.rootCause) line(`Top Root Cause: ${report.correlation.rootCause}`, 9.6)
+    if (report.correlation.metrics.length) {
+      line('Correlation Metrics', 9.6, 'bold', 0, [35, 55, 55])
+      report.correlation.metrics.slice(0, 6).forEach((item, index) => bullet(item, index, 8.7))
+    }
+    if (report.correlation.actions.length) {
+      line('Recommended Correlation Actions', 9.6, 'bold', 0, [35, 55, 55])
+      report.correlation.actions.slice(0, 5).forEach((item, index) => bullet(item, index, 8.7))
+    }
+  }
+
+  section(`${sectionNo('2', '3')}. Decision Summary`)
   if (report.decisionCards.length) report.decisionCards.slice(0, 12).forEach((item, index) => bullet(item, index, 9.4))
   else line('No decision cards detected. Upload/parse evidence first, then export again.', 10, 'italic')
 
-  section('3. Top Evidence / Ranking')
+  section(`${sectionNo('3', '4')}. Top Evidence / Ranking`)
   if (report.topRows.length) report.topRows.slice(0, 16).forEach((row, index) => bullet(row, index, 8.7))
   else line('No evidence ranking rows detected in the current view.', 10, 'italic')
 
-  section('4. Findings Detail')
+  section(`${sectionNo('4', '5')}. Findings Detail`)
   if (report.panels.length) {
     report.panels.slice(0, 8).forEach((panel, index) => {
       line(`${index + 1}. ${panel.heading}`, 10.2, 'bold', 0, [35, 55, 55])
       line(panel.body, 8.4, 'normal', 4)
-      if (panel.rows.length) panel.rows.slice(0, 4).forEach((row, rowIndex) => line(`- ${row}`, 8.1, 'normal', 7, [65, 65, 65]))
+      if (panel.rows.length) panel.rows.slice(0, 4).forEach((row) => line(`- ${row}`, 8.1, 'normal', 7, [65, 65, 65]))
       y += 1.5
     })
   } else {
     line('No visible finding panel detected.', 10, 'italic')
   }
 
-  section('5. Recommended Basis / RCA Actions')
+  section(`${sectionNo('5', '6')}. Recommended Basis / RCA Actions`)
   report.actions.forEach((action, index) => bullet(action, index, 9.8))
 
-  section('6. Evidence Handling Notes')
+  section(`${sectionNo('6', '7')}. Evidence Handling Notes`)
   ;[
     'Use this PDF as a readable RCA summary, not as replacement for raw evidence.',
     'Attach original WP-SCOUT, ST03N, SM21/ST22, or job log files to the incident record.',
