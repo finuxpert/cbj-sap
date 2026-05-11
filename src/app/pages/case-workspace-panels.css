@@ -1,0 +1,179 @@
+.rcaFocusPanel {
+  position: sticky;
+  top: 72px;
+  z-index: 5;
+}
+
+.rcaFocusBlock {
+  margin-bottom: 12px;
+}
+
+.rcaFocusPrimarySuspect {
+  margin: 0;
+  font-size: clamp(16px, 2vw, 18px);
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.rcaFocusSteps {
+  margin-bottom: 12px;
+}
+
+.replayTimeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 4px;
+  padding-left: 18px;
+}
+
+.replayTimeline::before {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(45,212,191,.7), rgba(56,189,248,.18));
+  border-radius: 999px;
+}
+
+.replayTimelineItem {
+  position: relative;
+  padding: 0 0 10px 14px;
+}
+
+.replayTimelineItem:last-child {
+  padding-bottom: 0;
+}
+
+.replayTimelineMarker {
+  position: absolute;
+  left: -16px;
+  top: 9px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid rgba(10, 18, 22, .96);
+  background: var(--info);
+  box-shadow: 0 0 0 3px rgba(63,183,216,.16);
+}
+
+.replayTimelineItem[data-severity="critical"] .replayTimelineMarker,
+.replayTimelineItem[data-severity="fatal"] .replayTimelineMarker,
+.replayTimelineItem[data-severity="error"] .replayTimelineMarker {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px rgba(239,95,111,.18);
+}
+
+.replayTimelineItem[data-severity="warning"] .replayTimelineMarker,
+.replayTimelineItem[data-severity="warn"] .replayTimelineMarker {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px rgba(245,185,66,.16);
+}
+
+.replayTimelineItem[data-severity="success"] .replayTimelineMarker,
+.replayTimelineItem[data-severity="ok"] .replayTimelineMarker {
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(34,197,94,.16);
+}
+
+.replayTimelineCard {
+  border: 1px solid rgba(220,245,244,.11);
+  background: rgba(0,0,0,.16);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.replayTimelineSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.replayTimelineSummary::-webkit-details-marker {
+  display: none;
+}
+
+.replayTimelineTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.replayTimelineTitle strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.replayTimelineMeta {
+  color: var(--muted2);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.replayTimelineBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(45,212,191,.18);
+  background: rgba(45,212,191,.08);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.replayTimelineDetail {
+  border-top: 1px solid rgba(220,245,244,.08);
+  padding: 10px 12px 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.replayTimelineDetail p {
+  margin: 0 0 8px;
+}
+
+.replayTimelineDetail p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .rcaFocusPanel {
+    position: static;
+  }
+
+  .replayTimeline {
+    padding-left: 14px;
+  }
+
+  .replayTimelineItem {
+    padding-left: 12px;
+  }
+
+  .replayTimelineSummary {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .replayTimelineBadge {
+    justify-self: start;
+  }
+
+  .replayTimelineDetail {
+    padding: 9px 10px 10px;
+  }
+}
