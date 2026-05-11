@@ -27,6 +27,11 @@ except Exception:
     from correlation_service import correlate_case
 
 try:
+    from .session_service import get_session_item
+except Exception:
+    from session_service import get_session_item
+
+try:
     from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 except Exception:
     from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
@@ -172,6 +177,13 @@ def get_case_correlation(case_id: str) -> dict:
         "case_id": case_id,
         "correlation": correlate_case(case_data if isinstance(case_data, dict) else {}),
     }
+
+
+@app.get("/cases/{case_id}/session")
+def get_case_session(case_id: str) -> dict:
+    case_response = get_case_item(case_id)
+    case_data = case_response.get("case", {})
+    return get_session_item(case_data if isinstance(case_data, dict) else {})
 
 
 @app.patch("/cases/{case_id}")
