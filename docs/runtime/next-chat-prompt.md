@@ -21,10 +21,24 @@ http://127.0.0.1:8090
 Public API:
 https://sapdev.cbj-kontruksi.com/sap-api/health
 
-## Current Status
+## Working Mode
+
+- Full ChatGPT + GitHub connector only.
+- Jangan test lewat local CLI kecuali user mengizinkan.
+- Jangan sentuh PROD.
+- Jangan ubah nginx.
+- Jangan recreate duplicate workflow.
+- Jangan rewrite besar.
+- Incremental only.
+- Jangan reintroduce MutationObserver/runtime injector.
+- DB-first/PostgreSQL hybrid behavior jangan diubah kecuali memang targetnya.
+- API response contract harus tetap sama.
+- Keep file fallback safe.
+
+## Deploy / Workflow Status
 
 - SAPDEV deploy workflow auto-deploy on push to `dev` sudah aktif.
-- Manual workflow dispatch tetap tersedia sebagai fallback.
+- Manual workflow dispatch tetap fallback.
 - Single official workflow tetap `.github/workflows/dev-deploy.yml`.
 - Workflow name: `OFFICIAL - SAPDEV Deploy`.
 - Workflow ID: `274021726`.
@@ -37,64 +51,40 @@ https://sapdev.cbj-kontruksi.com/sap-api/health
   - Run ID: `25628363768`
   - Conclusion: success
   - Title: `Add helper to watch latest SAPDEV deploy run`
-- Helper script added:
+- Helper script exists:
   - `scripts/watch-latest-sapdev-run.sh`
 
-## GitHub-only / ChatGPT-only Working Mode
-
-Current working preference:
-- Lanjut via ChatGPT + GitHub connector only.
-- Jangan test lewat local CLI unless explicitly allowed later.
-- Use GitHub auto deploy workflow result after each push as validation signal.
-- Do not ask user to run CLI for every small step.
-
-Useful GitHub helper when local CLI is allowed:
+Useful helper if local CLI is allowed later:
 
 ```bash
 bash scripts/watch-latest-sapdev-run.sh
 ```
-
-## Core Guardrails
-
-- Jangan sentuh PROD.
-- Jangan ubah nginx.
-- Jangan recreate duplicate workflow.
-- Jangan rewrite besar.
-- Incremental only.
-- Jangan reintroduce MutationObserver/runtime injector.
-- DB-first/PostgreSQL hybrid behavior jangan diubah kecuali memang targetnya.
-- API response contract harus tetap sama.
-- Keep file fallback safe.
-- Avoid breaking existing endpoints:
-  - `/sap-api/health`
-  - `/sap-api/history`
-  - `/sap-api/evidence`
-  - `/sap-api/upload`
-  - `/sap-api/evidence-history`
-  - `/sap-api/parsed-results-history`
 
 ## Current Architecture
 
 - Frontend: React + Vite
 - Backend: FastAPI Evidence API
 - DB mode: PostgreSQL hybrid
-- API health expected:
-  - `case_history=hybrid`
-  - `database.enabled=true`
-  - `database.configured=true`
-  - `database.mode=hybrid`
-  - `database.status=ok`
-
-Backend layering direction:
+- Backend layering direction:
 
 ```text
 FastAPI Routes
 ↓
-Service Layer
+Middleware / Service Layer
 ↓
 DB-first Read Helpers
 ↓
 PostgreSQL / File fallback
+```
+
+Expected API health markers:
+
+```text
+case_history=hybrid
+database.enabled=true
+database.configured=true
+database.mode=hybrid
+database.status=ok
 ```
 
 ## Core RCA Tools Only
@@ -102,6 +92,21 @@ PostgreSQL / File fallback
 1. RCA Comparator / WP-SCOUT Analyzer
 2. ST03N Analyzer
 3. Log Triage / Log Evidence V2
+
+## Current Service Layer Files
+
+```text
+backend/case_service.py
+backend/dbfirst_middleware.py
+backend/dbfirst_read_helpers.py
+backend/evidence_history_service.py
+backend/evidence_mutation_service.py
+backend/evidence_upload_service.py
+backend/mobile_case_service.py
+backend/parsed_result_service.py
+backend/parsed_results_history_service.py
+backend/timeline_service.py
+```
 
 ## Completed Backend Modularization
 
@@ -145,12 +150,6 @@ GET /evidence/history
 File:
 `backend/parsed_results_history_service.py`
 
-Service function:
-
-```python
-list_parsed_results_history_dbfirst()
-```
-
 Route already delegated:
 
 ```text
@@ -167,6 +166,23 @@ count
 parsed_results
 fallback_reason
 ```
+
+### DB-first read middleware
+
+File:
+`backend/dbfirst_middleware.py`
+
+Status:
+- DB-first read middleware has been extracted out of `backend/evidence_api.py`.
+- `backend/evidence_api.py` imports and registers `dbfirst_read_middleware`.
+- Hybrid behavior preserved:
+  - only GET requests intercepted
+  - DB runtime must be enabled
+  - empty/missing DB rows fall through to legacy file-backed routes
+  - DB exceptions fall through to file-backed route and store fallback reason
+- Commit references:
+  - `3b0223d1d90016188590cd91f989c838d3a0d1e2` create middleware module
+  - `40049845d765db7e8e15800ad578cdbca3c4388e` register middleware
 
 ### Case service foundation
 
@@ -185,8 +201,7 @@ delete_case_item()
 
 Status:
 - Service file exists.
-- Route delegation from `backend/evidence_api.py` is not completed yet because a full-file GitHub connector update was blocked.
-- Next attempt should patch route imports/functions in smaller chunks, or do local CLI when allowed later.
+- Route delegation from `backend/evidence_api.py` is still pending.
 
 ### Parsed result write service
 
@@ -211,8 +226,8 @@ analytics
 db_write
 ```
 
-- It now uses `timeline_service.py` for timeline event append.
-- Route delegation from `backend/evidence_api.py` is pending.
+- It uses `timeline_service.py` for timeline event append.
+- Route delegation from `backend/evidence_api.py` is still pending.
 
 ### Timeline service
 
@@ -254,7 +269,8 @@ get_mobile_case_analytics_item()
 
 Status:
 - Service file exists.
-- Route delegation from `backend/evidence_api.py` is pending.
+- Route delegation from `backend/evidence_api.py` is still pending.
+- A small connector patch was attempted after middleware extraction, but latest re-check showed it was not committed. Do not assume mobile route delegation is done.
 
 ### Evidence mutation service
 
@@ -271,50 +287,29 @@ delete_evidence_item()
 
 Status:
 - Service file exists.
-- Route delegation from `backend/evidence_api.py` is pending.
-- Response contracts preserved:
+- Route delegation from `backend/evidence_api.py` is still pending.
+- Response contracts preserved in service:
   - update evidence metadata
   - download evidence FileResponse
   - delete evidence metadata/file
 
-### Backend modularization status doc
+## Known Issue Before Next Patch
 
-File:
-`docs/runtime/backend-modularization-status.md`
+After DB-first middleware extraction, `backend/evidence_api.py` still has explicit evidence-history routes using `JSONResponse`, but current import line may still be:
 
-Status:
-- Documents service layer status, pending route delegation, blocked maintenance service attempt, and next safe targets.
-
-## Current Service Layer Files
-
-```text
-backend/case_service.py
-backend/evidence_history_service.py
-backend/evidence_mutation_service.py
-backend/evidence_upload_service.py
-backend/mobile_case_service.py
-backend/parsed_result_service.py
-backend/parsed_results_history_service.py
-backend/timeline_service.py
-backend/dbfirst_read_helpers.py
+```python
+from fastapi.responses import FileResponse
 ```
 
-## Latest Relevant Commits
+Next patch should first ensure it becomes:
 
-```text
-30ec693d Document backend modularization status
-945e3e37 Add evidence mutation service helpers
-72048a6f Use timeline service in parsed result writes
-d11a5d78 Add timeline service helpers
-8901df06 Add mobile case service wrapper
-0f0544de Add parsed result write service
-d74d74c7 Add case service wrapper
-0134f0e1 Add helper to watch latest SAPDEV deploy run
-8fdf5784 Delegate parsed results history route to service
-702f5650 Add parsed results history service
+```python
+from fastapi.responses import FileResponse, JSONResponse
 ```
 
-## Attempted But Blocked
+Then proceed with one small route delegation group only.
+
+## Attempted But Blocked / Deferred
 
 ### Maintenance cleanup service
 
@@ -322,7 +317,7 @@ Attempted target:
 `backend/maintenance_service.py`
 
 Reason not completed:
-- GitHub connector safety blocked the create-file call because the code contained cleanup/delete operations.
+- GitHub connector safety blocked create-file because code contained cleanup/delete operations.
 
 Recommended handling:
 - Do not force this via connector.
@@ -334,45 +329,48 @@ Attempted target:
 - delegate case routes to `case_service.py`
 
 Reason not completed:
-- GitHub connector blocked large full-file update.
+- GitHub connector previously blocked or failed on large full-file update.
 
 Recommended handling:
 - Use smaller patches only.
-- Prefer creating service files and documenting status via GitHub connector.
-- If local CLI is allowed later, do the import/body route delegation locally and validate.
+- Patch one route group at a time.
+- If local CLI is allowed later, do import/body route delegation locally and validate.
 
 ## Next Safest Targets
 
-Recommended next target:
+Recommended next patch order:
+
+1. Fix `JSONResponse` import in `backend/evidence_api.py` if still missing.
+2. Delegate mobile route group only:
 
 ```text
-backend/dbfirst_middleware.py
-```
-
-Goal:
-- isolate DB-first read middleware logic out of `backend/evidence_api.py`.
-- keep API contract unchanged.
-- keep hybrid PostgreSQL/file fallback behavior unchanged.
-
-Alternative next targets:
-
-```text
-backend/correlation_service.py
-backend/session_service.py
-```
-
-Or, if small patching to `evidence_api.py` is possible:
-
-```text
-thin-route delegation one route group at a time:
-/cases
-/cases/{case_id}
-/cases/{case_id}/parsed-results
 /mobile/cases
 /mobile/cases/{case_id}
 /mobile/cases/{case_id}/analytics
+```
+
+Use service functions:
+
+```python
+list_mobile_case_items()
+get_mobile_case_item()
+get_mobile_case_analytics_item()
+```
+
+3. Then delegate evidence mutation route group:
+
+```text
+/evidence/{evidence_id} update
 /evidence/{evidence_id}/download
-/evidence/{evidence_id} update/delete
+/evidence/{evidence_id} delete
+```
+
+4. Then delegate case route group:
+
+```text
+/cases
+/cases/{case_id}
+/cases/{case_id}/parsed-results
 ```
 
 ## Validation Commands
@@ -415,22 +413,16 @@ Baca juga:
 Status terakhir:
 - SAPDEV auto deploy on push to `dev` sudah aktif.
 - Manual dispatch tetap fallback.
-- Latest observed successful auto deploy: Run ID `25628363768`, conclusion `success`.
+- Latest observed successful auto deploy lama: Run ID `25628363768`, conclusion `success`.
 - Helper script exists: `scripts/watch-latest-sapdev-run.sh`.
 - Backend service modularization sudah lanjut.
-- Services sudah ada:
-  - `backend/case_service.py`
-  - `backend/evidence_history_service.py`
-  - `backend/evidence_mutation_service.py`
-  - `backend/evidence_upload_service.py`
-  - `backend/mobile_case_service.py`
-  - `backend/parsed_result_service.py`
-  - `backend/parsed_results_history_service.py`
-  - `backend/timeline_service.py`
-- `parsed_result_service.py` sudah pakai `timeline_service.py`.
-- `parsed-results-history` route sudah delegate ke service.
+- DB-first read middleware sudah berhasil diextract ke `backend/dbfirst_middleware.py`.
+- `backend/evidence_api.py` sudah register `dbfirst_read_middleware`.
 - Evidence upload/history/read sudah delegate ke service.
+- `parsed-results-history` route sudah delegate ke service.
+- `parsed_result_service.py` sudah pakai `timeline_service.py`.
 - Case/mobile/evidence mutation service files sudah ada, tapi route delegation dari `evidence_api.py` masih pending.
+- Mobile route delegation sempat dicoba, tapi latest re-check menunjukkan belum committed; jangan anggap sudah selesai.
 - Maintenance cleanup service attempt diblok GitHub connector safety, jangan dipaksa via connector.
 
 Rules:
@@ -442,4 +434,6 @@ Rules:
 - API response contract harus tetap sama.
 
 Target berikutnya:
-Prioritaskan isolate DB-first middleware ke `backend/dbfirst_middleware.py`, atau lanjut service-layer foundation yang tidak butuh full-file rewrite.
+1. Re-check `backend/evidence_api.py`.
+2. Fix missing `JSONResponse` import if still missing.
+3. Delegate mobile route group to `backend/mobile_case_service.py` in one small safe patch.
