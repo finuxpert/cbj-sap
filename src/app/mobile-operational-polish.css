@@ -145,14 +145,107 @@
     line-height: 1.35;
   }
 
+  .decisionBoard {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .decisionCard {
+    position: relative;
     min-height: unset;
-    padding: 12px;
-    gap: 5px;
+    padding: 10px 12px 10px 15px;
+    gap: 4px;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .decisionCard::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: rgba(45,212,191,.72);
+  }
+
+  .decisionCard.blue::before {
+    background: rgba(56,189,248,.78);
+  }
+
+  .decisionCard.good::before {
+    background: rgba(34,197,94,.78);
+  }
+
+  .decisionCard span {
+    font-size: 10px;
+    letter-spacing: .09em;
   }
 
   .decisionCard b {
-    font-size: 20px;
+    font-size: 17px;
+    letter-spacing: -.02em;
+  }
+
+  .decisionCard small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .chartPanel {
+    min-height: unset;
+    overflow: hidden;
+  }
+
+  .chartPanel .chartTitleBlock h2 {
+    margin-bottom: 7px;
+  }
+
+  .chartPanel .chartTitleBlock p {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .rcaReadableChartPanel {
+    padding: 11px 8px 10px;
+  }
+
+  .rcaReadableChartPanel .recharts-wrapper,
+  .rcaReadableChartPanel .recharts-surface {
+    max-width: 100%;
+  }
+
+  .rcaReadableChartPanel .recharts-text {
+    font-size: 9px;
+  }
+
+  .rcaReadableChartPanel .recharts-label-list text {
+    font-size: 8px;
+  }
+
+  .rcaReadableChartPanel .recharts-legend-wrapper {
+    transform: scale(.86);
+    transform-origin: top center;
+  }
+
+  .evidencePanel:has(.recharts-pie) {
+    padding-bottom: 10px;
+  }
+
+  .evidencePanel:has(.recharts-pie) .recharts-wrapper {
+    max-height: 190px;
+  }
+
+  .evidencePanel:has(.recharts-pie) .evidenceList.compact {
+    max-height: 235px;
+    padding-right: 2px;
+  }
+
+  .evidencePanel:has(.recharts-pie) .evidenceList.compact div {
+    border-left: 3px solid rgba(245,185,66,.65);
   }
 
   .evidencePanel .btn,
@@ -205,5 +298,13 @@
 
   .sapPdfDock {
     transform: scale(.78);
+  }
+
+  .rcaReadableChartPanel {
+    margin-inline: -2px;
+  }
+
+  .decisionCard {
+    padding-block: 9px;
   }
 }
