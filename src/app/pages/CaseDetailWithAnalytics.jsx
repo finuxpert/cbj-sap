@@ -1,4 +1,5 @@
 import React from 'react'
+import './case-workspace-panels.css'
 import { getCaseCorrelation, getCaseReplay, getMobileCase } from '../../evidence-api-client.js'
 import CaseDetail from './CaseDetail.jsx'
 import CaseAnalytics from './CaseAnalytics.jsx'
