@@ -44,6 +44,19 @@ except Exception:
     )
 
 try:
+    from .evidence_mutation_service import (
+        delete_evidence_item,
+        get_evidence_download_response,
+        update_evidence_item,
+    )
+except Exception:
+    from evidence_mutation_service import (
+        delete_evidence_item,
+        get_evidence_download_response,
+        update_evidence_item,
+    )
+
+try:
     from .parsed_results_history_service import list_parsed_results_history_dbfirst
 except Exception:
     from parsed_results_history_service import list_parsed_results_history_dbfirst
@@ -353,34 +366,17 @@ def get_evidence(evidence_id: str) -> dict:
 
 @app.post("/evidence/{evidence_id}")
 def update_evidence(evidence_id: str, patch: EvidenceUpdate) -> dict:
-    meta = read_meta(evidence_id)
-    data = patch.dict(exclude_unset=True)
-    for k, v in data.items():
-        if v is not None:
-            meta[k] = v
-    meta["updated_at"] = now_iso()
-    write_meta(evidence_id, meta)
-    db_write = upsert_evidence_best_effort(meta)
-    return {"ok": True, "evidence": meta, "db_write": db_write}
+    return update_evidence_item(evidence_id, patch)
 
 
 @app.get("/evidence/{evidence_id}/download")
 def download_evidence(evidence_id: str):
-    meta = read_meta(evidence_id)
-    f = EVIDENCE_DIR / meta["stored_filename"]
-    if not f.exists():
-        raise HTTPException(status_code=404, detail="Evidence file missing")
-    return FileResponse(str(f), filename=meta.get("original_filename") or f.name)
+    return get_evidence_download_response(evidence_id)
 
 
 @app.delete("/evidence/{evidence_id}")
 def delete_evidence(evidence_id: str) -> dict:
-    meta = read_meta(evidence_id)
-    f = EVIDENCE_DIR / meta.get("stored_filename", "")
-    if f.exists():
-        f.unlink()
-    (META_DIR / f"{evidence_id}.json").unlink(missing_ok=True)
-    return {"ok": True, "deleted": evidence_id}
+    return delete_evidence_item(evidence_id)
 
 
 @app.post("/maintenance/cleanup")
