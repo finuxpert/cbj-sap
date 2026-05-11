@@ -1,5 +1,5 @@
 import React from 'react'
-import { getCaseCorrelation, getMobileCase } from '../../evidence-api-client.js'
+import { getCaseCorrelation, getCaseReplay, getMobileCase } from '../../evidence-api-client.js'
 import CaseDetail from './CaseDetail.jsx'
 import CaseAnalytics from './CaseAnalytics.jsx'
 
@@ -129,6 +129,47 @@ function CorrelationSummary({ correlation, loading }) {
   )
 }
 
+function SessionReplayPanel({ replay, loading }) {
+  if (loading) {
+    return (
+      <article className="caseDetailPanel caseDetailAnalyticsPanel">
+        <div className="caseDetailChartEmpty">Building investigation replay timeline...</div>
+      </article>
+    )
+  }
+
+  if (!replay?.replay_ready) return null
+
+  const events = Array.isArray(replay?.events) ? replay.events.slice(0, 10) : []
+
+  return (
+    <article className="caseDetailPanel caseDetailAnalyticsPanel">
+      <div className="intelHead">
+        <span>Investigation Replay Timeline</span>
+        <strong>{events.length} Events</strong>
+      </div>
+
+      <div className="workbenchChecklist">
+        {events.map((event, index) => (
+          <div className="workbenchCheck" key={`${event?.source_id || index}-${event?.time || 'na'}`}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <div>
+              <strong>
+                {String(event?.type || 'event').toUpperCase()} • {String(event?.severity || 'INFO').toUpperCase()}
+              </strong>
+              <div>{event?.title || 'Replay event'}</div>
+              <small>
+                {event?.tool || 'unknown-tool'}
+                {event?.time ? ` • ${event.time}` : ''}
+              </small>
+            </div>
+          </div>
+        ))}
+      </div>
+    </article>
+  )
+}
+
 function CaseDashboardHero({ caseData, loadingAnalytics }) {
   const title = caseData?.title || caseData?.case_no || caseData?.id || 'Case Detail'
   const summary = caseData?.executive_summary || caseData?.summary || 'RCA dashboard summary will appear after the case data is loaded.'
@@ -151,7 +192,7 @@ function CaseDashboardHero({ caseData, loadingAnalytics }) {
   )
 }
 
-function AnalyticsBlock({ caseData, correlation, loadingAnalytics, loadingCorrelation }) {
+function AnalyticsBlock({ caseData, correlation, replay, loadingAnalytics, loadingCorrelation, loadingReplay }) {
   return (
     <section className="caseDetailPage container section caseDetailAnalyticsMount">
       <CaseDashboardHero caseData={caseData} loadingAnalytics={loadingAnalytics} />
@@ -159,6 +200,7 @@ function AnalyticsBlock({ caseData, correlation, loadingAnalytics, loadingCorrel
         <>
           <AnalyticsQuickSummary caseData={caseData} />
           <CorrelationSummary correlation={correlation} loading={loadingCorrelation} />
+          <SessionReplayPanel replay={replay} loading={loadingReplay} />
           <CaseAnalytics caseData={caseData} />
         </>
       ) : (
@@ -192,8 +234,10 @@ function FullCaseDetailDisclosure({ caseId }) {
 export default function CaseDetailWithAnalytics({ caseId }) {
   const [caseData, setCaseData] = React.useState(null)
   const [correlation, setCorrelation] = React.useState(null)
+  const [replay, setReplay] = React.useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(false)
   const [loadingCorrelation, setLoadingCorrelation] = React.useState(false)
+  const [loadingReplay, setLoadingReplay] = React.useState(false)
 
   React.useEffect(() => {
     let active = true
@@ -239,13 +283,37 @@ export default function CaseDetailWithAnalytics({ caseId }) {
     }
   }, [caseId])
 
+  React.useEffect(() => {
+    let active = true
+    if (!caseId) return undefined
+
+    setLoadingReplay(true)
+    getCaseReplay(caseId)
+      .then((payload) => {
+        if (!active || payload?.ok === false) return
+        setReplay(payload)
+      })
+      .catch(() => {
+        if (active) setReplay(null)
+      })
+      .finally(() => {
+        if (active) setLoadingReplay(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [caseId])
+
   return (
     <>
       <AnalyticsBlock
         caseData={caseData}
         correlation={correlation}
+        replay={replay}
         loadingAnalytics={loadingAnalytics}
         loadingCorrelation={loadingCorrelation}
+        loadingReplay={loadingReplay}
       />
       <FullCaseDetailDisclosure caseId={caseId} />
     </>
