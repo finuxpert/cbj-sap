@@ -2,7 +2,7 @@
 
 Project: SAP Intelligent RCA Workspace  
 Branch: `dev`  
-Scope: backend service-layer extraction only
+Scope: backend service-layer extraction and RCA intelligence foundation
 
 ## Guardrails
 
@@ -32,6 +32,7 @@ PostgreSQL / File fallback
 
 ```text
 backend/case_service.py
+backend/correlation_service.py
 backend/dbfirst_middleware.py
 backend/dbfirst_read_helpers.py
 backend/evidence_history_service.py
@@ -281,6 +282,58 @@ GET /mobile/cases/{case_id}/analytics
 
 Response contracts preserved.
 
+### RCA correlation service
+
+File:
+
+```text
+backend/correlation_service.py
+```
+
+Core functions:
+
+```python
+normalize_parsed_result()
+correlate_parsed_results()
+build_recommended_actions()
+correlate_case()
+```
+
+Status:
+- Deterministic RCA correlation foundation exists.
+- No external AI call.
+- No DB schema change.
+- Does not mutate case data.
+- Supports WP-SCOUT / RCA Comparator, ST03N, and Log Triage tool aliases.
+
+Route exposed:
+
+```text
+GET /cases/{case_id}/correlation
+```
+
+Response shape:
+
+```text
+ok
+case_id
+correlation
+```
+
+Correlation payload includes:
+
+```text
+top_root_cause
+confidence
+severity
+tools
+affected_hosts
+related_workprocesses
+timeline_correlation
+recommended_actions
+signals
+```
+
 ### Evidence API cleanup
 
 File:
@@ -294,6 +347,7 @@ Status:
 - Legacy inline business logic was removed from route bodies.
 - Unused legacy imports were cleaned.
 - `JSONResponse` import is present for explicit DB-first evidence history routes.
+- Additive RCA correlation endpoint is now wired without changing existing endpoint contracts.
 
 ## Attempted But Blocked
 
@@ -315,6 +369,8 @@ Recommended handling:
 ## Latest Relevant Commits
 
 ```text
+682489e Add case correlation route
+96649b9 Add RCA correlation service foundation
 12065bb Clean delegated evidence API imports
 42d8a99 Delegate case routes to services
 10a39a3 Delegate evidence mutation routes to service
@@ -354,19 +410,13 @@ bash scripts/watch-latest-sapdev-run.sh
 ## Next Safest Targets
 
 1. Optional backend syntax/deploy validation through GitHub Actions status only.
-2. Add RCA correlation service foundation:
-
-```text
-backend/correlation_service.py
-```
-
-3. Add persistent RCA session foundation:
+2. Frontend Evidence History UI integration for correlation preview.
+3. PDF Executive Summary integration using `/cases/{case_id}/correlation`.
+4. Add persistent RCA session foundation:
 
 ```text
 backend/session_service.py
 ```
-
-4. Frontend Evidence History UI integration.
 
 ## Validation Commands
 
