@@ -2,7 +2,7 @@
 
 Project: SAP Intelligent RCA Workspace  
 Branch: `dev`  
-Scope: backend service-layer extraction and RCA intelligence foundation
+Scope: backend service-layer extraction, RCA intelligence foundation, frontend RCA workflow cleanup
 
 ## Guardrails
 
@@ -13,8 +13,9 @@ Scope: backend service-layer extraction and RCA intelligence foundation
 - Do not reintroduce MutationObserver/runtime injector.
 - Keep DB-first/PostgreSQL hybrid behavior unchanged unless explicitly targeted.
 - Keep API response contracts unchanged.
+- GitHub connector mode only unless local CLI is explicitly allowed.
 
-## Current Backend Shape
+## Current Architecture Shape
 
 ```text
 FastAPI Routes
@@ -24,11 +25,13 @@ Service Layer
 DB-first Helpers
 ↓
 PostgreSQL / File fallback
+↓
+Frontend RCA Case Detail / PDF / Replay UI
 ```
 
 `backend/evidence_api.py` is now a thin FastAPI route layer for the major RCA evidence/case endpoints.
 
-## Current Service Layer Files
+## Current Backend Service Files
 
 ```text
 backend/case_service.py
@@ -41,10 +44,21 @@ backend/evidence_upload_service.py
 backend/mobile_case_service.py
 backend/parsed_result_service.py
 backend/parsed_results_history_service.py
+backend/session_service.py
 backend/timeline_service.py
 ```
 
-## Completed Extractions
+## Current Frontend RCA Case Detail Files
+
+```text
+src/app/pages/CaseDetailWithAnalytics.jsx
+src/app/pages/RCAFocusPanel.jsx
+src/app/pages/CorrelationSummary.jsx
+src/app/pages/SessionReplayPanel.jsx
+src/app/pages/rca-panel-utils.js
+```
+
+## Completed Backend Work
 
 ### DB-first read middleware
 
@@ -72,7 +86,7 @@ backend/evidence_upload_service.py
 ```
 
 Status:
-- `/upload` route is already thin.
+- `/upload` route is thin.
 - Upload behavior preserved.
 - Case linking preserved.
 - PostgreSQL hybrid best-effort write preserved.
@@ -84,14 +98,6 @@ File:
 
 ```text
 backend/evidence_history_service.py
-```
-
-Service functions:
-
-```python
-list_evidence_items()
-get_evidence_item()
-list_evidence_history_dbfirst()
 ```
 
 Routes delegated:
@@ -110,14 +116,6 @@ File:
 
 ```text
 backend/evidence_mutation_service.py
-```
-
-Service functions:
-
-```python
-update_evidence_item()
-get_evidence_download_response()
-delete_evidence_item()
 ```
 
 Routes delegated:
@@ -139,12 +137,6 @@ File:
 
 ```text
 backend/parsed_results_history_service.py
-```
-
-Service function:
-
-```python
-list_parsed_results_history_dbfirst()
 ```
 
 Route delegated:
@@ -172,16 +164,6 @@ File:
 backend/case_service.py
 ```
 
-Service functions:
-
-```python
-create_case_item()
-list_case_items()
-get_case_item()
-update_case_item()
-delete_case_item()
-```
-
 Routes delegated:
 
 ```text
@@ -204,12 +186,6 @@ File:
 
 ```text
 backend/parsed_result_service.py
-```
-
-Service function:
-
-```python
-add_case_parsed_result()
 ```
 
 Route delegated:
@@ -236,13 +212,6 @@ File:
 backend/timeline_service.py
 ```
 
-Service functions:
-
-```python
-build_parsed_result_timeline_event()
-append_parsed_result_timeline_event()
-```
-
 Status:
 - Used by `parsed_result_service.py`.
 - Timeline event shape preserved:
@@ -262,14 +231,6 @@ File:
 
 ```text
 backend/mobile_case_service.py
-```
-
-Service functions:
-
-```python
-list_mobile_case_items()
-get_mobile_case_item()
-get_mobile_case_analytics_item()
 ```
 
 Routes delegated:
@@ -299,6 +260,12 @@ build_recommended_actions()
 correlate_case()
 ```
 
+Route exposed:
+
+```text
+GET /cases/{case_id}/correlation
+```
+
 Status:
 - Deterministic RCA correlation foundation exists.
 - No external AI call.
@@ -306,46 +273,63 @@ Status:
 - Does not mutate case data.
 - Supports WP-SCOUT / RCA Comparator, ST03N, and Log Triage tool aliases.
 
+### RCA session service
+
+File:
+
+```text
+backend/session_service.py
+```
+
+Core functions:
+
+```python
+summarize_session()
+build_session_replay()
+create_session_from_case()
+get_session_item()
+```
+
 Route exposed:
 
 ```text
-GET /cases/{case_id}/correlation
+GET /cases/{case_id}/session
 ```
+
+Status:
+- Additive only.
+- No DB migration.
+- No persistent session store yet.
+- Builds case-session payload from existing case data.
+- Replay merges evidence events, parsed results, case timeline, and correlation signals.
 
 Response shape:
 
 ```text
 ok
+mode
+session_id
 case_id
+summary
 correlation
+replay
 ```
 
-Correlation payload includes:
+## Completed Frontend Work
 
-```text
-top_root_cause
-confidence
-severity
-tools
-affected_hosts
-related_workprocesses
-timeline_correlation
-recommended_actions
-signals
-```
-
-### Frontend RCA correlation panel
+### RCA correlation panel
 
 Files:
 
 ```text
 src/evidence-api-client.js
 src/app/pages/CaseDetailWithAnalytics.jsx
+src/app/pages/CorrelationSummary.jsx
 ```
 
 Status:
 - `getCaseCorrelation(caseId)` API helper exists.
-- Case detail analytics page now fetches `/cases/{case_id}/correlation` separately from mobile case analytics.
+- Case detail analytics page fetches `/cases/{case_id}/correlation` separately from mobile case analytics.
 - UI shows `RCA Correlation Summary` with severity, confidence, correlated tool count, affected host count, top root cause, related workprocesses, correlation sources, and recommended actions.
 - Failure to load correlation does not block case detail rendering.
 - DOM markers are present for structured PDF extraction:
@@ -353,6 +337,52 @@ Status:
   - `data-correlation-severity`
   - `data-correlation-confidence`
   - `data-correlation-root-cause`
+
+### RCA focus panel
+
+File:
+
+```text
+src/app/pages/RCAFocusPanel.jsx
+```
+
+Status:
+- Sticky RCA Focus panel added to case detail.
+- Shows primary suspect, confidence, impact, next check, and evidence state.
+- Goal is to reduce generic-card feel and make the case detail page more operational.
+
+### Session replay UI
+
+Files:
+
+```text
+src/evidence-api-client.js
+src/app/pages/SessionReplayPanel.jsx
+```
+
+Status:
+- `getCaseSession(caseId)` API helper exists.
+- `getCaseReplay(caseId)` now prefers `/cases/{case_id}/session` and falls back to legacy case-based replay.
+- Case detail page shows `Investigation Replay Timeline` when replay data is available.
+- Replay currently renders as a compact event list; visual timeline upgrade is still pending.
+
+### Case detail cleanup
+
+Files:
+
+```text
+src/app/pages/CaseDetailWithAnalytics.jsx
+src/app/pages/RCAFocusPanel.jsx
+src/app/pages/CorrelationSummary.jsx
+src/app/pages/SessionReplayPanel.jsx
+src/app/pages/rca-panel-utils.js
+```
+
+Status:
+- `CaseDetailWithAnalytics.jsx` is now closer to page orchestration only.
+- RCA Focus, Correlation Summary, and Session Replay panels have been extracted.
+- Shared helpers moved to `rca-panel-utils.js`.
+- This reduced component monolith risk and makes next CSS/mobile cleanup safer.
 
 ### PDF RCA correlation summary
 
@@ -364,25 +394,23 @@ src/features/pdf/structuredPdf.js
 
 Status:
 - Structured PDF export can collect the visible RCA correlation panel from DOM markers.
-- PDF includes an optional `RCA Correlation Summary` section when the panel is present.
+- PDF includes optional `RCA Correlation Summary` section when the panel is present.
 - PDF section includes severity, confidence, top root cause, correlation metrics, and recommended correlation actions.
 - Fallback-safe: if no correlation panel exists, the existing PDF format continues normally.
 - Screenshot-based export was not introduced.
 
-### Evidence API cleanup
-
-File:
+## Current Progress Estimate
 
 ```text
-backend/evidence_api.py
+Backend Architecture: 86%
+RCA Engine / Intelligence: 76%
+UI/UX Platform: 81%
+Mobile View: 79%
+Maintainability: 84%
+Observability Workspace Feel: 78%
+Production-grade Stability: 72%
+Enterprise Workflow Readiness: 66%
 ```
-
-Status:
-- Major route groups are delegated to service modules.
-- Legacy inline business logic was removed from route bodies.
-- Unused legacy imports were cleaned.
-- `JSONResponse` import is present for explicit DB-first evidence history routes.
-- Additive RCA correlation endpoint is now wired without changing existing endpoint contracts.
 
 ## Attempted But Blocked
 
@@ -404,6 +432,16 @@ Recommended handling:
 ## Latest Relevant Commits
 
 ```text
+c709494 Use extracted RCA case detail panels
+15228ac Extract session replay panel component
+f5ef775 Extract correlation summary component
+d0bcba3 Extract RCA focus panel component
+8362aa7 Extract RCA panel utility helpers
+37b37ca Add RCA focus panel to case detail
+8deb8cc Add session replay timeline panel
+76adfcf Add case session API client helper
+f6c9dbb Add case session route
+c21542f Add RCA session service foundation
 20b0046 Include RCA correlation summary in PDF export
 bb0f978 Add correlation DOM markers for PDF export
 e684346 Add RCA correlation summary panel
@@ -414,14 +452,6 @@ d6ac496 Add case correlation API client helper
 42d8a99 Delegate case routes to services
 10a39a3 Delegate evidence mutation routes to service
 c5d7841 Delegate mobile case routes to service
-945e3e37 Add evidence mutation service helpers
-72048a6f Use timeline service in parsed result writes
-d11a5d78 Add timeline service helpers
-8901df06 Add mobile case service wrapper
-0f0544de Add parsed result write service
-d74d74c7 Add case service wrapper
-8fdf5784 Delegate parsed results history route to service
-702f5650 Add parsed results history service
 ```
 
 ## Known Auto Deploy Status
@@ -448,15 +478,18 @@ bash scripts/watch-latest-sapdev-run.sh
 
 ## Next Safest Targets
 
-1. Optional backend/frontend deploy validation through GitHub Actions status only.
-2. Add persistent RCA session foundation:
-
-```text
-backend/session_service.py
-```
-
-3. Add frontend session/replay surface after session foundation exists.
-4. Add RCA timeline replay using case timeline + correlation timeline.
+1. Optional frontend/deploy validation through GitHub Actions status only.
+2. CSS cleanup for extracted case detail panels:
+   - move inline styles from panel components to CSS classes
+   - compact spacing
+   - mobile-safe sticky behavior
+3. Replay Timeline Visual Upgrade:
+   - vertical timeline rail
+   - severity marker
+   - collapsible detail
+   - compact mobile mode
+4. Audit duplicate panels/cards across case detail and analytics.
+5. Update PDF with session replay appendix after replay UI is stable.
 
 ## Validation Commands
 
