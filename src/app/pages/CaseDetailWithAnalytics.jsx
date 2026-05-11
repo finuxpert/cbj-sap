@@ -1,5 +1,5 @@
 import React from 'react'
-import { getMobileCase } from '../../evidence-api-client.js'
+import { getCaseCorrelation, getMobileCase } from '../../evidence-api-client.js'
 import CaseDetail from './CaseDetail.jsx'
 import CaseAnalytics from './CaseAnalytics.jsx'
 
@@ -43,6 +43,92 @@ function AnalyticsQuickSummary({ caseData }) {
   )
 }
 
+function CorrelationSummary({ correlation, loading }) {
+  if (loading) {
+    return (
+      <article className="caseDetailPanel caseDetailAnalyticsPanel">
+        <div className="caseDetailChartEmpty">Correlation engine is analyzing RCA signals...</div>
+      </article>
+    )
+  }
+
+  if (!correlation) return null
+
+  const severity = String(correlation?.severity || 'INFO').toUpperCase()
+  const confidence = Number(correlation?.confidence || 0)
+  const topRootCause = correlation?.top_root_cause || 'No dominant root-cause detected yet.'
+  const hosts = Array.isArray(correlation?.affected_hosts) ? correlation.affected_hosts : []
+  const workprocesses = Array.isArray(correlation?.related_workprocesses) ? correlation.related_workprocesses : []
+  const tools = Array.isArray(correlation?.tools) ? correlation.tools : []
+  const actions = Array.isArray(correlation?.recommended_actions)
+    ? correlation.recommended_actions.slice(0, 3)
+    : []
+
+  return (
+    <article className="caseDetailPanel caseDetailAnalyticsPanel">
+      <div className="intelHead">
+        <span>RCA Correlation Summary</span>
+        <strong>{severity}</strong>
+      </div>
+
+      <div className="opsStrip" style={{ marginBottom: 16 }}>
+        <div className="opsMetric">
+          <span className="opsLabel">Confidence</span>
+          <strong className="opsValue">{confidence}%</strong>
+        </div>
+        <div className="opsMetric">
+          <span className="opsLabel">Correlated Tools</span>
+          <strong className="opsValue">{tools.length}</strong>
+        </div>
+        <div className="opsMetric">
+          <span className="opsLabel">Affected Hosts</span>
+          <strong className="opsValue">{hosts.length}</strong>
+        </div>
+      </div>
+
+      <div className="intelPanel" style={{ marginBottom: 16 }}>
+        <div className="intelHead">
+          <span>Top Root Cause</span>
+          <strong>{severity}</strong>
+        </div>
+        <p>{topRootCause}</p>
+      </div>
+
+      <div className="intelSteps" style={{ marginBottom: 16 }}>
+        <div>
+          <span>Hosts</span>
+          <strong>{hosts.length ? hosts.join(', ') : 'No affected host detected'}</strong>
+        </div>
+        <div>
+          <span>Workprocesses</span>
+          <strong>{workprocesses.length ? workprocesses.join(', ') : 'No related WP detected'}</strong>
+        </div>
+        <div>
+          <span>Correlation Sources</span>
+          <strong>{tools.length ? tools.join(', ') : 'No source correlation yet'}</strong>
+        </div>
+      </div>
+
+      {actions.length > 0 && (
+        <div className="intelPanel intelPanel--compact">
+          <div className="intelHead">
+            <span>Recommended Actions</span>
+            <strong>{actions.length} Actions</strong>
+          </div>
+          <div className="workbenchChecklist">
+            {actions.map((action, index) => (
+              <div className="workbenchCheck" key={`${index}-${action}`}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <div>{action}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </article>
+  )
+}
+
 function CaseDashboardHero({ caseData, loadingAnalytics }) {
   const title = caseData?.title || caseData?.case_no || caseData?.id || 'Case Detail'
   const summary = caseData?.executive_summary || caseData?.summary || 'RCA dashboard summary will appear after the case data is loaded.'
@@ -65,13 +151,14 @@ function CaseDashboardHero({ caseData, loadingAnalytics }) {
   )
 }
 
-function AnalyticsBlock({ caseData, loadingAnalytics }) {
+function AnalyticsBlock({ caseData, correlation, loadingAnalytics, loadingCorrelation }) {
   return (
     <section className="caseDetailPage container section caseDetailAnalyticsMount">
       <CaseDashboardHero caseData={caseData} loadingAnalytics={loadingAnalytics} />
       {caseData ? (
         <>
           <AnalyticsQuickSummary caseData={caseData} />
+          <CorrelationSummary correlation={correlation} loading={loadingCorrelation} />
           <CaseAnalytics caseData={caseData} />
         </>
       ) : (
@@ -104,7 +191,9 @@ function FullCaseDetailDisclosure({ caseId }) {
 
 export default function CaseDetailWithAnalytics({ caseId }) {
   const [caseData, setCaseData] = React.useState(null)
+  const [correlation, setCorrelation] = React.useState(null)
   const [loadingAnalytics, setLoadingAnalytics] = React.useState(false)
+  const [loadingCorrelation, setLoadingCorrelation] = React.useState(false)
 
   React.useEffect(() => {
     let active = true
@@ -128,9 +217,36 @@ export default function CaseDetailWithAnalytics({ caseId }) {
     }
   }, [caseId])
 
+  React.useEffect(() => {
+    let active = true
+    if (!caseId) return undefined
+
+    setLoadingCorrelation(true)
+    getCaseCorrelation(caseId)
+      .then((payload) => {
+        if (!active || payload?.ok === false) return
+        setCorrelation(payload?.correlation || null)
+      })
+      .catch(() => {
+        if (active) setCorrelation(null)
+      })
+      .finally(() => {
+        if (active) setLoadingCorrelation(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [caseId])
+
   return (
     <>
-      <AnalyticsBlock caseData={caseData} loadingAnalytics={loadingAnalytics} />
+      <AnalyticsBlock
+        caseData={caseData}
+        correlation={correlation}
+        loadingAnalytics={loadingAnalytics}
+        loadingCorrelation={loadingCorrelation}
+      />
       <FullCaseDetailDisclosure caseId={caseId} />
     </>
   )
