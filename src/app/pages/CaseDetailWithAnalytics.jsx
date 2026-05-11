@@ -65,16 +65,16 @@ function CorrelationSummary({ correlation, loading }) {
     : []
 
   return (
-    <article className="caseDetailPanel caseDetailAnalyticsPanel">
+    <article className="caseDetailPanel caseDetailAnalyticsPanel caseCorrelationSummary" data-rca-correlation="true">
       <div className="intelHead">
         <span>RCA Correlation Summary</span>
-        <strong>{severity}</strong>
+        <strong data-correlation-severity>{severity}</strong>
       </div>
 
       <div className="opsStrip" style={{ marginBottom: 16 }}>
         <div className="opsMetric">
           <span className="opsLabel">Confidence</span>
-          <strong className="opsValue">{confidence}%</strong>
+          <strong className="opsValue" data-correlation-confidence>{confidence}%</strong>
         </div>
         <div className="opsMetric">
           <span className="opsLabel">Correlated Tools</span>
@@ -91,7 +91,7 @@ function CorrelationSummary({ correlation, loading }) {
           <span>Top Root Cause</span>
           <strong>{severity}</strong>
         </div>
-        <p>{topRootCause}</p>
+        <p data-correlation-root-cause>{topRootCause}</p>
       </div>
 
       <div className="intelSteps" style={{ marginBottom: 16 }}>
