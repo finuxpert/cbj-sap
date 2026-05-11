@@ -77,6 +77,11 @@ export async function getCase(caseId) {
   return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}`, { cache: 'no-store' }))
 }
 
+export async function getCaseCorrelation(caseId) {
+  if (!caseId) return { ok: false, detail: 'caseId is required' }
+  return toJson(await fetch(`${API_BASE}/cases/${encodeURIComponent(caseId)}/correlation`, { cache: 'no-store' }))
+}
+
 export async function updateCase(caseId, payload = {}) {
   if (!caseId) return { ok: false, detail: 'caseId is required' }
   return patchJson(`/cases/${encodeURIComponent(caseId)}`, payload)
