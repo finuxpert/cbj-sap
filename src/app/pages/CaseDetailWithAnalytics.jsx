@@ -2,13 +2,13 @@ import React from 'react'
 import { getCaseCorrelation, getCaseReplay, getMobileCase } from '../../evidence-api-client.js'
 import CaseDetail from './CaseDetail.jsx'
 import CaseAnalytics from './CaseAnalytics.jsx'
+import RCAFocusPanel from './RCAFocusPanel.jsx'
+import CorrelationSummary from './CorrelationSummary.jsx'
+import SessionReplayPanel from './SessionReplayPanel.jsx'
+import { countItems } from './rca-panel-utils.js'
 
 function normalizeCase(payload) {
   return payload?.case || payload?.item || payload || null
-}
-
-function countItems(value) {
-  return Array.isArray(value) ? value.length : Number(value || 0) || 0
 }
 
 function AnalyticsQuickSummary({ caseData }) {
@@ -40,177 +40,6 @@ function AnalyticsQuickSummary({ caseData }) {
         <strong>{reportCount}</strong>
       </div>
     </div>
-  )
-}
-
-function RCAFocusPanel({ caseData, correlation }) {
-  const severity = String(correlation?.severity || caseData?.severity || 'INFO').toUpperCase()
-  const confidence = Number(correlation?.confidence || 0)
-  const rootCause = correlation?.top_root_cause || caseData?.top_suspect || caseData?.top_anomaly || 'Need more evidence before final RCA.'
-  const hosts = Array.isArray(correlation?.affected_hosts) ? correlation.affected_hosts : []
-  const workprocesses = Array.isArray(correlation?.related_workprocesses) ? correlation.related_workprocesses : []
-  const actions = Array.isArray(correlation?.recommended_actions) ? correlation.recommended_actions : []
-  const primaryAction = actions[0] || 'Collect fresh WP-SCOUT, ST03N, and log evidence from the same incident window.'
-  const impact = [
-    hosts.length ? `Host: ${hosts.slice(0, 3).join(', ')}` : '',
-    workprocesses.length ? `WP: ${workprocesses.slice(0, 3).join(', ')}` : '',
-  ].filter(Boolean).join(' • ') || caseData?.summary || 'Impact context is not confirmed yet.'
-
-  return (
-    <article className="caseDetailPanel caseDetailAnalyticsPanel" style={{ position: 'sticky', top: 72, zIndex: 5 }}>
-      <div className="intelHead">
-        <span>RCA Focus</span>
-        <strong>{severity}</strong>
-      </div>
-      <div className="intelPanel" style={{ marginBottom: 12 }}>
-        <div className="intelHead">
-          <span>Primary Suspect</span>
-          <strong>{confidence ? `${confidence}%` : 'Pending'}</strong>
-        </div>
-        <p style={{ fontSize: 18, fontWeight: 850, lineHeight: 1.35 }}>{rootCause}</p>
-      </div>
-      <div className="intelSteps" style={{ marginBottom: 12 }}>
-        <div>
-          <span>Impact</span>
-          <strong>{impact}</strong>
-        </div>
-        <div>
-          <span>Next Check</span>
-          <strong>{primaryAction}</strong>
-        </div>
-        <div>
-          <span>Evidence State</span>
-          <strong>{countItems(caseData?.parsed_results)} parsed • {countItems(caseData?.evidence) || countItems(caseData?.evidence_count)} evidence</strong>
-        </div>
-      </div>
-    </article>
-  )
-}
-
-function CorrelationSummary({ correlation, loading }) {
-  if (loading) {
-    return (
-      <article className="caseDetailPanel caseDetailAnalyticsPanel">
-        <div className="caseDetailChartEmpty">Correlation engine is analyzing RCA signals...</div>
-      </article>
-    )
-  }
-
-  if (!correlation) return null
-
-  const severity = String(correlation?.severity || 'INFO').toUpperCase()
-  const confidence = Number(correlation?.confidence || 0)
-  const topRootCause = correlation?.top_root_cause || 'No dominant root-cause detected yet.'
-  const hosts = Array.isArray(correlation?.affected_hosts) ? correlation.affected_hosts : []
-  const workprocesses = Array.isArray(correlation?.related_workprocesses) ? correlation.related_workprocesses : []
-  const tools = Array.isArray(correlation?.tools) ? correlation.tools : []
-  const actions = Array.isArray(correlation?.recommended_actions)
-    ? correlation.recommended_actions.slice(0, 3)
-    : []
-
-  return (
-    <article className="caseDetailPanel caseDetailAnalyticsPanel caseCorrelationSummary" data-rca-correlation="true">
-      <div className="intelHead">
-        <span>RCA Correlation Summary</span>
-        <strong data-correlation-severity>{severity}</strong>
-      </div>
-
-      <div className="opsStrip" style={{ marginBottom: 16 }}>
-        <div className="opsMetric">
-          <span className="opsLabel">Confidence</span>
-          <strong className="opsValue" data-correlation-confidence>{confidence}%</strong>
-        </div>
-        <div className="opsMetric">
-          <span className="opsLabel">Correlated Tools</span>
-          <strong className="opsValue">{tools.length}</strong>
-        </div>
-        <div className="opsMetric">
-          <span className="opsLabel">Affected Hosts</span>
-          <strong className="opsValue">{hosts.length}</strong>
-        </div>
-      </div>
-
-      <div className="intelPanel" style={{ marginBottom: 16 }}>
-        <div className="intelHead">
-          <span>Top Root Cause</span>
-          <strong>{severity}</strong>
-        </div>
-        <p data-correlation-root-cause>{topRootCause}</p>
-      </div>
-
-      <div className="intelSteps" style={{ marginBottom: 16 }}>
-        <div>
-          <span>Hosts</span>
-          <strong>{hosts.length ? hosts.join(', ') : 'No affected host detected'}</strong>
-        </div>
-        <div>
-          <span>Workprocesses</span>
-          <strong>{workprocesses.length ? workprocesses.join(', ') : 'No related WP detected'}</strong>
-        </div>
-        <div>
-          <span>Correlation Sources</span>
-          <strong>{tools.length ? tools.join(', ') : 'No source correlation yet'}</strong>
-        </div>
-      </div>
-
-      {actions.length > 0 && (
-        <div className="intelPanel intelPanel--compact">
-          <div className="intelHead">
-            <span>Recommended Actions</span>
-            <strong>{actions.length} Actions</strong>
-          </div>
-          <div className="workbenchChecklist">
-            {actions.map((action, index) => (
-              <div className="workbenchCheck" key={`${index}-${action}`}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <div>{action}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </article>
-  )
-}
-
-function SessionReplayPanel({ replay, loading }) {
-  if (loading) {
-    return (
-      <article className="caseDetailPanel caseDetailAnalyticsPanel">
-        <div className="caseDetailChartEmpty">Building investigation replay timeline...</div>
-      </article>
-    )
-  }
-
-  if (!replay?.replay_ready) return null
-
-  const events = Array.isArray(replay?.events) ? replay.events.slice(0, 10) : []
-
-  return (
-    <article className="caseDetailPanel caseDetailAnalyticsPanel">
-      <div className="intelHead">
-        <span>Investigation Replay Timeline</span>
-        <strong>{events.length} Events</strong>
-      </div>
-
-      <div className="workbenchChecklist">
-        {events.map((event, index) => (
-          <div className="workbenchCheck" key={`${event?.source_id || index}-${event?.time || 'na'}`}>
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <div>
-              <strong>
-                {String(event?.type || 'event').toUpperCase()} • {String(event?.severity || 'INFO').toUpperCase()}
-              </strong>
-              <div>{event?.title || 'Replay event'}</div>
-              <small>
-                {event?.tool || 'unknown-tool'}
-                {event?.time ? ` • ${event.time}` : ''}
-              </small>
-            </div>
-          </div>
-        ))}
-      </div>
-    </article>
   )
 }
 
