@@ -1,19 +1,8 @@
 from __future__ import annotations
 
-import json
-import os
-import uuid
-from datetime import datetime
-from pathlib import Path
-
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-
-try:
-    from .case_helpers import make_case_no, mobile_case_payload, summarize_case
-except Exception:
-    from case_helpers import make_case_no, mobile_case_payload, summarize_case
+from fastapi.responses import JSONResponse
 
 try:
     from .case_service import (
@@ -31,11 +20,6 @@ except Exception:
         list_case_items,
         update_case_item,
     )
-
-try:
-    from .evidence_helpers import collect_file_evidence
-except Exception:
-    from evidence_helpers import collect_file_evidence
 
 try:
     from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
@@ -107,34 +91,14 @@ except Exception:
     from dbfirst_middleware import dbfirst_read_middleware
 
 try:
-    from .storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
+    from .storage_config import APP_NAME, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
 except Exception:
-    from storage_config import APP_NAME, ALLOWED_EXT, CASE_DIR, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
+    from storage_config import APP_NAME, EVIDENCE_DIR, MAX_UPLOAD_MB, META_DIR, STORAGE_ROOT
 
 try:
-    from .storage_helpers import (
-        case_path,
-        ensure_dirs,
-        now_iso,
-        read_case,
-        read_meta,
-        safe_case_id,
-        safe_name,
-        write_case,
-        write_meta,
-    )
+    from .storage_helpers import ensure_dirs
 except Exception:
-    from storage_helpers import (
-        case_path,
-        ensure_dirs,
-        now_iso,
-        read_case,
-        read_meta,
-        safe_case_id,
-        safe_name,
-        write_case,
-        write_meta,
-    )
+    from storage_helpers import ensure_dirs
 
 try:
     from .db.session import check_database
@@ -144,29 +108,6 @@ except Exception:
     except Exception:
         def check_database() -> dict:
             return {"enabled": False, "configured": False, "status": "unavailable"}
-
-try:
-    from .db.repositories import (
-        insert_parsed_result_best_effort,
-        upsert_case_best_effort,
-        upsert_evidence_best_effort,
-    )
-except Exception:
-    try:
-        from db.repositories import (
-            insert_parsed_result_best_effort,
-            upsert_case_best_effort,
-            upsert_evidence_best_effort,
-        )
-    except Exception:
-        def upsert_case_best_effort(case_data: dict) -> dict:
-            return {"enabled": False, "written": False, "status": "unavailable"}
-
-        def upsert_evidence_best_effort(meta: dict) -> dict:
-            return {"enabled": False, "written": False, "status": "unavailable"}
-
-        def insert_parsed_result_best_effort(case_id: str, result: dict) -> dict:
-            return {"enabled": False, "written": False, "status": "unavailable"}
 
 
 app = FastAPI(title=APP_NAME, version="1.2.0")
