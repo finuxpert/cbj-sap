@@ -1,5 +1,6 @@
 import React from 'react'
 import './app/mobile-operational-polish.css'
+import './app/operational-motion.css'
 import './app/pages/case-history-mobile-density.css'
 import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
