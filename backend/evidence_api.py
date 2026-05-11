@@ -22,6 +22,11 @@ except Exception:
     )
 
 try:
+    from .correlation_service import correlate_case
+except Exception:
+    from correlation_service import correlate_case
+
+try:
     from .external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
 except Exception:
     from external_models import CaseCreate, CaseUpdate, EvidenceUpdate, ParsedResultCreate
@@ -156,6 +161,17 @@ def list_cases(q: str = "", sid: str = "", severity: str = "", status: str = "",
 @app.get("/cases/{case_id}")
 def get_case(case_id: str) -> dict:
     return get_case_item(case_id)
+
+
+@app.get("/cases/{case_id}/correlation")
+def get_case_correlation(case_id: str) -> dict:
+    case_response = get_case_item(case_id)
+    case_data = case_response.get("case", {})
+    return {
+        "ok": True,
+        "case_id": case_id,
+        "correlation": correlate_case(case_data if isinstance(case_data, dict) else {}),
+    }
 
 
 @app.patch("/cases/{case_id}")
