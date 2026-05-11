@@ -334,6 +334,41 @@ recommended_actions
 signals
 ```
 
+### Frontend RCA correlation panel
+
+Files:
+
+```text
+src/evidence-api-client.js
+src/app/pages/CaseDetailWithAnalytics.jsx
+```
+
+Status:
+- `getCaseCorrelation(caseId)` API helper exists.
+- Case detail analytics page now fetches `/cases/{case_id}/correlation` separately from mobile case analytics.
+- UI shows `RCA Correlation Summary` with severity, confidence, correlated tool count, affected host count, top root cause, related workprocesses, correlation sources, and recommended actions.
+- Failure to load correlation does not block case detail rendering.
+- DOM markers are present for structured PDF extraction:
+  - `data-rca-correlation="true"`
+  - `data-correlation-severity`
+  - `data-correlation-confidence`
+  - `data-correlation-root-cause`
+
+### PDF RCA correlation summary
+
+File:
+
+```text
+src/features/pdf/structuredPdf.js
+```
+
+Status:
+- Structured PDF export can collect the visible RCA correlation panel from DOM markers.
+- PDF includes an optional `RCA Correlation Summary` section when the panel is present.
+- PDF section includes severity, confidence, top root cause, correlation metrics, and recommended correlation actions.
+- Fallback-safe: if no correlation panel exists, the existing PDF format continues normally.
+- Screenshot-based export was not introduced.
+
 ### Evidence API cleanup
 
 File:
@@ -369,6 +404,10 @@ Recommended handling:
 ## Latest Relevant Commits
 
 ```text
+20b0046 Include RCA correlation summary in PDF export
+bb0f978 Add correlation DOM markers for PDF export
+e684346 Add RCA correlation summary panel
+d6ac496 Add case correlation API client helper
 682489e Add case correlation route
 96649b9 Add RCA correlation service foundation
 12065bb Clean delegated evidence API imports
@@ -409,14 +448,15 @@ bash scripts/watch-latest-sapdev-run.sh
 
 ## Next Safest Targets
 
-1. Optional backend syntax/deploy validation through GitHub Actions status only.
-2. Frontend Evidence History UI integration for correlation preview.
-3. PDF Executive Summary integration using `/cases/{case_id}/correlation`.
-4. Add persistent RCA session foundation:
+1. Optional backend/frontend deploy validation through GitHub Actions status only.
+2. Add persistent RCA session foundation:
 
 ```text
 backend/session_service.py
 ```
+
+3. Add frontend session/replay surface after session foundation exists.
+4. Add RCA timeline replay using case timeline + correlation timeline.
 
 ## Validation Commands
 
