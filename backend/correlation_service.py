@@ -21,7 +21,6 @@ TOOL_ALIASES = {
     "comparator": "wp_scout",
     "st03n": "st03n",
     "st03n-impact-v2": "st03n",
-    "st03n-impact-v2": "st03n",
     "log-triage": "log_triage",
     "log_evidence": "log_triage",
     "logs": "log_triage",
@@ -172,6 +171,88 @@ def _build_signal_key(item: dict[str, Any]) -> str:
     return "|".join(compact[:6])
 
 
+def _shared_count(normalized: list[dict[str, Any]], key: str) -> int:
+    counter: Counter[str] = Counter()
+    for item in normalized:
+        for value in item.get(key, []) or []:
+            counter[value] += 1
+    return sum(1 for _, count in counter.items() if count > 1)
+
+
+def _coverage_score(normalized: list[dict[str, Any]]) -> int:
+    dimensions = (
+        "hosts",
+        "workprocesses",
+        "jobs",
+        "programs",
+        "transactions",
+        "users",
+        "error_signatures",
+        "log_families",
+        "correlation_keys",
+        "evidence_ids",
+    )
+    populated = 0
+    total = len(normalized) * len(dimensions)
+    if not total:
+        return 0
+    for item in normalized:
+        populated += sum(1 for dimension in dimensions if item.get(dimension))
+    return round((populated / total) * 100)
+
+
+def _has_incident_window(item: dict[str, Any]) -> bool:
+    window = item.get("incident_window") or {}
+    return bool(window.get("start") or window.get("end"))
+
+
+def _build_weighted_score(normalized: list[dict[str, Any]], tools: list[str], severity_rank: dict[str, Any]) -> dict[str, Any]:
+    parser_confidence = round(sum(item.get("confidence", 0) for item in normalized) / max(len(normalized), 1))
+    tool_agreement = min(len(tools) * 8, 24)
+    severity_weight = min(severity_rank.get("severity_score", 0), 100)
+    evidence_coverage = _coverage_score(normalized)
+
+    shared_host = _shared_count(normalized, "hosts")
+    shared_wp = _shared_count(normalized, "workprocesses")
+    shared_program = _shared_count(normalized, "programs")
+    shared_error = _shared_count(normalized, "error_signatures")
+    shared_key = _shared_count(normalized, "correlation_keys")
+    overlap_strength = min((shared_host * 8) + (shared_wp * 8) + (shared_program * 6) + (shared_error * 10) + (shared_key * 12), 36)
+
+    window_count = sum(1 for item in normalized if _has_incident_window(item))
+    incident_window_score = round((window_count / max(len(normalized), 1)) * 100)
+
+    weighted = round(
+        (parser_confidence * 0.32)
+        + (severity_weight * 0.18)
+        + (tool_agreement * 0.75)
+        + (evidence_coverage * 0.16)
+        + (overlap_strength * 0.72)
+        + (incident_window_score * 0.10)
+    )
+    weighted = max(0, min(100, weighted))
+
+    return {
+        "score": weighted,
+        "version": "weighted-rca-score-v1",
+        "components": {
+            "parser_confidence": parser_confidence,
+            "severity_weight": severity_weight,
+            "tool_agreement": tool_agreement,
+            "evidence_coverage": evidence_coverage,
+            "overlap_strength": overlap_strength,
+            "incident_window_score": incident_window_score,
+        },
+        "overlap": {
+            "shared_hosts": shared_host,
+            "shared_workprocesses": shared_wp,
+            "shared_programs": shared_program,
+            "shared_error_signatures": shared_error,
+            "shared_correlation_keys": shared_key,
+        },
+    }
+
+
 def normalize_parsed_result(result: dict[str, Any]) -> dict[str, Any]:
     """Normalize one parsed result into a correlation-friendly shape."""
     severity = _normalize_severity(result.get("severity"))
@@ -249,11 +330,8 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
             suspect_counter[key] += 1
     top_root_cause = suspect_counter.most_common(1)[0][0] if suspect_counter else ""
 
-    avg_confidence = sum(item.get("confidence", 0) for item in normalized) / max(len(normalized), 1)
-    tool_bonus = min(len(tools) * 5, 15)
-    severity_bonus = min(severity_rank.get("severity_score", 0) // 10, 10)
-    model_bonus = min((len(hosts) + len(workprocesses) + len(programs) + len(error_signatures)) * 2, 12)
-    confidence = max(0, min(100, round(avg_confidence + tool_bonus + severity_bonus + model_bonus)))
+    weighted_score = _build_weighted_score(normalized, tools, severity_rank)
+    confidence = weighted_score["score"]
 
     timeline_correlation = [
         {
@@ -283,6 +361,7 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
         "mode": "correlated",
         "top_root_cause": top_root_cause,
         "confidence": confidence,
+        "weighted_score": weighted_score,
         "severity": severity_rank.get("severity", "INFO"),
         "tools": tools,
         "affected_hosts": hosts,
