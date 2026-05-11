@@ -16,6 +16,23 @@ except Exception:
     from case_helpers import make_case_no, mobile_case_payload, summarize_case
 
 try:
+    from .case_service import (
+        create_case_item,
+        delete_case_item,
+        get_case_item,
+        list_case_items,
+        update_case_item,
+    )
+except Exception:
+    from case_service import (
+        create_case_item,
+        delete_case_item,
+        get_case_item,
+        list_case_items,
+        update_case_item,
+    )
+
+try:
     from .evidence_helpers import collect_file_evidence
 except Exception:
     from evidence_helpers import collect_file_evidence
@@ -55,6 +72,11 @@ except Exception:
         get_evidence_download_response,
         update_evidence_item,
     )
+
+try:
+    from .parsed_result_service import add_case_parsed_result
+except Exception:
+    from parsed_result_service import add_case_parsed_result
 
 try:
     from .parsed_results_history_service import list_parsed_results_history_dbfirst
@@ -182,130 +204,32 @@ def health() -> dict:
 
 @app.post("/cases")
 def create_case(payload: CaseCreate) -> dict:
-    ensure_dirs()
-    case_no = make_case_no()
-    data = {
-        "id": case_no,
-        "case_no": case_no,
-        "title": payload.title.strip() or case_no,
-        "sid": payload.sid or "",
-        "environment": payload.environment or "",
-        "severity": (payload.severity or "INFO").upper(),
-        "status": (payload.status or "OPEN").upper(),
-        "summary": payload.summary or "",
-        "top_anomaly": payload.top_anomaly or "",
-        "top_suspect": payload.top_suspect or "",
-        "created_by": payload.created_by or "",
-        "created_at": now_iso(),
-        "updated_at": now_iso(),
-        "evidence": [],
-        "parsed_results": [],
-        "reports": [],
-        "timeline": [],
-    }
-    write_case(data)
-    db_write = upsert_case_best_effort(data)
-    return {"ok": True, "case": data, "db_write": db_write}
+    return create_case_item(payload)
 
 
 @app.get("/cases")
 def list_cases(q: str = "", sid: str = "", severity: str = "", status: str = "", limit: int = 100) -> dict:
-    ensure_dirs()
-    limit = max(1, min(limit, 500))
-    items = []
-    for p in sorted(CASE_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
-        try:
-            case_data = json.loads(p.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        item = summarize_case(case_data)
-        if sid and str(item.get("sid", "")).lower() != sid.lower():
-            continue
-        if severity and str(item.get("severity", "")).lower() != severity.lower():
-            continue
-        if status and str(item.get("status", "")).lower() != status.lower():
-            continue
-        if q:
-            hay = " ".join(str(item.get(k, "")) for k in ["case_no", "title", "summary", "top_anomaly", "top_suspect", "sid", "tool"])
-            if q.lower() not in hay.lower():
-                continue
-        items.append(item)
-        if len(items) >= limit:
-            break
-    return {"ok": True, "count": len(items), "items": items}
+    return list_case_items(q=q, sid=sid, severity=severity, status=status, limit=limit)
 
 
 @app.get("/cases/{case_id}")
 def get_case(case_id: str) -> dict:
-    return {"ok": True, "case": read_case(case_id)}
+    return get_case_item(case_id)
 
 
 @app.patch("/cases/{case_id}")
 def update_case(case_id: str, patch: CaseUpdate) -> dict:
-    case_data = read_case(case_id)
-    data = patch.dict(exclude_unset=True)
-    for key, value in data.items():
-        if value is not None:
-            case_data[key] = value.upper() if key in {"severity", "status"} else value
-    case_data["updated_at"] = now_iso()
-    write_case(case_data)
-    db_write = upsert_case_best_effort(case_data)
-    return {"ok": True, "case": case_data, "db_write": db_write}
+    return update_case_item(case_id, patch)
 
 
 @app.delete("/cases/{case_id}")
 def delete_case(case_id: str) -> dict:
-    p = case_path(case_id)
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="Case not found")
-    deleted_id = safe_case_id(case_id)
-    p.unlink(missing_ok=True)
-    return {"ok": True, "deleted": deleted_id}
+    return delete_case_item(case_id)
 
 
 @app.post("/cases/{case_id}/parsed-results")
 def add_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict:
-    case_data = read_case(case_id)
-    result = {
-        "id": uuid.uuid4().hex,
-        "created_at": now_iso(),
-        "tool": payload.tool,
-        "verdict": payload.verdict or "",
-        "severity": (payload.severity or "INFO").upper(),
-        "confidence": payload.confidence or 0,
-        "top_anomaly": payload.top_anomaly or "",
-        "top_suspect": payload.top_suspect or "",
-        "summary": payload.summary or "",
-        "result_json": payload.result_json or {},
-    }
-    case_data.setdefault("parsed_results", []).append(result)
-    if result["severity"] in {"WARN", "CRIT"}:
-        case_data["severity"] = result["severity"]
-    if result["summary"]:
-        case_data["summary"] = result["summary"]
-    if result["top_anomaly"]:
-        case_data["top_anomaly"] = result["top_anomaly"]
-    if result["top_suspect"]:
-        case_data["top_suspect"] = result["top_suspect"]
-    case_data.setdefault("timeline", []).append({
-        "id": result["id"],
-        "time": result["created_at"],
-        "severity": result["severity"],
-        "title": result["top_anomaly"] or f"{result['tool']} parsed result saved",
-        "description": result["summary"],
-        "tool": result["tool"],
-    })
-    case_data["updated_at"] = now_iso()
-    write_case(case_data)
-    db_case_write = upsert_case_best_effort(case_data)
-    db_result_write = insert_parsed_result_best_effort(case_data.get("id") or case_id, result)
-    return {
-        "ok": True,
-        "result": result,
-        "case": summarize_case(case_data),
-        "analytics": mobile_case_payload(case_data).get("analytics"),
-        "db_write": {"case": db_case_write, "parsed_result": db_result_write},
-    }
+    return add_case_parsed_result(case_id, payload)
 
 
 @app.get("/parsed-results-history")
