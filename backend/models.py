@@ -44,4 +44,27 @@ class ParsedResultCreate(BaseModel):
     top_anomaly: Optional[str] = ""
     top_suspect: Optional[str] = ""
     summary: Optional[str] = ""
+
+    # Normalized RCA data model fields.
+    # These are additive and optional so old parser payloads remain valid.
+    incident_start: Optional[str] = ""
+    incident_end: Optional[str] = ""
+    sid: Optional[str] = ""
+    environment: Optional[str] = ""
+    client: Optional[str] = ""
+    hosts: Optional[list[str]] = None
+    affected_hosts: Optional[list[str]] = None
+    instances: Optional[list[str]] = None
+    workprocesses: Optional[list[str]] = None
+    jobs: Optional[list[str]] = None
+    programs: Optional[list[str]] = None
+    transactions: Optional[list[str]] = None
+    users: Optional[list[str]] = None
+    error_signatures: Optional[list[str]] = None
+    log_families: Optional[list[str]] = None
+    metrics: Optional[dict] = None
+    correlation_keys: Optional[list[str]] = None
+    evidence_ids: Optional[list[str]] = None
+    rca_model_version: Optional[str] = "rca-data-model-v1"
+
     result_json: Optional[dict] = None
