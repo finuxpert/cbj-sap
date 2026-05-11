@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 try:
     from .case_helpers import make_case_no, mobile_case_payload, summarize_case
@@ -47,6 +47,19 @@ try:
     from .parsed_results_history_service import list_parsed_results_history_dbfirst
 except Exception:
     from parsed_results_history_service import list_parsed_results_history_dbfirst
+
+try:
+    from .mobile_case_service import (
+        get_mobile_case_analytics_item,
+        get_mobile_case_item,
+        list_mobile_case_items,
+    )
+except Exception:
+    from mobile_case_service import (
+        get_mobile_case_analytics_item,
+        get_mobile_case_item,
+        list_mobile_case_items,
+    )
 
 try:
     from .maintenance_helpers import cleanup_old_evidence_files
@@ -293,19 +306,17 @@ def list_parsed_results_history(case_id: str = "", tool: str = "", limit: int = 
 
 @app.get("/mobile/cases")
 def list_mobile_cases(limit: int = 50) -> dict:
-    return list_cases(limit=limit)
+    return list_mobile_case_items(limit=limit)
 
 
 @app.get("/mobile/cases/{case_id}")
 def get_mobile_case(case_id: str) -> dict:
-    case_data = read_case(case_id)
-    return {"ok": True, "case": mobile_case_payload(case_data)}
+    return get_mobile_case_item(case_id)
 
 
 @app.get("/mobile/cases/{case_id}/analytics")
 def get_mobile_case_analytics(case_id: str) -> dict:
-    case_data = read_case(case_id)
-    return {"ok": True, "case_id": case_data.get("id") or case_data.get("case_no"), "analytics": mobile_case_payload(case_data).get("analytics")}
+    return get_mobile_case_analytics_item(case_id)
 
 
 @app.post("/upload")
