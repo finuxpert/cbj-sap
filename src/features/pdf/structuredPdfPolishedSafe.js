@@ -107,6 +107,13 @@ function statusText(severity = '') {
   return 'GREEN / OK'
 }
 
+function statusColor(status = '') {
+  const text = String(status || '').toUpperCase()
+  if (text.includes('CRIT') || text.includes('RED')) return STATUS.red
+  if (text.includes('WARN') || text.includes('YELLOW')) return STATUS.yellow
+  return STATUS.green
+}
+
 function line(pdf, page, y, text, size = 9, style = 'normal', color = STATUS.ink, indent = 0) {
   pdf.setFont('helvetica', style)
   pdf.setFontSize(size)
