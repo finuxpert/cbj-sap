@@ -73,9 +73,25 @@
 .cmpResourceTrendChart .recharts-cartesian-grid line { stroke: rgba(150, 180, 220, .15); }
 .cmpResourceTrendChart .recharts-text { fill: rgba(235,245,255,.70); font-weight: 800; }
 .cmpResourceTrendChart .recharts-legend-item-text { color: rgba(235,245,255,.84) !important; font-weight: 850; }
-.cmpResourceTrendChart .recharts-line-curve:nth-of-type(1) { stroke: #63a8ff; }
-.cmpResourceTrendChart .recharts-line-curve:nth-of-type(2) { stroke: #a78bfa; }
-.cmpResourceTrendChart .recharts-line-curve:nth-of-type(3) { stroke: #ff6b83; }
-.cmpTrendSwapDot { fill: #ff647c; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
+.cmpResourceTrendChart .recharts-line-curve { stroke-width: 3px; filter: drop-shadow(0 0 4px rgba(255,255,255,.25)); }
+.cmpResourceTrendChart .recharts-line:nth-of-type(1) .recharts-line-curve,
+.cmpResourceTrendChart .recharts-line:nth-of-type(1) .recharts-line-dot,
+.cmpResourceTrendChart .recharts-line-curve:nth-of-type(1) { stroke: #4da3ff !important; fill: #4da3ff !important; }
+.cmpResourceTrendChart .recharts-line:nth-of-type(2) .recharts-line-curve,
+.cmpResourceTrendChart .recharts-line:nth-of-type(2) .recharts-line-dot,
+.cmpResourceTrendChart .recharts-line-curve:nth-of-type(2) { stroke: #b987ff !important; fill: #b987ff !important; }
+.cmpResourceTrendChart .recharts-line:nth-of-type(3) .recharts-line-curve,
+.cmpResourceTrendChart .recharts-line:nth-of-type(3) .recharts-line-dot,
+.cmpResourceTrendChart .recharts-line-curve:nth-of-type(3) { stroke: #ff5d73 !important; fill: #ff5d73 !important; stroke-dasharray: 6 4; }
+.cmpResourceTrendChart .recharts-default-legend .recharts-legend-item:nth-child(1) .recharts-surface path,
+.cmpResourceTrendChart .recharts-default-legend .recharts-legend-item:nth-child(1) svg path { stroke: #4da3ff !important; fill: #4da3ff !important; }
+.cmpResourceTrendChart .recharts-default-legend .recharts-legend-item:nth-child(2) .recharts-surface path,
+.cmpResourceTrendChart .recharts-default-legend .recharts-legend-item:nth-child(2) svg path { stroke: #b987ff !important; fill: #b987ff !important; }
+.cmpResourceTrendChart .recharts-default-legend .recharts-legend-item:nth-child(3) .recharts-surface path,
+.cmpResourceTrendChart .recharts-default-legend .recharts-legend-item:nth-child(3) svg path { stroke: #ff5d73 !important; fill: #ff5d73 !important; }
+.cmpResourceTrendChart .recharts-legend-item:nth-child(1)::after { content: ' = CPU'; color: #4da3ff; margin-left: 4px; font-size: 11px; font-weight: 900; }
+.cmpResourceTrendChart .recharts-legend-item:nth-child(2)::after { content: ' = Memory'; color: #b987ff; margin-left: 4px; font-size: 11px; font-weight: 900; }
+.cmpResourceTrendChart .recharts-legend-item:nth-child(3)::after { content: ' = Swap'; color: #ff5d73; margin-left: 4px; font-size: 11px; font-weight: 900; }
+.cmpTrendSwapDot { fill: #ff5d73; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
 @media (max-width: 1200px) { .cmpCleanStats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cmpCleanGrid, .cmpCleanTopRow { grid-template-columns: 1fr; } .cmpCleanPanel.span2 { grid-row: auto; } }
 @media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock { align-items: stretch; flex-direction: column; } .cmpCleanStats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } }
