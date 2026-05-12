@@ -134,6 +134,42 @@ function Group({ title, rows = [] }) {
   return <section className="evidencePanel"><h2>{title}</h2><div className="evidenceList compact">{rows.slice(0, 8).map((item) => <div key={item.name}><b>{item.name}</b><span>hits {item.hits} · CRIT {item.critHits}</span><small>{item.family || ''} {item.examples?.join(' · ')}</small></div>)}</div></section>
 }
 
+function IncidentCockpitStrip({ analysis, caseId, status }) {
+  const primary = analysis?.primary || {}
+  const infra = analysis?.infra_saturation || {}
+  const owner = analysis?.ownership_direction || {}
+  const severity = severityFromAnalysis(analysis || {})
+  const confidence = Number(analysis?.confidence || 0)
+  const bottleneck = infra?.dominant || 'N/A'
+  const primaryOwner = owner?.primary_owner || primary?.owner || infra?.owner || 'UNKNOWN'
+
+  return (
+    <section className="incidentCockpitStrip" data-severity={severity.toLowerCase()}>
+      <div>
+        <span>Severity</span>
+        <strong>{analysis ? severity : 'WAITING'}</strong>
+      </div>
+      <div>
+        <span>Confidence</span>
+        <strong>{analysis ? `${confidence}%` : '—'}</strong>
+      </div>
+      <div>
+        <span>Owner</span>
+        <strong>{analysis ? primaryOwner : 'PENDING'}</strong>
+      </div>
+      <div>
+        <span>Bottleneck</span>
+        <strong>{analysis ? bottleneck : 'N/A'}</strong>
+      </div>
+      <div>
+        <span>Case</span>
+        <strong>{caseId || 'Not linked'}</strong>
+      </div>
+      <small>{analysis?.summary || status}</small>
+    </section>
+  )
+}
+
 function InfraSaturationPanel({ analysis }) {
   const infra = analysis?.infra_saturation
   const owner = analysis?.ownership_direction
@@ -378,5 +414,5 @@ export default function ToolLogEvidenceV2() {
   const primary = analysis?.primary
   const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: item.name.slice(0, 16), hits: item.hits, crit: item.critHits })) || []
 
-  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><a href="#/tool/logs">Log Evidence Analyzer V2</a><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildLogEvidenceReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><div className="evidenceGrid"><CaseLinkPanel caseId={caseId} caseTitle={caseTitle} recentCases={recentCases} savingCase={savingCase} saveStatus={saveStatus} onCaseIdChange={setCaseId} onCaseTitleChange={setCaseTitle} onCreateCase={createLinkedCase} onSaveCurrent={() => persistAnalysis(analysis, files)} hasAnalysis={Boolean(analysis)} /><section className="evidencePanel"><h2>Persistence Flow</h2><div className="evidenceList compact"><div><b>Selected Case</b><span>{caseId || 'Not linked yet'}</span></div><div><b>Auto-save</b><span>{caseId ? 'Enabled after parsing' : 'Create/select case first'}</span></div><div><b>Mobile Path</b><span>Open #/cases/{caseId || ':id'} after save</span></div></div></section></div><SummaryStrip analysis={analysis} primary={primary} status={status} />{analysis && <InfraSaturationPanel analysis={analysis} />}<div className="evidenceGrid"><PrimaryErrorPanel primary={primary} status={status} /><JobProgramMappingPanel primary={primary} /></div>{analysis ? <div className="evidenceGrid wide"><React.Suspense fallback={<section className="evidencePanel"><h2>Loading Charts</h2><p>Preparing evidence visualization…</p></section>}><LogEvidenceCharts chartData={chartData} timeline={analysis.timeline} /></React.Suspense><ErrorEvidenceRanking errorGroups={analysis.errorGroups} /></div> : <EmptyState title="How to use this analyzer"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
+  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><a href="#/tool/logs">Log Evidence Analyzer V2</a><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildLogEvidenceReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><IncidentCockpitStrip analysis={analysis} caseId={caseId} status={status} /><div className="evidenceGrid"><CaseLinkPanel caseId={caseId} caseTitle={caseTitle} recentCases={recentCases} savingCase={savingCase} saveStatus={saveStatus} onCaseIdChange={setCaseId} onCaseTitleChange={setCaseTitle} onCreateCase={createLinkedCase} onSaveCurrent={() => persistAnalysis(analysis, files)} hasAnalysis={Boolean(analysis)} /><section className="evidencePanel"><h2>Persistence Flow</h2><div className="evidenceList compact"><div><b>Selected Case</b><span>{caseId || 'Not linked yet'}</span></div><div><b>Auto-save</b><span>{caseId ? 'Enabled after parsing' : 'Create/select case first'}</span></div><div><b>Mobile Path</b><span>Open #/cases/{caseId || ':id'} after save</span></div></div></section></div><SummaryStrip analysis={analysis} primary={primary} status={status} />{analysis && <InfraSaturationPanel analysis={analysis} />}<div className="evidenceGrid"><PrimaryErrorPanel primary={primary} status={status} /><JobProgramMappingPanel primary={primary} /></div>{analysis ? <div className="evidenceGrid wide"><React.Suspense fallback={<section className="evidencePanel"><h2>Loading Charts</h2><p>Preparing evidence visualization…</p></section>}><LogEvidenceCharts chartData={chartData} timeline={analysis.timeline} /></React.Suspense><ErrorEvidenceRanking errorGroups={analysis.errorGroups} /></div> : <EmptyState title="How to use this analyzer"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
 }
