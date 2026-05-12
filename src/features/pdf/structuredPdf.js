@@ -167,6 +167,20 @@ function detectToolTitle(slug) {
   }
 }
 
+function parsePercent(text = '') {
+  const match = String(text).match(/(\d+(?:\.\d+)?)\s*%/)
+  return match ? Math.max(0, Math.min(100, Number(match[1]) || 0)) : 0
+}
+
+function parseTopEvidence(rows = []) {
+  return rows.slice(0, 8).map((row) => {
+    const text = cleanText(row)
+    const score = Number(text.match(/\|\s*(\d+)\s*$/)?.[1] || text.match(/score\s*(\d+)/i)?.[1] || text.match(/hits\s*(\d+)/i)?.[1] || 0)
+    const label = text.split('|')[0].replace(/^\d+\.\s*/, '').slice(0, 42)
+    return { label, score: score || 1, text }
+  })
+}
+
 function extractExecutiveSignal(report) {
   const joined = [...report.decisionCards, ...report.topRows, ...report.panels.map((panel) => panel.body)].join(' ')
   const confidence = cleanText(joined.match(/confidence\s*\|?\s*(\d+%)/i)?.[1] || joined.match(/(\d+%)\s*confidence/i)?.[1] || '')
@@ -177,6 +191,7 @@ function extractExecutiveSignal(report) {
   return {
     severity: severity || 'INFO',
     confidence: confidence || 'N/A',
+    confidenceValue: parsePercent(confidence),
     owner: owner || 'Review required',
     bottleneck: bottleneck || 'Not confirmed',
     suspect: suspect || report.visibleTitle,
@@ -204,6 +219,7 @@ function buildReportFromDom(slug) {
     uploadState,
     decisionCards,
     topRows,
+    topEvidenceBars: parseTopEvidence(topRows),
     panels,
     correlation,
   }
@@ -325,6 +341,58 @@ export async function exportStructuredPdf(slug) {
   const bullet = (text, idx, size = 9.2) => line(`${idx + 1}. ${text}`, size, 'normal', 3)
   const sectionNo = (withoutCorrelation, withCorrelation) => (report.correlation ? withCorrelation : withoutCorrelation)
 
+  const drawNativeAnalytics = () => {
+    addPageIfNeeded(58)
+    const x = page.m
+    const w = page.w - page.m * 2
+    pdf.setFillColor(248, 252, 251)
+    pdf.roundedRect(x, y, w, 48, 3, 3, 'F')
+    pdf.setTextColor(0, 90, 84)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(10)
+    pdf.text('Native RCA Visual Analytics', x + 5, y + 8)
+
+    const sev = severityColor(report.executive.severity)
+    pdf.setDrawColor(220, 226, 226)
+    pdf.circle(x + 20, y + 27, 10)
+    pdf.setDrawColor(...sev)
+    pdf.setLineWidth(3)
+    pdf.arc?.(x + 20, y + 27, 10, 180, 180 + (report.executive.confidenceValue || 55) * 3.6)
+    pdf.setLineWidth(0.2)
+    pdf.setTextColor(25, 35, 35)
+    pdf.setFontSize(8)
+    pdf.text(report.executive.confidence, x + 14, y + 30)
+    pdf.setTextColor(90, 100, 100)
+    pdf.text('Confidence', x + 10, y + 41)
+
+    const bars = report.topEvidenceBars.slice(0, 4)
+    const maxScore = Math.max(...bars.map((item) => item.score), 1)
+    bars.forEach((item, index) => {
+      const bx = x + 45
+      const by = y + 15 + index * 7
+      const bw = 82
+      pdf.setTextColor(40, 50, 50)
+      pdf.setFontSize(6.8)
+      pdf.text(item.label, bx, by)
+      pdf.setFillColor(225, 232, 232)
+      pdf.roundedRect(bx + 58, by - 4, bw, 3.5, 1, 1, 'F')
+      pdf.setFillColor(...sev)
+      pdf.roundedRect(bx + 58, by - 4, Math.max(4, bw * (item.score / maxScore)), 3.5, 1, 1, 'F')
+    })
+
+    pdf.setFillColor(...sev)
+    pdf.roundedRect(x + w - 38, y + 13, 27, 10, 2, 2, 'F')
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(8)
+    pdf.text(report.executive.severity, x + w - 34, y + 20)
+    pdf.setTextColor(65, 75, 75)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(7)
+    pdf.text(pdf.splitTextToSize(`Owner: ${report.executive.owner}`, 38), x + w - 42, y + 31)
+    y += 56
+  }
+
   const drawCover = () => {
     const sev = severityColor(report.executive.severity)
     pdf.setFillColor(5, 22, 22)
@@ -368,6 +436,7 @@ export async function exportStructuredPdf(slug) {
       pdf.text(pdf.splitTextToSize(String(value || '-'), cardW - 6).slice(0, 2), x + 3, yy + 13)
     })
     y += 56
+    drawNativeAnalytics()
     line('Executive RCA narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, and recommended validation steps.', 10)
   }
 
