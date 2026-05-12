@@ -102,8 +102,11 @@ function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
   ])
 
   const mem = pick([
-    /Memory\s*:\s*used\s+\d+(?:[.,]\d+)?\s*G\s*\((\d+(?:[.,]\d+)?)\s*%\)/i,
-    /mem(?:ory)?\s*[:=]?\s*(?:used\s+)?\d+(?:[.,]\d+)?\s*G\s*\((\d+(?:[.,]\d+)?)\s*%\)/i,
+    // Daily Check format:
+    // Memory            : used 54.6G (44.8%), free 28.3G / 121.7G
+    /Memory\s*:\s*used\s+\d+(?:[.,]\d+)?\s*G\s*\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
+    /Memory\s*:\s*.*?\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
+    /mem(?:ory)?\s*[:=]?\s*(?:used\s+)?\d+(?:[.,]\d+)?\s*G\s*\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
     /mem(?:ory)?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%/i,
   ])
 
