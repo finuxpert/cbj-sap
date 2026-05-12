@@ -43,20 +43,57 @@ function TimelineTooltip({ active, payload, label }) {
   )
 }
 
+function IncidentTimelineRail({ timeline = [] }) {
+  if (!timeline.length) return null
+  const maxHits = Math.max(...timeline.map((item) => Number(item.hits || 0)), 1)
+  const topEvents = [...timeline]
+    .map((item) => ({
+      ...item,
+      hits: Number(item.hits || 0),
+      crit: Number(item.crit || 0),
+      severity: Number(item.crit || 0) > 0 ? 'crit' : Number(item.hits || 0) >= maxHits * 0.7 ? 'warn' : 'info',
+    }))
+    .sort((a, b) => String(a.time).localeCompare(String(b.time)))
+    .slice(-12)
+
+  return (
+    <div className="incidentTimelineRail" aria-label="Incident timeline rail">
+      {topEvents.map((item) => (
+        <div className="incidentRailItem" data-severity={item.severity} key={`${item.time}-${item.hits}-${item.crit}`}>
+          <span className="incidentRailMarker" />
+          <div>
+            <b>{item.time}</b>
+            <span>{item.hits} hit(s) · {item.crit} critical</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function LogEvidenceCharts({ chartData = [], timeline = [] }) {
-  const rankedErrors = [...chartData]
+  const [expandedRanking, setExpandedRanking] = React.useState(false)
+  const rankedAll = [...chartData]
     .map((item) => ({ ...item, fullName: item.fullName || item.name, problemScore: Number(item.crit || 0) * 5 + Number(item.hits || 0) }))
     .sort((a, b) => b.problemScore - a.problemScore || b.hits - a.hits)
-    .slice(0, 10)
+  const rankedErrors = rankedAll
+    .slice(0, expandedRanking ? 10 : 5)
     .map((item, index) => ({ ...item, rankLabel: `${index + 1}. ${shortLabel(item.fullName || item.name)}` }))
 
   return (
     <section className="evidencePanel chartPanel rcaReadableChartPanel">
-      <div className="chartTitleBlock">
-        <h2>Error family ranking</h2>
-        <p>Yang paling problem adalah bar paling atas: dihitung dari critical hit + total occurrence.</p>
+      <div className="chartTitleBlock chartTitleActionBlock">
+        <div>
+          <h2>Error family ranking</h2>
+          <p>Fokus default ke Top 5 supaya mobile tetap readable. Expand hanya saat perlu deep evidence.</p>
+        </div>
+        {rankedAll.length > 5 ? (
+          <button className="btn mini" type="button" onClick={() => setExpandedRanking((value) => !value)}>
+            {expandedRanking ? 'Top 5' : 'Show 10'}
+          </button>
+        ) : null}
       </div>
-      <ResponsiveContainer width="100%" height={Math.max(280, rankedErrors.length * 42)}>
+      <ResponsiveContainer width="100%" height={Math.max(220, rankedErrors.length * 44)}>
         <BarChart data={rankedErrors} layout="vertical" margin={{ top: 8, right: 44, bottom: 8, left: 112 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
           <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} label={{ value: 'Problem Score / Count', position: 'insideBottom', offset: -4 }} />
@@ -74,20 +111,24 @@ export default function LogEvidenceCharts({ chartData = [], timeline = [] }) {
       {timeline?.length ? (
         <>
           <div className="chartTitleBlock compact">
-            <h2>Error timeline</h2>
-            <p>Pakai grafik ini untuk melihat jam spike error, bukan ranking problem.</p>
+            <h2>Incident timeline rail</h2>
+            <p>Rail ini menandai evolution incident: CRIT marker, spike window, dan bucket waktu yang harus divalidasi.</p>
           </div>
-          <ResponsiveContainer width="100%" height={190}>
-            <LineChart data={timeline} margin={{ top: 12, right: 24, bottom: 8, left: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="time" tickMargin={8} />
-              <YAxis allowDecimals={false} />
-              <Tooltip content={<TimelineTooltip />} />
-              <Legend formatter={(value) => (value === 'hits' ? 'Total Count' : value === 'crit' ? 'Critical Count' : value)} />
-              <Line type="monotone" dataKey="hits" name="Total Count" strokeWidth={3} dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="crit" name="Critical Count" strokeWidth={3} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          <IncidentTimelineRail timeline={timeline} />
+          <details className="chartDetailDisclosure">
+            <summary>Show timeline chart</summary>
+            <ResponsiveContainer width="100%" height={190}>
+              <LineChart data={timeline} margin={{ top: 12, right: 24, bottom: 8, left: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="time" tickMargin={8} />
+                <YAxis allowDecimals={false} />
+                <Tooltip content={<TimelineTooltip />} />
+                <Legend formatter={(value) => (value === 'hits' ? 'Total Count' : value === 'crit' ? 'Critical Count' : value)} />
+                <Line type="monotone" dataKey="hits" name="Total Count" strokeWidth={3} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="crit" name="Critical Count" strokeWidth={3} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </details>
         </>
       ) : null}
     </section>
