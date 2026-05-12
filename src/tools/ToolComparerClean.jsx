@@ -111,9 +111,9 @@ function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
   ])
 
   const swapSi = pick([
+    // Daily Check authoritative source only:
+    // Swap IO           : si/so 0/0 p/s
     /Swap\s+IO\s*:\s*si\/so\s+(\d+(?:[.,]\d+)?)\/(\d+(?:[.,]\d+)?)\s*p\/s/i,
-    /swap\s*si\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i,
-    /\bsi\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i,
   ])
 
   if (!cpu && !mem && !swapSi) return null
