@@ -77,5 +77,182 @@
 .cmpResourceTrendChart .recharts-line-curve:nth-of-type(2) { stroke: #a78bfa; }
 .cmpResourceTrendChart .recharts-line-curve:nth-of-type(3) { stroke: #ff6b83; }
 .cmpTrendSwapDot { fill: #ff647c; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
+
+/* WP-SCOUT PROD-inspired visual analytics polish.
+   These selectors are additive and safe for both the current DEV comparer and the SAP Daily Check variant. */
+.cmpCleanShell .rcaReadableChartPanel,
+.cmpCleanShell .cmpResourceTrendPanel,
+.cmpCleanShell .chartPanel,
+.cmpCleanShell .trendPanel,
+.cmpCleanShell [data-pdf-chart="true"] {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.cmpCleanShell .trendGrid,
+.cmpCleanShell .cmpTrendGrid,
+.cmpCleanShell .visualAnalyticsGrid,
+.cmpCleanShell .chartGrid,
+.cmpCleanShell .distributionGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.cmpCleanShell .trendGrid > *,
+.cmpCleanShell .cmpTrendGrid > *,
+.cmpCleanShell .visualAnalyticsGrid > *,
+.cmpCleanShell .chartGrid > *,
+.cmpCleanShell .distributionGrid > * {
+  min-width: 0;
+}
+
+.cmpCleanShell .trendGrid .wide,
+.cmpCleanShell .cmpTrendGrid .wide,
+.cmpCleanShell .visualAnalyticsGrid .wide,
+.cmpCleanShell .chartGrid .wide,
+.cmpCleanShell .distributionGrid .wide,
+.cmpCleanShell .hostTrendPanel,
+.cmpCleanShell .hostRssTrendPanel {
+  grid-column: 1 / -1;
+}
+
+.cmpCleanShell .selectedSnapshotPanel,
+.cmpCleanShell .snapshotSummaryPanel,
+.cmpCleanShell .wpScoutSnapshotPanel {
+  border: 1px solid rgba(156,255,225,.14);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.016));
+  padding: 14px;
+  box-shadow: 0 14px 36px rgba(0,0,0,.18);
+}
+
+.cmpCleanShell .selectedSnapshotKpis,
+.cmpCleanShell .snapshotKpiGrid,
+.cmpCleanShell .wpScoutKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cmpCleanShell .selectedSnapshotKpis > *,
+.cmpCleanShell .snapshotKpiGrid > *,
+.cmpCleanShell .wpScoutKpiGrid > * {
+  border: 1px solid rgba(156,255,225,.12);
+  border-radius: 14px;
+  background: rgba(0,0,0,.14);
+  padding: 12px;
+}
+
+.cmpCleanShell .selectedSnapshotKpis strong,
+.cmpCleanShell .snapshotKpiGrid strong,
+.cmpCleanShell .wpScoutKpiGrid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(20px, 2.4vw, 30px);
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+
+.cmpCleanShell .selectedSnapshotKpis span,
+.cmpCleanShell .snapshotKpiGrid span,
+.cmpCleanShell .wpScoutKpiGrid span {
+  color: rgba(211,232,226,.68);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.cmpCleanShell .recurringOffendersPanel,
+.cmpCleanShell .topWpPanel,
+.cmpCleanShell .snapshotTablePanel {
+  border: 1px solid rgba(156,255,225,.14);
+  border-radius: 18px;
+  background: rgba(13, 28, 24, .86);
+  overflow: hidden;
+}
+
+.cmpCleanShell .recurringOffendersPanel table,
+.cmpCleanShell .topWpPanel table,
+.cmpCleanShell .snapshotTablePanel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cmpCleanShell .recurringOffendersPanel th,
+.cmpCleanShell .topWpPanel th,
+.cmpCleanShell .snapshotTablePanel th {
+  background: rgba(0,0,0,.22);
+  color: rgba(230,255,248,.78);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.cmpCleanShell .recurringOffendersPanel td,
+.cmpCleanShell .recurringOffendersPanel th,
+.cmpCleanShell .topWpPanel td,
+.cmpCleanShell .topWpPanel th,
+.cmpCleanShell .snapshotTablePanel td,
+.cmpCleanShell .snapshotTablePanel th {
+  border-top: 1px solid rgba(156,255,225,.08);
+  padding: 9px 10px;
+  white-space: nowrap;
+}
+
+.cmpCleanShell .severity-warn,
+.cmpCleanShell tr.warn,
+.cmpCleanShell tr[data-severity="WARN"] {
+  background: rgba(246,189,96,.075);
+}
+
+.cmpCleanShell .severity-crit,
+.cmpCleanShell tr.crit,
+.cmpCleanShell tr[data-severity="CRIT"] {
+  background: rgba(255,100,124,.095);
+}
+
+.cmpCleanShell .swapActive,
+.cmpCleanShell [data-swap-active="true"] {
+  color: #ffe3e8;
+  background: rgba(255,100,124,.18);
+  border-color: rgba(255,100,124,.38);
+}
+
+.cmpCleanShell .recharts-surface text,
+.cmpCleanShell .recharts-text {
+  paint-order: stroke;
+  stroke: rgba(7, 17, 15, .72);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+.cmpCleanShell .recharts-legend-wrapper {
+  padding-top: 4px;
+}
+
+.cmpCleanShell .recharts-default-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 10px;
+}
+
+.cmpCleanShell .recharts-line-curve {
+  vector-effect: non-scaling-stroke;
+}
+
+@media (max-width: 1400px) {
+  .cmpCleanShell .trendGrid,
+  .cmpCleanShell .cmpTrendGrid,
+  .cmpCleanShell .visualAnalyticsGrid,
+  .cmpCleanShell .chartGrid,
+  .cmpCleanShell .distributionGrid { grid-template-columns: repeat(2, minmax(260px, 1fr)); }
+}
+
 @media (max-width: 1200px) { .cmpCleanStats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cmpCleanGrid, .cmpCleanTopRow { grid-template-columns: 1fr; } .cmpCleanPanel.span2 { grid-row: auto; } }
-@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock { align-items: stretch; flex-direction: column; } .cmpCleanStats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } }
+@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock { align-items: stretch; flex-direction: column; } .cmpCleanStats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .cmpCleanShell .trendGrid, .cmpCleanShell .cmpTrendGrid, .cmpCleanShell .visualAnalyticsGrid, .cmpCleanShell .chartGrid, .cmpCleanShell .distributionGrid, .cmpCleanShell .selectedSnapshotKpis, .cmpCleanShell .snapshotKpiGrid, .cmpCleanShell .wpScoutKpiGrid { grid-template-columns: 1fr; } }
