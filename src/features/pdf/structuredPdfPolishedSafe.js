@@ -1,268 +1,157 @@
 import { exportStructuredPdf as exportPolishedStructuredPdf } from './structuredPdfPolished.js'
 
-function cleanText(value = '') {
+const STATUS = {
+  red: [214, 70, 88],
+  yellow: [214, 155, 40],
+  green: [30, 160, 130],
+  ink: [25, 35, 35],
+  muted: [82, 96, 96],
+  teal: [0, 90, 84],
+}
+
+function clean(value = '') {
   return String(value || '').replace(/\s+/g, ' ').trim()
 }
 
-function compactText(value = '', limit = 120) {
-  const text = cleanText(value)
+function compact(value = '', limit = 110) {
+  const text = clean(value)
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text
 }
 
-function numberFrom(value = '') {
+function num(value = '') {
   const match = String(value || '').replace(',', '.').match(/-?\d+(?:\.\d+)?/)
   return match ? Number(match[0]) : 0
 }
 
+function isStatus(value = '') {
+  return /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i.test(clean(value))
+}
+
+function getCells(tr) {
+  return Array.from(tr.querySelectorAll('td,th')).map((td) => clean(td.textContent)).filter(Boolean)
+}
+
+function getWpRows(root) {
+  return Array.from(root.querySelectorAll('tbody tr, .cmpCleanTable tbody tr'))
+    .map((tr) => {
+      const cells = getCells(tr)
+      return { cells, text: cells.join(' | ') }
+    })
+    .filter((row) => /\b(CRIT|WARN|OK)\b/i.test(row.text) && /\d+(?:\.\d+)?\s*GB/i.test(row.text))
+}
+
 function findMetric(root, labels = []) {
-  const text = cleanText(root?.textContent || '')
+  const body = clean(root?.textContent || '')
   for (const label of labels) {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const match = text.match(new RegExp(`${escaped}[^0-9A-Z]{0,24}([A-Z]*\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*(GB|%|ms|sec|s))?`, 'i'))
-    if (match) return `${match[1] || ''}${match[2]}${match[3] ? ` ${match[3]}` : ''}`.trim()
+    const match = body.match(new RegExp(`${escaped}[^0-9]{0,24}(\\d+(?:\\.\\d+)?)(?:\\s*(GB|%))?`, 'i'))
+    if (match) return `${match[1]}${match[2] ? ` ${match[2]}` : ''}`
   }
   return ''
 }
 
-function parseTableRows(root, limit = 12) {
-  const tableRows = Array.from(root.querySelectorAll('tbody tr, .cmpCleanTable tbody tr'))
-  const rows = tableRows.map((tr) => {
-    const cells = Array.from(tr.querySelectorAll('td,th')).map((td) => cleanText(td.textContent)).filter(Boolean)
-    return { cells, text: cells.join(' | ') }
-  })
-
-  const listRows = Array.from(root.querySelectorAll('li,.evidenceList > div,.statusList > div,.scoreBreakdownRow'))
-    .map((node) => {
-      const text = cleanText(node.textContent)
-      return { cells: text.split('|').map(cleanText).filter(Boolean), text }
-    })
-
-  return [...rows, ...listRows]
-    .filter((row) => /\b(CRIT|WARN|OK|ERROR|FAIL|HIGH|MEDIUM|LOW|TIME_OUT|DUMP)\b/i.test(row.text) || /\d+\s*(GB|%|ms|sec|s)/i.test(row.text))
-    .slice(0, limit)
-}
-
-function isStatusCell(cell = '') {
-  return /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN|HIGH|MEDIUM|LOW|ERROR|FAIL)$/i.test(cleanText(cell))
-}
-
-function parseTopRow(root) {
-  const rows = parseTableRows(root, 20)
-  const row = rows.find((item) => /\b(CRIT|ERROR|FAIL|HIGH|TIME_OUT|DUMP)\b/i.test(item.text)) || rows[0] || { cells: [], text: '' }
+function parseWpTop(root) {
+  const rows = getWpRows(root)
+  const row = rows.find((item) => /\bCRIT\b/i.test(item.text)) || rows[0] || { cells: [], text: '' }
   const text = row.text
-  const host = row.cells.find((cell) => !isStatusCell(cell) && /[A-Z0-9]+PAPPDC/i.test(cell)) || text.match(/[A-Z0-9]+PAPPDC/i)?.[0] || '-'
-  const pid = row.cells.find((cell) => /^\d{3,8}$/.test(cell)) || text.match(/\b\d{3,8}\b/)?.[0] || '-'
-  const type = row.cells.find((cell) => /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|DB|CPU|WAIT|GUI|HTTP|\?)$/i.test(cell)) || '-'
-  const rss = row.cells.find((cell) => /\d+(?:\.\d+)?\s*GB/i.test(cell)) || text.match(/\d+(?:\.\d+)?\s*GB/i)?.[0] || '-'
-  const age = row.cells.find((cell) => /\d+d|\d+h|\d+m|\d+\s*(ms|sec|s)/i.test(cell)) || '-'
-  const job = row.cells.find((cell) => /^Z[A-Z0-9_]{4,}$/i.test(cell)) || row.cells.find((cell) => !isStatusCell(cell) && /[A-Z0-9_]{8,}/i.test(cell)) || '-'
-  const sev = /\b(CRIT|ERROR|FAIL|HIGH|TIME_OUT|DUMP)\b/i.test(text) ? 'CRIT' : /\b(WARN|MEDIUM)\b/i.test(text) ? 'WARN' : 'INFO'
-  return { host, pid, type, rss, age, job, severity: sev, raw: text }
-}
-
-function toolMeta(slug) {
-  if (slug === 'analyzer') {
-    return {
-      title: 'ST03N RCA Summary',
-      filename: 'sap-st03n-visual-rca',
-      owner: 'Basis / Performance / App Owner',
-      focus: 'Response time and workload bottleneck',
-      primaryLabel: 'Top Item',
-      actions: [
-        'Check the top ST03N item first.',
-        'Confirm if the load is response time, DB time, wait time, or CPU time.',
-        'Compare with a normal time window.',
-        'Attach the original ST03N export to the ticket.',
-      ],
-    }
-  }
-  if (slug === 'logs') {
-    return {
-      title: 'SAP Log RCA Summary',
-      filename: 'sap-log-visual-rca',
-      owner: 'Basis / ABAP / Functional',
-      focus: 'Repeated error pattern',
-      primaryLabel: 'Top Error',
-      actions: [
-        'Start from the highest error family.',
-        'Check ST22, SM21, and job log around the first spike.',
-        'Assign owner by error type: Basis, ABAP, DB, or Functional.',
-        'Keep raw logs attached; summarize only top patterns here.',
-      ],
-    }
-  }
+  const cells = row.cells
   return {
-    title: 'WP-SCOUT RCA Summary',
-    filename: 'sap-wpscout-visual-rca',
-    owner: 'Basis / Infrastructure',
-    focus: 'RSS memory pressure and long-running work process',
-    primaryLabel: 'Top Job',
-    actions: [
-      'Check the top PID in SM50 / SM66.',
-      'Check the job in SM37: owner, variant, runtime, and schedule.',
-      'Validate OS memory and RSS on the affected host.',
-      'Correlate with ST22 / SM21 in the same time window.',
-    ],
+    severity: /\bCRIT\b/i.test(text) ? 'CRIT' : /\bWARN\b/i.test(text) ? 'WARN' : 'OK',
+    host: cells.find((cell) => !isStatus(cell) && /[A-Z0-9]+PAPPDC/i.test(cell)) || text.match(/[A-Z0-9]+PAPPDC/i)?.[0] || '-',
+    pid: cells.find((cell) => /^\d{3,8}$/.test(cell)) || text.match(/\b\d{3,8}\b/)?.[0] || '-',
+    type: cells.find((cell) => /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|\?)$/i.test(cell)) || '-',
+    rss: cells.find((cell) => /\d+(?:\.\d+)?\s*GB/i.test(cell)) || text.match(/\d+(?:\.\d+)?\s*GB/i)?.[0] || '-',
+    age: cells.find((cell) => /\d+d|\d+h|\d+m/i.test(cell)) || '-',
+    job: cells.find((cell) => /^Z[A-Z0-9_]{4,}$/i.test(cell)) || cells.find((cell) => !isStatus(cell) && /[A-Z0-9_]{8,}/i.test(cell)) || '-',
   }
 }
 
-function inferSeverity(slug, root, top, metrics) {
-  const text = cleanText(root?.textContent || '')
-  const maxRss = numberFrom(metrics.maxRss || top.rss)
-  const critical = Number(metrics.critical || 0)
-  const warning = Number(metrics.warning || 0)
-  const pct = Math.max(...(text.match(/\d+(?:\.\d+)?\s*%/g) || ['0']).map(numberFrom), 0)
-  const response = Math.max(...(text.match(/\d+(?:\.\d+)?\s*(ms|sec|s)/gi) || ['0']).map(numberFrom), 0)
-  if (top.severity === 'CRIT' || critical > 0 || maxRss >= 128 || /\b(ERROR|FAILED|DUMP|TIME_OUT|SYSTEM_FAILURE)\b/i.test(text)) return 'CRITICAL'
-  if (top.severity === 'WARN' || warning > 0 || maxRss >= 32 || pct >= 80 || response >= 1000 || /\b(WARN|SLOW|WAIT|BOTTLENECK)\b/i.test(text)) return 'WARNING'
-  return 'STABLE'
-}
-
-function inferSwapState(pageText = '') {
-  const badge = pageText.match(/\bSwap\s+([0-9]+)\b/i)
+function swapState(root) {
+  const body = clean(root?.textContent || '')
+  const badge = body.match(/\bSwap\s+([0-9]+)\b/i)
   if (badge) return Number(badge[1]) > 0 ? 'ACTIVE' : 'CLEAR'
-  const strictSi = pageText.match(/\bswap\s*(?:si|so)?\s*[:=]\s*([0-9]+)\b/i)
-  if (strictSi) return Number(strictSi[1]) > 0 ? 'ACTIVE' : 'CLEAR'
-  return 'CLEAR'
+  const strict = body.match(/\bswap\s*(?:si|so)?\s*[:=]\s*([0-9]+)\b/i)
+  return strict && Number(strict[1]) > 0 ? 'ACTIVE' : 'CLEAR'
 }
 
-function buildReport(root, slug = 'comparer') {
-  const meta = toolMeta(slug)
-  const top = parseTopRow(root)
-  const pageText = cleanText(root?.textContent || '')
-  const critical = numberFrom(findMetric(root, ['Critical', 'Errors', 'Failed', 'High']))
-  const warning = numberFrom(findMetric(root, ['Warning', 'Medium']))
-  const hosts = findMetric(root, ['Hosts']) || String((pageText.match(/[A-Z0-9]+PAPPDC/g) || []).filter((v, i, a) => a.indexOf(v) === i).length || '-')
-  const maxRss = findMetric(root, ['Max RSS', 'RSS']) || top.rss
-  const rawRows = findMetric(root, ['Raw Rows', 'Rows', 'Evidence']) || '-'
-  const uniqueRows = findMetric(root, ['Unique', 'Patterns', 'Offenders']) || '-'
-  const maxPct = Math.max(...(pageText.match(/\d+(?:\.\d+)?\s*%/g) || ['0']).map(numberFrom), 0)
-  const maxTime = Math.max(...(pageText.match(/\d+(?:\.\d+)?\s*(ms|sec|s)/gi) || ['0']).map(numberFrom), 0)
-  const metrics = { critical, warning, hosts, maxRss, rawRows, uniqueRows, maxPct, maxTime }
-  const severity = inferSeverity(slug, root, top, metrics)
-  const confidence = severity === 'CRITICAL' ? 'High' : severity === 'WARNING' ? 'Medium' : 'Normal'
-  const bottleneck = slug === 'comparer'
-    ? (numberFrom(maxRss) >= 32 ? 'RSS memory pressure' : 'Work process pressure')
-    : slug === 'analyzer'
-      ? (maxTime >= 1000 ? 'Response time spike' : maxPct >= 80 ? 'High utilization' : meta.focus)
-      : (/TIME_OUT|DUMP|ERROR|FAILED/i.test(pageText) ? 'Repeated error pattern' : meta.focus)
-  const reason = severity === 'CRITICAL'
-    ? (slug === 'comparer'
-      ? `RSS is very high (${maxRss || top.rss}); top process needs immediate check.`
-      : slug === 'analyzer'
-        ? 'Top workload item is above normal range; check the dominant component.'
-        : 'Repeated error pattern or dump detected; check the top error family first.')
-    : severity === 'WARNING'
-      ? 'Warning trend detected; monitor and correlate with related SAP evidence.'
-      : 'No dominant critical signal detected in the current view.'
-  const swap = inferSwapState(pageText)
-  const trend = {
-    primary: severity === 'CRITICAL' ? 'RISING / RED' : severity === 'WARNING' ? 'RISING / YELLOW' : 'FLAT / GREEN',
-    rss: numberFrom(maxRss) >= 128 ? 'SPIKE' : numberFrom(maxRss) >= 32 ? 'HIGH' : 'NORMAL',
-    errors: critical > 0 ? 'RISING / RED' : warning > 0 ? 'RISING / YELLOW' : 'FLAT / GREEN',
-    swap,
-  }
-
+function buildWpReport(root) {
+  const rows = getWpRows(root)
+  const top = parseWpTop(root)
+  const crit = rows.filter((row) => /\bCRIT\b/i.test(row.text)).length || num(findMetric(root, ['Critical']))
+  const warn = rows.filter((row) => /\bWARN\b/i.test(row.text)).length || num(findMetric(root, ['Warning']))
+  const maxRss = findMetric(root, ['Max RSS']) || top.rss
+  const rssValue = num(maxRss)
+  const severity = top.severity === 'CRIT' || crit > 0 || rssValue >= 128 ? 'CRITICAL' : top.severity === 'WARN' || warn > 0 || rssValue >= 32 ? 'WARNING' : 'STABLE'
+  const hosts = findMetric(root, ['Hosts']) || String((clean(root?.textContent || '').match(/[A-Z0-9]+PAPPDC/g) || []).filter((v, i, arr) => arr.indexOf(v) === i).length || '-')
+  const rawRows = findMetric(root, ['Raw Rows', 'Rows']) || rows.length
   return {
-    ...meta,
-    slug,
     generatedAt: new Date().toLocaleString('id-ID'),
     severity,
-    confidence,
-    bottleneck,
-    reason,
+    color: severity === 'CRITICAL' ? STATUS.red : severity === 'WARNING' ? STATUS.yellow : STATUS.green,
+    confidence: severity === 'CRITICAL' ? 'High' : severity === 'WARNING' ? 'Medium' : 'Normal',
     top,
-    metrics,
-    trend,
-    rows: parseTableRows(root, 12),
+    rows,
+    metrics: { crit, warn, maxRss, hosts, rawRows },
+    swap: swapState(root),
+    reason: severity === 'CRITICAL'
+      ? `RSS is very high (${maxRss}). Check the top process first.`
+      : severity === 'WARNING'
+        ? 'Memory pressure is above normal range. Validate the top process.'
+        : 'No dominant critical WP-SCOUT signal in the current view.',
   }
 }
 
-function hasMeaningfulSvg(svg) {
-  return Array.from(svg.querySelectorAll('path,line,polyline,polygon,circle,text,rect')).filter((node) => !node.closest('defs,clipPath,mask')).length >= 3
-}
-
-async function svgToPng(svg) {
-  if (!hasMeaningfulSvg(svg)) return null
-  const clone = svg.cloneNode(true)
-  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-  const rect = svg.getBoundingClientRect()
-  const width = Math.max(420, Math.round(rect.width || Number(svg.getAttribute('width')) || 720))
-  const height = Math.max(180, Math.round(rect.height || Number(svg.getAttribute('height')) || 260))
-  clone.setAttribute('width', String(width))
-  clone.setAttribute('height', String(height))
-  clone.style.background = '#071315'
-  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  try {
-    const img = new Image()
-    img.decoding = 'async'
-    img.crossOrigin = 'anonymous'
-    await new Promise((resolve, reject) => {
-      img.onload = resolve
-      img.onerror = reject
-      img.src = url
-    })
-    const canvas = document.createElement('canvas')
-    const scale = 2
-    canvas.width = width * scale
-    canvas.height = height * scale
-    const ctx = canvas.getContext('2d')
-    ctx.fillStyle = '#071315'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-    return { dataUrl: canvas.toDataURL('image/png'), width, height }
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
-function chartNote(title = '', report) {
-  const t = String(title).toLowerCase()
-  if (t.includes('cpu') || t.includes('mem') || t.includes('swap')) {
-    return report.slug === 'comparer'
-      ? `Read this: CPU is not the main issue if the line is flat. Main risk here is RSS memory. Swap: ${report.trend.swap}.`
-      : 'Read this: rising line means the workload is getting worse. Flat line means stable.'
-  }
-  if (t.includes('rss')) return `Read this: the longest bar is the first process to check. Top RSS is ${report.metrics.maxRss}.`
-  if (t.includes('host')) return 'Read this: the top host has the highest total pressure. Start validation from that host.'
-  if (t.includes('error')) return 'Read this: the longest bar is the most repeated error family. Start from that pattern.'
-  if (t.includes('st03n') || t.includes('problem')) return 'Read this: score near 100 is the heaviest workload item. Check response, DB, wait, and CPU split.'
-  if (t.includes('component')) return 'Read this: the biggest slice shows which component dominates the workload.'
-  return 'Read this: focus on the top item and compare it with the summary status on page 1.'
-}
-
-async function collectCharts(root) {
-  const svgs = Array.from(root.querySelectorAll('.recharts-wrapper svg, .chartPanel svg, .rcaReadableChartPanel svg')).slice(0, 8)
-  const charts = []
-  const seen = new Set()
-  for (const svg of svgs) {
-    const panel = svg.closest('.cmpCleanPanel,.overviewCard,.resultPanel,.evidencePanel,.rcaReadableChartPanel')
-    const title = compactText(panel?.querySelector('h2,h3,.chartTitleBlock h2')?.textContent || 'Evidence Chart', 80)
-    if (seen.has(title.toLowerCase())) continue
-    const image = await svgToPng(svg).catch(() => null)
-    if (!image) continue
-    seen.add(title.toLowerCase())
-    charts.push({ title, ...image })
-  }
-  return charts
-}
-
-function statusColor(status = '') {
-  const text = String(status).toUpperCase()
-  if (text.includes('CRIT') || text.includes('RED')) return [214, 70, 88]
-  if (text.includes('WARN') || text.includes('YELLOW')) return [214, 155, 40]
-  return [30, 160, 130]
-}
-
-function statusLabel(status = '') {
-  const text = String(status).toUpperCase()
-  if (text.includes('CRIT') || text.includes('RED')) return 'RED / CHECK NOW'
-  if (text.includes('WARN') || text.includes('YELLOW')) return 'YELLOW / WATCH'
+function statusText(severity = '') {
+  if (severity === 'CRITICAL') return 'RED / CHECK NOW'
+  if (severity === 'WARNING') return 'YELLOW / WATCH'
   return 'GREEN / OK'
 }
 
-function addFooter(pdf, page, report) {
+function line(pdf, page, y, text, size = 9, style = 'normal', color = STATUS.ink, indent = 0) {
+  pdf.setFont('helvetica', style)
+  pdf.setFontSize(size)
+  pdf.setTextColor(...color)
+  const parts = pdf.splitTextToSize(String(text || '-'), page.w - page.m * 2 - indent)
+  for (const part of parts) {
+    if (y.v > page.h - 20) {
+      pdf.addPage()
+      y.v = 16
+    }
+    pdf.text(part, page.m + indent, y.v)
+    y.v += size >= 12 ? 6.5 : 5
+  }
+}
+
+function card(pdf, x, y, w, h, label, value, color) {
+  pdf.setFillColor(246, 251, 250)
+  pdf.setDrawColor(224, 234, 232)
+  pdf.roundedRect(x, y, w, h, 3, 3, 'FD')
+  pdf.setTextColor(...color)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7)
+  pdf.text(String(label).toUpperCase(), x + 4, y + 6)
+  pdf.setTextColor(...STATUS.ink)
+  pdf.setFontSize(10)
+  pdf.text(pdf.splitTextToSize(String(value || '-'), w - 8).slice(0, 2), x + 4, y + 14)
+}
+
+function traffic(pdf, x, y, label, value, color, note = '') {
+  pdf.setFillColor(...color)
+  pdf.circle(x + 3, y - 1.5, 2.2, 'F')
+  pdf.setTextColor(...STATUS.ink)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(8)
+  pdf.text(label, x + 8, y)
+  pdf.setFont('helvetica', 'normal')
+  pdf.text(String(value || '-'), x + 48, y)
+  if (note) {
+    pdf.setTextColor(...STATUS.muted)
+    pdf.setFontSize(7)
+    pdf.text(pdf.splitTextToSize(note, 92).slice(0, 1), x + 93, y)
+  }
+}
+
+function footer(pdf, page, report) {
   const pages = pdf.getNumberOfPages()
   for (let i = 1; i <= pages; i += 1) {
     pdf.setPage(i)
@@ -276,186 +165,202 @@ function addFooter(pdf, page, report) {
   }
 }
 
-function textLine(pdf, page, yRef, text, size = 9, style = 'normal', color = [30, 40, 40], indent = 0) {
-  pdf.setFont('helvetica', style)
-  pdf.setFontSize(size)
-  pdf.setTextColor(...color)
-  const parts = pdf.splitTextToSize(String(text || '-'), page.w - page.m * 2 - indent)
-  parts.forEach((part) => {
-    if (yRef.y > page.h - 20) {
-      pdf.addPage()
-      yRef.y = 16
-    }
-    pdf.text(part, page.m + indent, yRef.y)
-    yRef.y += size >= 12 ? 6.5 : 5
-  })
+function chartCaption(title = '', report) {
+  const t = title.toLowerCase()
+  if (t.includes('cpu') || t.includes('mem') || t.includes('swap')) return `CPU is not the main issue if the line is flat. Main risk here is RSS memory. Swap: ${report.swap}.`
+  if (t.includes('rss')) return `The longest bar is the first process to check. Top RSS is ${report.metrics.maxRss}.`
+  if (t.includes('host')) return `The top host has the highest total pressure. Start from ${report.top.host}.`
+  return 'Focus on the top item and compare it with the summary status on page 1.'
 }
 
-function drawCard(pdf, x, y, w, h, label, value, color = [35, 155, 145]) {
-  pdf.setFillColor(246, 251, 250)
-  pdf.setDrawColor(224, 234, 232)
-  pdf.roundedRect(x, y, w, h, 3, 3, 'FD')
-  pdf.setTextColor(...color)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7)
-  pdf.text(String(label).toUpperCase(), x + 4, y + 6)
-  pdf.setTextColor(20, 30, 32)
-  pdf.setFontSize(10)
-  pdf.text(pdf.splitTextToSize(String(value || '-'), w - 8).slice(0, 2), x + 4, y + 14)
+function usefulSvg(svg) {
+  return Array.from(svg.querySelectorAll('path,line,polyline,polygon,circle,text,rect')).filter((node) => !node.closest('defs,clipPath,mask')).length >= 3
 }
 
-function drawTrafficRow(pdf, x, y, label, value, status, why = '') {
-  const color = statusColor(status)
-  pdf.setFillColor(...color)
-  pdf.circle(x + 3, y - 1.5, 2.2, 'F')
-  pdf.setTextColor(35, 45, 45)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(8)
-  pdf.text(label, x + 8, y)
-  pdf.setFont('helvetica', 'normal')
-  pdf.text(String(value || '-'), x + 48, y)
-  if (why) {
-    pdf.setTextColor(90, 100, 100)
-    pdf.setFontSize(7)
-    pdf.text(pdf.splitTextToSize(why, 90).slice(0, 1), x + 94, y)
+async function svgPng(svg) {
+  if (!usefulSvg(svg)) return null
+  const clone = svg.cloneNode(true)
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  const rect = svg.getBoundingClientRect()
+  const w = Math.max(420, Math.round(rect.width || 720))
+  const h = Math.max(180, Math.round(rect.height || 260))
+  clone.setAttribute('width', String(w))
+  clone.setAttribute('height', String(h))
+  clone.style.background = '#071315'
+  const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    img.crossOrigin = 'anonymous'
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+      img.src = url
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = w * 2
+    canvas.height = h * 2
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#071315'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return { dataUrl: canvas.toDataURL('image/png'), width: w, height: h }
+  } finally {
+    URL.revokeObjectURL(url)
   }
 }
 
-async function exportVisualFirstPdf(slug) {
+async function charts(root) {
+  const svgs = Array.from(root.querySelectorAll('.recharts-wrapper svg, .chartPanel svg, .rcaReadableChartPanel svg')).slice(0, 6)
+  const out = []
+  const seen = new Set()
+  for (const svg of svgs) {
+    const panel = svg.closest('.cmpCleanPanel,.overviewCard,.resultPanel,.evidencePanel,.rcaReadableChartPanel')
+    const title = compact(panel?.querySelector('h2,h3,.chartTitleBlock h2')?.textContent || 'Evidence Chart', 80)
+    if (seen.has(title.toLowerCase())) continue
+    const image = await svgPng(svg).catch(() => null)
+    if (!image) continue
+    seen.add(title.toLowerCase())
+    out.push({ title, ...image })
+  }
+  return out
+}
+
+async function exportWpScoutVisualPdf() {
   const jsPdfModule = await import('jspdf')
   const JsPDF = jsPdfModule.jsPDF || jsPdfModule.default
   const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
-  const report = buildReport(root, slug)
-  const charts = await collectCharts(root)
+  const report = buildWpReport(root)
+  const chartImages = await charts(root)
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = { w: pdf.internal.pageSize.getWidth(), h: pdf.internal.pageSize.getHeight(), m: 14 }
-  const yRef = { y: 16 }
-  const sevColor = statusColor(report.severity)
+  const y = { v: 16 }
 
   pdf.setFillColor(5, 22, 22)
   pdf.rect(0, 0, page.w, 50, 'F')
-  pdf.setFillColor(...sevColor)
+  pdf.setFillColor(...report.color)
   pdf.rect(0, 0, 5, 50, 'F')
   pdf.setTextColor(255, 255, 255)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(17)
-  pdf.text(report.title, page.m, 16)
-  pdf.setFontSize(9)
+  pdf.text('WP-SCOUT RCA Summary', page.m, 16)
   pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(9)
   pdf.text(`Generated: ${report.generatedAt}`, page.m, 25)
   pdf.text('Legend: Red = check now, Yellow = watch, Green = OK. Rising trend = getting worse.', page.m, 34)
-  pdf.text(`Why: ${compactText(report.reason, 120)}`, page.m, 43)
+  pdf.text(`Why: ${compact(report.reason, 120)}`, page.m, 43)
 
-  yRef.y = 60
-  pdf.setTextColor(...sevColor)
+  y.v = 60
+  pdf.setTextColor(...report.color)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(20)
-  pdf.text(`${report.severity} — ${statusLabel(report.severity)}`, page.m, yRef.y)
-  pdf.setTextColor(60, 70, 70)
+  pdf.text(`${report.severity} — ${statusText(report.severity)}`, page.m, y.v)
+  pdf.setTextColor(...STATUS.ink)
   pdf.setFontSize(9)
-  pdf.text(`Confidence: ${report.confidence} • Owner: ${report.owner}`, page.m, yRef.y + 7)
-  yRef.y += 18
+  pdf.text(`Confidence: ${report.confidence} • Owner: Basis / Infrastructure`, page.m, y.v + 7)
+  y.v += 18
 
-  const cardW = (page.w - page.m * 2 - 8) / 3
-  drawCard(pdf, page.m, yRef.y, cardW, 22, report.slug === 'comparer' ? 'Worst Host' : 'Main Object', report.top.host, sevColor)
-  drawCard(pdf, page.m + cardW + 4, yRef.y, cardW, 22, report.slug === 'comparer' ? 'Worst PID / Type' : 'Primary Key', `${report.top.pid} / ${report.top.type}`, sevColor)
-  drawCard(pdf, page.m + (cardW + 4) * 2, yRef.y, cardW, 22, report.primaryLabel, report.top.job, sevColor)
-  yRef.y += 27
-  drawCard(pdf, page.m, yRef.y, cardW, 22, 'Main Pressure', report.slug === 'comparer' ? report.metrics.maxRss : report.bottleneck, sevColor)
-  drawCard(pdf, page.m + cardW + 4, yRef.y, cardW, 22, 'Red / Yellow', `${report.metrics.critical} red / ${report.metrics.warning} yellow`, sevColor)
-  drawCard(pdf, page.m + (cardW + 4) * 2, yRef.y, cardW, 22, 'Evidence Rows', report.metrics.rawRows || report.rows.length, sevColor)
-  yRef.y += 33
+  const w = (page.w - page.m * 2 - 8) / 3
+  card(pdf, page.m, y.v, w, 22, 'Worst Host', report.top.host, report.color)
+  card(pdf, page.m + w + 4, y.v, w, 22, 'Worst PID / Type', `${report.top.pid} / ${report.top.type}`, report.color)
+  card(pdf, page.m + (w + 4) * 2, y.v, w, 22, 'Top Job', report.top.job, report.color)
+  y.v += 27
+  card(pdf, page.m, y.v, w, 22, 'Main Pressure', `${report.metrics.maxRss} RSS`, report.color)
+  card(pdf, page.m + w + 4, y.v, w, 22, 'CRIT / WARN', `${report.metrics.crit} CRIT / ${report.metrics.warn} WARN`, report.color)
+  card(pdf, page.m + (w + 4) * 2, y.v, w, 22, 'Evidence Rows', report.metrics.rawRows, report.color)
+  y.v += 33
 
-  textLine(pdf, page, yRef, 'Quick Read', 12, 'bold', [0, 90, 84])
-  drawTrafficRow(pdf, page.m, yRef.y + 5, 'Overall', statusLabel(report.severity), report.severity, report.reason)
-  drawTrafficRow(pdf, page.m, yRef.y + 13, 'Trend', report.trend.primary, report.severity, report.trend.primary.includes('RISING') ? 'Getting worse. Check it.' : 'Stable.')
-  drawTrafficRow(pdf, page.m, yRef.y + 21, 'Pressure', report.slug === 'comparer' ? `${report.metrics.maxRss} / ${report.trend.rss}` : report.bottleneck, report.severity, 'Red if above normal range.')
-  drawTrafficRow(pdf, page.m, yRef.y + 29, report.slug === 'comparer' ? 'Swap' : 'Error', report.slug === 'comparer' ? report.trend.swap : report.trend.errors, report.trend.swap === 'ACTIVE' || report.trend.errors.includes('RED') ? 'CRIT' : report.metrics.warning > 0 ? 'WARN' : 'OK', 'Red if active or repeated.')
-  yRef.y += 40
+  line(pdf, page, y, 'Quick Read', 12, 'bold', STATUS.teal)
+  traffic(pdf, page.m, y.v + 5, 'Overall', statusText(report.severity), report.color, report.reason)
+  traffic(pdf, page.m, y.v + 13, 'Memory', `${report.metrics.maxRss} RSS`, report.color, 'Check the top PID first.')
+  traffic(pdf, page.m, y.v + 21, 'Swap', report.swap, report.swap === 'ACTIVE' ? STATUS.red : STATUS.green, report.swap === 'ACTIVE' ? 'Swap activity detected.' : 'No swap activity detected.')
+  traffic(pdf, page.m, y.v + 29, 'Host', report.top.host, report.color, 'Start validation from this host.')
+  y.v += 40
 
-  textLine(pdf, page, yRef, 'Next Checks', 12, 'bold', [0, 90, 84])
-  report.actions.forEach((item, index) => textLine(pdf, page, yRef, `${index + 1}. ${item}`, 9, 'normal', [35, 45, 45], 3))
+  line(pdf, page, y, 'Next Checks', 12, 'bold', STATUS.teal)
+  ;[
+    `SM50/SM66: check PID ${report.top.pid} on ${report.top.host}.`,
+    `SM37: check job ${report.top.job} owner, variant, runtime, and schedule.`,
+    `OS: validate memory/RSS on ${report.top.host}.`,
+    'ST22/SM21: check dump or system log around the same time.',
+  ].forEach((item, index) => line(pdf, page, y, `${index + 1}. ${item}`, 9, 'normal', STATUS.ink, 3))
 
   pdf.addPage()
-  yRef.y = 16
-  textLine(pdf, page, yRef, 'Charts', 13, 'bold', [0, 90, 84])
-  const chartMaxW = page.w - page.m * 2
-  for (const chart of charts.slice(0, 4)) {
-    if (yRef.y > page.h - 86) {
+  y.v = 16
+  line(pdf, page, y, 'Charts', 13, 'bold', STATUS.teal)
+  const maxW = page.w - page.m * 2
+  for (const chart of chartImages.slice(0, 4)) {
+    if (y.v > page.h - 86) {
       pdf.addPage()
-      yRef.y = 16
+      y.v = 16
     }
-    textLine(pdf, page, yRef, chart.title, 10, 'bold', [25, 35, 35])
-    textLine(pdf, page, yRef, chartNote(chart.title, report), 8, 'normal', [80, 90, 90])
+    line(pdf, page, y, chart.title, 10, 'bold', STATUS.ink)
+    line(pdf, page, y, chartCaption(chart.title, report), 8, 'normal', STATUS.muted)
     const ratio = chart.height / chart.width
-    const imgW = chartMaxW
-    const imgH = Math.min(66, imgW * ratio)
+    const imgH = Math.min(66, maxW * ratio)
     pdf.setDrawColor(225, 234, 232)
-    pdf.roundedRect(page.m, yRef.y, imgW, imgH + 6, 2, 2)
-    pdf.addImage(chart.dataUrl, 'PNG', page.m + 3, yRef.y + 3, imgW - 6, imgH)
-    yRef.y += imgH + 12
-  }
-  if (!charts.length) {
-    textLine(pdf, page, yRef, 'No chart detected in the current view. Export from a parsed evidence screen to include charts.', 10, 'italic', [90, 100, 100])
+    pdf.roundedRect(page.m, y.v, maxW, imgH + 6, 2, 2)
+    pdf.addImage(chart.dataUrl, 'PNG', page.m + 3, y.v + 3, maxW - 6, imgH)
+    y.v += imgH + 12
   }
 
   pdf.addPage()
-  yRef.y = 16
-  textLine(pdf, page, yRef, 'Top Evidence', 13, 'bold', [0, 90, 84])
-  const headers = ['#', 'STATUS', 'OBJECT', 'KEY', 'DETAIL']
+  y.v = 16
+  line(pdf, page, y, 'Top Evidence', 13, 'bold', STATUS.teal)
+  const headers = ['#', 'STATUS', 'HOST', 'PID', 'DETAIL']
   const widths = [8, 22, 38, 24, page.w - page.m * 2 - 92]
   let x = page.m
   pdf.setFillColor(5, 22, 22)
-  pdf.rect(page.m, yRef.y, page.w - page.m * 2, 8, 'F')
+  pdf.rect(page.m, y.v, page.w - page.m * 2, 8, 'F')
   pdf.setTextColor(255, 255, 255)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(7)
-  headers.forEach((head, i) => { pdf.text(head, x + 1, yRef.y + 5.5); x += widths[i] })
-  yRef.y += 8
+  headers.forEach((head, i) => { pdf.text(head, x + 1, y.v + 5.5); x += widths[i] })
+  y.v += 8
   report.rows.slice(0, 10).forEach((row, index) => {
-    if (yRef.y > page.h - 24) { pdf.addPage(); yRef.y = 16 }
     const cells = row.cells
     const joined = row.text
-    const sev = /\b(CRIT|ERROR|FAIL|HIGH)\b/i.test(joined) ? 'RED' : /\b(WARN|MEDIUM)\b/i.test(joined) ? 'YELLOW' : 'GREEN'
-    const object = cells.find((cell) => !isStatusCell(cell) && /[A-Z0-9]+PAPPDC/i.test(cell)) || cells.find((cell) => !isStatusCell(cell)) || '-'
-    const key = cells.find((cell) => /^\d{3,8}$/.test(cell)) || cells[1] || '-'
+    const sev = /\bCRIT\b/i.test(joined) ? 'RED' : /\bWARN\b/i.test(joined) ? 'YELLOW' : 'GREEN'
+    const host = cells.find((cell) => !isStatus(cell) && /[A-Z0-9]+PAPPDC/i.test(cell)) || '-'
+    const pid = cells.find((cell) => /^\d{3,8}$/.test(cell)) || '-'
     const rss = cells.find((cell) => /\d+(?:\.\d+)?\s*GB/i.test(cell)) || ''
-    const age = cells.find((cell) => /\d+d|\d+h|\d+m|\d+\s*(ms|sec|s)/i.test(cell)) || ''
+    const age = cells.find((cell) => /\d+d|\d+h|\d+m/i.test(cell)) || ''
     const job = cells.find((cell) => /^Z[A-Z0-9_]{4,}$/i.test(cell)) || cells.slice(-1)[0] || ''
     pdf.setFillColor(index % 2 ? 250 : 245, 250, 249)
-    pdf.rect(page.m, yRef.y, page.w - page.m * 2, 9, 'F')
+    pdf.rect(page.m, y.v, page.w - page.m * 2, 9, 'F')
     x = page.m
-    pdf.setTextColor(...statusColor(sev))
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(7.2)
-    ;[String(index + 1), sev, object, key, compactText([rss, age, job].filter(Boolean).join(' / '), 70)].forEach((val, i) => {
-      if (i > 1) {
-        pdf.setTextColor(35, 45, 45)
-        pdf.setFont('helvetica', 'normal')
-      }
-      pdf.text(pdf.splitTextToSize(compactText(val, 58), widths[i] - 2).slice(0, 1), x + 1, yRef.y + 6)
+    ;[String(index + 1), sev, host, pid, compact([rss, age, job].filter(Boolean).join(' / '), 70)].forEach((value, i) => {
+      const c = i === 1 ? statusColor(sev) : STATUS.ink
+      pdf.setTextColor(...c)
+      pdf.setFont('helvetica', i === 1 ? 'bold' : 'normal')
+      pdf.setFontSize(7.2)
+      pdf.text(pdf.splitTextToSize(compact(value, 58), widths[i] - 2).slice(0, 1), x + 1, y.v + 6)
       x += widths[i]
     })
-    yRef.y += 9
+    y.v += 9
   })
 
-  yRef.y += 8
-  textLine(pdf, page, yRef, 'Notes', 12, 'bold', [0, 90, 84])
+  y.v += 8
+  line(pdf, page, y, 'Notes', 12, 'bold', STATUS.teal)
   ;[
-    'This PDF is a short RCA summary. Keep the raw evidence attached to the ticket.',
+    'This PDF is a short RCA summary. Keep the source evidence attached to the ticket.',
     'Red means check now. Yellow means watch and correlate. Green means no dominant issue in the current view.',
     'If the same item stays red after action, collect another snapshot from the same time window.',
-  ].forEach((item, index) => textLine(pdf, page, yRef, `${index + 1}. ${item}`, 9, 'normal', [35, 45, 45], 3))
+  ].forEach((item, index) => line(pdf, page, y, `${index + 1}. ${item}`, 9, 'normal', STATUS.ink, 3))
 
-  addFooter(pdf, page, report)
-  pdf.save(`${report.filename}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
+  footer(pdf, page, report)
+  pdf.save(`sap-wpscout-visual-rca-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
 }
 
 export async function exportStructuredPdf(slug) {
-  try {
-    return await exportVisualFirstPdf(slug)
-  } catch (error) {
-    console.warn('[PDF Export] visual-first mode failed, falling back to polished export:', error)
-    return exportPolishedStructuredPdf(slug)
+  if (slug === 'comparer') {
+    try {
+      return await exportWpScoutVisualPdf()
+    } catch (error) {
+      console.warn('[PDF Export] WP-SCOUT visual export failed; fallback to polished export:', error)
+      return exportPolishedStructuredPdf(slug)
+    }
   }
+  return exportPolishedStructuredPdf(slug)
 }
