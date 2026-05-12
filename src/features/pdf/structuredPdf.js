@@ -37,7 +37,7 @@ function collectRows(root, limit = 18) {
 
   if (rows.length) return rows
 
-  const virtualRows = Array.from(root.querySelectorAll('.cmpVtRow,.evidenceList > div,.statusList > div,.miniTable > div,.suspectList div,.groupList div')).slice(0, limit)
+  const virtualRows = Array.from(root.querySelectorAll('.cmpVtRow,.evidenceList > div,.statusList > div,.miniTable > div,.suspectList div,.groupList div,.scoreBreakdownRow,.infraMetricCard,.incidentRailItem')).slice(0, limit)
   for (const row of virtualRows) {
     const cells = Array.from(row.querySelectorAll('b,strong,span,small,td,th'))
       .map((td) => cleanText(td.textContent))
@@ -50,7 +50,7 @@ function collectRows(root, limit = 18) {
 }
 
 function collectDecisionCards(root) {
-  const selectors = ['.decisionCard', '.cmpCleanStat', '.confidenceBox', '.detailScore', '.factsGrid span', '.opsMetric']
+  const selectors = ['.incidentCockpitStrip > div', '.decisionCard', '.cmpCleanStat', '.confidenceBox', '.detailScore', '.factsGrid span', '.opsMetric', '.infraMetricCard']
   return collectTextCards(root, selectors, 14)
 }
 
@@ -67,8 +67,24 @@ function collectCorrelationSummary(root) {
   }
 }
 
+function isNoisyPanel(heading = '', body = '') {
+  const text = `${heading} ${body}`.toLowerCase()
+  return [
+    'case history link',
+    'existing case',
+    'new case title',
+    'evidence history',
+    'uploaded files',
+    'server-side evidence',
+    'download',
+    'refresh',
+  ].some((pattern) => text.includes(pattern))
+}
+
 function collectPanels(root) {
   const selectors = [
+    '.infraSaturationPanel',
+    '.scoringBreakdownPanel',
     '.evidencePanel',
     '.cmpCleanFinding',
     '.cmpCleanActionsPanel',
@@ -77,7 +93,6 @@ function collectPanels(root) {
     '.resultPanel',
     '.validatePanel',
     '.toolEvidenceIntro',
-    '.evidenceHistory',
     '.caseCorrelationSummary',
   ]
   const nodes = selectors.flatMap((selector) => Array.from(root.querySelectorAll(selector)))
@@ -85,13 +100,13 @@ function collectPanels(root) {
   const seen = new Set()
 
   for (const panel of nodes) {
-    const heading = cleanText(panel.querySelector('h2,h3,.sectionKicker,.cmpCleanKicker,.investKicker,strong,b')?.textContent || 'Evidence Section')
+    const heading = cleanText(panel.querySelector('h2,h3,.sectionKicker,.cmpCleanKicker,.investKicker,.intelHead span,strong,b')?.textContent || 'Evidence Section')
     const body = cleanText(panel.textContent).slice(0, 900)
     const key = `${heading}:${body.slice(0, 120)}`.toLowerCase()
-    if (!body || seen.has(key)) continue
+    if (!body || seen.has(key) || isNoisyPanel(heading, body)) continue
     seen.add(key)
     panels.push({ heading, body, rows: collectRows(panel, 8) })
-    if (panels.length >= 10) break
+    if (panels.length >= 9) break
   }
 
   return panels
@@ -152,6 +167,22 @@ function detectToolTitle(slug) {
   }
 }
 
+function extractExecutiveSignal(report) {
+  const joined = [...report.decisionCards, ...report.topRows, ...report.panels.map((panel) => panel.body)].join(' ')
+  const confidence = cleanText(joined.match(/confidence\s*\|?\s*(\d+%)/i)?.[1] || joined.match(/(\d+%)\s*confidence/i)?.[1] || '')
+  const severity = cleanText(joined.match(/severity\s*\|?\s*(CRIT|WARN|INFO|OK)/i)?.[1] || joined.match(/\b(CRIT|WARN|INFO)\b/i)?.[1] || '')
+  const owner = cleanText(joined.match(/owner\s*\|?\s*([^|·]{3,42})/i)?.[1] || joined.match(/owner\s+(ABAP|INFRA\/BASIS|Basis|DBA|Functional[^|.]{0,24})/i)?.[1] || '')
+  const bottleneck = cleanText(joined.match(/bottleneck\s*\|?\s*([^|·]{2,24})/i)?.[1] || joined.match(/dominant bottleneck\s*\|?\s*([^|·]{2,24})/i)?.[1] || '')
+  const suspect = cleanText(joined.match(/primary (?:suspect|error|rca candidate)\s*\|?\s*([^|.]{3,60})/i)?.[1] || report.topRows[0] || report.visibleTitle)
+  return {
+    severity: severity || 'INFO',
+    confidence: confidence || 'N/A',
+    owner: owner || 'Review required',
+    bottleneck: bottleneck || 'Not confirmed',
+    suspect: suspect || report.visibleTitle,
+  }
+}
+
 function buildReportFromDom(slug) {
   const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
   const pageRoot = document.querySelector('main') || root
@@ -165,7 +196,7 @@ function buildReportFromDom(slug) {
   const status = textOf('.cmpCleanLoadState,.investStatus,.evidenceError', '')
   const uploadState = textOf('.evidenceUpload,.cmpCleanPrimary,.bigDrop', '')
 
-  return {
+  const report = {
     ...meta,
     generatedAt: now,
     session,
@@ -176,6 +207,8 @@ function buildReportFromDom(slug) {
     panels,
     correlation,
   }
+  report.executive = extractExecutiveSignal(report)
+  return report
 }
 
 function addFooter(pdf, page, report) {
@@ -192,10 +225,70 @@ function addFooter(pdf, page, report) {
   }
 }
 
+async function svgToPngDataUrl(svg) {
+  const clone = svg.cloneNode(true)
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+  const rect = svg.getBoundingClientRect()
+  const width = Math.max(420, Math.round(rect.width || Number(svg.getAttribute('width')) || 720))
+  const height = Math.max(160, Math.round(rect.height || Number(svg.getAttribute('height')) || 260))
+  clone.setAttribute('width', String(width))
+  clone.setAttribute('height', String(height))
+  clone.style.background = '#071315'
+  const data = new XMLSerializer().serializeToString(clone)
+  const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    img.crossOrigin = 'anonymous'
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+      img.src = url
+    })
+    const scale = 2
+    const canvas = document.createElement('canvas')
+    canvas.width = width * scale
+    canvas.height = height * scale
+    const ctx = canvas.getContext('2d')
+    ctx.fillStyle = '#071315'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    return { dataUrl: canvas.toDataURL('image/png'), width, height }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+async function collectChartImages() {
+  const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
+  const svgNodes = Array.from(root.querySelectorAll('.chartPanel svg, .recharts-wrapper svg')).slice(0, 6)
+  const charts = []
+  for (const svg of svgNodes) {
+    const panel = svg.closest('.evidencePanel,.chartPanel,.cmpCleanPanel,.overviewCard,.resultPanel')
+    const title = cleanText(panel?.querySelector('h2,h3,.chartTitleBlock h2,.sectionKicker')?.textContent || 'Evidence Chart')
+    try {
+      const image = await svgToPngDataUrl(svg)
+      charts.push({ title, ...image })
+    } catch (error) {
+      console.warn('[PDF Export] failed to render chart svg:', error)
+    }
+  }
+  return charts
+}
+
+function severityColor(severity = '') {
+  const text = String(severity).toUpperCase()
+  if (text.includes('CRIT')) return [215, 80, 80]
+  if (text.includes('WARN')) return [205, 150, 35]
+  return [35, 155, 145]
+}
+
 export async function exportStructuredPdf(slug) {
   const jsPdfModule = await import('jspdf')
   const JsPDF = jsPdfModule.jsPDF || jsPdfModule.default
   const report = buildReportFromDom(slug)
+  const chartImages = await collectChartImages()
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = { w: pdf.internal.pageSize.getWidth(), h: pdf.internal.pageSize.getHeight(), m: 14 }
   let y = 16
@@ -232,23 +325,58 @@ export async function exportStructuredPdf(slug) {
   const bullet = (text, idx, size = 9.2) => line(`${idx + 1}. ${text}`, size, 'normal', 3)
   const sectionNo = (withoutCorrelation, withCorrelation) => (report.correlation ? withCorrelation : withoutCorrelation)
 
-  pdf.setFillColor(5, 22, 22)
-  pdf.rect(0, 0, page.w, 35, 'F')
-  pdf.setTextColor(255, 255, 255)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(15)
-  pdf.text(report.title, page.m, 14)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(8.5)
-  pdf.text(report.subtitle, page.m, 22)
-  pdf.text(`Active view: ${report.visibleTitle}`, page.m, 29)
-  y = 44
+  const drawCover = () => {
+    const sev = severityColor(report.executive.severity)
+    pdf.setFillColor(5, 22, 22)
+    pdf.rect(0, 0, page.w, 62, 'F')
+    pdf.setFillColor(...sev)
+    pdf.rect(0, 0, 5, 62, 'F')
+    pdf.setTextColor(255, 255, 255)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(16)
+    pdf.text(report.title, page.m, 17)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(9)
+    pdf.text(report.subtitle, page.m, 26)
+    pdf.text(`Generated: ${report.generatedAt}`, page.m, 34)
+    pdf.setFontSize(8)
+    pdf.text(`Active view: ${report.visibleTitle}`, page.m, 42)
+
+    y = 72
+    const cardW = (page.w - page.m * 2 - 8) / 3
+    const cards = [
+      ['Severity', report.executive.severity],
+      ['Confidence', report.executive.confidence],
+      ['Owner', report.executive.owner],
+      ['Bottleneck', report.executive.bottleneck],
+      ['Primary Suspect', report.executive.suspect],
+      ['Charts', `${chartImages.length} visual block(s)`],
+    ]
+    cards.forEach(([label, value], index) => {
+      const col = index % 3
+      const row = Math.floor(index / 3)
+      const x = page.m + col * (cardW + 4)
+      const yy = y + row * 25
+      pdf.setFillColor(245, 250, 249)
+      pdf.roundedRect(x, yy, cardW, 20, 2.5, 2.5, 'F')
+      pdf.setTextColor(0, 100, 92)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(7.2)
+      pdf.text(label.toUpperCase(), x + 3, yy + 6)
+      pdf.setTextColor(20, 30, 35)
+      pdf.setFontSize(9)
+      pdf.text(pdf.splitTextToSize(String(value || '-'), cardW - 6).slice(0, 2), x + 3, yy + 13)
+    })
+    y += 56
+    line('Executive RCA narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, and recommended validation steps.', 10)
+  }
+
+  drawCover()
 
   section('1. Executive Summary')
-  line(`Generated: ${report.generatedAt}`, 9)
   if (report.session) line(`Session: ${report.session}`, 9)
   if (report.status) line(`Status: ${report.status}`, 9)
-  line('Purpose: structured SAP RCA report generated from the active tool state. This report avoids screenshot-based export and summarizes visible evidence, rankings, and recommended checks.', 10)
+  line('Purpose: structured SAP RCA report generated from the active tool state. It combines executive summary, native chart captures, top evidence, and recommended checks.', 10)
 
   if (report.correlation) {
     section('2. RCA Correlation Summary')
@@ -269,13 +397,30 @@ export async function exportStructuredPdf(slug) {
   if (report.decisionCards.length) report.decisionCards.slice(0, 12).forEach((item, index) => bullet(item, index, 9.4))
   else line('No decision cards detected. Upload/parse evidence first, then export again.', 10, 'italic')
 
-  section(`${sectionNo('3', '4')}. Top Evidence / Ranking`)
-  if (report.topRows.length) report.topRows.slice(0, 16).forEach((row, index) => bullet(row, index, 8.7))
+  if (chartImages.length) {
+    section(`${sectionNo('3', '4')}. Visual Evidence / Charts`)
+    chartImages.forEach((chart, index) => {
+      addPageIfNeeded(74)
+      line(`${index + 1}. ${chart.title}`, 10.2, 'bold', 0, [35, 55, 55])
+      const maxW = page.w - page.m * 2
+      const maxH = 70
+      const ratio = Math.min(maxW / chart.width, maxH / chart.height)
+      const w = chart.width * ratio
+      const h = chart.height * ratio
+      pdf.setDrawColor(220, 230, 228)
+      pdf.roundedRect(page.m, y, maxW, h + 7, 2, 2)
+      pdf.addImage(chart.dataUrl, 'PNG', page.m + (maxW - w) / 2, y + 3.5, w, h)
+      y += h + 12
+    })
+  }
+
+  section(`${sectionNo(chartImages.length ? '4' : '3', chartImages.length ? '5' : '4')}. Top Evidence / Ranking`)
+  if (report.topRows.length) report.topRows.slice(0, 12).forEach((row, index) => bullet(row, index, 8.7))
   else line('No evidence ranking rows detected in the current view.', 10, 'italic')
 
-  section(`${sectionNo('4', '5')}. Findings Detail`)
+  section(`${sectionNo(chartImages.length ? '5' : '4', chartImages.length ? '6' : '5')}. Findings Detail`)
   if (report.panels.length) {
-    report.panels.slice(0, 8).forEach((panel, index) => {
+    report.panels.slice(0, 7).forEach((panel, index) => {
       line(`${index + 1}. ${panel.heading}`, 10.2, 'bold', 0, [35, 55, 55])
       line(panel.body, 8.4, 'normal', 4)
       if (panel.rows.length) panel.rows.slice(0, 4).forEach((row) => line(`- ${row}`, 8.1, 'normal', 7, [65, 65, 65]))
@@ -285,10 +430,10 @@ export async function exportStructuredPdf(slug) {
     line('No visible finding panel detected.', 10, 'italic')
   }
 
-  section(`${sectionNo('5', '6')}. Recommended Basis / RCA Actions`)
+  section(`${sectionNo(chartImages.length ? '6' : '5', chartImages.length ? '7' : '6')}. Recommended Basis / RCA Actions`)
   report.actions.forEach((action, index) => bullet(action, index, 9.8))
 
-  section(`${sectionNo('6', '7')}. Evidence Handling Notes`)
+  section(`${sectionNo(chartImages.length ? '7' : '6', chartImages.length ? '8' : '7')}. Evidence Handling Notes`)
   ;[
     'Use this PDF as a readable RCA summary, not as replacement for raw evidence.',
     'Attach original WP-SCOUT, ST03N, SM21/ST22, or job log files to the incident record.',
