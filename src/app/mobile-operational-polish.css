@@ -453,3 +453,217 @@
     font-size: 7px;
   }
 }
+
+/* Enterprise RCA hierarchy polish: stronger incident focus without changing component contracts. */
+.evidenceToolShell.refinedTool .incidentCockpitStrip {
+  position: sticky;
+  top: 8px;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+  padding: 10px;
+  border: 1px solid rgba(45,212,191,.28);
+  border-left: 4px solid rgba(45,212,191,.86);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(45,212,191,.16), transparent 36%),
+    rgba(6,18,21,.92);
+  box-shadow: 0 16px 44px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.055);
+  backdrop-filter: blur(14px);
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip[data-severity="crit"] {
+  border-left-color: rgba(248,113,113,.95);
+  border-color: rgba(248,113,113,.32);
+  background:
+    radial-gradient(circle at top right, rgba(248,113,113,.18), transparent 34%),
+    rgba(24,12,13,.93);
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip[data-severity="warn"] {
+  border-left-color: rgba(250,204,21,.95);
+  border-color: rgba(250,204,21,.27);
+  background:
+    radial-gradient(circle at top right, rgba(250,204,21,.16), transparent 34%),
+    rgba(24,20,10,.93);
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(148,163,184,.13);
+  border-radius: 13px;
+  background: rgba(255,255,255,.035);
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip span,
+.evidenceToolShell.refinedTool .intelHead span {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(186,230,253,.92);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip strong {
+  display: block;
+  overflow: hidden;
+  color: rgba(248,250,252,.97);
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.16;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip small {
+  grid-column: 1 / -1;
+  padding: 6px 8px 2px;
+  color: rgba(203,213,225,.86);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.evidenceToolShell.refinedTool .infraSaturationPanel[data-severity="crit"],
+.evidenceToolShell.refinedTool .scoringBreakdownPanel[data-confidence="crit"] {
+  border-color: rgba(248,113,113,.26);
+  border-left: 4px solid rgba(248,113,113,.86);
+}
+
+.evidenceToolShell.refinedTool .infraSaturationPanel[data-severity="warn"],
+.evidenceToolShell.refinedTool .scoringBreakdownPanel[data-confidence="warn"] {
+  border-color: rgba(250,204,21,.24);
+  border-left: 4px solid rgba(250,204,21,.88);
+}
+
+.evidenceToolShell.refinedTool .infraSaturationPanel[data-severity="info"],
+.evidenceToolShell.refinedTool .scoringBreakdownPanel[data-confidence="info"] {
+  border-left: 4px solid rgba(56,189,248,.72);
+}
+
+.evidenceToolShell.refinedTool .intelHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.evidenceToolShell.refinedTool .intelHead strong {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid rgba(45,212,191,.22);
+  border-radius: 999px;
+  background: rgba(45,212,191,.08);
+  color: rgba(94,234,212,.96);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.evidenceToolShell.refinedTool .infraMetricGrid,
+.evidenceToolShell.refinedTool .scoreBreakdownGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.evidenceToolShell.refinedTool .infraMetricCard,
+.evidenceToolShell.refinedTool .scoreBreakdownRow {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(148,163,184,.13);
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+}
+
+.evidenceToolShell.refinedTool .infraMetricCard span,
+.evidenceToolShell.refinedTool .scoreBreakdownRow b {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(203,213,225,.86);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.evidenceToolShell.refinedTool .infraMetricCard strong,
+.evidenceToolShell.refinedTool .scoreBreakdownRow strong {
+  display: block;
+  color: rgba(248,250,252,.98);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -.04em;
+}
+
+.evidenceToolShell.refinedTool .infraMetricCard small,
+.evidenceToolShell.refinedTool .scoreBreakdownRow span {
+  display: block;
+  margin-top: 3px;
+  color: rgba(148,163,184,.85);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.evidenceToolShell.refinedTool .scoreBreakdownRow[data-tone="crit"] {
+  border-color: rgba(248,113,113,.24);
+  background: rgba(248,113,113,.055);
+}
+
+.evidenceToolShell.refinedTool .scoreBreakdownRow[data-tone="warn"] {
+  border-color: rgba(250,204,21,.22);
+  background: rgba(250,204,21,.045);
+}
+
+.evidenceToolShell.refinedTool .scoreBreakdownRow[data-tone="info"] {
+  border-color: rgba(56,189,248,.20);
+  background: rgba(56,189,248,.04);
+}
+
+@media (max-width: 760px) {
+  .evidenceToolShell.refinedTool .incidentCockpitStrip {
+    top: 6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin: 8px 0 10px;
+    padding: 9px;
+    border-radius: 16px;
+  }
+
+  .evidenceToolShell.refinedTool .incidentCockpitStrip div {
+    padding: 7px;
+  }
+
+  .evidenceToolShell.refinedTool .incidentCockpitStrip div:nth-child(5) {
+    grid-column: 1 / -1;
+  }
+
+  .evidenceToolShell.refinedTool .incidentCockpitStrip small {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    padding-top: 4px;
+  }
+
+  .evidenceToolShell.refinedTool .infraMetricGrid,
+  .evidenceToolShell.refinedTool .scoreBreakdownGrid {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .evidenceToolShell.refinedTool .scoreBreakdownRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .evidenceToolShell.refinedTool .scoreBreakdownRow strong {
+    font-size: 20px;
+  }
+}
