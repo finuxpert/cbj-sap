@@ -172,6 +172,18 @@ function parsePercent(text = '') {
   return match ? Math.max(0, Math.min(100, Number(match[1]) || 0)) : 0
 }
 
+function parseFirstPercentNear(text = '', labels = []) {
+  const body = cleanText(text)
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const direct = body.match(new RegExp(`${escaped}[^0-9]{0,36}(\\d+(?:\\.\\d+)?)\\s*%`, 'i'))
+    if (direct) return Math.max(0, Math.min(100, Number(direct[1]) || 0))
+    const reversed = body.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*%[^A-Za-z0-9]{0,24}${escaped}`, 'i'))
+    if (reversed) return Math.max(0, Math.min(100, Number(reversed[1]) || 0))
+  }
+  return 0
+}
+
 function parseTopEvidence(rows = []) {
   return rows.slice(0, 8).map((row) => {
     const text = cleanText(row)
@@ -179,6 +191,41 @@ function parseTopEvidence(rows = []) {
     const label = text.split('|')[0].replace(/^\d+\.\s*/, '').slice(0, 42)
     return { label, score: score || 1, text }
   })
+}
+
+function parseInfraPressure(report) {
+  const joined = cleanText([...report.decisionCards, ...report.topRows, ...report.panels.flatMap((panel) => [panel.heading, panel.body, ...panel.rows])].join(' '))
+  const metrics = [
+    { label: 'CPU', value: parseFirstPercentNear(joined, ['cpu', 'processor']) },
+    { label: 'MEM', value: parseFirstPercentNear(joined, ['mem', 'memory', 'ram']) },
+    { label: 'SWAP', value: parseFirstPercentNear(joined, ['swap']) },
+  ].filter((item) => item.value > 0)
+
+  if (metrics.length) return metrics
+
+  const fallback = parsePercent(report.executive.confidence)
+  return fallback ? [{ label: 'Signal', value: fallback }] : []
+}
+
+function parseTimelinePoints(report) {
+  const candidates = unique([
+    ...report.topRows,
+    ...report.decisionCards,
+    ...report.panels.flatMap((panel) => [panel.heading, ...panel.rows, panel.body]),
+  ])
+  const points = []
+
+  for (const item of candidates) {
+    const text = cleanText(item)
+    const time = text.match(/\b(?:\d{2}:\d{2}(?::\d{2})?|\d{4}-\d{2}-\d{2}|\d{1,2}\/[A-Za-z]{3}\/\d{4})\b/)?.[0]
+    const hasTimelineSignal = /timeline|incident|window|event|error|job|pid|wp|sm21|st22|spike/i.test(text)
+    if ((time || hasTimelineSignal) && text.length >= 8) {
+      points.push({ time: time || `T+${points.length + 1}`, label: text.slice(0, 92) })
+    }
+    if (points.length >= 6) break
+  }
+
+  return points
 }
 
 function extractExecutiveSignal(report) {
@@ -224,6 +271,8 @@ function buildReportFromDom(slug) {
     correlation,
   }
   report.executive = extractExecutiveSignal(report)
+  report.infraPressure = parseInfraPressure(report)
+  report.timelinePoints = parseTimelinePoints(report)
   return report
 }
 
@@ -341,56 +390,127 @@ export async function exportStructuredPdf(slug) {
   const bullet = (text, idx, size = 9.2) => line(`${idx + 1}. ${text}`, size, 'normal', 3)
   const sectionNo = (withoutCorrelation, withCorrelation) => (report.correlation ? withCorrelation : withoutCorrelation)
 
+  const drawSafeGauge = (cx, cy, radius, value, color) => {
+    const safeValue = Math.max(0, Math.min(100, Number(value) || 0))
+    const ticks = 24
+    for (let i = 0; i <= ticks; i += 1) {
+      const active = i <= Math.round((safeValue / 100) * ticks)
+      const angle = Math.PI + (Math.PI * i) / ticks
+      const inner = radius - 2.8
+      const outer = radius
+      const x1 = cx + Math.cos(angle) * inner
+      const y1 = cy + Math.sin(angle) * inner
+      const x2 = cx + Math.cos(angle) * outer
+      const y2 = cy + Math.sin(angle) * outer
+      pdf.setDrawColor(...(active ? color : [218, 226, 226]))
+      pdf.setLineWidth(active ? 1.25 : 0.75)
+      pdf.line(x1, y1, x2, y2)
+    }
+    pdf.setLineWidth(0.2)
+    pdf.setDrawColor(225, 232, 232)
+    pdf.line(cx - radius, cy, cx + radius, cy)
+  }
+
+  const drawMetricBar = (x, yy, width, label, value, color) => {
+    const safeValue = Math.max(0, Math.min(100, Number(value) || 0))
+    pdf.setTextColor(45, 55, 55)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(6.8)
+    pdf.text(label, x, yy)
+    pdf.setFont('helvetica', 'normal')
+    pdf.text(`${Math.round(safeValue)}%`, x + width - 12, yy)
+    pdf.setFillColor(225, 232, 232)
+    pdf.roundedRect(x, yy + 2, width, 3.5, 1, 1, 'F')
+    pdf.setFillColor(...color)
+    pdf.roundedRect(x, yy + 2, Math.max(3, width * (safeValue / 100)), 3.5, 1, 1, 'F')
+  }
+
+  const drawMiniTimeline = (x, yy, width, points, color) => {
+    if (!points.length) return
+    const gap = points.length > 1 ? width / (points.length - 1) : width
+    pdf.setDrawColor(210, 222, 222)
+    pdf.line(x, yy + 7, x + width, yy + 7)
+    points.forEach((point, index) => {
+      const px = x + gap * index
+      pdf.setFillColor(...color)
+      pdf.circle(px, yy + 7, 1.8, 'F')
+      pdf.setTextColor(55, 65, 65)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(6)
+      pdf.text(String(point.time).slice(0, 12), px - 4, yy + 14)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text(pdf.splitTextToSize(point.label, 29).slice(0, 2), px - 4, yy + 19)
+    })
+  }
+
   const drawNativeAnalytics = () => {
-    addPageIfNeeded(58)
+    addPageIfNeeded(76)
     const x = page.m
     const w = page.w - page.m * 2
+    const sev = severityColor(report.executive.severity)
+    const boxY = y
     pdf.setFillColor(248, 252, 251)
-    pdf.roundedRect(x, y, w, 48, 3, 3, 'F')
+    pdf.roundedRect(x, boxY, w, 66, 3, 3, 'F')
+    pdf.setDrawColor(226, 235, 233)
+    pdf.roundedRect(x, boxY, w, 66, 3, 3)
     pdf.setTextColor(0, 90, 84)
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(10)
-    pdf.text('Native RCA Visual Analytics', x + 5, y + 8)
+    pdf.text('RCA Visual Summary', x + 5, boxY + 8)
 
-    const sev = severityColor(report.executive.severity)
-    pdf.setDrawColor(220, 226, 226)
-    pdf.circle(x + 20, y + 27, 10)
-    pdf.setDrawColor(...sev)
-    pdf.setLineWidth(3)
-    pdf.arc?.(x + 20, y + 27, 10, 180, 180 + (report.executive.confidenceValue || 55) * 3.6)
-    pdf.setLineWidth(0.2)
+    drawSafeGauge(x + 22, boxY + 31, 13, report.executive.confidenceValue || 55, sev)
     pdf.setTextColor(25, 35, 35)
-    pdf.setFontSize(8)
-    pdf.text(report.executive.confidence, x + 14, y + 30)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(8.2)
+    pdf.text(report.executive.confidence, x + 15, boxY + 30)
     pdf.setTextColor(90, 100, 100)
-    pdf.text('Confidence', x + 10, y + 41)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(6.8)
+    pdf.text('Confidence', x + 12, boxY + 41)
 
     const bars = report.topEvidenceBars.slice(0, 4)
     const maxScore = Math.max(...bars.map((item) => item.score), 1)
     bars.forEach((item, index) => {
       const bx = x + 45
-      const by = y + 15 + index * 7
-      const bw = 82
+      const by = boxY + 16 + index * 7
+      const bw = 58
       pdf.setTextColor(40, 50, 50)
-      pdf.setFontSize(6.8)
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(6.6)
       pdf.text(item.label, bx, by)
       pdf.setFillColor(225, 232, 232)
-      pdf.roundedRect(bx + 58, by - 4, bw, 3.5, 1, 1, 'F')
+      pdf.roundedRect(bx + 46, by - 4, bw, 3.4, 1, 1, 'F')
       pdf.setFillColor(...sev)
-      pdf.roundedRect(bx + 58, by - 4, Math.max(4, bw * (item.score / maxScore)), 3.5, 1, 1, 'F')
+      pdf.roundedRect(bx + 46, by - 4, Math.max(4, bw * (item.score / maxScore)), 3.4, 1, 1, 'F')
     })
 
+    const metricX = x + 115
+    const metrics = report.infraPressure.slice(0, 3)
+    if (metrics.length) {
+      pdf.setTextColor(0, 90, 84)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(7)
+      pdf.text('Infra Pressure', metricX, boxY + 15)
+      metrics.forEach((item, index) => drawMetricBar(metricX, boxY + 21 + index * 10, 36, item.label, item.value, sev))
+    }
+
     pdf.setFillColor(...sev)
-    pdf.roundedRect(x + w - 38, y + 13, 27, 10, 2, 2, 'F')
+    pdf.roundedRect(x + w - 35, boxY + 12, 26, 9, 2, 2, 'F')
     pdf.setTextColor(255, 255, 255)
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(8)
-    pdf.text(report.executive.severity, x + w - 34, y + 20)
+    pdf.text(report.executive.severity, x + w - 31, boxY + 18.5)
     pdf.setTextColor(65, 75, 75)
     pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(7)
-    pdf.text(pdf.splitTextToSize(`Owner: ${report.executive.owner}`, 38), x + w - 42, y + 31)
-    y += 56
+    pdf.setFontSize(6.7)
+    pdf.text(pdf.splitTextToSize(`Owner: ${report.executive.owner}`, 35).slice(0, 2), x + w - 40, boxY + 29)
+    pdf.text(pdf.splitTextToSize(`Bottleneck: ${report.executive.bottleneck}`, 35).slice(0, 2), x + w - 40, boxY + 41)
+
+    if (report.timelinePoints.length) {
+      drawMiniTimeline(x + 8, boxY + 48, w - 16, report.timelinePoints.slice(0, 5), sev)
+    }
+
+    y += 74
   }
 
   const drawCover = () => {
@@ -437,7 +557,7 @@ export async function exportStructuredPdf(slug) {
     })
     y += 56
     drawNativeAnalytics()
-    line('Executive RCA narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, and recommended validation steps.', 10)
+    line('Executive RCA narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, infra pressure, incident timeline, and recommended validation steps.', 10)
   }
 
   drawCover()
