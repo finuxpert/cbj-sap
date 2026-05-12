@@ -1,5 +1,5 @@
 import React from 'react'
-import { exportStructuredPdf } from './structuredPdfPolished.js'
+import { exportStructuredPdf } from './structuredPdfPolishedSafe.js'
 
 export default function ToolExportDock({ slug }) {
   const [busy, setBusy] = React.useState(false)
