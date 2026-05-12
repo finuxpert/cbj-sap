@@ -82,19 +82,39 @@ function normalizeSnapshotLabel(value = '', fallback = '') {
 
 function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
   const text = String(line || '')
-  const lower = text.toLowerCase()
-  if (!/(cpu|mem|memory|swap|\bsi\b)/i.test(text)) return null
-  const pick = (patterns) => {
+  if (!/(cpu|mem|memory|swap|si\/so|\bsi\b)/i.test(text)) return null
+
+  const pick = (patterns, group = 1) => {
     for (const pattern of patterns) {
       const match = text.match(pattern)
-      if (match) return n(match[1], 0)
+      if (match) return n(match[group], 0)
     }
     return 0
   }
-  const cpu = pick([/cpu\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%?/i, /cpu\s+usage\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i])
-  const mem = pick([/mem(?:ory)?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%/i, /used\s+mem(?:ory)?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%/i])
-  const swapSi = pick([/swap\s*si\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i, /\bsi\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i, /swap\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i])
+
+  // Daily Check format:
+  // CPU usage : 29.52% used, 70.48% idle
+  // Memory    : used 54.6G (44.8%), free 28.3G / 121.7G
+  // Swap IO   : si/so 0/0 p/s
+  const cpu = pick([
+    /CPU\s+usage\s*:\s*(\d+(?:[.,]\d+)?)\s*%\s*used/i,
+    /cpu\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%?/i,
+  ])
+
+  const mem = pick([
+    /Memory\s*:\s*used\s+\d+(?:[.,]\d+)?\s*G\s*\((\d+(?:[.,]\d+)?)\s*%\)/i,
+    /mem(?:ory)?\s*[:=]?\s*(?:used\s+)?\d+(?:[.,]\d+)?\s*G\s*\((\d+(?:[.,]\d+)?)\s*%\)/i,
+    /mem(?:ory)?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%/i,
+  ])
+
+  const swapSi = pick([
+    /Swap\s+IO\s*:\s*si\/so\s+(\d+(?:[.,]\d+)?)\/(\d+(?:[.,]\d+)?)\s*p\/s/i,
+    /swap\s*si\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i,
+    /\bsi\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i,
+  ])
+
   if (!cpu && !mem && !swapSi) return null
+
   return {
     time: normalizeSnapshotLabel(snapshot, fallback),
     cpu: Math.max(0, Math.min(100, cpu)),
@@ -277,7 +297,8 @@ function buildResourceTrend(rows = [], telemetrySamples = []) {
     const cur = grouped.get(time) || { time, cpu: 0, mem: 0, swapSi: 0, source: 'rss-pressure' }
     cur.cpu = Math.max(cur.cpu, Number(row.cpu || 0))
     cur.mem = Math.max(cur.mem, Math.min(100, (Number(row.rssGb || 0) / maxRss) * 100))
-    cur.swapSi = Math.max(cur.swapSi, row.severity === 'CRIT' && Number(row.rssGb || 0) >= 64 && Number(row.ageHours || 0) >= 24 ? Math.round(Number(row.rssGb || 0) * 10) : 0)
+    // Do not synthesize swap from RSS pressure. Swap must come from real Swap IO telemetry.
+    cur.swapSi = Math.max(cur.swapSi, 0)
     grouped.set(time, cur)
   }
   return Array.from(grouped.values()).sort((a, b) => String(a.time).localeCompare(String(b.time))).slice(0, 40)
