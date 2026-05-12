@@ -25,70 +25,83 @@ function findMetric(root, labels = []) {
 }
 
 function parseTableRows(root, limit = 12) {
-  const rows = Array.from(root.querySelectorAll('tbody tr, .cmpCleanTable tbody tr'))
-  return rows.slice(0, limit * 3).map((tr) => {
+  const tableRows = Array.from(root.querySelectorAll('tbody tr, .cmpCleanTable tbody tr'))
+  const rows = tableRows.map((tr) => {
     const cells = Array.from(tr.querySelectorAll('td,th')).map((td) => cleanText(td.textContent)).filter(Boolean)
-    const joined = cells.join(' | ')
-    return { cells, text: joined }
-  }).filter((row) => /\b(CRIT|WARN|OK|ERROR|FAIL|HIGH|MEDIUM|LOW)\b/i.test(row.text) || /\d+\s*(GB|%|ms|sec|s)/i.test(row.text)).slice(0, limit)
+    return { cells, text: cells.join(' | ') }
+  })
+
+  const listRows = Array.from(root.querySelectorAll('li,.evidenceList > div,.statusList > div,.scoreBreakdownRow'))
+    .map((node) => {
+      const text = cleanText(node.textContent)
+      return { cells: text.split('|').map(cleanText).filter(Boolean), text }
+    })
+
+  return [...rows, ...listRows]
+    .filter((row) => /\b(CRIT|WARN|OK|ERROR|FAIL|HIGH|MEDIUM|LOW|TIME_OUT|DUMP)\b/i.test(row.text) || /\d+\s*(GB|%|ms|sec|s)/i.test(row.text))
+    .slice(0, limit)
+}
+
+function isStatusCell(cell = '') {
+  return /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN|HIGH|MEDIUM|LOW|ERROR|FAIL)$/i.test(cleanText(cell))
 }
 
 function parseTopRow(root) {
   const rows = parseTableRows(root, 20)
-  const row = rows.find((item) => /\b(CRIT|ERROR|FAIL|HIGH)\b/i.test(item.text)) || rows[0] || { cells: [], text: '' }
+  const row = rows.find((item) => /\b(CRIT|ERROR|FAIL|HIGH|TIME_OUT|DUMP)\b/i.test(item.text)) || rows[0] || { cells: [], text: '' }
   const text = row.text
-  const host = row.cells.find((cell) => /[A-Z0-9]+PAPPDC|[A-Z0-9._-]+/i.test(cell) && !/^\d/.test(cell)) || text.match(/[A-Z0-9]+PAPPDC/i)?.[0] || '-'
+  const host = row.cells.find((cell) => !isStatusCell(cell) && /[A-Z0-9]+PAPPDC/i.test(cell)) || text.match(/[A-Z0-9]+PAPPDC/i)?.[0] || '-'
   const pid = row.cells.find((cell) => /^\d{3,8}$/.test(cell)) || text.match(/\b\d{3,8}\b/)?.[0] || '-'
   const type = row.cells.find((cell) => /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|DB|CPU|WAIT|GUI|HTTP|\?)$/i.test(cell)) || '-'
   const rss = row.cells.find((cell) => /\d+(?:\.\d+)?\s*GB/i.test(cell)) || text.match(/\d+(?:\.\d+)?\s*GB/i)?.[0] || '-'
   const age = row.cells.find((cell) => /\d+d|\d+h|\d+m|\d+\s*(ms|sec|s)/i.test(cell)) || '-'
-  const job = row.cells.find((cell) => /^Z[A-Z0-9_]{4,}$/i.test(cell)) || row.cells.find((cell) => /[A-Z0-9_]{8,}/i.test(cell)) || '-'
-  const sev = /\b(CRIT|ERROR|FAIL|HIGH)\b/i.test(text) ? 'CRIT' : /\b(WARN|MEDIUM)\b/i.test(text) ? 'WARN' : 'INFO'
+  const job = row.cells.find((cell) => /^Z[A-Z0-9_]{4,}$/i.test(cell)) || row.cells.find((cell) => !isStatusCell(cell) && /[A-Z0-9_]{8,}/i.test(cell)) || '-'
+  const sev = /\b(CRIT|ERROR|FAIL|HIGH|TIME_OUT|DUMP)\b/i.test(text) ? 'CRIT' : /\b(WARN|MEDIUM)\b/i.test(text) ? 'WARN' : 'INFO'
   return { host, pid, type, rss, age, job, severity: sev, raw: text }
 }
 
 function toolMeta(slug) {
   if (slug === 'analyzer') {
     return {
-      title: 'ST03N Visual RCA Report',
+      title: 'ST03N RCA Summary',
       filename: 'sap-st03n-visual-rca',
-      owner: 'Basis / Performance / Application Owner',
-      focus: 'Workload response time / component bottleneck',
-      primaryLabel: 'Worst Component',
+      owner: 'Basis / Performance / App Owner',
+      focus: 'Response time and workload bottleneck',
+      primaryLabel: 'Top Item',
       actions: [
-        'ST03N: validate response time, dialog steps, and top component around incident time.',
-        'Check whether bottleneck is DB time, wait time, CPU time, or frontend/network time.',
-        'Correlate with SM50/SM66 and DB monitoring if response time is rising.',
-        'Attach raw ST03N export and compare with normal baseline window.',
+        'Check the top ST03N item first.',
+        'Confirm if the load is response time, DB time, wait time, or CPU time.',
+        'Compare with a normal time window.',
+        'Attach the original ST03N export to the ticket.',
       ],
     }
   }
   if (slug === 'logs') {
     return {
-      title: 'Log Evidence Visual RCA Report',
+      title: 'SAP Log RCA Summary',
       filename: 'sap-log-visual-rca',
-      owner: 'Basis / ABAP / Functional Owner',
-      focus: 'Error pattern / repeated failure family',
-      primaryLabel: 'Primary Error',
+      owner: 'Basis / ABAP / Functional',
+      focus: 'Repeated error pattern',
+      primaryLabel: 'Top Error',
       actions: [
-        'Group repeated errors by program, job, user, host, and timestamp.',
-        'Check ST22/SM21/job log around the first red spike window.',
-        'Assign owner based on error family: Basis, ABAP, DB, or Functional.',
-        'Attach raw log evidence and keep only top repeated patterns in the summary.',
+        'Start from the highest error family.',
+        'Check ST22, SM21, and job log around the first spike.',
+        'Assign owner by error type: Basis, ABAP, DB, or Functional.',
+        'Keep raw logs attached; summarize only top patterns here.',
       ],
     }
   }
   return {
-    title: 'WP-SCOUT Visual RCA Report',
+    title: 'WP-SCOUT RCA Summary',
     filename: 'sap-wpscout-visual-rca',
     owner: 'Basis / Infrastructure',
-    focus: 'Memory / RSS pressure and long-running work process',
-    primaryLabel: 'Worst Job',
+    focus: 'RSS memory pressure and long-running work process',
+    primaryLabel: 'Top Job',
     actions: [
-      'SM50/SM66: validate the top PID/WP on the affected host.',
-      'SM37: check job schedule, owner, variant, and runtime pattern.',
-      'OS: validate memory/RSS pressure and long-running work process age.',
-      'ST22/SM21: correlate dump/system log around the same timestamp.',
+      'Check the top PID in SM50 / SM66.',
+      'Check the job in SM37: owner, variant, runtime, and schedule.',
+      'Validate OS memory and RSS on the affected host.',
+      'Correlate with ST22 / SM21 in the same time window.',
     ],
   }
 }
@@ -105,12 +118,20 @@ function inferSeverity(slug, root, top, metrics) {
   return 'STABLE'
 }
 
+function inferSwapState(pageText = '') {
+  const badge = pageText.match(/\bSwap\s+([0-9]+)\b/i)
+  if (badge) return Number(badge[1]) > 0 ? 'ACTIVE' : 'CLEAR'
+  const strictSi = pageText.match(/\bswap\s*(?:si|so)?\s*[:=]\s*([0-9]+)\b/i)
+  if (strictSi) return Number(strictSi[1]) > 0 ? 'ACTIVE' : 'CLEAR'
+  return 'CLEAR'
+}
+
 function buildReport(root, slug = 'comparer') {
   const meta = toolMeta(slug)
   const top = parseTopRow(root)
   const pageText = cleanText(root?.textContent || '')
-  const critical = numberFrom(findMetric(root, ['Critical', 'CRIT', 'Errors', 'Failed', 'High']))
-  const warning = numberFrom(findMetric(root, ['Warning', 'WARN', 'Medium']))
+  const critical = numberFrom(findMetric(root, ['Critical', 'Errors', 'Failed', 'High']))
+  const warning = numberFrom(findMetric(root, ['Warning', 'Medium']))
   const hosts = findMetric(root, ['Hosts']) || String((pageText.match(/[A-Z0-9]+PAPPDC/g) || []).filter((v, i, a) => a.indexOf(v) === i).length || '-')
   const maxRss = findMetric(root, ['Max RSS', 'RSS']) || top.rss
   const rawRows = findMetric(root, ['Raw Rows', 'Rows', 'Evidence']) || '-'
@@ -119,26 +140,27 @@ function buildReport(root, slug = 'comparer') {
   const maxTime = Math.max(...(pageText.match(/\d+(?:\.\d+)?\s*(ms|sec|s)/gi) || ['0']).map(numberFrom), 0)
   const metrics = { critical, warning, hosts, maxRss, rawRows, uniqueRows, maxPct, maxTime }
   const severity = inferSeverity(slug, root, top, metrics)
-  const confidence = severity === 'CRITICAL' ? 'High / 92%' : severity === 'WARNING' ? 'Medium / 78%' : 'Normal / 65%'
+  const confidence = severity === 'CRITICAL' ? 'High' : severity === 'WARNING' ? 'Medium' : 'Normal'
   const bottleneck = slug === 'comparer'
-    ? (numberFrom(maxRss) >= 32 ? 'Memory / RSS pressure' : 'Work process pressure')
+    ? (numberFrom(maxRss) >= 32 ? 'RSS memory pressure' : 'Work process pressure')
     : slug === 'analyzer'
-      ? (maxTime >= 1000 ? 'Response time spike' : maxPct >= 80 ? 'High utilization trend' : meta.focus)
+      ? (maxTime >= 1000 ? 'Response time spike' : maxPct >= 80 ? 'High utilization' : meta.focus)
       : (/TIME_OUT|DUMP|ERROR|FAILED/i.test(pageText) ? 'Repeated error pattern' : meta.focus)
   const reason = severity === 'CRITICAL'
     ? (slug === 'comparer'
-      ? `Bahaya karena RSS ${maxRss || top.rss} dan ${critical || 0} critical offender.`
+      ? `RSS is very high (${maxRss || top.rss}); top process needs immediate check.`
       : slug === 'analyzer'
-        ? `Bahaya karena workload/response indicator melewati threshold atau ada bottleneck dominan.`
-        : `Bahaya karena error/failure pattern berulang atau ada dump/system failure.`)
+        ? 'Top workload item is above normal range; check the dominant component.'
+        : 'Repeated error pattern or dump detected; check the top error family first.')
     : severity === 'WARNING'
-      ? 'Warning karena ada tren naik atau indikator mendekati threshold.'
-      : 'Aman karena belum ada indikator kritikal yang dominan.'
+      ? 'Warning trend detected; monitor and correlate with related SAP evidence.'
+      : 'No dominant critical signal detected in the current view.'
+  const swap = inferSwapState(pageText)
   const trend = {
-    primary: severity === 'CRITICAL' ? 'UP / RED' : severity === 'WARNING' ? 'UP / YELLOW' : 'FLAT / GREEN',
-    rss: numberFrom(maxRss) >= 128 ? 'UP SHARP' : numberFrom(maxRss) >= 32 ? 'UP' : 'FLAT',
-    errors: critical > 0 ? 'UP / CRIT' : warning > 0 ? 'UP / WARN' : 'FLAT',
-    swap: /swap\s*[1-9]|swap si\s*[1-9]/i.test(pageText) ? 'ACTIVE' : 'CLEAR',
+    primary: severity === 'CRITICAL' ? 'RISING / RED' : severity === 'WARNING' ? 'RISING / YELLOW' : 'FLAT / GREEN',
+    rss: numberFrom(maxRss) >= 128 ? 'SPIKE' : numberFrom(maxRss) >= 32 ? 'HIGH' : 'NORMAL',
+    errors: critical > 0 ? 'RISING / RED' : warning > 0 ? 'RISING / YELLOW' : 'FLAT / GREEN',
+    swap,
   }
 
   return {
@@ -195,6 +217,21 @@ async function svgToPng(svg) {
   }
 }
 
+function chartNote(title = '', report) {
+  const t = String(title).toLowerCase()
+  if (t.includes('cpu') || t.includes('mem') || t.includes('swap')) {
+    return report.slug === 'comparer'
+      ? `Read this: CPU is not the main issue if the line is flat. Main risk here is RSS memory. Swap: ${report.trend.swap}.`
+      : 'Read this: rising line means the workload is getting worse. Flat line means stable.'
+  }
+  if (t.includes('rss')) return `Read this: the longest bar is the first process to check. Top RSS is ${report.metrics.maxRss}.`
+  if (t.includes('host')) return 'Read this: the top host has the highest total pressure. Start validation from that host.'
+  if (t.includes('error')) return 'Read this: the longest bar is the most repeated error family. Start from that pattern.'
+  if (t.includes('st03n') || t.includes('problem')) return 'Read this: score near 100 is the heaviest workload item. Check response, DB, wait, and CPU split.'
+  if (t.includes('component')) return 'Read this: the biggest slice shows which component dominates the workload.'
+  return 'Read this: focus on the top item and compare it with the summary status on page 1.'
+}
+
 async function collectCharts(root) {
   const svgs = Array.from(root.querySelectorAll('.recharts-wrapper svg, .chartPanel svg, .rcaReadableChartPanel svg')).slice(0, 8)
   const charts = []
@@ -220,9 +257,9 @@ function statusColor(status = '') {
 
 function statusLabel(status = '') {
   const text = String(status).toUpperCase()
-  if (text.includes('CRIT') || text.includes('RED')) return 'MERAH / BAHAYA'
-  if (text.includes('WARN') || text.includes('YELLOW')) return 'KUNING / WARNING'
-  return 'HIJAU / AMAN'
+  if (text.includes('CRIT') || text.includes('RED')) return 'RED / CHECK NOW'
+  if (text.includes('WARN') || text.includes('YELLOW')) return 'YELLOW / WATCH'
+  return 'GREEN / OK'
 }
 
 function addFooter(pdf, page, report) {
@@ -234,7 +271,7 @@ function addFooter(pdf, page, report) {
     pdf.setTextColor(110, 120, 120)
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(7)
-    pdf.text(`SAP Intelligent RCA Workspace • ${report.generatedAt}`, page.m, page.h - 7)
+    pdf.text(`SAP RCA Workspace • ${report.generatedAt}`, page.m, page.h - 7)
     pdf.text(`Page ${i} / ${pages}`, page.w - page.m - 18, page.h - 7)
   }
 }
@@ -306,7 +343,7 @@ async function exportVisualFirstPdf(slug) {
   pdf.setFontSize(9)
   pdf.setFont('helvetica', 'normal')
   pdf.text(`Generated: ${report.generatedAt}`, page.m, 25)
-  pdf.text('Legend: merah = bahaya, kuning = warning, hijau = aman. Panah naik = memburuk.', page.m, 34)
+  pdf.text('Legend: Red = check now, Yellow = watch, Green = OK. Rising trend = getting worse.', page.m, 34)
   pdf.text(`Why: ${compactText(report.reason, 120)}`, page.m, 43)
 
   yRef.y = 60
@@ -329,41 +366,42 @@ async function exportVisualFirstPdf(slug) {
   drawCard(pdf, page.m + (cardW + 4) * 2, yRef.y, cardW, 22, 'Evidence Rows', report.metrics.rawRows || report.rows.length, sevColor)
   yRef.y += 33
 
-  textLine(pdf, page, yRef, 'Quick Read — mana yang naik, bahaya, atau aman?', 12, 'bold', [0, 90, 84])
+  textLine(pdf, page, yRef, 'Quick Read', 12, 'bold', [0, 90, 84])
   drawTrafficRow(pdf, page.m, yRef.y + 5, 'Overall', statusLabel(report.severity), report.severity, report.reason)
-  drawTrafficRow(pdf, page.m, yRef.y + 13, 'Trend', report.trend.primary, report.severity, report.trend.primary.includes('UP') ? 'Naik berarti makin perlu dicek.' : 'Stabil.')
-  drawTrafficRow(pdf, page.m, yRef.y + 21, 'Pressure', report.slug === 'comparer' ? `${report.metrics.maxRss} / ${report.trend.rss}` : report.bottleneck, report.severity, 'Bahaya jika melewati threshold tool.')
-  drawTrafficRow(pdf, page.m, yRef.y + 29, 'Swap/Error', report.slug === 'comparer' ? report.trend.swap : report.trend.errors, report.trend.swap === 'ACTIVE' || report.trend.errors.includes('CRIT') ? 'CRIT' : report.metrics.warning > 0 ? 'WARN' : 'OK', 'Merah jika aktif/berulang.')
+  drawTrafficRow(pdf, page.m, yRef.y + 13, 'Trend', report.trend.primary, report.severity, report.trend.primary.includes('RISING') ? 'Getting worse. Check it.' : 'Stable.')
+  drawTrafficRow(pdf, page.m, yRef.y + 21, 'Pressure', report.slug === 'comparer' ? `${report.metrics.maxRss} / ${report.trend.rss}` : report.bottleneck, report.severity, 'Red if above normal range.')
+  drawTrafficRow(pdf, page.m, yRef.y + 29, report.slug === 'comparer' ? 'Swap' : 'Error', report.slug === 'comparer' ? report.trend.swap : report.trend.errors, report.trend.swap === 'ACTIVE' || report.trend.errors.includes('RED') ? 'CRIT' : report.metrics.warning > 0 ? 'WARN' : 'OK', 'Red if active or repeated.')
   yRef.y += 40
 
-  textLine(pdf, page, yRef, 'Immediate Actions', 12, 'bold', [0, 90, 84])
+  textLine(pdf, page, yRef, 'Next Checks', 12, 'bold', [0, 90, 84])
   report.actions.forEach((item, index) => textLine(pdf, page, yRef, `${index + 1}. ${item}`, 9, 'normal', [35, 45, 45], 3))
 
   pdf.addPage()
   yRef.y = 16
-  textLine(pdf, page, yRef, 'Visual Evidence — grafik utama', 13, 'bold', [0, 90, 84])
+  textLine(pdf, page, yRef, 'Charts', 13, 'bold', [0, 90, 84])
   const chartMaxW = page.w - page.m * 2
   for (const chart of charts.slice(0, 4)) {
-    if (yRef.y > page.h - 80) {
+    if (yRef.y > page.h - 86) {
       pdf.addPage()
       yRef.y = 16
     }
     textLine(pdf, page, yRef, chart.title, 10, 'bold', [25, 35, 35])
+    textLine(pdf, page, yRef, chartNote(chart.title, report), 8, 'normal', [80, 90, 90])
     const ratio = chart.height / chart.width
     const imgW = chartMaxW
-    const imgH = Math.min(70, imgW * ratio)
+    const imgH = Math.min(66, imgW * ratio)
     pdf.setDrawColor(225, 234, 232)
     pdf.roundedRect(page.m, yRef.y, imgW, imgH + 6, 2, 2)
     pdf.addImage(chart.dataUrl, 'PNG', page.m + 3, yRef.y + 3, imgW - 6, imgH)
     yRef.y += imgH + 12
   }
   if (!charts.length) {
-    textLine(pdf, page, yRef, 'No chart detected in the current view. Export from a parsed/visualized evidence screen to include charts.', 10, 'italic', [90, 100, 100])
+    textLine(pdf, page, yRef, 'No chart detected in the current view. Export from a parsed evidence screen to include charts.', 10, 'italic', [90, 100, 100])
   }
 
   pdf.addPage()
   yRef.y = 16
-  textLine(pdf, page, yRef, 'Top RCA Evidence — bukti utama', 13, 'bold', [0, 90, 84])
+  textLine(pdf, page, yRef, 'Top Evidence', 13, 'bold', [0, 90, 84])
   const headers = ['#', 'STATUS', 'OBJECT', 'KEY', 'DETAIL']
   const widths = [8, 22, 38, 24, page.w - page.m * 2 - 92]
   let x = page.m
@@ -379,7 +417,7 @@ async function exportVisualFirstPdf(slug) {
     const cells = row.cells
     const joined = row.text
     const sev = /\b(CRIT|ERROR|FAIL|HIGH)\b/i.test(joined) ? 'RED' : /\b(WARN|MEDIUM)\b/i.test(joined) ? 'YELLOW' : 'GREEN'
-    const object = cells.find((cell) => /[A-Z0-9]+PAPPDC/i.test(cell)) || cells[0] || '-'
+    const object = cells.find((cell) => !isStatusCell(cell) && /[A-Z0-9]+PAPPDC/i.test(cell)) || cells.find((cell) => !isStatusCell(cell)) || '-'
     const key = cells.find((cell) => /^\d{3,8}$/.test(cell)) || cells[1] || '-'
     const rss = cells.find((cell) => /\d+(?:\.\d+)?\s*GB/i.test(cell)) || ''
     const age = cells.find((cell) => /\d+d|\d+h|\d+m|\d+\s*(ms|sec|s)/i.test(cell)) || ''
@@ -402,11 +440,11 @@ async function exportVisualFirstPdf(slug) {
   })
 
   yRef.y += 8
-  textLine(pdf, page, yRef, 'Evidence Handling Notes', 12, 'bold', [0, 90, 84])
+  textLine(pdf, page, yRef, 'Notes', 12, 'bold', [0, 90, 84])
   ;[
-    'Use this PDF as visual RCA summary; keep raw evidence attached to incident/change record.',
-    'Red status means immediate validation; yellow means monitor and correlate with adjacent SAP evidence.',
-    'If trend remains red after action, collect another snapshot from the same incident window.',
+    'This PDF is a short RCA summary. Keep the raw evidence attached to the ticket.',
+    'Red means check now. Yellow means watch and correlate. Green means no dominant issue in the current view.',
+    'If the same item stays red after action, collect another snapshot from the same time window.',
   ].forEach((item, index) => textLine(pdf, page, yRef, `${index + 1}. ${item}`, 9, 'normal', [35, 45, 45], 3))
 
   addFooter(pdf, page, report)
