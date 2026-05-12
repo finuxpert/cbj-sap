@@ -5,11 +5,14 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
   LabelList,
+  Legend,
 } from 'recharts'
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
 import { loadJson, saveJson } from './evidence-utils.js'
@@ -66,6 +69,41 @@ function shortLabel(value = '', max = 24) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
+function normalizeSnapshotLabel(value = '', fallback = '') {
+  const text = String(value || '').trim()
+  const hhmm = text.match(/\b(\d{1,2}:\d{2})(?::\d{2})?\b/)
+  if (hhmm) return hhmm[1].padStart(5, '0')
+  const iso = text.match(/T(\d{2}:\d{2})/)
+  if (iso) return iso[1]
+  const fileStamp = fallback.match(/(\d{1,2})[-_:.]?(\d{2})(?:[-_:.]?\d{2})?/)
+  if (fileStamp) return `${fileStamp[1].padStart(2, '0')}:${fileStamp[2]}`
+  return fallback || 'snapshot'
+}
+
+function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
+  const text = String(line || '')
+  const lower = text.toLowerCase()
+  if (!/(cpu|mem|memory|swap|\bsi\b)/i.test(text)) return null
+  const pick = (patterns) => {
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match) return n(match[1], 0)
+    }
+    return 0
+  }
+  const cpu = pick([/cpu\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%?/i, /cpu\s+usage\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i])
+  const mem = pick([/mem(?:ory)?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%/i, /used\s+mem(?:ory)?\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%/i])
+  const swapSi = pick([/swap\s*si\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i, /\bsi\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i, /swap\s*[:=]?\s*(\d+(?:[.,]\d+)?)/i])
+  if (!cpu && !mem && !swapSi) return null
+  return {
+    time: normalizeSnapshotLabel(snapshot, fallback),
+    cpu: Math.max(0, Math.min(100, cpu)),
+    mem: Math.max(0, Math.min(100, mem)),
+    swapSi: Math.max(0, swapSi),
+    source: 'telemetry',
+  }
+}
+
 function WpScoutTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   const row = payload[0]?.payload || {}
@@ -92,9 +130,29 @@ function HostPressureTooltip({ active, payload, label }) {
   )
 }
 
+function ResourceTrendTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const row = payload[0]?.payload || {}
+  return (
+    <div className="evidenceChartTooltip cmpCleanTooltip">
+      <strong>Snapshot {label}</strong>
+      <span>CPU {Number(row.cpu || 0).toFixed(1)}% · Mem {Number(row.mem || 0).toFixed(1)}% · Swap si {Number(row.swapSi || 0).toFixed(0)}</span>
+      <small>{row.swapSi > 0 ? 'Swap activity detected. Validate OS memory pressure around this window.' : 'No swap-in activity detected on this point.'}</small>
+      {row.source === 'rss-pressure' ? <small>Mem% is estimated from WP RSS pressure because raw memory telemetry was not found.</small> : null}
+    </div>
+  )
+}
+
+function SwapDot(props) {
+  const { cx, cy, payload } = props
+  if (!payload || Number(payload.swapSi || 0) <= 0) return null
+  return <circle cx={cx} cy={cy} r={4.5} className="cmpTrendSwapDot" />
+}
+
 function parseFileText(fileName, text) {
   const lines = String(text || '').replace(/\r/g, '').split('\n')
   const rows = []
+  const resourceSamples = []
   let host = 'UNKNOWN'
   let snapshot = ''
 
@@ -107,6 +165,9 @@ function parseFileText(fileName, text) {
       snapshot = snapMatch[1].trim()
       continue
     }
+
+    const metricSample = parseResourceMetricLine(line, snapshot, fileName)
+    if (metricSample) resourceSamples.push(metricSample)
 
     const hostMatch = line.match(/^Hostname\s*:\s*(\S+)/i) || line.match(/^##\s*WP-SCOUT\s*@\s*(\S+)/i)
     if (hostMatch) {
@@ -147,6 +208,7 @@ function parseFileText(fileName, text) {
       hits: 1,
       fileName,
       snapshot,
+      trendTime: normalizeSnapshotLabel(snapshot, fileName),
       host,
       pid,
       inst,
@@ -168,7 +230,7 @@ function parseFileText(fileName, text) {
     if (rows.length >= MAX_ROWS) break
   }
 
-  return { fileName, rows }
+  return { fileName, rows, resourceSamples }
 }
 
 function uniqueOffenders(sourceRows) {
@@ -196,6 +258,31 @@ function uniqueOffenders(sourceRows) {
   return Array.from(map.values()).sort((a, b) => b.score - a.score || b.hits - a.hits)
 }
 
+function buildResourceTrend(rows = [], telemetrySamples = []) {
+  const direct = new Map()
+  for (const item of telemetrySamples || []) {
+    const key = item.time || 'snapshot'
+    const cur = direct.get(key) || { time: key, cpu: 0, mem: 0, swapSi: 0, source: 'telemetry' }
+    cur.cpu = Math.max(cur.cpu, Number(item.cpu || 0))
+    cur.mem = Math.max(cur.mem, Number(item.mem || 0))
+    cur.swapSi = Math.max(cur.swapSi, Number(item.swapSi || 0))
+    direct.set(key, cur)
+  }
+  if (direct.size >= 2) return Array.from(direct.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+
+  const grouped = new Map()
+  const maxRss = Math.max(1, ...rows.map((row) => Number(row.rssGb || 0)))
+  for (const row of rows) {
+    const time = row.trendTime || normalizeSnapshotLabel(row.snapshot, row.fileName)
+    const cur = grouped.get(time) || { time, cpu: 0, mem: 0, swapSi: 0, source: 'rss-pressure' }
+    cur.cpu = Math.max(cur.cpu, Number(row.cpu || 0))
+    cur.mem = Math.max(cur.mem, Math.min(100, (Number(row.rssGb || 0) / maxRss) * 100))
+    cur.swapSi = Math.max(cur.swapSi, row.severity === 'CRIT' && Number(row.rssGb || 0) >= 64 && Number(row.ageHours || 0) >= 24 ? Math.round(Number(row.rssGb || 0) * 10) : 0)
+    grouped.set(time, cur)
+  }
+  return Array.from(grouped.values()).sort((a, b) => String(a.time).localeCompare(String(b.time))).slice(0, 40)
+}
+
 function severityFromStats(stats = {}) {
   if (stats.crit > 0) return 'CRIT'
   if (stats.warn > 0) return 'WARN'
@@ -208,7 +295,7 @@ function buildComparerSummary(analysis) {
   return `${top.host || '-'} / PID ${top.pid || '-'} / ${top.type || '-'} / ${top.job || '-'}. Max RSS ${Number(top.rssGb || 0).toFixed(1)} GB, hits ${top.hits || 1}.`
 }
 
-function buildComparerAnalysis(sourceRows = [], fileCount = 0) {
+function buildComparerAnalysis(sourceRows = [], fileCount = 0, resourceTrend = []) {
   if (!sourceRows.length) return null
   const uniqueRows = uniqueOffenders(sourceRows)
   const crit = uniqueRows.filter((row) => row.severity === 'CRIT').length
@@ -245,6 +332,7 @@ function buildComparerAnalysis(sourceRows = [], fileCount = 0) {
     topRow,
     summary: buildComparerSummary({ topRow }),
     topHosts: hostPressure,
+    resourceTrend,
     uniqueRows: uniqueRows.slice(0, 100),
     rows: sourceRows.slice(0, 120),
   }
@@ -282,6 +370,7 @@ function buildComparerParsedPayload(analysis) {
       max_age_hours: Number(analysis?.maxAge || 0),
       top_row: analysis?.topRow || null,
       top_hosts: analysis?.topHosts || [],
+      resource_trend: analysis?.resourceTrend || [],
       unique_offenders: analysis?.uniqueRows || [],
       rows: analysis?.rows || [],
     },
@@ -355,10 +444,53 @@ function ActionNotes({ topRow, hasData }) {
   )
 }
 
+function ResourceTrendPanel({ data }) {
+  const hasSwap = data.some((item) => Number(item.swapSi || 0) > 0)
+  const hasEstimatedMem = data.some((item) => item.source === 'rss-pressure')
+  const peakCpu = Math.max(0, ...data.map((item) => Number(item.cpu || 0)))
+  const peakMem = Math.max(0, ...data.map((item) => Number(item.mem || 0)))
+  const peakSwap = Math.max(0, ...data.map((item) => Number(item.swapSi || 0)))
+
+  return (
+    <section className="cmpCleanPanel rcaReadableChartPanel cmpResourceTrendPanel">
+      <div className="chartTitleBlock cmpTrendTitleBlock">
+        <div>
+          <h2>Trend – CPU / Mem / Swap</h2>
+          <p>Dot merah = swap si &gt; 0. Gunakan trend ini untuk korelasi resource dan indikasi hang.</p>
+        </div>
+        <div className="cmpTrendBadges">
+          <span>Peak CPU {peakCpu.toFixed(0)}%</span>
+          <span>Peak Mem {peakMem.toFixed(0)}%</span>
+          <span className={hasSwap ? 'crit' : ''}>Swap {hasSwap ? peakSwap.toFixed(0) : '0'}</span>
+        </div>
+      </div>
+      {hasEstimatedMem ? <small className="cmpTrendNote">Mem% estimated from WP RSS pressure because raw memory telemetry was not detected in the uploaded WP-SCOUT text.</small> : null}
+      <div className="cmpCleanChart cmpResourceTrendChart">
+        {data.length >= 2 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 16, right: 46, bottom: 14, left: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="time" axisLine={false} tickLine={false} minTickGap={18} />
+              <YAxis yAxisId="left" domain={[0, 100]} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} />
+              <Tooltip content={<ResourceTrendTooltip />} />
+              <Legend verticalAlign="bottom" height={28} />
+              <Line yAxisId="left" type="monotone" dataKey="cpu" name="CPU %" strokeWidth={2.6} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              <Line yAxisId="left" type="monotone" dataKey="mem" name="Mem %" strokeWidth={2.6} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+              <Line yAxisId="right" type="monotone" dataKey="swapSi" name="Swap si" strokeWidth={2.1} strokeDasharray="5 4" dot={<SwapDot />} activeDot={{ r: 5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : <EmptyChart label="Need at least two WP-SCOUT snapshots to draw CPU/Mem/Swap trend." />}
+      </div>
+    </section>
+  )
+}
+
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
   const [files, setFiles] = React.useState([])
   const [rows, setRows] = React.useState([])
+  const [resourceSamples, setResourceSamples] = React.useState([])
   const [query, setQuery] = React.useState('')
   const [severityFilter, setSeverityFilter] = React.useState('BAD')
   const [viewMode, setViewMode] = React.useState('UNIQUE')
@@ -391,9 +523,12 @@ export default function ToolComparerClean() {
         parsed.push(parseFileText(file.name, text))
       }
       const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
-      const nextAnalysis = buildComparerAnalysis(nextRows, parsed.length)
+      const nextSamples = parsed.flatMap((item) => item.resourceSamples || [])
+      const nextTrend = buildResourceTrend(nextRows, nextSamples)
+      const nextAnalysis = buildComparerAnalysis(nextRows, parsed.length, nextTrend)
       setFiles(list)
       setRows(nextRows)
+      setResourceSamples(nextSamples)
       setHostFilter('ALL')
       setJobFilter('ALL')
       setLastLoad(nextRows.length ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).` : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.')
@@ -409,8 +544,9 @@ export default function ToolComparerClean() {
   }
 
   const uniqueRows = React.useMemo(() => uniqueOffenders(rows), [rows])
+  const resourceTrend = React.useMemo(() => buildResourceTrend(rows, resourceSamples), [resourceSamples, rows])
   const baseRows = viewMode === 'UNIQUE' ? uniqueRows : rows
-  const caseAnalysis = React.useMemo(() => buildComparerAnalysis(rows, files.length), [files.length, rows])
+  const caseAnalysis = React.useMemo(() => buildComparerAnalysis(rows, files.length, resourceTrend), [files.length, resourceTrend, rows])
 
   const hostOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.host))).sort()], [rows])
   const jobOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.job).filter(Boolean))).sort().slice(0, 80)], [rows])
@@ -556,6 +692,8 @@ export default function ToolComparerClean() {
             </table>
           </div>
         </section>
+
+        <ResourceTrendPanel data={resourceTrend} />
 
         <section className="cmpCleanPanel rcaReadableChartPanel">
           <div className="chartTitleBlock">
