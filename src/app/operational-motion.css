@@ -35,6 +35,11 @@
   100% { transform: translateY(100%); opacity: 0; }
 }
 
+@keyframes rcaDockGlow {
+  0%, 100% { box-shadow: 0 18px 46px rgba(0,0,0,.24), 0 0 0 rgba(45,212,191,0); }
+  50% { box-shadow: 0 18px 46px rgba(0,0,0,.26), 0 0 22px rgba(45,212,191,.12); }
+}
+
 .evidenceHero,
 .sessionBanner,
 .evidencePanel,
@@ -176,15 +181,141 @@
 }
 
 .sapPdfDock {
+  border: 1px solid rgba(45,212,191,.22);
+  background:
+    radial-gradient(circle at top right, rgba(45,212,191,.12), transparent 40%),
+    rgba(5,18,22,.92);
+  box-shadow: 0 18px 46px rgba(0,0,0,.24);
+  backdrop-filter: blur(14px);
   transition:
     transform var(--motion-med) var(--motion-ease),
     opacity var(--motion-med) var(--motion-ease),
-    filter var(--motion-med) var(--motion-ease);
+    filter var(--motion-med) var(--motion-ease),
+    border-color var(--motion-med) var(--motion-ease),
+    box-shadow var(--motion-med) var(--motion-ease);
 }
 
 .sapPdfDock:hover {
   transform: translateY(-2px) scale(1.01);
+  border-color: rgba(45,212,191,.38);
   opacity: 1;
+  animation: rcaDockGlow 2.6s var(--motion-ease) infinite;
+}
+
+.sapPdfDock button {
+  border-color: rgba(45,212,191,.28);
+  background: rgba(45,212,191,.10);
+  color: rgba(220,255,250,.96);
+  font-weight: 850;
+}
+
+.caseHistoryCard,
+.caseDetailPanel,
+.caseFullDetailDisclosure,
+.replayTimelineCard {
+  position: relative;
+  overflow: hidden;
+}
+
+.caseHistoryCard::before,
+.caseDetailPanel::before,
+.caseFullDetailDisclosure::before,
+.replayTimelineCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, rgba(45,212,191,.75), rgba(56,189,248,.36));
+  opacity: .75;
+}
+
+.caseHistoryCard:hover::before,
+.caseDetailPanel:hover::before,
+.replayTimelineCard:hover::before {
+  opacity: 1;
+}
+
+.caseHistorySeverity,
+.caseSeverityBadge,
+.caseStatusBadge,
+.caseMetaBadge,
+.sessionBadge,
+.rcaBadge {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    background var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+.caseHistorySeverity:hover,
+.caseSeverityBadge:hover,
+.caseStatusBadge:hover,
+.caseMetaBadge:hover,
+.sessionBadge:hover,
+.rcaBadge:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45,212,191,.34);
+  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+}
+
+.replayTimeline,
+.sessionReplayPanel,
+.replayRail,
+.caseTimelineRail {
+  position: relative;
+}
+
+.replayTimelineCard,
+.replayTimelineItem,
+.sessionReplayEvent,
+.replayRailItem,
+.caseTimelineItem {
+  isolation: isolate;
+}
+
+.replayTimelineCard summary,
+.caseFullDetailDisclosure summary,
+.chartDetailDisclosure summary {
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--motion-ease), transform var(--motion-fast) var(--motion-ease);
+}
+
+.replayTimelineCard summary:hover,
+.caseFullDetailDisclosure summary:hover,
+.chartDetailDisclosure summary:hover {
+  color: rgba(94,234,212,.96);
+  transform: translateX(2px);
+}
+
+/* Generic RCA tool parity: elevate ST03N / WP-SCOUT style surfaces without touching component code. */
+.appShell.isTool .fullBleed > section:not(.evidenceToolShell),
+.appShell.isTool .fullBleed .toolShell,
+.appShell.isTool .fullBleed .workspaceShell,
+.appShell.isTool .fullBleed .analyzerShell {
+  animation: rcaPanelEnter var(--motion-slow) var(--motion-ease) both;
+}
+
+.appShell.isTool .fullBleed .card,
+.appShell.isTool .fullBleed .panel,
+.appShell.isTool .fullBleed .metricCard,
+.appShell.isTool .fullBleed .summaryCard,
+.appShell.isTool .fullBleed .insightCard {
+  transition:
+    transform var(--motion-med) var(--motion-ease),
+    border-color var(--motion-med) var(--motion-ease),
+    background var(--motion-med) var(--motion-ease),
+    box-shadow var(--motion-med) var(--motion-ease);
+}
+
+.appShell.isTool .fullBleed .card:hover,
+.appShell.isTool .fullBleed .panel:hover,
+.appShell.isTool .fullBleed .metricCard:hover,
+.appShell.isTool .fullBleed .summaryCard:hover,
+.appShell.isTool .fullBleed .insightCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45,212,191,.26);
+  box-shadow: 0 14px 38px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 @media (max-width: 760px) {
@@ -193,7 +324,12 @@
   .caseHistoryCard:hover,
   .caseDetailPanel:hover,
   .replayTimelineCard:hover,
-  .intelPanel:hover {
+  .intelPanel:hover,
+  .appShell.isTool .fullBleed .card:hover,
+  .appShell.isTool .fullBleed .panel:hover,
+  .appShell.isTool .fullBleed .metricCard:hover,
+  .appShell.isTool .fullBleed .summaryCard:hover,
+  .appShell.isTool .fullBleed .insightCard:hover {
     transform: none;
   }
 
@@ -209,6 +345,17 @@
   .replayTimeline::after {
     animation-duration: 3.4s;
     opacity: .38;
+  }
+
+  .sapPdfDock {
+    max-width: calc(100vw - 24px);
+  }
+
+  .caseHistoryCard::before,
+  .caseDetailPanel::before,
+  .caseFullDetailDisclosure::before,
+  .replayTimelineCard::before {
+    width: 2px;
   }
 }
 
