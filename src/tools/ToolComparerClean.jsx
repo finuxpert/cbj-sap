@@ -285,13 +285,45 @@ function buildResourceTrend(rows = [], telemetrySamples = []) {
   const direct = new Map()
   for (const item of telemetrySamples || []) {
     const key = item.time || 'snapshot'
-    const cur = direct.get(key) || { time: key, cpu: 0, mem: 0, swapSi: 0, source: 'telemetry' }
-    cur.cpu = Math.max(cur.cpu, Number(item.cpu || 0))
-    cur.mem = Math.max(cur.mem, Number(item.mem || 0))
+    const cur = direct.get(key) || {
+      time: key,
+      cpuSum: 0,
+      cpuCount: 0,
+      memSum: 0,
+      memCount: 0,
+      swapSi: 0,
+      source: 'telemetry',
+    }
+
+    const cpu = Number(item.cpu || 0)
+    const mem = Number(item.mem || 0)
+
+    if (cpu > 0) {
+      cur.cpuSum += cpu
+      cur.cpuCount += 1
+    }
+
+    if (mem > 0) {
+      cur.memSum += mem
+      cur.memCount += 1
+    }
+
+    // Swap is an event/rate signal. Keep max so short spikes remain visible.
     cur.swapSi = Math.max(cur.swapSi, Number(item.swapSi || 0))
     direct.set(key, cur)
   }
-  if (direct.size >= 2) return Array.from(direct.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+
+  if (direct.size >= 2) {
+    return Array.from(direct.values())
+      .map((item) => ({
+        time: item.time,
+        cpu: item.cpuCount ? item.cpuSum / item.cpuCount : 0,
+        mem: item.memCount ? item.memSum / item.memCount : 0,
+        swapSi: item.swapSi,
+        source: 'telemetry',
+      }))
+      .sort((a, b) => String(a.time).localeCompare(String(b.time)))
+  }
 
   const grouped = new Map()
   const maxRss = Math.max(1, ...rows.map((row) => Number(row.rssGb || 0)))
