@@ -115,7 +115,9 @@
   pointer-events: none;
 }
 
-.replayTimeline::after {
+.replayTimeline::after,
+.caseTimelineRail::after,
+.incidentTimelineRail::after {
   content: "";
   position: absolute;
   left: 7px;
@@ -126,6 +128,23 @@
   border-radius: 999px;
   animation: rcaRailScan 2.8s var(--motion-ease) infinite;
   opacity: .55;
+}
+
+.incidentTimelineRail {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(45,212,191,.14);
+  background: linear-gradient(180deg, rgba(45,212,191,.05), rgba(8,18,22,.82));
+}
+
+.incidentTimelineRail::before {
+  content: "LIVE INCIDENT FLOW";
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 10px;
+  letter-spacing: .18em;
+  color: rgba(94,234,212,.72);
 }
 
 .replayTimelineMarker {
@@ -187,32 +206,14 @@
     rgba(5,18,22,.92);
   box-shadow: 0 18px 46px rgba(0,0,0,.24);
   backdrop-filter: blur(14px);
-  transition:
-    transform var(--motion-med) var(--motion-ease),
-    opacity var(--motion-med) var(--motion-ease),
-    filter var(--motion-med) var(--motion-ease),
-    border-color var(--motion-med) var(--motion-ease),
-    box-shadow var(--motion-med) var(--motion-ease);
-}
-
-.sapPdfDock:hover {
-  transform: translateY(-2px) scale(1.01);
-  border-color: rgba(45,212,191,.38);
-  opacity: 1;
-  animation: rcaDockGlow 2.6s var(--motion-ease) infinite;
-}
-
-.sapPdfDock button {
-  border-color: rgba(45,212,191,.28);
-  background: rgba(45,212,191,.10);
-  color: rgba(220,255,250,.96);
-  font-weight: 850;
 }
 
 .caseHistoryCard,
 .caseDetailPanel,
 .caseFullDetailDisclosure,
-.replayTimelineCard {
+.replayTimelineCard,
+.offenderQueueRow,
+.evidenceCompactRow {
   position: relative;
   overflow: hidden;
 }
@@ -220,7 +221,9 @@
 .caseHistoryCard::before,
 .caseDetailPanel::before,
 .caseFullDetailDisclosure::before,
-.replayTimelineCard::before {
+.replayTimelineCard::before,
+.offenderQueueRow::before,
+.evidenceCompactRow::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
@@ -229,133 +232,65 @@
   opacity: .75;
 }
 
-.caseHistoryCard:hover::before,
-.caseDetailPanel:hover::before,
-.replayTimelineCard:hover::before {
-  opacity: 1;
+.offenderQueueRow:hover,
+.evidenceCompactRow:hover {
+  background: rgba(45,212,191,.05);
 }
 
-.caseHistorySeverity,
-.caseSeverityBadge,
-.caseStatusBadge,
-.caseMetaBadge,
-.sessionBadge,
-.rcaBadge {
-  transition:
-    transform var(--motion-fast) var(--motion-ease),
-    border-color var(--motion-fast) var(--motion-ease),
-    background var(--motion-fast) var(--motion-ease),
-    box-shadow var(--motion-fast) var(--motion-ease);
+.compactEvidenceText,
+.evidenceSecondary,
+.offenderMeta,
+.timelineSecondary {
+  opacity: .72;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
-.caseHistorySeverity:hover,
-.caseSeverityBadge:hover,
-.caseStatusBadge:hover,
-.caseMetaBadge:hover,
-.sessionBadge:hover,
-.rcaBadge:hover {
-  transform: translateY(-1px);
-  border-color: rgba(45,212,191,.34);
-  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+.stickyIncidentCockpit,
+.incidentCockpitStrip {
+  position: sticky;
+  top: 0;
+  z-index: 24;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(180deg, rgba(14,20,28,.96), rgba(14,20,28,.84));
+  border-bottom: 1px solid rgba(45,212,191,.18);
+  box-shadow: 0 10px 28px rgba(0,0,0,.18);
 }
 
-.replayTimeline,
-.sessionReplayPanel,
-.replayRail,
-.caseTimelineRail {
-  position: relative;
+.incidentCockpitStrip {
+  overflow-x: auto;
 }
 
-.replayTimelineCard,
-.replayTimelineItem,
-.sessionReplayEvent,
-.replayRailItem,
-.caseTimelineItem {
-  isolation: isolate;
+.incidentCockpitStrip::-webkit-scrollbar {
+  display: none;
 }
 
-.replayTimelineCard summary,
-.caseFullDetailDisclosure summary,
-.chartDetailDisclosure summary {
-  cursor: pointer;
-  transition: color var(--motion-fast) var(--motion-ease), transform var(--motion-fast) var(--motion-ease);
-}
-
-.replayTimelineCard summary:hover,
-.caseFullDetailDisclosure summary:hover,
-.chartDetailDisclosure summary:hover {
-  color: rgba(94,234,212,.96);
-  transform: translateX(2px);
-}
-
-/* Generic RCA tool parity: elevate ST03N / WP-SCOUT style surfaces without touching component code. */
-.appShell.isTool .fullBleed > section:not(.evidenceToolShell),
-.appShell.isTool .fullBleed .toolShell,
-.appShell.isTool .fullBleed .workspaceShell,
-.appShell.isTool .fullBleed .analyzerShell {
-  animation: rcaPanelEnter var(--motion-slow) var(--motion-ease) both;
-}
-
-.appShell.isTool .fullBleed .card,
-.appShell.isTool .fullBleed .panel,
-.appShell.isTool .fullBleed .metricCard,
-.appShell.isTool .fullBleed .summaryCard,
-.appShell.isTool .fullBleed .insightCard {
-  transition:
-    transform var(--motion-med) var(--motion-ease),
-    border-color var(--motion-med) var(--motion-ease),
-    background var(--motion-med) var(--motion-ease),
-    box-shadow var(--motion-med) var(--motion-ease);
-}
-
-.appShell.isTool .fullBleed .card:hover,
-.appShell.isTool .fullBleed .panel:hover,
-.appShell.isTool .fullBleed .metricCard:hover,
-.appShell.isTool .fullBleed .summaryCard:hover,
-.appShell.isTool .fullBleed .insightCard:hover {
-  transform: translateY(-1px);
-  border-color: rgba(45,212,191,.26);
-  box-shadow: 0 14px 38px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.04);
+.caseSeverityBadge.crit,
+.rcaBadge.crit {
+  box-shadow: 0 0 18px rgba(248,113,113,.24);
 }
 
 @media (max-width: 760px) {
-  .evidencePanel:hover,
-  .decisionCard:hover,
-  .caseHistoryCard:hover,
-  .caseDetailPanel:hover,
-  .replayTimelineCard:hover,
-  .intelPanel:hover,
-  .appShell.isTool .fullBleed .card:hover,
-  .appShell.isTool .fullBleed .panel:hover,
-  .appShell.isTool .fullBleed .metricCard:hover,
-  .appShell.isTool .fullBleed .summaryCard:hover,
-  .appShell.isTool .fullBleed .insightCard:hover {
-    transform: none;
-  }
-
-  .evidencePanel,
-  .decisionCard,
+  .offenderQueueRow,
+  .evidenceCompactRow,
   .caseHistoryCard,
-  .caseDetailPanel,
-  .caseDashboardHero,
-  .caseAnalyticsQuickSummary {
-    animation-duration: 260ms;
+  .caseDetailPanel {
+    border-radius: 16px;
   }
 
-  .replayTimeline::after {
-    animation-duration: 3.4s;
-    opacity: .38;
+  .incidentTimelineRail {
+    min-height: 140px;
   }
 
-  .sapPdfDock {
-    max-width: calc(100vw - 24px);
+  .compactEvidenceText,
+  .evidenceSecondary,
+  .offenderMeta,
+  .timelineSecondary {
+    font-size: 11px;
   }
 
-  .caseHistoryCard::before,
-  .caseDetailPanel::before,
-  .caseFullDetailDisclosure::before,
-  .replayTimelineCard::before {
-    width: 2px;
+  .incidentCockpitStrip {
+    padding-bottom: 6px;
   }
 }
 
