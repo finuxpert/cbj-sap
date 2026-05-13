@@ -14,6 +14,7 @@ import {
   drawPdfTableHeader,
   drawPdfTableRow,
 } from './wpScoutVisualPdfEnterpriseV5Primitives.js'
+import { appendixPage } from './wpScoutVisualPdfEnterpriseV5Appendix.js'
 
 const STATUS_ONLY_RE = /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i
 const TYPE_RE = /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|UP2|ICM|GATEWAY|\?)$/i
@@ -318,36 +319,6 @@ function checklistPage(pdf, y, report) {
     pdf.setFontSize(8.3)
     pdf.text(pdf.splitTextToSize(item, page.w - page.m * 2 - 18), page.m + 18, y.value + 5.3)
     y.value += 15
-  })
-}
-
-function appendixPage(pdf, y, report) {
-  pdf.addPage('a4', 'portrait')
-  const page = pageOf(pdf)
-  y.value = 16
-  drawPdfSectionTitle(pdf, page, y, 'Evidence Correlation Summary', 'Top rows are preserved in compact form for reviewer traceability.', { colors: C })
-  const rows = report.rows.length ? report.rows : [report.top]
-  const headers = ['#', 'STATUS', 'HOST', 'PID', 'TYPE', 'RSS', 'AGE/JOB']
-  const widths = [8, 22, 35, 21, 17, 22, page.w - page.m * 2 - 125]
-  const drawHeader = () => drawPdfTableHeader(pdf, page, y, headers, widths, { colors: C })
-  drawHeader()
-  rows.slice(0, 36).forEach((row, index) => {
-    if (y.value > page.h - 28) {
-      pdf.addPage('a4', 'portrait')
-      Object.assign(page, pageOf(pdf))
-      y.value = 16
-      drawHeader()
-    }
-    const status = row.status === 'CRIT' ? 'RED' : row.status === 'WARN' ? 'YELLOW' : 'GREEN'
-    drawPdfTableRow(pdf, page, y, [String(index + 1), status, row.host, row.pid, row.type, row.rss, compact([row.age, row.job].filter(Boolean).join(' / '), 80)], widths, {
-      colors: C,
-      index,
-      height: 9,
-      fontSize: 7.1,
-      boldColumns: [1],
-      colorForColumn: (value, col) => (col === 1 ? statusColor(value, C) : C.ink),
-      limit: 58,
-    })
   })
 }
 
