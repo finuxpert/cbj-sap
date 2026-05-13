@@ -46,15 +46,16 @@ function topGroups(map, limit = 8) {
     .slice(0, limit)
 }
 
-function drawGroupedSummary(pdf, page, y, report) {
+function drawGroupedSummary(pdf, page, y, report, profile) {
   const rows = report.rows.length ? report.rows : [report.top]
   const byHost = topGroups(groupedBy(rows, (row) => safeKey(row.host)), 6)
   const byType = topGroups(groupedBy(rows, (row) => safeKey(row.type)), 6)
+  const rowCap = Number(profile?.appendixRowCap ?? 36)
   const summaryRows = [
     ['Severity Groups', `RED ${report.metrics.critical} / YELLOW ${report.metrics.warning} / GREEN ${report.metrics.ok}`, 'Primary triage grouping'],
     ['Host Groups', String(byHost.length), 'Sorted by RED count, warning count, then max RSS'],
     ['Type Groups', String(byType.length), 'Sorted by RED count, warning count, then max RSS'],
-    ['Appendix Row Cap', '36 detailed rows', 'Protects browser memory for large evidence exports'],
+    ['Appendix Row Cap', rowCap > 0 ? `${rowCap} detailed rows` : 'Disabled by profile', `Profile: ${profile?.label || 'Standard RCA Report'}`],
   ]
   const widths = [42, 58, page.w - page.m * 2 - 100]
 
@@ -90,13 +91,19 @@ function drawGroupCards(pdf, page, y, title, groups) {
   y.value += 6
 }
 
-function drawDetailedRows(pdf, page, y, rows) {
+function drawDetailedRows(pdf, page, y, rows, rowCap) {
+  const cappedRows = rows.slice(0, Math.max(0, Number(rowCap || 0)))
   const headers = ['#', 'STATUS', 'HOST', 'PID', 'TYPE', 'RSS', 'AGE/JOB']
   const widths = [8, 22, 35, 21, 17, 22, page.w - page.m * 2 - 125]
   const drawHeader = () => drawPdfTableHeader(pdf, page, y, headers, widths, { colors: C })
 
+  if (!cappedRows.length) {
+    writePdfText(pdf, page, y, 'Detailed rows are disabled for this export profile.', { size: 8.5, style: 'italic', color: C.muted })
+    return
+  }
+
   drawHeader()
-  rows.slice(0, 36).forEach((row, index) => {
+  cappedRows.forEach((row, index) => {
     if (y.value > page.h - 28) {
       pdf.addPage('a4', 'portrait')
       Object.assign(page, pageOf(pdf))
@@ -115,18 +122,24 @@ function drawDetailedRows(pdf, page, y, rows) {
       limit: 58,
     })
   })
+
+  if (rows.length > cappedRows.length) {
+    y.value += 4
+    writePdfText(pdf, page, y, `${rows.length - cappedRows.length} additional row(s) were intentionally omitted by the active PDF profile row cap.`, { size: 8.2, style: 'italic', color: C.muted })
+  }
 }
 
-export function appendixPage(pdf, y, report) {
+export function appendixPage(pdf, y, report, profile = {}) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
   y.value = 16
   const rows = sortRows(report.rows.length ? report.rows : [report.top])
   const byHost = topGroups(groupedBy(rows, (row) => safeKey(row.host)), 6)
   const byType = topGroups(groupedBy(rows, (row) => safeKey(row.type)), 6)
+  const rowCap = Number(profile.appendixRowCap ?? 36)
 
   drawPdfSectionTitle(pdf, page, y, 'Grouped Evidence Appendix', 'Evidence is grouped by severity, host, and process type so Basis can triage from highest operational risk first.', { colors: C })
-  drawGroupedSummary(pdf, page, y, report)
+  drawGroupedSummary(pdf, page, y, report, profile)
   drawGroupCards(pdf, page, y, 'Top Host Groups', byHost)
   drawGroupCards(pdf, page, y, 'Top Process Type Groups', byType)
 
@@ -137,7 +150,7 @@ export function appendixPage(pdf, y, report) {
   }
 
   writePdfText(pdf, page, y, 'Detailed Evidence Rows — Severity First', { size: 11, style: 'bold', color: C.teal })
-  writePdfText(pdf, page, y, 'Rows are sorted by severity and RSS. Large exports are capped to keep browser-side PDF rendering stable.', { size: 8.5, color: C.muted })
+  writePdfText(pdf, page, y, `Rows are sorted by severity and RSS. This profile exports up to ${Math.max(0, rowCap)} detailed row(s).`, { size: 8.5, color: C.muted })
   y.value += 4
-  drawDetailedRows(pdf, page, y, rows)
+  drawDetailedRows(pdf, page, y, rows, rowCap)
 }
