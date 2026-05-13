@@ -1,5 +1,5 @@
 import { exportStructuredPdf as exportPolishedStructuredPdf } from './structuredPdfPolished.js'
-import { exportWpScoutVisualPdf } from './wpScoutVisualPdfEnterpriseV4.js'
+import { exportWpScoutVisualPdf } from './wpScoutVisualPdfEnterpriseV5.js'
 
 export async function exportStructuredPdf(slug) {
   if (slug === 'comparer') {
