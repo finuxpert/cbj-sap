@@ -81,6 +81,80 @@
   color: #b91c1c;
 }
 
+.cmpDirectPdfPrepSummary {
+  margin-top: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.cmpDirectPdfPrepKpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.cmpDirectPdfPrepKpi {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+  border: 1px solid rgba(16, 185, 129, 0.12);
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.cmpDirectPdfPrepKpi span {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.cmpDirectPdfPrepKpi strong {
+  color: #064e3b;
+  font-size: 0.92rem;
+}
+
+.cmpDirectPdfPrepTrend {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  padding: 10px;
+}
+
+.cmpDirectPdfPrepTrendTitle {
+  color: #0f172a;
+  font-size: 0.76rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.cmpDirectPdfPrepTrendRows {
+  display: grid;
+  gap: 6px;
+}
+
+.cmpDirectPdfPrepTrendRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  border-radius: 10px;
+  background: rgba(240, 253, 244, 0.7);
+  padding: 8px;
+}
+
+.cmpDirectPdfPrepTrendRow span {
+  color: #334155;
+  font-weight: 700;
+}
+
+.cmpDirectPdfPrepTrendRow strong {
+  color: #065f46;
+}
+
 .cmpDirectPdfPrepHint {
   margin-top: 4px;
   color: #64748b;
@@ -107,5 +181,14 @@
   .cmpDirectPdfPrepClear {
     flex: 1;
     text-align: center;
+  }
+
+  .cmpDirectPdfPrepKpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cmpDirectPdfPrepTrendRow {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
