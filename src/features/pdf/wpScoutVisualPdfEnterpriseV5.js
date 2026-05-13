@@ -366,7 +366,7 @@ function buildSectionRegistry(report, profile) {
     { id: 'data-quality', title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', enabled: true, render: ({ pdf, y }) => dataQualityPage(pdf, y, report) },
     { id: 'kpi-delta', title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', enabled: true, render: ({ pdf, y }) => kpiDeltaPage(pdf, y, report) },
     { id: 'checklist', title: 'RCA Action Checklist', owner: 'Basis / Job Owner', enabled: true, render: ({ pdf, y }) => checklistPage(pdf, y, report) },
-    { id: 'appendix', title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', enabled: true, render: ({ pdf, y }) => appendixPage(pdf, y, report) },
+    { id: 'appendix', title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', enabled: true, render: ({ pdf, y }) => appendixPage(pdf, y, report, profile) },
   ]
     .filter((section) => section.enabled && isSectionEnabledForProfile(section.id, profile))
     .map((section, index) => ({ ...section, page: index + 1 }))
