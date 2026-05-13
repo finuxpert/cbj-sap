@@ -15,6 +15,7 @@ import {
   drawPdfTableRow,
 } from './wpScoutVisualPdfEnterpriseV5Primitives.js'
 import { appendixPage } from './wpScoutVisualPdfEnterpriseV5Appendix.js'
+import { isSectionEnabledForProfile, resolveWpScoutPdfProfileFromDom } from './wpScoutVisualPdfEnterpriseV5Profiles.js'
 
 const STATUS_ONLY_RE = /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i
 const TYPE_RE = /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|UP2|ICM|GATEWAY|\?)$/i
@@ -170,7 +171,7 @@ function buildNarrative(report) {
   }
 }
 
-function cover(pdf, page, y, report) {
+function cover(pdf, page, y, report, profile) {
   pdf.setFillColor(...C.dark)
   pdf.rect(0, 0, page.w, 53, 'F')
   pdf.setFillColor(...report.color)
@@ -182,7 +183,7 @@ function cover(pdf, page, y, report) {
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(9)
   pdf.text(`Generated: ${report.generatedAt}`, page.m, 25)
-  pdf.text('Deterministic V5 export: executive narrative, KPI delta, impact score, checklist, appendix.', page.m, 34)
+  pdf.text(`Profile: ${profile.label} • Deterministic export with V4 fallback.`, page.m, 34)
   y.value = 63
   pdf.setTextColor(...report.color)
   pdf.setFont('helvetica', 'bold')
@@ -190,7 +191,7 @@ function cover(pdf, page, y, report) {
   pdf.text(`${report.severity} — ${statusLabel(report.severity)}`, page.m, y.value)
   pdf.setTextColor(...C.ink)
   pdf.setFontSize(9)
-  pdf.text(`RCA confidence: ${report.confidence} • Data quality: ${report.dataQuality.confidence} • Owner: Basis / Infrastructure`, page.m, y.value + 7)
+  pdf.text(`RCA confidence: ${report.confidence} • Data quality: ${report.dataQuality.confidence} • Audience: ${profile.intendedAudience}`, page.m, y.value + 7)
   y.value += 18
   const barW = page.w - page.m * 2
   pdf.setTextColor(...C.teal)
@@ -216,11 +217,11 @@ function cover(pdf, page, y, report) {
   y.value += 32
 }
 
-function indexPage(pdf, y, report, sections) {
+function indexPage(pdf, y, report, sections, profile) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
   y.value = 16
-  drawPdfSectionTitle(pdf, page, y, 'Report Index', 'Cross-page section map for executive review, Basis triage, and incident attachment.', { colors: C })
+  drawPdfSectionTitle(pdf, page, y, 'Report Index', `Profile: ${profile.label} • ${profile.description}`, { colors: C })
   const rows = sections.map((section, index) => [String(index + 1), section.title, `Page ${section.page}`, section.owner])
   const widths = [11, page.w - page.m * 2 - 86, 25, 50]
   drawPdfTableHeader(pdf, page, y, ['#', 'SECTION', 'PAGE', 'PRIMARY OWNER'], widths, { colors: C })
@@ -357,32 +358,35 @@ function footer(pdf, report) {
   }
 }
 
-function buildSectionRegistry(report) {
+function buildSectionRegistry(report, profile) {
   return [
-    { id: 'cover', title: 'Executive RCA Cover', owner: 'Management / Basis', page: 1, enabled: true, render: ({ pdf, page, y }) => cover(pdf, page, y, report) },
-    { id: 'index', title: 'Report Index', owner: 'Management / Incident Mgmt', page: 2, enabled: true, render: ({ pdf, y, sections }) => indexPage(pdf, y, report, sections) },
-    { id: 'narrative', title: 'Executive AI Narrative', owner: 'Management / Basis', page: 3, enabled: true, render: ({ pdf, y }) => narrativePage(pdf, y, report) },
-    { id: 'data-quality', title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', page: 4, enabled: true, render: ({ pdf, y }) => dataQualityPage(pdf, y, report) },
-    { id: 'kpi-delta', title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', page: 5, enabled: true, render: ({ pdf, y }) => kpiDeltaPage(pdf, y, report) },
-    { id: 'checklist', title: 'RCA Action Checklist', owner: 'Basis / Job Owner', page: 6, enabled: true, render: ({ pdf, y }) => checklistPage(pdf, y, report) },
-    { id: 'appendix', title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', page: 7, enabled: true, render: ({ pdf, y }) => appendixPage(pdf, y, report) },
+    { id: 'cover', title: 'Executive RCA Cover', owner: 'Management / Basis', enabled: true, render: ({ pdf, page, y }) => cover(pdf, page, y, report, profile) },
+    { id: 'index', title: 'Report Index', owner: 'Management / Incident Mgmt', enabled: true, render: ({ pdf, y, sections }) => indexPage(pdf, y, report, sections, profile) },
+    { id: 'narrative', title: 'Executive AI Narrative', owner: 'Management / Basis', enabled: true, render: ({ pdf, y }) => narrativePage(pdf, y, report) },
+    { id: 'data-quality', title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', enabled: true, render: ({ pdf, y }) => dataQualityPage(pdf, y, report) },
+    { id: 'kpi-delta', title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', enabled: true, render: ({ pdf, y }) => kpiDeltaPage(pdf, y, report) },
+    { id: 'checklist', title: 'RCA Action Checklist', owner: 'Basis / Job Owner', enabled: true, render: ({ pdf, y }) => checklistPage(pdf, y, report) },
+    { id: 'appendix', title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', enabled: true, render: ({ pdf, y }) => appendixPage(pdf, y, report) },
   ]
+    .filter((section) => section.enabled && isSectionEnabledForProfile(section.id, profile))
+    .map((section, index) => ({ ...section, page: index + 1 }))
 }
 
 async function exportV5WpScoutVisualPdf() {
   const jsPdfModule = await import('jspdf')
   const JsPDF = jsPdfModule.jsPDF || jsPdfModule.default
   const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
+  const profile = resolveWpScoutPdfProfileFromDom(root)
   const report = buildReport(root)
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = pageOf(pdf)
   const y = { value: 16 }
-  const sections = buildSectionRegistry(report).filter((section) => section.enabled)
+  const sections = buildSectionRegistry(report, profile)
 
-  sections.forEach((section) => section.render({ pdf, page, y, report, sections }))
+  sections.forEach((section) => section.render({ pdf, page, y, report, sections, profile }))
   footer(pdf, report)
 
-  pdf.save(`sap-wpscout-enterprise-v5-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
+  pdf.save(`sap-wpscout-enterprise-v5-${profile.id}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
 }
 
 export async function exportWpScoutVisualPdf() {
