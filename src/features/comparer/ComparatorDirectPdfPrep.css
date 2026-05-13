@@ -4,35 +4,68 @@
   z-index: 15;
   margin: 10px auto 14px;
   max-width: min(1180px, calc(100vw - 24px));
-  border: 1px solid rgba(20, 83, 45, 0.2);
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(240, 253, 244, 0.96), rgba(236, 253, 245, 0.9));
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.1);
-  padding: 12px;
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(20, 184, 166, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(2, 20, 23, 0.94), rgba(4, 47, 46, 0.9));
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: 13px;
+  backdrop-filter: blur(18px);
+}
+
+.cmpDirectPdfPrep::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  pointer-events: none;
+  border-radius: 21px;
+  border: 1px solid rgba(255, 255, 255, 0.045);
 }
 
 .cmpDirectPdfPrepInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
 }
 
 .cmpDirectPdfPrepText {
+  position: relative;
   display: grid;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
+  padding-left: 42px;
+}
+
+.cmpDirectPdfPrepText::before {
+  content: 'ZIP';
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #ccfbf1;
+  background: rgba(20, 184, 166, 0.16);
+  border: 1px solid rgba(94, 234, 212, 0.22);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
 }
 
 .cmpDirectPdfPrepText strong {
-  color: #064e3b;
-  font-size: 0.94rem;
+  color: #ecfeff;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
 }
 
 .cmpDirectPdfPrepText span {
-  color: #475569;
-  font-size: 0.78rem;
-  line-height: 1.35;
+  color: rgba(203, 213, 225, 0.88);
+  font-size: 0.77rem;
+  line-height: 1.38;
 }
 
 .cmpDirectPdfPrepActions {
@@ -45,87 +78,97 @@
 
 .cmpDirectPdfPrepButton,
 .cmpDirectPdfPrepClear {
-  border: 0;
+  min-height: 38px;
   border-radius: 999px;
-  padding: 9px 13px;
-  font-weight: 800;
-  font-size: 0.78rem;
+  padding: 9px 14px;
+  font-weight: 900;
+  font-size: 0.77rem;
   cursor: pointer;
   white-space: nowrap;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.cmpDirectPdfPrepButton:hover,
+.cmpDirectPdfPrepClear:hover {
+  transform: translateY(-1px);
 }
 
 .cmpDirectPdfPrepButton {
-  color: #ffffff;
-  background: #047857;
+  color: #022c22;
+  border: 1px solid rgba(110, 231, 183, 0.34);
+  background: linear-gradient(135deg, #5eead4, #34d399);
+  box-shadow: 0 12px 26px rgba(20, 184, 166, 0.25);
 }
 
 .cmpDirectPdfPrepButton:disabled {
   cursor: wait;
   opacity: 0.72;
+  transform: none;
 }
 
 .cmpDirectPdfPrepClear {
-  color: #065f46;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(6, 95, 70, 0.18);
+  color: #ccfbf1;
+  background: rgba(15, 118, 110, 0.22);
+  border: 1px solid rgba(94, 234, 212, 0.18);
 }
 
 .cmpDirectPdfPrepStatus {
-  margin-top: 8px;
-  color: #065f46;
-  font-size: 0.77rem;
-  font-weight: 700;
+  margin-top: 9px;
+  color: #99f6e4;
+  font-size: 0.76rem;
+  font-weight: 800;
 }
 
 .cmpDirectPdfPrepStatus.isError {
-  color: #b91c1c;
+  color: #fecaca;
 }
 
 .cmpDirectPdfPrepSummary {
-  margin-top: 10px;
+  margin-top: 11px;
   display: grid;
   gap: 10px;
 }
 
 .cmpDirectPdfPrepKpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
   gap: 8px;
 }
 
 .cmpDirectPdfPrepKpi {
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(16, 185, 129, 0.12);
+  border-radius: 15px;
+  background: rgba(15, 23, 42, 0.42);
+  border: 1px solid rgba(94, 234, 212, 0.11);
   padding: 10px;
   display: grid;
   gap: 4px;
+  min-height: 67px;
 }
 
 .cmpDirectPdfPrepKpi span {
-  font-size: 0.68rem;
-  color: #64748b;
-  font-weight: 700;
+  font-size: 0.64rem;
+  color: rgba(148, 163, 184, 0.92);
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.045em;
 }
 
 .cmpDirectPdfPrepKpi strong {
-  color: #064e3b;
-  font-size: 0.92rem;
+  color: #f8fafc;
+  font-size: 0.96rem;
 }
 
 .cmpDirectPdfPrepTrend {
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 15px;
+  background: rgba(15, 23, 42, 0.34);
+  border: 1px solid rgba(94, 234, 212, 0.1);
   padding: 10px;
 }
 
 .cmpDirectPdfPrepTrendTitle {
-  color: #0f172a;
-  font-size: 0.76rem;
-  font-weight: 800;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+  font-weight: 900;
   margin-bottom: 8px;
 }
 
@@ -141,50 +184,74 @@
   align-items: center;
   justify-content: space-between;
   font-size: 0.72rem;
-  border-radius: 10px;
-  background: rgba(240, 253, 244, 0.7);
+  border-radius: 12px;
+  background: rgba(2, 44, 34, 0.36);
+  border: 1px solid rgba(94, 234, 212, 0.08);
   padding: 8px;
 }
 
 .cmpDirectPdfPrepTrendRow span {
-  color: #334155;
-  font-weight: 700;
+  color: #cbd5e1;
+  font-weight: 800;
 }
 
 .cmpDirectPdfPrepTrendRow strong {
-  color: #065f46;
+  color: #99f6e4;
 }
 
 .cmpDirectPdfPrepHint {
-  margin-top: 4px;
-  color: #64748b;
-  font-size: 0.72rem;
+  margin-top: 7px;
+  color: rgba(148, 163, 184, 0.84);
+  font-size: 0.71rem;
 }
 
 @media (max-width: 720px) {
   .cmpDirectPdfPrep {
     position: static;
     margin: 8px 12px 12px;
-    padding: 11px;
+    padding: 12px;
+    border-radius: 20px;
   }
 
   .cmpDirectPdfPrepInner {
     align-items: stretch;
     flex-direction: column;
+    gap: 11px;
+  }
+
+  .cmpDirectPdfPrepText {
+    padding-left: 40px;
+  }
+
+  .cmpDirectPdfPrepText strong {
+    font-size: 0.9rem;
+  }
+
+  .cmpDirectPdfPrepText span,
+  .cmpDirectPdfPrepHint {
+    font-size: 0.7rem;
   }
 
   .cmpDirectPdfPrepActions {
     justify-content: stretch;
+    gap: 7px;
   }
 
   .cmpDirectPdfPrepButton,
   .cmpDirectPdfPrepClear {
     flex: 1;
+    min-height: 40px;
     text-align: center;
+    padding-inline: 10px;
   }
 
   .cmpDirectPdfPrepKpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cmpDirectPdfPrepKpi {
+    min-height: 62px;
+    padding: 9px;
   }
 
   .cmpDirectPdfPrepTrendRow {
