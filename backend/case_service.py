@@ -49,6 +49,20 @@ except Exception:
             return {"enabled": False, "written": False, "status": "unavailable"}
 
 
+VALID_CASE_STAGES = {
+    "INTAKE",
+    "WAITING_EVIDENCE",
+    "ANALYZING",
+    "CLASSIFIED",
+    "RESOLVED",
+}
+
+
+def _normalize_case_stage(value: str | None) -> str:
+    stage = str(value or "INTAKE").strip().upper()
+    return stage if stage in VALID_CASE_STAGES else "INTAKE"
+
+
 def create_case_item(payload: CaseCreate) -> dict[str, Any]:
     ensure_dirs()
     case_no = make_case_no()
@@ -60,6 +74,7 @@ def create_case_item(payload: CaseCreate) -> dict[str, Any]:
         "environment": payload.environment or "",
         "severity": (payload.severity or "INFO").upper(),
         "status": (payload.status or "OPEN").upper(),
+        "case_stage": _normalize_case_stage(payload.case_stage),
         "summary": payload.summary or "",
         "top_anomaly": payload.top_anomaly or "",
         "top_suspect": payload.top_suspect or "",
@@ -99,7 +114,7 @@ def list_case_items(
         if status and str(item.get("status", "")).lower() != status.lower():
             continue
         if q:
-            hay = " ".join(str(item.get(k, "")) for k in ["case_no", "title", "summary", "top_anomaly", "top_suspect", "sid", "tool"])
+            hay = " ".join(str(item.get(k, "")) for k in ["case_no", "title", "summary", "top_anomaly", "top_suspect", "sid", "tool", "case_stage"])
             if q.lower() not in hay.lower():
                 continue
         items.append(item)
@@ -116,8 +131,14 @@ def update_case_item(case_id: str, patch: CaseUpdate) -> dict[str, Any]:
     case_data = read_case(case_id)
     data = patch.dict(exclude_unset=True)
     for key, value in data.items():
-        if value is not None:
-            case_data[key] = value.upper() if key in {"severity", "status"} else value
+        if value is None:
+            continue
+        if key in {"severity", "status"}:
+            case_data[key] = value.upper()
+        elif key == "case_stage":
+            case_data[key] = _normalize_case_stage(value)
+        else:
+            case_data[key] = value
     case_data["updated_at"] = now_iso()
     write_case(case_data)
     db_write = upsert_case_best_effort(case_data)
