@@ -18,6 +18,7 @@ import { appendixPage } from './wpScoutVisualPdfEnterpriseV5Appendix.js'
 import { estimateWpScoutPdfPerformance, pdfPerformanceLabel } from './wpScoutVisualPdfEnterpriseV5Performance.js'
 import { isSectionEnabledForProfile, resolveWpScoutPdfProfileFromDom } from './wpScoutVisualPdfEnterpriseV5Profiles.js'
 import { renderPdfSectionsWithProfiler } from './pdfSectionProfiler.js'
+import { getWpScoutPdfDataSourceRows } from './wpScoutPdfDataSource.js'
 
 const STATUS_ONLY_RE = /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i
 const TYPE_RE = /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|UP2|ICM|GATEWAY|\?)$/i
@@ -32,13 +33,20 @@ function rowCells(row) {
   return Array.from(row.querySelectorAll('td,th')).map((cell) => clean(cell.textContent)).filter(Boolean)
 }
 
-function evidenceRows(root) {
+function domEvidenceRows(root) {
   return Array.from(root.querySelectorAll('tbody tr,.cmpCleanTable tbody tr'))
     .map((row) => {
       const cells = rowCells(row)
       return { cells, text: cells.join(' | ') }
     })
     .filter((row) => /\b(CRIT|WARN|OK)\b/i.test(row.text) && /\d+(?:\.\d+)?\s*GB/i.test(row.text))
+}
+
+function evidenceRows(root) {
+  const parsedRows = getWpScoutPdfDataSourceRows(root)
+  if (parsedRows.length) return parsedRows
+
+  return domEvidenceRows(root)
 }
 
 function findHost(cells, text) {
