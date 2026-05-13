@@ -2,6 +2,7 @@ import JSZip from 'jszip'
 import { setWpScoutParsedEvidence } from '../pdf/wpScoutParsedEvidenceStore.js'
 
 const MAX_DIRECT_ROWS = 5000
+const WP_TYPES = new Set(['BTC', 'DIA', 'UPD', 'SPO', 'ENQ', 'RFC', 'BGD', 'UP2', 'ICM', 'GATEWAY'])
 
 function n(value, fallback = 0) {
   const parsed = Number(String(value ?? '').replace(',', '.'))
@@ -35,9 +36,60 @@ function normalizeSnapshotLabel(value = '', fallback = '') {
   return fallback || 'snapshot'
 }
 
+function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
+  const text = String(line || '')
+  const pick = (patterns, group = 1) => {
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match) return n(match[group], 0)
+    }
+    return 0
+  }
+
+  const cpu = pick([
+    /CPU\s+usage\s*:\s*(\d+(?:[.,]\d+)?)\s*%\s*used/i,
+    /\bcpu\s*[:=]\s*(\d+(?:[.,]\d+)?)\s*%/i,
+  ])
+
+  const mem = pick([
+    /Memory\s*:\s*used\s+\d+(?:[.,]\d+)?\s*G\s*\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
+    /Memory\s*:\s*.*?\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
+    /\bmem(?:ory)?\s*[:=]\s*(\d+(?:[.,]\d+)?)\s*%/i,
+  ])
+
+  const swapSi = pick([
+    /Swap\s+IO\s*:\s*si\/so\s+(\d+(?:[.,]\d+)?)\/(\d+(?:[.,]\d+)?)\s*p\/s/i,
+  ])
+
+  if (!cpu && !mem && !swapSi) return null
+
+  return {
+    time: normalizeSnapshotLabel(snapshot, fallback),
+    cpu: Math.max(0, Math.min(100, cpu)),
+    mem: Math.max(0, Math.min(100, mem)),
+    swapSi: Math.max(0, swapSi),
+    source: 'direct-upload-telemetry',
+  }
+}
+
+function looksLikeResourceLine(line = '') {
+  return /^(CPU\s+usage|Memory\s*:|Swap\s+IO|Filesystem|Disk|Load|Uptime)\b/i.test(String(line || '').trim())
+}
+
+function looksLikeProcessRow(parts = []) {
+  if (parts.length < 8) return false
+  if (!/^\d{2,8}$/.test(parts[0])) return false
+
+  const type = String(parts[3] || '').toUpperCase()
+  if (!WP_TYPES.has(type)) return false
+
+  return parts.some((token) => /\d+[dhm]/i.test(token)) || parts.some((token) => /^[RSW]$/.test(token))
+}
+
 function parseWpScoutText(fileName, text) {
   const lines = String(text || '').replace(/\r/g, '').split('\n')
   const rows = []
+  const resourceSamples = []
   let host = 'UNKNOWN'
   let snapshot = ''
 
@@ -51,16 +103,23 @@ function parseWpScoutText(fileName, text) {
       continue
     }
 
+    const metricSample = parseResourceMetricLine(line, snapshot, fileName)
+    if (metricSample) {
+      resourceSamples.push(metricSample)
+      continue
+    }
+
     const hostMatch = line.match(/^Hostname\s*:\s*(\S+)/i) || line.match(/^##\s*WP-SCOUT\s*@\s*(\S+)/i)
     if (hostMatch) {
       host = hostMatch[1].trim()
       continue
     }
 
+    if (looksLikeResourceLine(line)) continue
     if (!/^\d{2,8}\s+/.test(line) || /^PID\s+/i.test(line)) continue
 
     const parts = line.split(/\s+/)
-    if (parts.length < 8) continue
+    if (!looksLikeProcessRow(parts)) continue
 
     const pid = parts[0]
     const inst = parts[1] || ''
@@ -77,7 +136,7 @@ function parseWpScoutText(fileName, text) {
       if (!state && /^[RSW]$/.test(token)) state = token
       if (!rssGb && /^\d+(?:[.,]\d+)?G?$/i.test(token)) {
         const val = n(token.replace(/G/i, ''))
-        if (val > 0 && val < 1024) rssGb = Math.max(rssGb, val)
+        if (val > 0 && val < 512) rssGb = Math.max(rssGb, val)
       }
     }
 
@@ -118,7 +177,7 @@ function parseWpScoutText(fileName, text) {
     if (rows.length >= MAX_DIRECT_ROWS) break
   }
 
-  return rows
+  return { rows, resourceSamples }
 }
 
 async function expandInputFile(file) {
@@ -140,6 +199,19 @@ async function expandInputFile(file) {
   return [{ name, text: await file.text() }]
 }
 
+function summarizeRows(rows = [], resourceSamples = []) {
+  const crit = rows.filter((row) => row.status === 'CRIT').length
+  const warn = rows.filter((row) => row.status === 'WARN').length
+  const hosts = new Set(rows.map((row) => row.host).filter(Boolean)).size
+  const maxRss = Math.max(0, ...rows.map((row) => Number(row.rssGb || 0)))
+  const peakCpu = Math.max(0, ...resourceSamples.map((row) => Number(row.cpu || 0)), ...rows.map((row) => Number(row.cpu || 0)))
+  const peakMem = Math.max(0, ...resourceSamples.map((row) => Number(row.mem || 0)))
+  const peakSwap = Math.max(0, ...resourceSamples.map((row) => Number(row.swapSi || 0)))
+  const topRow = [...rows].sort((a, b) => Number(b.rssGb || 0) - Number(a.rssGb || 0))[0] || null
+
+  return { crit, warn, hosts, maxRss, peakCpu, peakMem, peakSwap, topRow }
+}
+
 export async function parseWpScoutDirectUploadFiles(fileList) {
   const files = Array.from(fileList || []).filter(Boolean)
   const expanded = []
@@ -148,15 +220,23 @@ export async function parseWpScoutDirectUploadFiles(fileList) {
     expanded.push(...await expandInputFile(file))
   }
 
-  const rows = expanded.flatMap((item) => parseWpScoutText(item.name, item.text))
+  const parsed = expanded.map((item) => ({ name: item.name, ...parseWpScoutText(item.name, item.text) }))
+  const rows = parsed.flatMap((item) => item.rows)
+  const resourceSamples = parsed.flatMap((item) => item.resourceSamples || [])
+  const summary = summarizeRows(rows, resourceSamples)
+
   setWpScoutParsedEvidence(rows, {
     source: files.some((file) => /\.zip$/i.test(file.name)) ? 'zip-direct-upload' : 'text-direct-upload',
     fileName: files.map((file) => file.name).join(', '),
     expandedFiles: expanded.map((item) => item.name),
+    resourceSamples,
+    summary,
   })
 
   return {
     rows,
+    resourceSamples,
+    summary,
     files: expanded,
     sourceFiles: files.map((file) => file.name),
   }
