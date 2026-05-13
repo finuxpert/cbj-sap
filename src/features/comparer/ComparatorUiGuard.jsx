@@ -28,27 +28,19 @@ function formatSwap(value) {
   return `${parsed.toFixed(parsed >= 10 ? 0 : 1)} p/s`
 }
 
-function buildDirectKpis(result) {
-  if (!result) return []
+function buildCompactSummary(result) {
+  if (!result) return ''
   const summary = result.summary || {}
   return [
-    { label: 'Rows', value: formatCount(result.rows?.length) },
-    { label: 'Files', value: formatCount(result.files?.length) },
-    { label: 'Critical', value: formatCount(summary.crit) },
-    { label: 'Warning', value: formatCount(summary.warn) },
-    { label: 'Hosts', value: formatCount(summary.hosts) },
-    { label: 'Max RSS', value: formatGb(summary.maxRss) },
-    { label: 'Peak CPU', value: formatPercent(summary.peakCpu) },
-    { label: 'Peak Memory', value: formatPercent(summary.peakMem) },
-    { label: 'Peak Swap', value: formatSwap(summary.peakSwap) },
-  ]
-}
-
-function latestSamples(samples = []) {
-  return [...samples]
-    .filter(Boolean)
-    .slice(-6)
-    .reverse()
+    `${formatCount(result.rows?.length)} rows`,
+    `${formatCount(summary.crit)} critical`,
+    `${formatCount(summary.warn)} warning`,
+    `${formatCount(summary.hosts)} hosts`,
+    `Max RSS ${formatGb(summary.maxRss)}`,
+    `CPU ${formatPercent(summary.peakCpu)}`,
+    `Mem ${formatPercent(summary.peakMem)}`,
+    `Swap ${formatSwap(summary.peakSwap)}`,
+  ].join(' • ')
 }
 
 function cacheDirectUploadResult(result) {
@@ -140,16 +132,15 @@ export default function ComparatorUiGuard() {
     setStatus('Prepared evidence cleared. Comparer fallback view remains available.')
   }
 
-  const kpis = buildDirectKpis(directResult)
-  const samples = latestSamples(directResult?.resourceSamples)
+  const compactSummary = buildCompactSummary(directResult)
 
   return (
-    <div className="cmpDirectPdfPrep">
+    <div className={`cmpDirectPdfPrep ${directResult ? 'isCompactReady' : ''}`}>
       <div className="cmpDirectPdfPrepInner">
         <div className="cmpDirectPdfPrepText">
-          <strong>Direct ZIP/TXT PDF Prep</strong>
+          <strong>WP-SCOUT ZIP/TXT Upload</strong>
           <span>
-            Upload WP-SCOUT ZIP/TXT evidence directly from mobile, then use the existing Export PDF action.
+            Upload once here. The same evidence is prepared for PDF export and the RCA dashboard.
           </span>
         </div>
 
@@ -169,7 +160,7 @@ export default function ComparatorUiGuard() {
             disabled={busy}
             onClick={() => inputRef.current?.click()}
           >
-            {busy ? 'Preparing...' : 'Upload ZIP/TXT'}
+            {busy ? 'Preparing...' : directResult ? 'Replace ZIP/TXT' : 'Upload ZIP/TXT'}
           </button>
 
           <button
@@ -177,7 +168,7 @@ export default function ComparatorUiGuard() {
             className="cmpDirectPdfPrepClear"
             onClick={clearPreparedEvidence}
           >
-            Clear Prepared Data
+            Clear
           </button>
         </div>
       </div>
@@ -188,37 +179,14 @@ export default function ComparatorUiGuard() {
         </div>
       ) : null}
 
-      {directResult ? (
-        <div className="cmpDirectPdfPrepSummary" aria-label="Direct upload parsed summary">
-          <div className="cmpDirectPdfPrepKpis">
-            {kpis.map((item) => (
-              <div className="cmpDirectPdfPrepKpi" key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
-            ))}
-          </div>
-
-          {samples.length ? (
-            <div className="cmpDirectPdfPrepTrend">
-              <div className="cmpDirectPdfPrepTrendTitle">Recent resource samples</div>
-              <div className="cmpDirectPdfPrepTrendRows">
-                {samples.map((sample, index) => (
-                  <div className="cmpDirectPdfPrepTrendRow" key={`${sample.time || 'sample'}-${index}`}>
-                    <span>{sample.time || 'snapshot'}</span>
-                    <strong>CPU {formatPercent(sample.cpu)}</strong>
-                    <strong>Mem {formatPercent(sample.mem)}</strong>
-                    <strong>Swap {formatSwap(sample.swapSi)}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
+      {compactSummary ? (
+        <div className="cmpDirectPdfPrepCompactSummary" aria-label="Direct upload parsed summary">
+          {compactSummary}
         </div>
       ) : null}
 
       <div className="cmpDirectPdfPrepHint">
-        Parsed evidence is injected into the enterprise PDF V5 data source and still falls back safely to visible comparer data.
+        Detailed cards and charts stay below. This upload panel stays compact on mobile.
       </div>
     </div>
   )
