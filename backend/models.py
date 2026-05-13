@@ -19,6 +19,7 @@ class CaseCreate(BaseModel):
     environment: Optional[str] = ""
     severity: Optional[str] = "INFO"
     status: Optional[str] = "OPEN"
+    case_stage: Optional[str] = "INTAKE"
     summary: Optional[str] = ""
     top_anomaly: Optional[str] = ""
     top_suspect: Optional[str] = ""
@@ -31,6 +32,7 @@ class CaseUpdate(BaseModel):
     environment: Optional[str] = None
     severity: Optional[str] = None
     status: Optional[str] = None
+    case_stage: Optional[str] = None
     summary: Optional[str] = None
     top_anomaly: Optional[str] = None
     top_suspect: Optional[str] = None
