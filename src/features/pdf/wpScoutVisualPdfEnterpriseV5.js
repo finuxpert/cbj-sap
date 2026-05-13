@@ -365,22 +365,22 @@ async function exportV5WpScoutVisualPdf() {
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = pageOf(pdf)
   const y = { value: 16 }
-  const sections = []
-  const markSection = (title, owner) => sections.push({ title, owner, page: pdf.getNumberOfPages() + 1 })
+  const sections = [
+    { title: 'Executive RCA Cover', owner: 'Management / Basis', page: 1 },
+    { title: 'Report Index', owner: 'Management / Incident Mgmt', page: 2 },
+    { title: 'Executive AI Narrative', owner: 'Management / Basis', page: 3 },
+    { title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', page: 4 },
+    { title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', page: 5 },
+    { title: 'RCA Action Checklist', owner: 'Basis / Job Owner', page: 6 },
+    { title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', page: 7 },
+  ]
 
-  sections.push({ title: 'Executive RCA Cover', owner: 'Management / Basis', page: pdf.getNumberOfPages() })
   cover(pdf, page, y, report)
-  markSection('Report Index', 'Management / Incident Mgmt')
   indexPage(pdf, y, report, sections)
-  markSection('Executive AI Narrative', 'Management / Basis')
   narrativePage(pdf, y, report)
-  markSection('Data Accuracy & Parser Quality', 'Basis / Reviewer')
   dataQualityPage(pdf, y, report)
-  markSection('KPI Delta Comparison', 'Basis / Infrastructure')
   kpiDeltaPage(pdf, y, report)
-  markSection('RCA Action Checklist', 'Basis / Job Owner')
   checklistPage(pdf, y, report)
-  markSection('Grouped Evidence Appendix', 'Basis / Incident Mgmt')
   appendixPage(pdf, y, report)
   footer(pdf, report)
 
