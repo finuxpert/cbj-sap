@@ -1,47 +1,27 @@
 import { exportWpScoutVisualPdf as exportV4WpScoutVisualPdf } from './wpScoutVisualPdfEnterpriseV4.js'
+import {
+  WP_SCOUT_PDF_V5_COLORS as C,
+  cleanPdfText as clean,
+  compactPdfText as compact,
+  numberFromPdfText as numberOf,
+  pdfStatusColor as statusColor,
+  pdfStatusLabel as statusLabel,
+  pdfPageBox as pageOf,
+  ensurePdfSpace as ensure,
+  writePdfText,
+  drawPdfMetricCard as card,
+  drawPdfSectionTitle,
+  drawPdfTableHeader,
+  drawPdfTableRow,
+} from './wpScoutVisualPdfEnterpriseV5Primitives.js'
 
-const C = {
-  red: [214, 70, 88],
-  yellow: [214, 155, 40],
-  green: [30, 160, 130],
-  dark: [5, 22, 22],
-  ink: [25, 35, 35],
-  muted: [82, 96, 96],
-  teal: [0, 90, 84],
-  light: [246, 251, 250],
-  border: [224, 234, 232],
-}
-
-const clean = (value = '') => String(value || '').replace(/\s+/g, ' ').trim()
-const compact = (value = '', limit = 120) => {
-  const text = clean(value)
-  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text
-}
-const numberOf = (value = '') => Number(String(value || '').replace(',', '.').match(/-?\d+(?:\.\d+)?/)?.[0] || 0)
-const statusColor = (value) => (/RED|CRIT|HIGH|CRITICAL/i.test(value) ? C.red : /YELLOW|WARN|MEDIUM|WARNING/i.test(value) ? C.yellow : C.green)
-const statusLabel = (severity) => (severity === 'CRITICAL' ? 'RED / CHECK NOW' : severity === 'WARNING' ? 'YELLOW / WATCH' : 'GREEN / OK')
-
-function pageOf(pdf) {
-  return { w: pdf.internal.pageSize.getWidth(), h: pdf.internal.pageSize.getHeight(), m: 14 }
-}
-
-function ensure(pdf, page, y, need = 12) {
-  if (y.value + need > page.h - 20) {
-    pdf.addPage('a4', 'portrait')
-    Object.assign(page, pageOf(pdf))
-    y.value = 16
-  }
-}
+const STATUS_ONLY_RE = /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i
+const TYPE_RE = /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|UP2|ICM|GATEWAY|\?)$/i
+const HOST_TOKEN_RE = /\b[A-Z0-9][A-Z0-9_.-]{2,}(?:APP|DB|HDB|PAS|AAS|CI|DI|SCS|ERS|PAPPDC|SAP)[A-Z0-9_.-]*\b/i
+const JOB_TOKEN_RE = /\b(?:Z|Y|SAP|RS|SM|RBD|BTC|BI|BW)[A-Z0-9_/-]{4,}\b/i
 
 function write(pdf, page, y, value, size = 9, style = 'normal', color = C.ink, indent = 0) {
-  pdf.setFont('helvetica', style)
-  pdf.setFontSize(size)
-  pdf.setTextColor(...color)
-  pdf.splitTextToSize(String(value || '-'), page.w - page.m * 2 - indent).forEach((line) => {
-    ensure(pdf, page, y, size >= 12 ? 9 : 6)
-    pdf.text(line, page.m + indent, y.value)
-    y.value += size >= 12 ? 6.5 : 5
-  })
+  writePdfText(pdf, page, y, value, { size, style, color, indent })
 }
 
 function rowCells(row) {
@@ -57,17 +37,40 @@ function evidenceRows(root) {
     .filter((row) => /\b(CRIT|WARN|OK)\b/i.test(row.text) && /\d+(?:\.\d+)?\s*GB/i.test(row.text))
 }
 
+function findHost(cells, text) {
+  const byShape = cells.find((item) => !STATUS_ONLY_RE.test(item) && HOST_TOKEN_RE.test(item))
+  return byShape || text.match(HOST_TOKEN_RE)?.[0] || '-'
+}
+
+function findJob(cells, text) {
+  const explicitJob = cells.find((item) => JOB_TOKEN_RE.test(item)) || text.match(JOB_TOKEN_RE)?.[0]
+  if (explicitJob) return compact(explicitJob, 70)
+
+  const candidates = cells.filter((item) => {
+    if (STATUS_ONLY_RE.test(item) || TYPE_RE.test(item)) return false
+    if (/\d+(?:\.\d+)?\s*GB/i.test(item) || /^\d{3,8}$/.test(item)) return false
+    if (HOST_TOKEN_RE.test(item)) return false
+    return /[A-Z0-9_/-]{8,}/i.test(item)
+  })
+
+  return compact(candidates[0] || '-', 70)
+}
+
 function parseRow(row = { cells: [], text: '' }) {
   const cells = row.cells || []
   const text = row.text || cells.join(' | ')
+  const status = /\bCRIT\b/i.test(text) ? 'CRIT' : /\bWARN\b/i.test(text) ? 'WARN' : 'OK'
+  const rss = cells.find((item) => /\d+(?:\.\d+)?\s*GB/i.test(item)) || text.match(/\d+(?:\.\d+)?\s*GB/i)?.[0] || '-'
+
   return {
-    status: /\bCRIT\b/i.test(text) ? 'CRIT' : /\bWARN\b/i.test(text) ? 'WARN' : 'OK',
-    host: cells.find((item) => !/^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i.test(item) && /[A-Z0-9]+PAPPDC/i.test(item)) || text.match(/[A-Z0-9]+PAPPDC/i)?.[0] || '-',
+    status,
+    host: findHost(cells, text),
     pid: cells.find((item) => /^\d{3,8}$/.test(item)) || text.match(/\b\d{3,8}\b/)?.[0] || '-',
-    type: cells.find((item) => /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|\?)$/i.test(item)) || '-',
-    rss: cells.find((item) => /\d+(?:\.\d+)?\s*GB/i.test(item)) || text.match(/\d+(?:\.\d+)?\s*GB/i)?.[0] || '-',
-    age: cells.find((item) => /\d+d|\d+h|\d+m/i.test(item)) || '-',
-    job: cells.find((item) => /^Z[A-Z0-9_]{4,}$/i.test(item)) || cells.find((item) => !/^(CRIT|WARN|OK)$/i.test(item) && /[A-Z0-9_]{8,}/i.test(item)) || '-',
+    type: cells.find((item) => TYPE_RE.test(item)) || '-',
+    rss,
+    rssValue: numberOf(rss),
+    age: cells.find((item) => /\b\d+\s*(?:d|h|m|s)\b/i.test(item)) || '-',
+    job: findJob(cells, text),
   }
 }
 
@@ -89,18 +92,47 @@ function swapStatus(root) {
   return signal && Number(signal[1]) > 0 ? `ACTIVE (${signal[1]})` : 'CLEAR'
 }
 
+function maxRssFromRows(rows, root) {
+  const maxRow = rows.reduce((best, row) => (row.rssValue > (best?.rssValue || 0) ? row : best), null)
+  if (maxRow?.rssValue > 0) return maxRow.rss
+  return metric(root, ['Max RSS']) || '-'
+}
+
+function dataQuality(rows, root) {
+  const missingHost = rows.filter((row) => row.host === '-').length
+  const missingPid = rows.filter((row) => row.pid === '-').length
+  const missingJob = rows.filter((row) => row.job === '-').length
+  const evidenceCount = rows.length || numberOf(metric(root, ['Raw Rows', 'Rows']))
+  const warnings = []
+
+  if (!evidenceCount) warnings.push('No table evidence rows were detected; PDF uses visible summary metrics only.')
+  if (missingHost) warnings.push(`${missingHost} evidence row(s) have unknown host after parser normalization.`)
+  if (missingPid) warnings.push(`${missingPid} evidence row(s) have unknown PID.`)
+  if (missingJob) warnings.push(`${missingJob} evidence row(s) have unknown or non-standard job/program field.`)
+
+  return {
+    evidenceCount,
+    missingHost,
+    missingPid,
+    missingJob,
+    warnings,
+    confidence: warnings.length === 0 ? 'High' : warnings.length <= 2 ? 'Medium' : 'Needs Review',
+  }
+}
+
 function buildReport(root) {
   const rows = evidenceRows(root).map(parseRow)
   const top = rows.find((row) => row.status === 'CRIT') || rows[0] || parseRow()
   const critical = rows.filter((row) => row.status === 'CRIT').length || numberOf(metric(root, ['Critical']))
   const warning = rows.filter((row) => row.status === 'WARN').length || numberOf(metric(root, ['Warning']))
   const ok = rows.filter((row) => row.status === 'OK').length
-  const maxRss = metric(root, ['Max RSS']) || top.rss
+  const maxRss = maxRssFromRows(rows, root)
   const rss = numberOf(maxRss)
   const swap = swapStatus(root)
+  const quality = dataQuality(rows, root)
   const severity = top.status === 'CRIT' || critical > 0 || rss >= 128 ? 'CRITICAL' : top.status === 'WARN' || warning > 0 || rss >= 32 ? 'WARNING' : 'STABLE'
   const color = severity === 'CRITICAL' ? C.red : severity === 'WARNING' ? C.yellow : C.green
-  const risk = Math.max(0, Math.min(100, (severity === 'CRITICAL' ? 74 : severity === 'WARNING' ? 50 : 22) + Math.min(16, Math.round(rss / 18)) + Math.min(8, critical * 3 + warning) + (swap.startsWith('ACTIVE') ? 8 : 0)))
+  const risk = Math.max(0, Math.min(100, (severity === 'CRITICAL' ? 74 : severity === 'WARNING' ? 50 : 22) + Math.min(16, Math.round(rss / 18)) + Math.min(8, critical * 3 + warning) + (swap.startsWith('ACTIVE') ? 8 : 0) + (quality.confidence === 'Needs Review' ? 4 : 0)))
 
   return {
     generatedAt: new Date().toLocaleString('id-ID'),
@@ -111,7 +143,8 @@ function buildReport(root) {
     risk,
     swap,
     confidence: severity === 'CRITICAL' ? 'High' : severity === 'WARNING' ? 'Medium' : 'Normal',
-    metrics: { critical, warning, ok, maxRss, hosts: metric(root, ['Hosts']) || '-', rawRows: metric(root, ['Raw Rows', 'Rows']) || rows.length },
+    dataQuality: quality,
+    metrics: { critical, warning, ok, maxRss, hosts: metric(root, ['Hosts']) || '-', rawRows: quality.evidenceCount },
   }
 }
 
@@ -121,7 +154,7 @@ function buildNarrative(report) {
   return {
     title: isRed ? 'Executive AI Narrative — Immediate Basis Validation Required' : isYellow ? 'Executive AI Narrative — Elevated Memory Pressure' : 'Executive AI Narrative — No Dominant Critical Signal',
     summary: isRed
-      ? `WP-SCOUT evidence indicates a critical memory pressure pattern. The first validation target is host ${report.top.host}, PID ${report.top.pid}, type ${report.top.type}, with ${report.metrics.maxRss} RSS.`
+      ? `WP-SCOUT evidence indicates a critical memory pressure pattern. First validation target: host ${report.top.host}, PID ${report.top.pid}, type ${report.top.type}, RSS ${report.metrics.maxRss}.`
       : isYellow
         ? `The evidence shows warning-level pressure. Validate the top process on ${report.top.host} and monitor RSS/swap trend before business impact increases.`
         : 'Current evidence does not show a dominant RED process. Keep the export as a baseline and continue normal monitoring.',
@@ -131,22 +164,9 @@ function buildNarrative(report) {
         ? 'Potential impact: slower runtime and higher queue risk if memory pressure continues.'
         : 'Potential impact: low based on the visible evidence set.',
     next: isRed
-      ? `Basis to check SM50/SM66 for PID ${report.top.pid}, correlate job ${report.top.job}, then validate ST22/SM21 in the same time window.`
+      ? `Basis to check SM50/SM66 for PID ${report.top.pid}, correlate job/program ${report.top.job}, then validate ST22/SM21 in the same time window.`
       : `Basis to monitor ${report.top.host}, confirm whether ${report.top.job} is expected, and attach this PDF to the incident record if escalation is needed.`,
   }
-}
-
-function card(pdf, x, y, w, h, label, value, color) {
-  pdf.setFillColor(...C.light)
-  pdf.setDrawColor(...C.border)
-  pdf.roundedRect(x, y, w, h, 3, 3, 'FD')
-  pdf.setTextColor(...color)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7)
-  pdf.text(label.toUpperCase(), x + 4, y + 6)
-  pdf.setTextColor(...C.ink)
-  pdf.setFontSize(10)
-  pdf.text(pdf.splitTextToSize(String(value || '-'), w - 8).slice(0, 2), x + 4, y + 14)
 }
 
 function cover(pdf, page, y, report) {
@@ -169,7 +189,7 @@ function cover(pdf, page, y, report) {
   pdf.text(`${report.severity} — ${statusLabel(report.severity)}`, page.m, y.value)
   pdf.setTextColor(...C.ink)
   pdf.setFontSize(9)
-  pdf.text(`Confidence: ${report.confidence} • Owner Direction: Basis / Infrastructure`, page.m, y.value + 7)
+  pdf.text(`RCA confidence: ${report.confidence} • Data quality: ${report.dataQuality.confidence} • Owner: Basis / Infrastructure`, page.m, y.value + 7)
   y.value += 18
   const barW = page.w - page.m * 2
   pdf.setTextColor(...C.teal)
@@ -185,13 +205,13 @@ function cover(pdf, page, y, report) {
   pdf.text(`${Math.round(report.risk)} / 100`, page.m + barW - 25, y.value + 17)
   y.value += 26
   const w = (page.w - page.m * 2 - 8) / 3
-  card(pdf, page.m, y.value, w, 22, 'Worst Host', report.top.host, report.color)
-  card(pdf, page.m + w + 4, y.value, w, 22, 'Worst PID / Type', `${report.top.pid} / ${report.top.type}`, report.color)
-  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Top Job', report.top.job, report.color)
+  card(pdf, page.m, y.value, w, 22, 'Worst Host', report.top.host, { colors: C, accent: report.color })
+  card(pdf, page.m + w + 4, y.value, w, 22, 'Worst PID / Type', `${report.top.pid} / ${report.top.type}`, { colors: C, accent: report.color })
+  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Top Job/Program', report.top.job, { colors: C, accent: report.color })
   y.value += 27
-  card(pdf, page.m, y.value, w, 22, 'Main Pressure', `${report.metrics.maxRss} RSS`, report.color)
-  card(pdf, page.m + w + 4, y.value, w, 22, 'CRIT / WARN', `${report.metrics.critical} CRIT / ${report.metrics.warning} WARN`, report.color)
-  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Evidence Rows', report.metrics.rawRows, report.color)
+  card(pdf, page.m, y.value, w, 22, 'Main Pressure', `${report.metrics.maxRss} RSS`, { colors: C, accent: report.color })
+  card(pdf, page.m + w + 4, y.value, w, 22, 'CRIT / WARN', `${report.metrics.critical} CRIT / ${report.metrics.warning} WARN`, { colors: C, accent: report.color })
+  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Evidence Rows', report.metrics.rawRows, { colors: C, accent: report.color })
   y.value += 32
 }
 
@@ -200,9 +220,7 @@ function narrativePage(pdf, y, report) {
   const page = pageOf(pdf)
   y.value = 16
   const narrative = buildNarrative(report)
-  write(pdf, page, y, narrative.title, 14, 'bold', C.teal)
-  write(pdf, page, y, 'Generated from visible WP-SCOUT evidence using deterministic rules. No network call, no runtime injector, no screenshot-only dependency.', 8.5, 'normal', C.muted)
-  y.value += 4
+  drawPdfSectionTitle(pdf, page, y, narrative.title, 'Generated from visible WP-SCOUT evidence using deterministic rules. No network call, no runtime injector, no screenshot-only dependency.', { colors: C })
   ;[
     ['Executive Summary', narrative.summary],
     ['Business / Technical Impact', narrative.impact],
@@ -224,45 +242,54 @@ function narrativePage(pdf, y, report) {
   })
 }
 
+function dataQualityPage(pdf, y, report) {
+  pdf.addPage('a4', 'portrait')
+  const page = pageOf(pdf)
+  y.value = 16
+  drawPdfSectionTitle(pdf, page, y, 'Data Accuracy & Parser Quality', 'This page separates measured evidence from inferred fields so reviewers can trust the PDF without over-reading it.', { colors: C })
+  const rows = [
+    ['Detected Evidence Rows', String(report.dataQuality.evidenceCount), 'Measured from visible table rows containing status + GB value'],
+    ['Missing Host Fields', String(report.dataQuality.missingHost), 'Should be 0 for fully structured evidence'],
+    ['Missing PID Fields', String(report.dataQuality.missingPid), 'Should be 0 for process-level validation'],
+    ['Missing Job/Program Fields', String(report.dataQuality.missingJob), 'May be normal if WP-SCOUT source does not include job/program'],
+    ['Data Quality Confidence', report.dataQuality.confidence, 'High = complete fields, Medium/Needs Review = check source table'],
+  ]
+  const widths = [48, 38, page.w - page.m * 2 - 86]
+  drawPdfTableHeader(pdf, page, y, ['CHECK', 'VALUE', 'MEANING'], widths, { colors: C })
+  rows.forEach((row, index) => {
+    drawPdfTableRow(pdf, page, y, row, widths, {
+      colors: C,
+      index,
+      boldColumns: [0],
+      colorForColumn: (value, col) => (col === 1 ? statusColor(value, C) : C.ink),
+    })
+  })
+  y.value += 6
+  const warnings = report.dataQuality.warnings.length ? report.dataQuality.warnings : ['No data-quality warning detected. Parsed evidence appears internally consistent.']
+  warnings.forEach((warning) => write(pdf, page, y, `• ${warning}`, 8.5, 'normal', report.dataQuality.warnings.length ? C.yellow : C.green))
+}
+
 function kpiDeltaPage(pdf, y, report) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
   y.value = 16
-  write(pdf, page, y, 'KPI Delta Comparison', 14, 'bold', C.teal)
-  write(pdf, page, y, 'Baseline bands are static operational thresholds so the PDF remains deterministic and build-safe.', 8.5, 'normal', C.muted)
-  y.value += 4
+  drawPdfSectionTitle(pdf, page, y, 'KPI Delta Comparison', 'Baseline bands are static operational thresholds so the PDF remains deterministic and build-safe.', { colors: C })
   const rows = [
     ['Max RSS', report.metrics.maxRss, '< 32 GB normal / >= 128 GB critical', numberOf(report.metrics.maxRss) >= 128 ? 'Critical' : numberOf(report.metrics.maxRss) >= 32 ? 'Warning' : 'Stable'],
     ['Critical Rows', String(report.metrics.critical), '0 expected', report.metrics.critical > 0 ? 'Critical' : 'Stable'],
     ['Warning Rows', String(report.metrics.warning), '0 preferred', report.metrics.warning > 0 ? 'Warning' : 'Stable'],
     ['Swap', report.swap, 'CLEAR expected', report.swap.startsWith('ACTIVE') ? 'Critical' : 'Stable'],
-    ['Evidence Coverage', String(report.metrics.rawRows), 'Rows exported from active view', Number(report.metrics.rawRows) > 0 ? 'Stable' : 'Warning'],
+    ['Evidence Coverage', String(report.metrics.rawRows), 'Rows exported from active view', numberOf(report.metrics.rawRows) > 0 ? 'Stable' : 'Warning'],
   ]
   const widths = [34, 35, page.w - page.m * 2 - 112, 43]
-  let x = page.m
-  pdf.setFillColor(...C.dark)
-  pdf.rect(page.m, y.value, page.w - page.m * 2, 8, 'F')
-  pdf.setTextColor(255, 255, 255)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7)
-  ;['KPI', 'VALUE', 'BASELINE / DELTA RULE', 'STATUS'].forEach((header, index) => {
-    pdf.text(header, x + 1, y.value + 5.5)
-    x += widths[index]
-  })
-  y.value += 8
+  drawPdfTableHeader(pdf, page, y, ['KPI', 'VALUE', 'BASELINE / DELTA RULE', 'STATUS'], widths, { colors: C })
   rows.forEach((row, index) => {
-    ensure(pdf, page, y, 11)
-    pdf.setFillColor(index % 2 ? 250 : 245, 250, 249)
-    pdf.rect(page.m, y.value, page.w - page.m * 2, 10, 'F')
-    x = page.m
-    row.forEach((value, col) => {
-      pdf.setTextColor(...(col === 3 ? statusColor(value) : C.ink))
-      pdf.setFont('helvetica', col === 0 || col === 3 ? 'bold' : 'normal')
-      pdf.setFontSize(7.2)
-      pdf.text(pdf.splitTextToSize(compact(value, 80), widths[col] - 2).slice(0, 1), x + 1, y.value + 6.5)
-      x += widths[col]
+    drawPdfTableRow(pdf, page, y, row, widths, {
+      colors: C,
+      index,
+      boldColumns: [0, 3],
+      colorForColumn: (value, col) => (col === 3 ? statusColor(value, C) : C.ink),
     })
-    y.value += 10
   })
 }
 
@@ -270,10 +297,10 @@ function checklistPage(pdf, y, report) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
   y.value = 16
-  write(pdf, page, y, 'RCA Action Checklist', 14, 'bold', C.teal)
+  drawPdfSectionTitle(pdf, page, y, 'RCA Action Checklist', '', { colors: C })
   const items = [
     `Open SM50/SM66 and validate host ${report.top.host}, PID ${report.top.pid}, type ${report.top.type}.`,
-    `Check whether job ${report.top.job} is expected, long-running, or safe to reschedule.`,
+    `Check whether job/program ${report.top.job} is expected, long-running, or safe to reschedule.`,
     `Correlate ST22, SM21, and system log in the same time window as this export.`,
     `Validate OS memory and swap on the reported host; current swap signal: ${report.swap}.`,
     'Attach WP-SCOUT source evidence and this PDF to the incident or change record.',
@@ -298,24 +325,11 @@ function appendixPage(pdf, y, report) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
   y.value = 16
-  write(pdf, page, y, 'Evidence Correlation Summary', 14, 'bold', C.teal)
-  write(pdf, page, y, 'Top rows are preserved in compact form for reviewer traceability.', 8.5, 'normal', C.muted)
+  drawPdfSectionTitle(pdf, page, y, 'Evidence Correlation Summary', 'Top rows are preserved in compact form for reviewer traceability.', { colors: C })
   const rows = report.rows.length ? report.rows : [report.top]
   const headers = ['#', 'STATUS', 'HOST', 'PID', 'TYPE', 'RSS', 'AGE/JOB']
   const widths = [8, 22, 35, 21, 17, 22, page.w - page.m * 2 - 125]
-  const drawHeader = () => {
-    let x = page.m
-    pdf.setFillColor(...C.dark)
-    pdf.rect(page.m, y.value, page.w - page.m * 2, 8, 'F')
-    pdf.setTextColor(255, 255, 255)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(7)
-    headers.forEach((header, index) => {
-      pdf.text(header, x + 1, y.value + 5.5)
-      x += widths[index]
-    })
-    y.value += 8
-  }
+  const drawHeader = () => drawPdfTableHeader(pdf, page, y, headers, widths, { colors: C })
   drawHeader()
   rows.slice(0, 36).forEach((row, index) => {
     if (y.value > page.h - 28) {
@@ -325,18 +339,15 @@ function appendixPage(pdf, y, report) {
       drawHeader()
     }
     const status = row.status === 'CRIT' ? 'RED' : row.status === 'WARN' ? 'YELLOW' : 'GREEN'
-    const values = [String(index + 1), status, row.host, row.pid, row.type, row.rss, compact([row.age, row.job].filter(Boolean).join(' / '), 80)]
-    pdf.setFillColor(index % 2 ? 250 : 245, 250, 249)
-    pdf.rect(page.m, y.value, page.w - page.m * 2, 9, 'F')
-    let x = page.m
-    values.forEach((value, col) => {
-      pdf.setTextColor(...(col === 1 ? statusColor(value) : C.ink))
-      pdf.setFont('helvetica', col === 1 ? 'bold' : 'normal')
-      pdf.setFontSize(7.1)
-      pdf.text(pdf.splitTextToSize(compact(value, 58), widths[col] - 2).slice(0, 1), x + 1, y.value + 6)
-      x += widths[col]
+    drawPdfTableRow(pdf, page, y, [String(index + 1), status, row.host, row.pid, row.type, row.rss, compact([row.age, row.job].filter(Boolean).join(' / '), 80)], widths, {
+      colors: C,
+      index,
+      height: 9,
+      fontSize: 7.1,
+      boldColumns: [1],
+      colorForColumn: (value, col) => (col === 1 ? statusColor(value, C) : C.ink),
+      limit: 58,
     })
-    y.value += 9
   })
 }
 
@@ -366,6 +377,7 @@ async function exportV5WpScoutVisualPdf() {
 
   cover(pdf, page, y, report)
   narrativePage(pdf, y, report)
+  dataQualityPage(pdf, y, report)
   kpiDeltaPage(pdf, y, report)
   checklistPage(pdf, y, report)
   appendixPage(pdf, y, report)
