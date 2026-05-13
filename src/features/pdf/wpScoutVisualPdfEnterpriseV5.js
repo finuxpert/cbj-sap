@@ -357,6 +357,18 @@ function footer(pdf, report) {
   }
 }
 
+function buildSectionRegistry(report) {
+  return [
+    { id: 'cover', title: 'Executive RCA Cover', owner: 'Management / Basis', page: 1, enabled: true, render: ({ pdf, page, y }) => cover(pdf, page, y, report) },
+    { id: 'index', title: 'Report Index', owner: 'Management / Incident Mgmt', page: 2, enabled: true, render: ({ pdf, y, sections }) => indexPage(pdf, y, report, sections) },
+    { id: 'narrative', title: 'Executive AI Narrative', owner: 'Management / Basis', page: 3, enabled: true, render: ({ pdf, y }) => narrativePage(pdf, y, report) },
+    { id: 'data-quality', title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', page: 4, enabled: true, render: ({ pdf, y }) => dataQualityPage(pdf, y, report) },
+    { id: 'kpi-delta', title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', page: 5, enabled: true, render: ({ pdf, y }) => kpiDeltaPage(pdf, y, report) },
+    { id: 'checklist', title: 'RCA Action Checklist', owner: 'Basis / Job Owner', page: 6, enabled: true, render: ({ pdf, y }) => checklistPage(pdf, y, report) },
+    { id: 'appendix', title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', page: 7, enabled: true, render: ({ pdf, y }) => appendixPage(pdf, y, report) },
+  ]
+}
+
 async function exportV5WpScoutVisualPdf() {
   const jsPdfModule = await import('jspdf')
   const JsPDF = jsPdfModule.jsPDF || jsPdfModule.default
@@ -365,23 +377,9 @@ async function exportV5WpScoutVisualPdf() {
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = pageOf(pdf)
   const y = { value: 16 }
-  const sections = [
-    { title: 'Executive RCA Cover', owner: 'Management / Basis', page: 1 },
-    { title: 'Report Index', owner: 'Management / Incident Mgmt', page: 2 },
-    { title: 'Executive AI Narrative', owner: 'Management / Basis', page: 3 },
-    { title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', page: 4 },
-    { title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', page: 5 },
-    { title: 'RCA Action Checklist', owner: 'Basis / Job Owner', page: 6 },
-    { title: 'Grouped Evidence Appendix', owner: 'Basis / Incident Mgmt', page: 7 },
-  ]
+  const sections = buildSectionRegistry(report).filter((section) => section.enabled)
 
-  cover(pdf, page, y, report)
-  indexPage(pdf, y, report, sections)
-  narrativePage(pdf, y, report)
-  dataQualityPage(pdf, y, report)
-  kpiDeltaPage(pdf, y, report)
-  checklistPage(pdf, y, report)
-  appendixPage(pdf, y, report)
+  sections.forEach((section) => section.render({ pdf, page, y, report, sections }))
   footer(pdf, report)
 
   pdf.save(`sap-wpscout-enterprise-v5-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
