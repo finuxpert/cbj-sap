@@ -216,6 +216,26 @@ function cover(pdf, page, y, report) {
   y.value += 32
 }
 
+function indexPage(pdf, y, report, sections) {
+  pdf.addPage('a4', 'portrait')
+  const page = pageOf(pdf)
+  y.value = 16
+  drawPdfSectionTitle(pdf, page, y, 'Report Index', 'Cross-page section map for executive review, Basis triage, and incident attachment.', { colors: C })
+  const rows = sections.map((section, index) => [String(index + 1), section.title, `Page ${section.page}`, section.owner])
+  const widths = [11, page.w - page.m * 2 - 86, 25, 50]
+  drawPdfTableHeader(pdf, page, y, ['#', 'SECTION', 'PAGE', 'PRIMARY OWNER'], widths, { colors: C })
+  rows.forEach((row, index) => {
+    drawPdfTableRow(pdf, page, y, row, widths, {
+      colors: C,
+      index,
+      boldColumns: [1],
+      colorForColumn: (value, col) => (col === 2 ? C.teal : C.ink),
+    })
+  })
+  y.value += 6
+  write(pdf, page, y, `Severity: ${report.severity} • Data quality: ${report.dataQuality.confidence} • Evidence rows: ${report.metrics.rawRows}`, 8.5, 'normal', report.color)
+}
+
 function narrativePage(pdf, y, report) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
@@ -345,12 +365,22 @@ async function exportV5WpScoutVisualPdf() {
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = pageOf(pdf)
   const y = { value: 16 }
+  const sections = []
+  const markSection = (title, owner) => sections.push({ title, owner, page: pdf.getNumberOfPages() + 1 })
 
+  sections.push({ title: 'Executive RCA Cover', owner: 'Management / Basis', page: pdf.getNumberOfPages() })
   cover(pdf, page, y, report)
+  markSection('Report Index', 'Management / Incident Mgmt')
+  indexPage(pdf, y, report, sections)
+  markSection('Executive AI Narrative', 'Management / Basis')
   narrativePage(pdf, y, report)
+  markSection('Data Accuracy & Parser Quality', 'Basis / Reviewer')
   dataQualityPage(pdf, y, report)
+  markSection('KPI Delta Comparison', 'Basis / Infrastructure')
   kpiDeltaPage(pdf, y, report)
+  markSection('RCA Action Checklist', 'Basis / Job Owner')
   checklistPage(pdf, y, report)
+  markSection('Grouped Evidence Appendix', 'Basis / Incident Mgmt')
   appendixPage(pdf, y, report)
   footer(pdf, report)
 
