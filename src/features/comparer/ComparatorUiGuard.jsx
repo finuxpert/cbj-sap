@@ -4,6 +4,7 @@ import { parseWpScoutDirectUploadFiles } from './wpScoutDirectUploadParser.js'
 import { clearWpScoutParsedEvidence } from '../pdf/wpScoutParsedEvidenceStore.js'
 
 const DIRECT_UPLOAD_CACHE_KEY = 'sap_rca_wpscout_direct_upload_payload_v1'
+const DIRECT_UPLOAD_BODY_CLASS = 'hasWpScoutDirectUpload'
 
 function formatCount(value) {
   const parsed = Number(value || 0)
@@ -43,6 +44,11 @@ function buildCompactSummary(result) {
   ].join(' • ')
 }
 
+function markDirectUploadRuntime(active) {
+  if (typeof document === 'undefined') return
+  document.body.classList.toggle(DIRECT_UPLOAD_BODY_CLASS, Boolean(active))
+}
+
 function cacheDirectUploadResult(result) {
   if (typeof window === 'undefined' || !result) return
 
@@ -57,6 +63,7 @@ function cacheDirectUploadResult(result) {
   }
 
   window.__SAP_RCA_WP_SCOUT_DIRECT_UPLOAD__ = payload
+  markDirectUploadRuntime(payload.rows.length > 0)
 
   try {
     window.sessionStorage?.setItem(DIRECT_UPLOAD_CACHE_KEY, JSON.stringify(payload))
@@ -68,10 +75,27 @@ function cacheDirectUploadResult(result) {
 function clearDirectUploadCache() {
   if (typeof window === 'undefined') return
   window.__SAP_RCA_WP_SCOUT_DIRECT_UPLOAD__ = null
+  markDirectUploadRuntime(false)
   try {
     window.sessionStorage?.removeItem(DIRECT_UPLOAD_CACHE_KEY)
   } catch (storageError) {
     console.warn('[SAP RCA PDF] Direct upload cache clear skipped', storageError)
+  }
+}
+
+function readCachedDirectUpload() {
+  if (typeof window === 'undefined') return null
+
+  if (window.__SAP_RCA_WP_SCOUT_DIRECT_UPLOAD__?.rows?.length) {
+    return window.__SAP_RCA_WP_SCOUT_DIRECT_UPLOAD__
+  }
+
+  try {
+    const cached = window.sessionStorage?.getItem(DIRECT_UPLOAD_CACHE_KEY)
+    return cached ? JSON.parse(cached) : null
+  } catch (storageError) {
+    console.warn('[SAP RCA PDF] Direct upload cache restore skipped', storageError)
+    return null
   }
 }
 
@@ -84,6 +108,14 @@ export default function ComparatorUiGuard() {
 
   React.useEffect(() => {
     import('../../tools/ToolComparer.clean.css')
+    const cached = readCachedDirectUpload()
+    if (cached?.rows?.length) {
+      setDirectResult(cached)
+      setStatus(`Ready for PDF export • ${cached.rows.length} evidence row(s) restored from direct upload cache.`)
+      markDirectUploadRuntime(true)
+    }
+
+    return () => markDirectUploadRuntime(false)
   }, [])
 
   async function handleFiles(event) {
