@@ -79,6 +79,16 @@ def _compact_normalized_fields(payload: ParsedResultCreate) -> dict[str, Any]:
     return normalized
 
 
+def _auto_case_stage(case_data: dict, result: dict) -> str:
+    severity = str(result.get("severity") or "INFO").upper()
+    confidence = float(result.get("confidence") or 0)
+
+    if severity in {"CRIT", "WARN"} or confidence >= 0.5:
+        return "CLASSIFIED"
+
+    return "ANALYZING"
+
+
 def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[str, Any]:
     """Save one parsed result into a case and preserve the existing route contract."""
     case_data = read_case(case_id)
@@ -99,6 +109,9 @@ def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[st
     if normalized_fields:
         result["normalized_rca"] = normalized_fields
     case_data.setdefault("parsed_results", []).append(result)
+
+    case_data["case_stage"] = _auto_case_stage(case_data, result)
+
     if result["severity"] in {"WARN", "CRIT"}:
         case_data["severity"] = result["severity"]
     if result["summary"]:
@@ -107,6 +120,11 @@ def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[st
         case_data["top_anomaly"] = result["top_anomaly"]
     if result["top_suspect"]:
         case_data["top_suspect"] = result["top_suspect"]
+
+    if result["top_suspect"] and result["summary"]:
+        sid = str(case_data.get("sid") or "SAP")
+        case_data["title"] = f"{sid} - {result['top_suspect']} - SAP RCA"
+
     append_parsed_result_timeline_event(case_data, result)
     case_data["updated_at"] = now_iso()
     write_case(case_data)
