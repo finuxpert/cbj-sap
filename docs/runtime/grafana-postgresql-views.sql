@@ -8,6 +8,9 @@
 --
 -- Recommended Grafana datasource:
 -- PostgreSQL read-only user.
+--
+-- Required base tables/columns:
+-- - cases.case_stage is expected to exist from the SAP RCA case-stage migration.
 
 CREATE OR REPLACE VIEW grafana_sap_rca_cases AS
 SELECT
@@ -27,11 +30,7 @@ SELECT
     COUNT(DISTINCT e.id) AS evidence_count,
     COUNT(DISTINCT pr.id) AS parsed_result_count,
     MAX(COALESCE(pr.confidence, 0)) AS confidence,
-    CASE
-        WHEN COUNT(pr.id) = 0 THEN 'WAITING_EVIDENCE'
-        WHEN MAX(COALESCE(pr.confidence, 0)) >= 0.5 THEN 'CLASSIFIED'
-        ELSE 'ANALYZING'
-    END AS case_stage,
+    COALESCE(NULLIF(c.case_stage, ''), 'INTAKE') AS case_stage,
     'https://sapdev.cbj-kontruksi.com/cases/' || c.id AS case_url
 FROM cases c
 LEFT JOIN evidence e
@@ -49,6 +48,7 @@ GROUP BY
     c.summary,
     c.top_anomaly,
     c.top_suspect,
+    c.case_stage,
     c.created_at,
     c.updated_at;
 
@@ -57,6 +57,7 @@ CREATE OR REPLACE VIEW grafana_sap_pending_cases AS
 SELECT *
 FROM grafana_sap_rca_cases
 WHERE case_stage IN (
+    'INTAKE',
     'WAITING_EVIDENCE',
     'ANALYZING'
 );
@@ -76,6 +77,7 @@ SELECT
     c.status,
     CASE
         WHEN pr.id IS NOT NULL THEN 'CLASSIFIED'
+        WHEN c.case_stage IS NOT NULL AND c.case_stage <> '' THEN c.case_stage
         WHEN e.case_id IS NOT NULL THEN 'ANALYZING'
         ELSE 'WAITING_EVIDENCE'
     END AS case_stage,
