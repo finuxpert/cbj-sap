@@ -7,7 +7,7 @@ import React from 'react'
  */
 
 const importers = {
-  comparer: () => import('./ToolComparerClean.jsx'),
+  comparer: () => import('./ToolComparerDirectHydrated.jsx'),
   analyzer: () => import('./ToolSt03nImpactV2.jsx'),
   logs: () => import('./ToolLogEvidenceV2.jsx'),
 }
