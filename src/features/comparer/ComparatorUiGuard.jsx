@@ -3,6 +3,8 @@ import './ComparatorDirectPdfPrep.css'
 import { parseWpScoutDirectUploadFiles } from './wpScoutDirectUploadParser.js'
 import { clearWpScoutParsedEvidence } from '../pdf/wpScoutParsedEvidenceStore.js'
 
+const DIRECT_UPLOAD_CACHE_KEY = 'sap_rca_wpscout_direct_upload_payload_v1'
+
 function formatCount(value) {
   const parsed = Number(value || 0)
   return Number.isFinite(parsed) ? parsed.toLocaleString('en-US') : '0'
@@ -49,6 +51,38 @@ function latestSamples(samples = []) {
     .reverse()
 }
 
+function cacheDirectUploadResult(result) {
+  if (typeof window === 'undefined' || !result) return
+
+  const payload = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    rows: result.rows || [],
+    resourceSamples: result.resourceSamples || [],
+    summary: result.summary || {},
+    files: result.files || [],
+    sourceFiles: result.sourceFiles || [],
+  }
+
+  window.__SAP_RCA_WP_SCOUT_DIRECT_UPLOAD__ = payload
+
+  try {
+    window.sessionStorage?.setItem(DIRECT_UPLOAD_CACHE_KEY, JSON.stringify(payload))
+  } catch (storageError) {
+    console.warn('[SAP RCA PDF] Direct upload cache skipped', storageError)
+  }
+}
+
+function clearDirectUploadCache() {
+  if (typeof window === 'undefined') return
+  window.__SAP_RCA_WP_SCOUT_DIRECT_UPLOAD__ = null
+  try {
+    window.sessionStorage?.removeItem(DIRECT_UPLOAD_CACHE_KEY)
+  } catch (storageError) {
+    console.warn('[SAP RCA PDF] Direct upload cache clear skipped', storageError)
+  }
+}
+
 export default function ComparatorUiGuard() {
   const inputRef = React.useRef(null)
   const [busy, setBusy] = React.useState(false)
@@ -73,6 +107,7 @@ export default function ComparatorUiGuard() {
       const sourceCount = result?.files?.length || 0
       const rowCount = result?.rows?.length || 0
 
+      cacheDirectUploadResult(result)
       setDirectResult(result)
       setStatus(`Ready for PDF export • ${rowCount} evidence row(s) parsed from ${sourceCount} extracted file(s).`)
 
@@ -99,6 +134,7 @@ export default function ComparatorUiGuard() {
 
   function clearPreparedEvidence() {
     clearWpScoutParsedEvidence()
+    clearDirectUploadCache()
     setDirectResult(null)
     setError(false)
     setStatus('Prepared evidence cleared. Comparer fallback view remains available.')
