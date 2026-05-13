@@ -23,6 +23,11 @@ const TYPE_RE = /^(BTC|DIA|UPD|SPO|ENQ|RFC|BGD|UP2|ICM|GATEWAY|\?)$/i
 const HOST_TOKEN_RE = /\b[A-Z0-9][A-Z0-9_.-]{2,}(?:APP|DB|HDB|PAS|AAS|CI|DI|SCS|ERS|PAPPDC|SAP)[A-Z0-9_.-]*\b/i
 const JOB_TOKEN_RE = /\b(?:Z|Y|SAP|RS|SM|RBD|BTC|BI|BW)[A-Z0-9_/-]{4,}\b/i
 
+function nowMs() {
+  if (typeof performance !== 'undefined' && typeof performance.now === 'function') return performance.now()
+  return Date.now()
+}
+
 function write(pdf, page, y, value, size = 9, style = 'normal', color = C.ink, indent = 0) {
   writePdfText(pdf, page, y, value, { size, style, color, indent })
 }
@@ -380,6 +385,43 @@ function buildSectionRegistry(report, profile, performance) {
     .map((section, index) => ({ ...section, page: index + 1 }))
 }
 
+function renderSectionsWithProfiler(sections, context) {
+  const exportStartedAt = nowMs()
+  const sectionProfile = []
+
+  sections.forEach((section, index) => {
+    const sectionStartedAt = nowMs()
+    const startPageCount = context.pdf.getNumberOfPages()
+    const startY = Number(context.y?.value || 0)
+
+    try {
+      section.render(context)
+    } finally {
+      sectionProfile.push({
+        id: section.id,
+        title: section.title,
+        order: index + 1,
+        durationMs: Math.max(0, Math.round(nowMs() - sectionStartedAt)),
+        startPageCount,
+        endPageCount: context.pdf.getNumberOfPages(),
+        pagesAdded: Math.max(0, context.pdf.getNumberOfPages() - startPageCount),
+        startY: Math.round(startY),
+        endY: Math.round(Number(context.y?.value || 0)),
+      })
+    }
+  })
+
+  context.performance.sectionProfile = sectionProfile
+  context.performance.sectionProfileTotalMs = Math.max(0, Math.round(nowMs() - exportStartedAt))
+
+  console.info('[SAP RCA PDF] V5 section profiler', {
+    engine: 'wp-scout-enterprise-v5',
+    profile: context.profile?.id || 'standard',
+    totalSectionRenderMs: context.performance.sectionProfileTotalMs,
+    sections: sectionProfile,
+  })
+}
+
 async function exportV5WpScoutVisualPdf() {
   const jsPdfModule = await import('jspdf')
   const JsPDF = jsPdfModule.jsPDF || jsPdfModule.default
@@ -392,7 +434,7 @@ async function exportV5WpScoutVisualPdf() {
   const y = { value: 16 }
   const sections = buildSectionRegistry(report, profile, performance)
 
-  sections.forEach((section) => section.render({ pdf, page, y, report, sections, profile, performance }))
+  renderSectionsWithProfiler(sections, { pdf, page, y, report, sections, profile, performance })
   footer(pdf, report)
 
   pdf.save(`sap-wpscout-enterprise-v5-${profile.id}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
