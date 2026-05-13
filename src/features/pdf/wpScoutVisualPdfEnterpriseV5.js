@@ -15,6 +15,7 @@ import {
   drawPdfTableRow,
 } from './wpScoutVisualPdfEnterpriseV5Primitives.js'
 import { appendixPage } from './wpScoutVisualPdfEnterpriseV5Appendix.js'
+import { estimateWpScoutPdfPerformance, pdfPerformanceLabel } from './wpScoutVisualPdfEnterpriseV5Performance.js'
 import { isSectionEnabledForProfile, resolveWpScoutPdfProfileFromDom } from './wpScoutVisualPdfEnterpriseV5Profiles.js'
 
 const STATUS_ONLY_RE = /^(CRIT|WARN|OK|INFO|RED|YELLOW|GREEN)$/i
@@ -171,7 +172,13 @@ function buildNarrative(report) {
   }
 }
 
-function cover(pdf, page, y, report, profile) {
+function performanceColor(performance) {
+  if (performance?.level === 'high') return C.red
+  if (performance?.level === 'medium') return C.yellow
+  return C.green
+}
+
+function cover(pdf, page, y, report, profile, performance) {
   pdf.setFillColor(...C.dark)
   pdf.rect(0, 0, page.w, 53, 'F')
   pdf.setFillColor(...report.color)
@@ -183,7 +190,7 @@ function cover(pdf, page, y, report, profile) {
   pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(9)
   pdf.text(`Generated: ${report.generatedAt}`, page.m, 25)
-  pdf.text(`Profile: ${profile.label} • Deterministic export with V4 fallback.`, page.m, 34)
+  pdf.text(`Profile: ${profile.label} • ${pdfPerformanceLabel(performance)} • Deterministic export with V4 fallback.`, page.m, 34)
   y.value = 63
   pdf.setTextColor(...report.color)
   pdf.setFont('helvetica', 'bold')
@@ -209,15 +216,15 @@ function cover(pdf, page, y, report, profile) {
   const w = (page.w - page.m * 2 - 8) / 3
   card(pdf, page.m, y.value, w, 22, 'Worst Host', report.top.host, { colors: C, accent: report.color })
   card(pdf, page.m + w + 4, y.value, w, 22, 'Worst PID / Type', `${report.top.pid} / ${report.top.type}`, { colors: C, accent: report.color })
-  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Top Job/Program', report.top.job, { colors: C, accent: report.color })
+  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Export Load', pdfPerformanceLabel(performance), { colors: C, accent: performanceColor(performance) })
   y.value += 27
   card(pdf, page.m, y.value, w, 22, 'Main Pressure', `${report.metrics.maxRss} RSS`, { colors: C, accent: report.color })
   card(pdf, page.m + w + 4, y.value, w, 22, 'CRIT / WARN', `${report.metrics.critical} CRIT / ${report.metrics.warning} WARN`, { colors: C, accent: report.color })
-  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Evidence Rows', report.metrics.rawRows, { colors: C, accent: report.color })
+  card(pdf, page.m + (w + 4) * 2, y.value, w, 22, 'Rows Rendered', `${performance.renderedRows}/${performance.evidenceRows}`, { colors: C, accent: performanceColor(performance) })
   y.value += 32
 }
 
-function indexPage(pdf, y, report, sections, profile) {
+function indexPage(pdf, y, report, sections, profile, performance) {
   pdf.addPage('a4', 'portrait')
   const page = pageOf(pdf)
   y.value = 16
@@ -234,7 +241,8 @@ function indexPage(pdf, y, report, sections, profile) {
     })
   })
   y.value += 6
-  write(pdf, page, y, `Severity: ${report.severity} • Data quality: ${report.dataQuality.confidence} • Evidence rows: ${report.metrics.rawRows}`, 8.5, 'normal', report.color)
+  write(pdf, page, y, `Severity: ${report.severity} • Data quality: ${report.dataQuality.confidence} • Evidence rows: ${report.metrics.rawRows} • Export: ${pdfPerformanceLabel(performance)}`, 8.5, 'normal', report.color)
+  performance.notes.forEach((note) => write(pdf, page, y, `• ${note}`, 8.2, 'normal', performanceColor(performance)))
 }
 
 function narrativePage(pdf, y, report) {
@@ -358,10 +366,10 @@ function footer(pdf, report) {
   }
 }
 
-function buildSectionRegistry(report, profile) {
+function buildSectionRegistry(report, profile, performance) {
   return [
-    { id: 'cover', title: 'Executive RCA Cover', owner: 'Management / Basis', enabled: true, render: ({ pdf, page, y }) => cover(pdf, page, y, report, profile) },
-    { id: 'index', title: 'Report Index', owner: 'Management / Incident Mgmt', enabled: true, render: ({ pdf, y, sections }) => indexPage(pdf, y, report, sections, profile) },
+    { id: 'cover', title: 'Executive RCA Cover', owner: 'Management / Basis', enabled: true, render: ({ pdf, page, y }) => cover(pdf, page, y, report, profile, performance) },
+    { id: 'index', title: 'Report Index', owner: 'Management / Incident Mgmt', enabled: true, render: ({ pdf, y, sections }) => indexPage(pdf, y, report, sections, profile, performance) },
     { id: 'narrative', title: 'Executive AI Narrative', owner: 'Management / Basis', enabled: true, render: ({ pdf, y }) => narrativePage(pdf, y, report) },
     { id: 'data-quality', title: 'Data Accuracy & Parser Quality', owner: 'Basis / Reviewer', enabled: true, render: ({ pdf, y }) => dataQualityPage(pdf, y, report) },
     { id: 'kpi-delta', title: 'KPI Delta Comparison', owner: 'Basis / Infrastructure', enabled: true, render: ({ pdf, y }) => kpiDeltaPage(pdf, y, report) },
@@ -378,12 +386,13 @@ async function exportV5WpScoutVisualPdf() {
   const root = document.querySelector('.fullBleed') || document.querySelector('main') || document.body
   const profile = resolveWpScoutPdfProfileFromDom(root)
   const report = buildReport(root)
+  const performance = estimateWpScoutPdfPerformance(report, profile)
   const pdf = new JsPDF('p', 'mm', 'a4')
   const page = pageOf(pdf)
   const y = { value: 16 }
-  const sections = buildSectionRegistry(report, profile)
+  const sections = buildSectionRegistry(report, profile, performance)
 
-  sections.forEach((section) => section.render({ pdf, page, y, report, sections, profile }))
+  sections.forEach((section) => section.render({ pdf, page, y, report, sections, profile, performance }))
   footer(pdf, report)
 
   pdf.save(`sap-wpscout-enterprise-v5-${profile.id}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.pdf`)
