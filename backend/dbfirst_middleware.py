@@ -21,14 +21,42 @@ except Exception:
     )
 
 
-async def dbfirst_read_middleware(request: Request, call_next):
-    """Serve selected read endpoints from PostgreSQL first, then fall back to legacy routes.
+def _strict_db_reads_enabled() -> bool:
+    """Return true when DB-backed history must not fall back to legacy JSON files.
 
-    This keeps the existing hybrid contract intact:
-    - only GET requests are intercepted
-    - DB runtime must be enabled
-    - empty/missing DB rows fall through to file-backed routes
-    - DB exceptions fall through to file-backed routes and store a fallback reason
+    Defaulting to strict mode prevents old QA/dummy JSON files under
+    sap-data/cases from reappearing after PostgreSQL has been cleaned.
+    Set SAP_RCA_STRICT_DB_READS=0 only for legacy recovery/debug sessions.
+    """
+    value = str(os.getenv("SAP_RCA_STRICT_DB_READS", "1")).strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
+def _dbfirst_list_response(payload_key: str, rows: list[dict], fallback_reason: str = "") -> JSONResponse:
+    body = {
+        "ok": True,
+        "read_source": "postgres",
+        "mode": os.getenv("DB_MODE", "hybrid"),
+        "strict_db_reads": _strict_db_reads_enabled(),
+        "count": len(rows),
+        payload_key: rows,
+    }
+
+    # Backward-compatible aliases for older frontend panels.
+    if payload_key == "cases":
+        body["items"] = rows
+    if fallback_reason:
+        body["fallback_suppressed_reason"] = fallback_reason
+
+    return JSONResponse(body)
+
+
+async def dbfirst_read_middleware(request: Request, call_next):
+    """Serve selected read endpoints from PostgreSQL first.
+
+    Hybrid writes remain intact, but read endpoints are strict by default when
+    DB runtime is enabled. This keeps a cleaned PostgreSQL/Grafana state from
+    being repopulated visually by legacy JSON files in sap-data/cases.
     """
     path = request.url.path.rstrip("/") or "/"
     method = request.method.upper()
@@ -55,28 +83,18 @@ async def dbfirst_read_middleware(request: Request, call_next):
         "/history/evidence",
     }
 
+    strict_reads = _strict_db_reads_enabled()
+
     try:
         if normalized in case_list_paths:
             rows = _cbj_dbfirst_fetch_cases()
-            if rows:
-                return JSONResponse({
-                    "ok": True,
-                    "read_source": "postgres",
-                    "mode": os.getenv("DB_MODE", "hybrid"),
-                    "count": len(rows),
-                    "cases": rows,
-                })
+            if rows or strict_reads:
+                return _dbfirst_list_response("cases", rows)
 
         if normalized in evidence_history_paths:
             rows = _cbj_dbfirst_fetch_evidence_history()
-            if rows:
-                return JSONResponse({
-                    "ok": True,
-                    "read_source": "postgres",
-                    "mode": os.getenv("DB_MODE", "hybrid"),
-                    "count": len(rows),
-                    "evidence": rows,
-                })
+            if rows or strict_reads:
+                return _dbfirst_list_response("evidence", rows)
 
         # DB-first single case detail: /cases/<id>
         if normalized.startswith("/cases/"):
@@ -88,11 +106,24 @@ async def dbfirst_read_middleware(request: Request, call_next):
                         "ok": True,
                         "read_source": "postgres",
                         "mode": os.getenv("DB_MODE", "hybrid"),
+                        "strict_db_reads": strict_reads,
                         "case": item,
                     })
+                if strict_reads:
+                    return JSONResponse({
+                        "ok": False,
+                        "read_source": "postgres",
+                        "mode": os.getenv("DB_MODE", "hybrid"),
+                        "strict_db_reads": True,
+                        "detail": "Case not found in PostgreSQL",
+                    }, status_code=404)
 
     except Exception as exc:
         request.state.dbfirst_fallback_reason = str(exc)
+        if strict_reads and normalized in case_list_paths:
+            return _dbfirst_list_response("cases", [], fallback_reason=str(exc))
+        if strict_reads and normalized in evidence_history_paths:
+            return _dbfirst_list_response("evidence", [], fallback_reason=str(exc))
         return await call_next(request)
 
     return await call_next(request)
