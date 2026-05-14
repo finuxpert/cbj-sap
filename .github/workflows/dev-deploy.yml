@@ -10,6 +10,10 @@ on:
         description: "Type DEPLOY_DEV to confirm DEV deployment"
         required: true
         default: ""
+      run_mutating_qa:
+        description: "Optional: type RUN_MUTATING_QA to create QA validation case data"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -20,7 +24,7 @@ concurrency:
 
 jobs:
   deploy-dev:
-    name: Build, deploy, and QA SAPDEV
+    name: Build, deploy, and validate SAPDEV
     if: github.event_name == 'push' || github.event.inputs.confirm == 'DEPLOY_DEV'
     runs-on:
       - self-hosted
@@ -94,15 +98,21 @@ jobs:
           API="https://sapdev.cbj-kontruksi.com/sap-api"
           curl -fsS "${API}/health" | jq '{status:.status, case_history:.case_history, database:.database}'
           curl -fsS "${API}/cases?limit=20" | jq '{ok:.ok, read_source:(.read_source // "file"), mode:(.mode // "hybrid"), count:.count}'
-          curl -fsS "${API}/mobile/cases?limit=20" | jq '{ok:.ok, count:.count}'
+          curl -fsS "${API}/mobile/cases?limit=20" | jq '{ok:.ok, read_source:(.read_source // "file"), count:.count}'
           curl -fsS "${API}/evidence-history?limit=20" | jq '{ok:.ok, read_source:.read_source, mode:.mode, count:.count, fallback_reason:(.fallback_reason // null)}'
           curl -fsS "${API}/parsed-results-history?limit=20" | jq '{ok:.ok, read_source:.read_source, mode:.mode, count:.count, fallback_reason:(.fallback_reason // null)}'
 
-      - name: Run full SAPDEV QA suite
+      - name: Run non-mutating backend QA
         working-directory: /home/sadmin/sap
         run: |
           set -euo pipefail
           bash scripts/qa-backend-syntax.sh
+
+      - name: Run optional mutating SAPDEV QA suite
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_mutating_qa == 'RUN_MUTATING_QA'
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
           bash scripts/qa-sapdev.sh
 
       - name: Workflow success summary
@@ -119,6 +129,7 @@ jobs:
             echo "- Status: SUCCESS"
             echo "- URL: https://sapdev.cbj-kontruksi.com/sap/"
             echo "- API: https://sapdev.cbj-kontruksi.com/sap-api/health"
+            echo "- Mutating QA: disabled by default"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show recent deploy log
