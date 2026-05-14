@@ -95,7 +95,7 @@ SELECT
     c.id AS case_id,
     c.sid,
     c.environment,
-    COALESCE(hosts.value::text, 'unknown') AS host,
+    COALESCE(hosts.value, 'unknown') AS host,
     COALESCE(pr.tool, 'unknown') AS source_tool,
     pr.severity,
     pr.confidence AS suspect_score,
@@ -107,6 +107,10 @@ FROM parsed_results pr
 JOIN cases c
     ON c.id = pr.case_id
 LEFT JOIN LATERAL jsonb_array_elements_text(
-    COALESCE(pr.result_json->'hosts', '["unknown"]'::jsonb)
+    CASE
+        WHEN jsonb_typeof(pr.result_json->'hosts') = 'array' THEN pr.result_json->'hosts'
+        WHEN jsonb_typeof(pr.result_json->'hosts') = 'string' THEN jsonb_build_array(pr.result_json->>'hosts')
+        ELSE '["unknown"]'::jsonb
+    END
 ) AS hosts(value)
     ON TRUE;
