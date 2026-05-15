@@ -92,18 +92,12 @@ function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
     return 0
   }
 
-  // Daily Check format:
-  // CPU usage : 29.52% used, 70.48% idle
-  // Memory    : used 54.6G (44.8%), free 28.3G / 121.7G
-  // Swap IO   : si/so 0/0 p/s
   const cpu = pick([
     /CPU\s+usage\s*:\s*(\d+(?:[.,]\d+)?)\s*%\s*used/i,
     /cpu\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*%?/i,
   ])
 
   const mem = pick([
-    // Daily Check format:
-    // Memory            : used 54.6G (44.8%), free 28.3G / 121.7G
     /Memory\s*:\s*used\s+\d+(?:[.,]\d+)?\s*G\s*\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
     /Memory\s*:\s*.*?\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
     /mem(?:ory)?\s*[:=]?\s*(?:used\s+)?\d+(?:[.,]\d+)?\s*G\s*\(\s*(\d+(?:[.,]\d+)?)\s*%\s*\)/i,
@@ -111,8 +105,6 @@ function parseResourceMetricLine(line = '', snapshot = '', fallback = '') {
   ])
 
   const swapSi = pick([
-    // Daily Check authoritative source only:
-    // Swap IO           : si/so 0/0 p/s
     /Swap\s+IO\s*:\s*si\/so\s+(\d+(?:[.,]\d+)?)\/(\d+(?:[.,]\d+)?)\s*p\/s/i,
   ])
 
@@ -308,7 +300,6 @@ function buildResourceTrend(rows = [], telemetrySamples = []) {
       cur.memCount += 1
     }
 
-    // Swap is an event/rate signal. Keep max so short spikes remain visible.
     cur.swapSi = Math.max(cur.swapSi, Number(item.swapSi || 0))
     direct.set(key, cur)
   }
@@ -332,7 +323,6 @@ function buildResourceTrend(rows = [], telemetrySamples = []) {
     const cur = grouped.get(time) || { time, cpu: 0, mem: 0, swapSi: 0, source: 'rss-pressure' }
     cur.cpu = Math.max(cur.cpu, Number(row.cpu || 0))
     cur.mem = Math.max(cur.mem, Math.min(100, (Number(row.rssGb || 0) / maxRss) * 100))
-    // Do not synthesize swap from RSS pressure. Swap must come from real Swap IO telemetry.
     cur.swapSi = Math.max(cur.swapSi, 0)
     grouped.set(time, cur)
   }
@@ -562,6 +552,7 @@ export default function ToolComparerClean() {
     defaultCaseTitle: 'WP-SCOUT RCA Case',
     toolName: 'WP-SCOUT / RCA Comparator',
     uploadTags: ['wp-scout', 'comparer', 'sap-rca', 'auto-linked'],
+    requireExplicitSaveIntent: true,
     loadJson,
     saveJson,
   })
@@ -581,7 +572,6 @@ export default function ToolComparerClean() {
       const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
       const nextSamples = parsed.flatMap((item) => item.resourceSamples || [])
       const nextTrend = buildResourceTrend(nextRows, nextSamples)
-      const nextAnalysis = buildComparerAnalysis(nextRows, parsed.length, nextTrend)
       setFiles(list)
       setRows(nextRows)
       setResourceSamples(nextSamples)
@@ -687,8 +677,11 @@ export default function ToolComparerClean() {
             saveStatus={caseLink.saveStatus}
             onCaseIdChange={caseLink.setCaseId}
             onCaseTitleChange={caseLink.setCaseTitle}
-            onCreateCase={() => caseLink.createLinkedCase(caseAnalysis)}
-            onSaveCurrent={() => caseLink.persistAnalysis(caseAnalysis, files)}
+            onCreateCase={async () => {
+              const nextCaseId = await caseLink.createLinkedCase(caseAnalysis)
+              return nextCaseId
+            }}
+            onSaveCurrent={(options) => caseLink.persistAnalysis(caseAnalysis, files, {}, options)}
             hasAnalysis={Boolean(caseAnalysis)}
             saveLabel="Save to Case History"
             titlePlaceholder="Contoh: WP-SCOUT memory pressure RCA"
