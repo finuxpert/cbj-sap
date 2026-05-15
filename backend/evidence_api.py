@@ -276,8 +276,12 @@ def download_evidence(evidence_id: str):
 
 
 @app.get("/evidence-history")
-def list_evidence_history() -> dict:
-    return list_evidence_history_dbfirst()
+def list_evidence_history(case_id: str = "", tool: str = "", limit: int = 100) -> dict:
+    return list_evidence_history_dbfirst(
+        case_id=case_id,
+        tool=tool,
+        limit=limit,
+    )
 
 
 @app.post("/maintenance/cleanup")
