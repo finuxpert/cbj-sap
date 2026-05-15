@@ -12,17 +12,26 @@ function normalizeCase(payload) {
   return payload?.case || payload?.item || payload || null
 }
 
+function stageLabel(value) {
+  return String(value || 'INTAKE').trim().toUpperCase() || 'INTAKE'
+}
+
 function AnalyticsQuickSummary({ caseData }) {
   const evidenceCount = countItems(caseData?.evidence) || countItems(caseData?.evidence_count)
   const parsedCount = countItems(caseData?.parsed_results)
   const reportCount = countItems(caseData?.reports) || countItems(caseData?.report_count)
   const severity = String(caseData?.severity || 'INFO').toUpperCase()
+  const stage = stageLabel(caseData?.case_stage)
 
   return (
     <div className="caseAnalyticsQuickSummary" id="case-analytics">
       <div>
         <span>Case</span>
         <strong>{caseData?.case_no || caseData?.id || 'Case Detail'}</strong>
+      </div>
+      <div>
+        <span>RCA Stage</span>
+        <strong>{stage}</strong>
       </div>
       <div>
         <span>Severity</span>
@@ -49,6 +58,7 @@ function CaseDashboardHero({ caseData, loadingAnalytics }) {
   const summary = caseData?.executive_summary || caseData?.summary || 'RCA dashboard summary will appear after the case data is loaded.'
   const status = String(caseData?.status || 'OPEN').toUpperCase()
   const severity = String(caseData?.severity || 'INFO').toUpperCase()
+  const stage = stageLabel(caseData?.case_stage)
 
   return (
     <section className="caseDashboardHero">
@@ -59,6 +69,7 @@ function CaseDashboardHero({ caseData, loadingAnalytics }) {
       </div>
       <div className="caseDashboardMeta">
         <span>{loadingAnalytics ? 'SYNCING' : status}</span>
+        <span>{stage}</span>
         <strong>{severity}</strong>
         <a href="#case-detail-full">Open Full Detail</a>
       </div>
