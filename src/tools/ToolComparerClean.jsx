@@ -23,6 +23,7 @@ import {
 import './ToolComparerClean.css'
 import './ToolComparerCleanVisual.css'
 import './ToolComparerDynatrace.css'
+import './ToolComparerCleanCompact.css'
 
 const MAX_ROWS = 5000
 const CASE_KEY = 'sap_wp_scout_comparator_case_id'
