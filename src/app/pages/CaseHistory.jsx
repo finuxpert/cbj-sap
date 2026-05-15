@@ -15,6 +15,21 @@ function normalizeStatusFilter(value) {
   return String(value).toUpperCase()
 }
 
+function normalizeStageFilter(value) {
+  if (!value || value === 'all') return ''
+  return String(value).toUpperCase()
+}
+
+function caseStage(item) {
+  return String(item?.case_stage || 'INTAKE').toUpperCase()
+}
+
+function countValue(primary, fallback = 0) {
+  if (Array.isArray(primary)) return primary.length
+  const number = Number(primary ?? fallback ?? 0)
+  return Number.isFinite(number) ? number : 0
+}
+
 function caseTimestamp(item) {
   return Date.parse(item?.updated_at || item?.created_at || '') || 0
 }
@@ -35,6 +50,7 @@ export default function CaseHistory() {
   const [cases, setCases] = React.useState([])
   const [query, setQuery] = React.useState('')
   const [status, setStatus] = React.useState('all')
+  const [stage, setStage] = React.useState('all')
   const [tool, setTool] = React.useState('all')
   const [loading, setLoading] = React.useState(true)
   const [exporting, setExporting] = React.useState(false)
@@ -67,12 +83,15 @@ export default function CaseHistory() {
   const filteredCases = React.useMemo(() => {
     const q = query.trim().toLowerCase()
     const expectedStatus = normalizeStatusFilter(status)
+    const expectedStage = normalizeStageFilter(stage)
     const expectedTool = tool === 'all' ? '' : tool
 
     return sortNewestFirst(cases.filter((item) => {
       const itemStatus = String(item.status || '').toUpperCase()
+      const itemStage = caseStage(item)
       const itemTool = String(item.tool || '')
       if (expectedStatus && itemStatus !== expectedStatus) return false
+      if (expectedStage && itemStage !== expectedStage) return false
       if (expectedTool && itemTool !== expectedTool) return false
       if (!q) return true
       const haystack = [
@@ -83,6 +102,7 @@ export default function CaseHistory() {
         item.environment,
         item.severity,
         item.status,
+        item.case_stage,
         item.tool,
         item.summary,
         item.top_anomaly,
@@ -90,7 +110,7 @@ export default function CaseHistory() {
       ].filter(Boolean).join(' ').toLowerCase()
       return haystack.includes(q)
     }))
-  }, [cases, query, status, tool])
+  }, [cases, query, status, stage, tool])
 
   React.useEffect(() => {
     const visibleIds = new Set(filteredCases.map(caseIdentity).filter(Boolean))
@@ -189,17 +209,20 @@ export default function CaseHistory() {
     if (exporting) return
     setExporting(true)
     try {
-      await exportCaseHistoryListPdf(filteredCases, { query, status, tool })
+      await exportCaseHistoryListPdf(filteredCases, { query, status, stage, tool })
     } catch (err) {
       console.error('[Case History PDF] failed:', err)
       window.print()
     } finally {
       setExporting(false)
     }
-  }, [exporting, filteredCases, query, status, tool])
+  }, [exporting, filteredCases, query, status, stage, tool])
 
   const activeCount = filteredCases.filter((item) => String(item?.status || '').toUpperCase() !== 'ARCHIVED').length
   const archivedCount = filteredCases.length - activeCount
+  const classifiedCount = filteredCases.filter((item) => caseStage(item) === 'CLASSIFIED').length
+  const evidenceTotal = filteredCases.reduce((sum, item) => sum + countValue(item.evidence, item.evidence_count), 0)
+  const parsedTotal = filteredCases.reduce((sum, item) => sum + countValue(item.parsed_results, item.parsed_count ?? item.parsed_results_count), 0)
 
   return (
     <section className="caseHistoryPage container section">
@@ -228,7 +251,7 @@ export default function CaseHistory() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Case id, title, tool, anomaly, suspect…"
+            placeholder="Case id, title, stage, tool, anomaly, suspect…"
           />
         </label>
         <label>
@@ -239,6 +262,17 @@ export default function CaseHistory() {
             <option value="in_progress">IN_PROGRESS</option>
             <option value="closed">CLOSED</option>
             <option value="archived">ARCHIVED</option>
+          </select>
+        </label>
+        <label>
+          <span>RCA Stage</span>
+          <select value={stage} onChange={(event) => setStage(event.target.value)}>
+            <option value="all">All stages</option>
+            <option value="intake">INTAKE</option>
+            <option value="waiting_evidence">WAITING_EVIDENCE</option>
+            <option value="analyzing">ANALYZING</option>
+            <option value="classified">CLASSIFIED</option>
+            <option value="resolved">RESOLVED</option>
           </select>
         </label>
         <label>
@@ -258,6 +292,18 @@ export default function CaseHistory() {
         <div>
           <strong>{activeCount}</strong>
           <span>active</span>
+        </div>
+        <div>
+          <strong>{classifiedCount}</strong>
+          <span>classified</span>
+        </div>
+        <div>
+          <strong>{evidenceTotal}</strong>
+          <span>evidence</span>
+        </div>
+        <div>
+          <strong>{parsedTotal}</strong>
+          <span>parsed</span>
         </div>
         <div>
           <strong>{archivedCount}</strong>
