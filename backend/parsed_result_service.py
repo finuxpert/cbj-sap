@@ -264,11 +264,12 @@ def _build_generated_title(case_data: dict, result: dict) -> str:
 
 
 def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[str, Any]:
-    """Save one parsed result into a case without changing the case identity.
+    """Save one parsed result into a case while keeping case identity stable.
 
-    A case represents one incident. Each RCA tool may append its own parsed result,
-    but the latest tool must not rename or reclassify the whole case label in the
-    case list. Case-level summary fields are only initialized when still empty.
+    A case represents one incident identity. RCA tools may append parsed results,
+    classify case_stage/severity, and enrich SID/environment when missing, but
+    they must not overwrite case-level summary, anomaly, suspect, title, or label.
+    Tool findings remain in parsed_results and normalized_rca.
     """
     case_data = read_case(case_id)
     normalized_fields = _compact_normalized_fields(payload, case_data)
@@ -303,13 +304,6 @@ def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[st
         case_data["sid"] = normalized_fields["sid"]
     if normalized_fields.get("environment") and not case_data.get("environment"):
         case_data["environment"] = normalized_fields["environment"]
-
-    if result["summary"] and not case_data.get("summary"):
-        case_data["summary"] = result["summary"]
-    if result["top_anomaly"] and not case_data.get("top_anomaly"):
-        case_data["top_anomaly"] = result["top_anomaly"]
-    if result["top_suspect"] and not case_data.get("top_suspect"):
-        case_data["top_suspect"] = result["top_suspect"]
 
     generated_title = _build_generated_title(case_data, result)
     if generated_title:
