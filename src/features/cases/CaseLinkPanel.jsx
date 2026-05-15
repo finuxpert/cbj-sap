@@ -15,11 +15,11 @@ function findCase(items = [], id = '') {
   return items.find((item) => caseItemId(item) === id) || null
 }
 
-function statusTone(message = '') {
+function messageTone(message = '') {
   const text = String(message || '').toLowerCase()
-  if (!text) return ''
-  if (text.includes('fail') || text.includes('error') || text.includes('blocked') || text.includes('not found')) return 'error'
-  if (text.includes('created') || text.includes('saved') || text.includes('selected') || text.includes('linked')) return 'success'
+  if (!text) return 'info'
+  if (text.includes('fail') || text.includes('error') || text.includes('blocked') || text.includes('not found') || text.includes('db write failed')) return 'error'
+  if (text.includes('created') || text.includes('saved') || text.includes('ready') || text.includes('linked')) return 'success'
   return 'info'
 }
 
@@ -30,6 +30,7 @@ export default function CaseLinkPanel({
   caseTitle,
   recentCases = [],
   savingCase,
+  creatingCase = false,
   saveStatus,
   onCaseIdChange,
   onCaseTitleChange,
@@ -39,16 +40,13 @@ export default function CaseLinkPanel({
   createLabel = 'Create Case',
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
-  children,
 }) {
   const [mode, setMode] = React.useState('create')
   const [selectedExistingCase, setSelectedExistingCase] = React.useState('')
-  const linkedCase = findCase(recentCases, caseId)
+
   const visibleCases = recentCases.filter((item) => String(item?.status || '').toUpperCase() !== 'ARCHIVED')
-  const canCreate = Boolean(hasAnalysis) && Boolean(caseTitle.trim()) && !savingCase
-  const canUseSelectedCase = mode === 'link' && Boolean(selectedExistingCase) && !savingCase
-  const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
-  const tone = statusTone(saveStatus)
+  const linkedCase = findCase(recentCases, caseId)
+  const linkedCaseDetails = linkedCase ? caseLabel(linkedCase) : caseId
 
   React.useEffect(() => {
     if (mode === 'link') setSelectedExistingCase(caseId || '')
@@ -78,6 +76,10 @@ export default function CaseLinkPanel({
     if (caseTitle) onCaseTitleChange('')
   }, [caseTitle, onCaseTitleChange])
 
+  const canCreate = mode === 'create' && Boolean(hasAnalysis) && Boolean(caseTitle.trim()) && !savingCase
+  const canUseSelectedCase = mode === 'link' && Boolean(selectedExistingCase) && !savingCase
+  const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !caseTitle.trim() && !savingCase
+
   const handlePrimaryAction = React.useCallback(async () => {
     if (mode === 'create') {
       if (!canCreate) return
@@ -93,31 +95,38 @@ export default function CaseLinkPanel({
     onSaveCurrent({ explicitSaveIntent: true })
   }, [canSave, onSaveCurrent])
 
-  const linkedBadge = caseId
-    ? { tone: 'success', text: `Linked: ${caseId}` }
-    : { tone: 'neutral', text: 'Not linked yet' }
-
-  let helperMessage = 'Ready: save parsed summary and linked evidence metadata to Case History.'
-  if (!hasAnalysis) {
-    helperMessage = 'Save disabled: upload and analyze evidence first.'
+  let guidance = 'Upload and analyze evidence first.'
+  if (creatingCase) {
+    guidance = 'Creating case in PostgreSQL…'
+  } else if (savingCase && caseId) {
+    guidance = 'Saving parsed summary and evidence metadata…'
+  } else if (!hasAnalysis) {
+    guidance = 'Upload and analyze evidence first.'
+  } else if (mode === 'create' && caseTitle.trim() && !caseId) {
+    guidance = 'Click Create Case to link this analysis to a new DB case.'
+  } else if (mode === 'create' && !caseTitle.trim() && !caseId) {
+    guidance = 'Enter a case title to enable Create Case.'
   } else if (mode === 'link' && !visibleCases.length) {
-    helperMessage = 'No existing DB case found. Create a new case first.'
-  } else if (mode === 'link' && !selectedExistingCase) {
-    helperMessage = 'Select an existing DB case, then click Use Selected Case.'
-  } else if (mode === 'create' && !caseTitle.trim()) {
-    helperMessage = 'Create Case disabled: enter a new case title first.'
-  } else if (!caseId) {
-    helperMessage = 'Save disabled: create or link a case first.'
-  } else if (caseTitle.trim()) {
-    helperMessage = 'Save disabled: create the new case first.'
+    guidance = 'No existing DB case found. Create a new case first.'
+  } else if (mode === 'link' && !selectedExistingCase && !caseId) {
+    guidance = 'Choose an existing DB case first.'
+  } else if (mode === 'link' && selectedExistingCase && !caseId) {
+    guidance = 'Selected case is ready. Click Use Selected Case.'
+  } else if (caseId && !canSave) {
+    guidance = 'Clear the new-case title before saving to Case History.'
+  } else if (caseId && canSave) {
+    guidance = 'Selected case is ready. Click Save to Case History.'
   }
 
-  const primaryActionLabel = mode === 'create' ? createLabel : 'Use Selected Case'
-  const primaryActionDisabled = mode === 'create' ? !canCreate : !canUseSelectedCase
-  const linkedCaseText = caseId ? (linkedCase ? caseLabel(linkedCase) : caseId) : 'Not linked yet'
+  const statusMessage = saveStatus || guidance
+  const statusTone = messageTone(statusMessage)
+  const linkedBadgeText = caseId ? `Linked: ${caseId}` : 'Not linked yet'
+  const linkedBadgeTone = caseId ? 'success' : 'neutral'
+  const primaryLabel = mode === 'create' ? (creatingCase ? 'Creating…' : createLabel) : 'Use Selected Case'
+  const primaryDisabled = mode === 'create' ? !canCreate : !canUseSelectedCase
 
   return (
-    <section className="evidencePanel caseHistoryLinkPanel">
+    <section className="caseLinkCard">
       <div className="caseHistoryPanelHead">
         <div>
           <h2>{title}</h2>
@@ -125,61 +134,68 @@ export default function CaseLinkPanel({
         </div>
       </div>
 
-      <div className="caseHistorySection">
-        <span className="caseHistorySectionLabel">Case Mode</span>
+      <div className="caseLinkStep">
+        <div className="caseLinkStepHead">
+          <span className="caseLinkStepNumber">Step 1</span>
+          <h3>Case Mode</h3>
+        </div>
         <div className="caseHistoryModeSwitch" role="group" aria-label="Case link mode">
           <button type="button" className="btn" data-active={mode === 'create'} onClick={enterCreateMode}>Create New Case</button>
           <button type="button" className="btn" data-active={mode === 'link'} onClick={enterLinkMode}>Link Existing Case</button>
         </div>
       </div>
 
-      <div className="caseHistorySection">
-        <span className="caseHistorySectionLabel">Case Input</span>
+      <div className="caseLinkStep">
+        <div className="caseLinkStepHead">
+          <span className="caseLinkStepNumber">Step 2</span>
+          <h3>Case Input</h3>
+        </div>
         {mode === 'create' ? (
-          <label className="caseHistoryField caseHistoryFieldProminent">
-            <b>New Case Title</b>
+          <div className="caseLinkField">
+            <label htmlFor="case-link-title">New Case Title</label>
             <input
+              id="case-link-title"
               value={caseTitle}
               onFocus={enterCreateMode}
               onChange={(event) => handleTitleChange(event.target.value)}
               placeholder={titlePlaceholder}
             />
-            <small>Create the case first, then save parsed summary and evidence to that linked case.</small>
-          </label>
+            <small>Create the case first, then save parsed summary and evidence.</small>
+          </div>
         ) : (
-          <label className="caseHistoryField">
-            <b>Link Existing Case</b>
-            <select value={selectedExistingCase} onChange={(event) => handleCaseSelect(event.target.value)}>
+          <div className="caseLinkField">
+            <label htmlFor="case-link-select">Existing DB Case</label>
+            <select id="case-link-select" value={selectedExistingCase} onChange={(event) => handleCaseSelect(event.target.value)}>
               <option value="">Choose case explicitly…</option>
               {visibleCases.map((item) => {
                 const id = caseItemId(item)
                 return <option key={id || item.title} value={id}>{caseLabel(item)}</option>
               })}
             </select>
-            <small>
-              {visibleCases.length
-                ? 'Choose the existing DB case that should receive this WP-SCOUT analysis.'
-                : 'No existing DB case found. Create a new case first.'}
-            </small>
-          </label>
+            <small>{visibleCases.length ? 'Select the DB case that should receive this WP-SCOUT analysis.' : 'No existing DB case found. Create a new case first.'}</small>
+          </div>
         )}
       </div>
 
-      <div className="caseHistorySection">
-        <span className="caseHistorySectionLabel">Linked Case</span>
-        <div className="caseHistoryLinkedCard">
-          <div className={`caseHistoryBadge ${linkedBadge.tone}`}>{linkedBadge.text}</div>
-          <div className="caseHistoryLinkedValue">{linkedCaseText}</div>
+      <div className="caseLinkStep">
+        <div className="caseLinkStepHead">
+          <span className="caseLinkStepNumber">Step 3</span>
+          <h3>Linked Case</h3>
+        </div>
+        <div className="caseLinkStatusRow">
+          <div className={`caseLinkBadge ${linkedBadgeTone}`}>{linkedBadgeText}</div>
+          {caseId ? <div className="caseLinkLinkedValue">{linkedCaseDetails}</div> : null}
         </div>
       </div>
 
-      {children}
-
-      <div className="caseHistorySection">
-        <span className="caseHistorySectionLabel">Actions</span>
-        <div className="caseHistoryActions">
-          <button className="btn" type="button" onClick={handlePrimaryAction} disabled={primaryActionDisabled}>
-            {savingCase && mode === 'create' ? 'Creating…' : savingCase && mode === 'link' ? 'Applying…' : primaryActionLabel}
+      <div className="caseLinkStep">
+        <div className="caseLinkStepHead">
+          <span className="caseLinkStepNumber">Step 4</span>
+          <h3>Actions</h3>
+        </div>
+        <div className="caseLinkActions">
+          <button className="btn" type="button" onClick={handlePrimaryAction} disabled={primaryDisabled}>
+            {primaryLabel}
           </button>
           <button className="btn primary" type="button" onClick={handleSave} disabled={!canSave}>
             {savingCase && caseId ? 'Saving…' : saveLabel}
@@ -187,10 +203,14 @@ export default function CaseLinkPanel({
         </div>
       </div>
 
-      <div className="caseHistorySection caseHistoryMessages">
-        <span className="caseHistorySectionLabel">Guidance</span>
-        <div className="caseHistoryHelperMessage">{helperMessage}</div>
-        {saveStatus ? <div className={`caseHistoryStatusMessage ${tone}`}>{saveStatus}</div> : null}
+      <div className="caseLinkStep">
+        <div className="caseLinkStepHead">
+          <span className="caseLinkStepNumber">Step 5</span>
+          <h3>Status</h3>
+        </div>
+        <div className={`caseLinkStatusBox ${statusTone}`}>
+          <div className="caseLinkGuidance">{statusMessage}</div>
+        </div>
       </div>
     </section>
   )
