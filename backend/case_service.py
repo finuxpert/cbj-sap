@@ -155,7 +155,13 @@ def create_case_item(payload: CaseCreate) -> dict[str, Any]:
     write_case(data)
     db_write = upsert_case_best_effort(data)
     _require_db_write_ok(db_write, "create case")
-    return {"ok": True, "case": data, "db_write": db_write}
+    return {
+        "ok": True,
+        "case": data,
+        "case_id": data["id"],
+        "case_no": data["case_no"],
+        "db_write": db_write,
+    }
 
 
 def list_case_items(
