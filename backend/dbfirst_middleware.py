@@ -21,6 +21,10 @@ except Exception:
     )
 
 
+def _db_mode() -> str:
+    return os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "db"
+
+
 def _strict_db_reads_enabled() -> bool:
     """Return true when DB-backed history must not fall back to legacy JSON files.
 
@@ -36,7 +40,7 @@ def _dbfirst_list_response(payload_key: str, rows: list[dict], fallback_reason: 
     body = {
         "ok": True,
         "read_source": "postgres",
-        "mode": os.getenv("DB_MODE", "hybrid"),
+        "mode": _db_mode(),
         "strict_db_reads": _strict_db_reads_enabled(),
         "count": len(rows),
         payload_key: rows,
@@ -54,9 +58,8 @@ def _dbfirst_list_response(payload_key: str, rows: list[dict], fallback_reason: 
 async def dbfirst_read_middleware(request: Request, call_next):
     """Serve selected read endpoints from PostgreSQL first.
 
-    Hybrid writes remain intact, but read endpoints are strict by default when
-    DB runtime is enabled. This keeps a cleaned PostgreSQL/Grafana state from
-    being repopulated visually by legacy JSON files in sap-data/cases.
+    DB is the Case History source of truth for UI/Grafana. Legacy file JSON is
+    no longer used for these read paths when DB runtime is enabled.
     """
     path = request.url.path.rstrip("/") or "/"
     method = request.method.upper()
@@ -105,7 +108,7 @@ async def dbfirst_read_middleware(request: Request, call_next):
                     return JSONResponse({
                         "ok": True,
                         "read_source": "postgres",
-                        "mode": os.getenv("DB_MODE", "hybrid"),
+                        "mode": _db_mode(),
                         "strict_db_reads": strict_reads,
                         "case": item,
                     })
@@ -113,7 +116,7 @@ async def dbfirst_read_middleware(request: Request, call_next):
                     return JSONResponse({
                         "ok": False,
                         "read_source": "postgres",
-                        "mode": os.getenv("DB_MODE", "hybrid"),
+                        "mode": _db_mode(),
                         "strict_db_reads": True,
                         "detail": "Case not found in PostgreSQL",
                     }, status_code=404)
