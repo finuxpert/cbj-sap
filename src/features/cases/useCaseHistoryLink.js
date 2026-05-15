@@ -2,6 +2,8 @@ import React from 'react'
 import { createCase, listMobileCases, saveParsedResult, uploadEvidence } from '../../evidence-api-client.js'
 import { caseItemId, findFallbackCase, normalizeCaseId, normalizeCaseList } from './caseHistoryLinkUtils.js'
 
+const EXPLICIT_SAVE_WINDOW_MS = 8000
+
 function isMissingCaseError(error) {
   const message = String(error?.message || error?.detail || error?.raw || '').toLowerCase()
   return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
@@ -87,6 +89,13 @@ function dbWriteSuffix(response = {}) {
   return [enabled, written, status].filter(Boolean).join(', ')
 }
 
+function hasRecentExplicitSaveIntent() {
+  if (typeof window === 'undefined') return false
+  const lastIntent = Number(window.__SAP_RCA_EXPLICIT_CASE_SAVE_TS__ || 0)
+  if (!lastIntent) return false
+  return Date.now() - lastIntent <= EXPLICIT_SAVE_WINDOW_MS
+}
+
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -95,6 +104,7 @@ export default function useCaseHistoryLink({
   toolName = 'SAP RCA Workspace',
   uploadLimit = 20,
   uploadTags = [],
+  requireExplicitSaveIntent = false,
   saveJson,
 }) {
   const [recentCases, setRecentCases] = React.useState([])
@@ -166,6 +176,10 @@ export default function useCaseHistoryLink({
       setSaveStatus('New case title is active. Click Create Case first, then save parsed summary.')
       return
     }
+    if (requireExplicitSaveIntent && !hasRecentExplicitSaveIntent()) {
+      setSaveStatus('Save blocked: click Save to Case History explicitly after create/select case. Upload & Analyze does not write Case History.')
+      return
+    }
     setSavingCase(true)
     setSaveStatus('Saving parsed summary to Case History…')
     try {
@@ -201,7 +215,7 @@ export default function useCaseHistoryLink({
     } finally {
       setSavingCase(false)
     }
-  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, loadCases, toolName, uploadLimit, uploadTags])
+  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, loadCases, requireExplicitSaveIntent, toolName, uploadLimit, uploadTags])
 
   const createLinkedCase = React.useCallback(async (analysis, context = {}) => {
     if (savingCase || creatingCase) return ''
