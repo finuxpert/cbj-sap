@@ -141,13 +141,16 @@ def startup() -> None:
 def health() -> dict:
     ensure_dirs()
     db_status = check_database()
-    case_history = "hybrid" if db_status.get("enabled") and db_status.get("status") == "ok" else "file-backed"
+    db_ready = db_status.get("enabled") and db_status.get("status") == "ok"
+    case_history = "db" if db_ready else "db-unavailable"
     return {
-        "status": "ok",
+        "status": "ok" if db_ready else "degraded",
         "service": APP_NAME,
         "storage_root": str(STORAGE_ROOT),
         "max_upload_mb": MAX_UPLOAD_MB,
         "case_history": case_history,
+        "case_history_source_of_truth": "postgres",
+        "file_storage_role": "binary-evidence-only",
         "analytics": "enabled",
         "database": db_status,
     }
@@ -262,38 +265,27 @@ def update_evidence(evidence_id: str, patch: EvidenceUpdate) -> dict:
     return update_evidence_item(evidence_id, patch)
 
 
-@app.get("/evidence/{evidence_id}/download")
-def download_evidence(evidence_id: str):
-    return get_evidence_download_response(evidence_id)
-
-
 @app.delete("/evidence/{evidence_id}")
 def delete_evidence(evidence_id: str) -> dict:
     return delete_evidence_item(evidence_id)
 
 
-@app.post("/maintenance/cleanup")
-def cleanup(days: int = 90) -> dict:
-    ensure_dirs()
-    deleted = cleanup_old_evidence_files(META_DIR, EVIDENCE_DIR, days=days)
-    return {"ok": True, "deleted": deleted, "retention_days": days}
+@app.get("/evidence/{evidence_id}/download")
+def download_evidence(evidence_id: str):
+    return get_evidence_download_response(evidence_id)
 
-
-# === CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
-# Explicit additive routes for endpoints that may not exist in legacy file-backed API.
-# Existing fallback remains untouched.
 
 @app.get("/evidence-history")
-async def _cbj_dbfirst_evidence_history_route():
-    return JSONResponse(list_evidence_history_dbfirst(), status_code=200)
+def list_evidence_history() -> dict:
+    return list_evidence_history_dbfirst()
 
 
-@app.get("/history/evidence")
-async def _cbj_dbfirst_history_evidence_route():
-    return JSONResponse(list_evidence_history_dbfirst(), status_code=200)
+@app.post("/maintenance/cleanup")
+def cleanup(days: int = 90) -> dict:
+    deleted = cleanup_old_evidence_files(META_DIR, EVIDENCE_DIR, days=days)
+    return {"ok": True, "deleted": deleted, "days": days}
 
 
-@app.get("/evidence/history")
-async def _cbj_dbfirst_evidence_slash_history_route():
-    return JSONResponse(list_evidence_history_dbfirst(), status_code=200)
-# === END CBJ SAP RCA DB-FIRST EXPLICIT ROUTES V2 ===
+@app.get("/")
+def root() -> dict:
+    return health()
