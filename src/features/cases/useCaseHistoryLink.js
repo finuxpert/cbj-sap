@@ -25,6 +25,21 @@ function uploadTagsFor(baseTags = [], context = {}) {
   ].filter(Boolean)
 }
 
+function buildIdentityOnlyCasePayload(title, suggested = {}, context = {}) {
+  return {
+    title,
+    sid: context.sid || suggested.sid || '',
+    environment: context.environment || suggested.environment || '',
+    severity: 'INFO',
+    status: 'OPEN',
+    case_stage: 'INTAKE',
+    summary: '',
+    top_anomaly: '',
+    top_suspect: '',
+    created_by: suggested.created_by || 'sap-rca-workspace',
+  }
+}
+
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -148,9 +163,8 @@ export default function useCaseHistoryLink({
     setSaveStatus('Creating new case…')
     try {
       const title = caseTitle.trim() || defaultCaseTitle
-      const payload = buildCasePayload
-        ? buildCasePayload(analysis, title, normalizedContext)
-        : { title, severity: 'INFO', status: 'OPEN', created_by: 'sap-rca-workspace' }
+      const suggestedPayload = buildCasePayload ? buildCasePayload(analysis, title, normalizedContext) : {}
+      const payload = buildIdentityOnlyCasePayload(title, suggestedPayload, normalizedContext)
 
       const response = await createCase(payload)
       if (response?.ok === false) throw new Error(response?.detail || response?.raw || 'Failed to create case')
