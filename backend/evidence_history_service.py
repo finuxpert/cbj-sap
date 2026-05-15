@@ -31,7 +31,7 @@ except Exception:
 
 
 def _db_mode() -> str:
-    return os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "hybrid"
+    return os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "db"
 
 
 def list_evidence_items(
@@ -41,12 +41,11 @@ def list_evidence_items(
     q: str = "",
     limit: int = 100,
 ) -> dict[str, Any]:
-    """Return legacy /evidence response shape from file-backed metadata.
+    """Return /evidence list.
 
-    This service is intentionally thin for Phase 1 hybrid safety:
-    - preserves the existing JSON/file-backed behavior,
-    - keeps response shape stable,
-    - creates a future seam for DB-first evidence history reads.
+    This legacy route remains file-backed for raw local metadata browsing. Case
+    History and Grafana should use /evidence-history, which is DB-only when DB is
+    enabled.
     """
     items = collect_file_evidence(
         META_DIR,
@@ -59,27 +58,22 @@ def list_evidence_items(
 
 
 def get_evidence_item(evidence_id: str) -> dict[str, Any]:
-    """Return legacy /evidence/{id} response shape."""
+    """Return legacy /evidence/{id} response shape for raw file metadata lookup."""
     return {"ok": True, "evidence": read_meta(evidence_id)}
 
 
 def list_evidence_history_dbfirst() -> dict[str, Any]:
-    """Return DB-first evidence history response used by compatibility routes.
-
-    Response shape intentionally mirrors the previous explicit route behavior:
-    - success: ok=true, read_source=postgres, mode, count, evidence
-    - fallback/warning: ok=false, read_source=file_fallback, mode, count=0, evidence=[]
-    """
+    """Return DB-only evidence history for Case History/Grafana consistency."""
     mode = _db_mode()
 
     if not _cbj_dbfirst_runtime_enabled():
         return {
             "ok": False,
-            "read_source": "file_fallback",
+            "read_source": "postgres",
             "mode": mode if mode else "unknown",
             "count": 0,
             "evidence": [],
-            "warning": "database runtime not enabled/configured",
+            "detail": "Database runtime not enabled/configured; evidence history is DB-only.",
         }
 
     try:
@@ -94,7 +88,7 @@ def list_evidence_history_dbfirst() -> dict[str, Any]:
     except Exception as exc:
         return {
             "ok": False,
-            "read_source": "file_fallback",
+            "read_source": "postgres",
             "mode": mode,
             "count": 0,
             "evidence": [],
