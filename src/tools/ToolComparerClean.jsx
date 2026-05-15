@@ -709,6 +709,7 @@ export default function ToolComparerClean() {
             caseTitle={caseLink.caseTitle}
             recentCases={caseLink.recentCases}
             savingCase={caseLink.savingCase}
+            creatingCase={caseLink.creatingCase}
             saveStatus={caseLink.saveStatus}
             onCaseIdChange={caseLink.setCaseId}
             onCaseTitleChange={caseLink.setCaseTitle}
