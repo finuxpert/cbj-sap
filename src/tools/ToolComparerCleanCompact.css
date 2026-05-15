@@ -1,0 +1,421 @@
+/* Compact UI/UX layer for WP-SCOUT / RCA Comparator.
+   Keep this file override-only: no parser/save/business logic changes. */
+
+.cmpCleanShell {
+  padding: 10px 14px 14px;
+  background:
+    radial-gradient(circle at top left, rgba(40,216,189,.08), transparent 30%),
+    linear-gradient(180deg, #07110f, #050b0a);
+}
+
+.cmpCleanHeader {
+  min-height: unset;
+  padding: 14px 16px;
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(0,0,0,.18);
+}
+
+.cmpCleanHeader h1 {
+  margin: 4px 0 3px;
+  font-size: clamp(26px, 2.35vw, 34px);
+  line-height: 1.02;
+}
+
+.cmpCleanHeader p,
+.cmpCleanPanel p,
+.cmpCleanEvidenceIntakeHead p,
+.cmpCleanIntakeHead p,
+.caseHistoryPanelHead .mutedText {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cmpCleanLoadState {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+.cmpCleanEvidenceIntake {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.cmpCleanEvidenceIntakeHead {
+  align-items: center;
+}
+
+.cmpCleanEvidenceIntakeHead h2 {
+  margin: 5px 0 4px;
+  font-size: 17px;
+}
+
+.cmpCleanEvidenceIntakeActions .btn,
+.caseHistoryModeSwitch .btn,
+.caseLinkActions .btn,
+.evidenceHistoryHead .btn {
+  min-height: 34px;
+  border-radius: 10px;
+  padding-inline: 13px;
+  font-size: 12px;
+}
+
+.cmpCleanEvidenceIntakeBody {
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.cmpCleanEvidenceStatus {
+  padding: 10px 12px;
+  border-radius: 12px;
+  gap: 3px;
+}
+
+.cmpCleanEvidenceStatus strong {
+  font-size: 12px;
+}
+
+.cmpCleanEvidenceStatus span {
+  font-size: 11px;
+}
+
+.cmpCleanTopRow {
+  grid-template-columns: minmax(380px, .98fr) minmax(440px, .9fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.cmpCleanSideRail {
+  gap: 10px;
+}
+
+.cmpCleanIntakeCard,
+.caseLinkCard,
+.evidenceHistory,
+.cmpCleanPanel,
+.cmpCleanFinding,
+.cmpCleanActionsPanel {
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.16);
+}
+
+.cmpCleanIntakeHead h2 {
+  margin: 4px 0;
+  font-size: 18px;
+}
+
+.cmpCleanIntakeMeta {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cmpCleanIntakeStat {
+  padding: 9px 10px;
+  border-radius: 12px;
+}
+
+.cmpCleanIntakeStat strong {
+  font-size: 18px;
+}
+
+.cmpCleanIntakeStat span,
+.cmpCleanStat span {
+  font-size: 9.5px;
+  letter-spacing: .055em;
+}
+
+.cmpCleanFlowList {
+  margin-top: 10px;
+  gap: 4px 14px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.cmpCleanIntakeStatus {
+  margin-top: 9px;
+  padding-top: 8px;
+  font-size: 11px;
+}
+
+.caseHistoryPanelHead h2,
+.evidenceHistoryHead h3,
+.cmpCleanPanel h2 {
+  font-size: 15px;
+}
+
+.caseLinkStep {
+  margin-top: 9px;
+  padding-top: 9px;
+  gap: 7px;
+}
+
+.caseLinkStepHead h3 {
+  font-size: 12px;
+}
+
+.caseLinkStepNumber {
+  min-width: 50px;
+  min-height: 20px;
+  padding: 0 8px;
+  font-size: 9px;
+}
+
+.caseLinkField {
+  gap: 5px;
+}
+
+.caseLinkField label {
+  font-size: 12px;
+}
+
+.caseLinkField input,
+.caseLinkField select {
+  min-height: 36px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.caseLinkField small {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.caseLinkStatusRow {
+  gap: 6px;
+  padding: 9px 11px;
+  border-radius: 12px;
+}
+
+.caseLinkBadge {
+  min-height: 24px;
+  font-size: 10px;
+}
+
+.caseLinkLinkedValue,
+.caseLinkGuidance {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.caseLinkStatusBox {
+  padding: 9px 11px;
+  border-radius: 11px;
+}
+
+.evidenceHistoryHead {
+  margin-bottom: 8px;
+}
+
+.evidenceHistoryEmpty {
+  padding: 12px;
+  font-size: 12px;
+}
+
+.cmpCleanStats {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.cmpCleanStat {
+  min-height: unset;
+  padding: 10px 12px;
+  border-radius: 13px;
+}
+
+.cmpCleanStat strong {
+  margin-top: 4px;
+  font-size: 18px;
+}
+
+.cmpCleanFinding,
+.cmpCleanActionsPanel {
+  margin-bottom: 10px;
+}
+
+.cmpCleanFinding strong {
+  margin-top: 3px;
+  font-size: 17px;
+}
+
+.cmpCleanFinding p {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.34;
+}
+
+.cmpCleanActionsPanel ol {
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.38;
+}
+
+.cmpCleanActionsPanel li + li {
+  margin-top: 2px;
+}
+
+.cmpCleanGrid {
+  grid-template-columns: minmax(640px, 1.35fr) minmax(390px, .78fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.cmpCleanPanel.span2 {
+  grid-row: span 3;
+}
+
+.cmpCleanPanelHead {
+  margin-bottom: 9px;
+  gap: 10px;
+}
+
+.cmpCleanFilters {
+  gap: 6px;
+}
+
+.cmpCleanFilters input {
+  min-height: 32px;
+  min-width: 230px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.cmpCleanFilters select {
+  min-height: 32px;
+  max-width: 185px;
+  border-radius: 10px;
+  font-size: 11px;
+}
+
+.cmpCleanSeg {
+  padding: 2px;
+}
+
+.cmpCleanSeg button {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 10px;
+}
+
+.cmpCleanTableWrap {
+  max-height: calc(100vh - 345px);
+  min-height: 420px;
+  border-radius: 12px;
+}
+
+.cmpCleanTable {
+  font-size: 11px;
+}
+
+.cmpCleanTable th {
+  padding: 8px 9px;
+  font-size: 9px;
+}
+
+.cmpCleanTable td {
+  padding: 7px 9px;
+}
+
+.cmpCleanBadge {
+  padding: 3px 7px;
+  font-size: 9px;
+}
+
+.cmpCleanChart {
+  height: 228px;
+  margin-top: 8px;
+  border-radius: 13px;
+}
+
+.cmpResourceTrendChart {
+  height: 245px;
+}
+
+.cmpTrendTitleBlock {
+  gap: 8px;
+}
+
+.cmpTrendBadges {
+  gap: 4px;
+}
+
+.cmpTrendBadges span {
+  min-height: 20px;
+  padding: 0 7px;
+  font-size: 9px;
+}
+
+.cmpTrendNote {
+  margin-top: 5px;
+  font-size: 10px;
+}
+
+/* Make the right chart column feel like an analytics rail instead of oversized cards. */
+.cmpCleanGrid > .rcaReadableChartPanel:not(.span2) {
+  padding: 11px 12px;
+}
+
+.cmpCleanGrid > .rcaReadableChartPanel:not(.span2) .chartTitleBlock h2 {
+  font-size: 14px;
+}
+
+.cmpCleanGrid > .rcaReadableChartPanel:not(.span2) .chartTitleBlock p {
+  font-size: 11px;
+}
+
+/* Reduce empty vertical area when Case History side rail is taller than workflow card. */
+.cmpCleanTopRow + .cmpCleanStats {
+  margin-top: 8px;
+}
+
+@media (min-width: 1500px) {
+  .cmpCleanShell {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .cmpCleanTableWrap {
+    max-height: calc(100vh - 332px);
+  }
+}
+
+@media (max-width: 1280px) {
+  .cmpCleanTopRow,
+  .cmpCleanGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cmpCleanPanel.span2 {
+    grid-row: auto;
+  }
+
+  .cmpCleanTableWrap {
+    max-height: 520px;
+  }
+}
+
+@media (max-width: 860px) {
+  .cmpCleanStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cmpCleanHeader,
+  .cmpCleanEvidenceIntakeHead,
+  .cmpCleanPanelHead,
+  .cmpTrendTitleBlock {
+    align-items: stretch;
+  }
+
+  .cmpCleanEvidenceIntakeActions,
+  .cmpCleanFilters {
+    justify-content: stretch;
+  }
+
+  .cmpCleanFilters input,
+  .cmpCleanFilters select {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+}
