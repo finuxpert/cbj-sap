@@ -28,10 +28,27 @@ const LogEvidenceCharts = React.lazy(() => import('./LogEvidenceCharts.jsx'))
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const CASE_KEY = 'sap_log_evidence_v2_case_id'
+const CASE_SID_KEY = 'sap_log_evidence_v2_case_sid'
+const CASE_ENV_KEY = 'sap_log_evidence_v2_case_environment'
+const ENVIRONMENT_OPTIONS = ['', 'PRD', 'QAS', 'DEV', 'DR', 'SBX', 'LAB']
 
 async function expandFiles(fileList) {
   const expanded = await expandZipAwareFiles(fileList, ['log', 'txt', 'csv'])
   return expanded.filter((file) => ['log', 'txt', 'csv'].includes(fileExt(file.name)))
+}
+
+function normalizeSid(value = '') {
+  return safe(value).trim().toUpperCase().replace(/[^A-Z0-9_/-]/g, '').slice(0, 12)
+}
+
+function normalizeEnvironment(value = '') {
+  const env = safe(value).trim().toUpperCase()
+  return ENVIRONMENT_OPTIONS.includes(env) ? env : ''
+}
+
+function isMissingCaseError(error) {
+  const message = safe(error?.message || error?.detail || error?.raw).toLowerCase()
+  return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
 }
 
 function parseWpRows(text = '', fileName = '') {
@@ -79,8 +96,10 @@ function severityFromAnalysis(result) {
   return 'INFO'
 }
 
-function buildParsedPayload(result) {
+function buildParsedPayload(result, context = {}) {
   const primary = result?.primary || {}
+  const sid = normalizeSid(context.sid)
+  const environment = normalizeEnvironment(context.environment)
   return {
     tool: 'Log Evidence V2',
     verdict: primary.name || 'Log evidence parsed',
@@ -89,7 +108,11 @@ function buildParsedPayload(result) {
     top_anomaly: primary.name || '',
     top_suspect: primary.family || primary.owner || '',
     summary: result?.summary || primary.meaning || 'Log evidence parsed and saved to Case History.',
+    sid,
+    environment,
     result_json: {
+      sid,
+      environment,
       summary: result?.summary || '',
       nextAction: result?.nextAction || '',
       confidenceText: result?.confidenceText || '',
@@ -220,11 +243,15 @@ function InfraSaturationPanel({ analysis }) {
 function CaseLinkPanel({
   caseId,
   caseTitle,
+  caseSid,
+  caseEnvironment,
   recentCases,
   savingCase,
   saveStatus,
   onCaseIdChange,
   onCaseTitleChange,
+  onCaseSidChange,
+  onCaseEnvironmentChange,
   onCreateCase,
   onSaveCurrent,
   hasAnalysis,
@@ -232,7 +259,7 @@ function CaseLinkPanel({
   return (
     <section className="evidencePanel">
       <h2>Case History Link</h2>
-      <p className="mutedText">Pilih atau buat case supaya hasil parsing Log Evidence tersimpan dan bisa dibuka ulang dari #/cases maupun mobile.</p>
+      <p className="mutedText">Create/select case first, then save parsed summary and evidence. SID + environment are stored with the case and parsed RCA result.</p>
       <div className="evidenceList compact">
         <label>
           <b>Existing Case</b>
@@ -240,8 +267,24 @@ function CaseLinkPanel({
             <option value="">Not linked</option>
             {recentCases.map((item) => {
               const id = caseItemId(item)
-              return <option key={id || item.title} value={id}>{(item.case_no || id)} · {item.title || 'Untitled'}</option>
+              const sid = item.sid ? ` · ${item.sid}` : ''
+              const env = item.environment ? `/${item.environment}` : ''
+              return <option key={id || item.title} value={id}>{(item.case_no || id)}{sid}{env} · {item.title || 'Untitled'}</option>
             })}
+          </select>
+        </label>
+        <label>
+          <b>SID</b>
+          <input
+            value={caseSid}
+            onChange={(event) => onCaseSidChange(normalizeSid(event.target.value))}
+            placeholder="Contoh: H1P"
+          />
+        </label>
+        <label>
+          <b>Environment</b>
+          <select value={caseEnvironment} onChange={(event) => onCaseEnvironmentChange(event.target.value)}>
+            {ENVIRONMENT_OPTIONS.map((item) => <option key={item || 'blank'} value={item}>{item || 'Not set'}</option>)}
           </select>
         </label>
         <label>
@@ -249,7 +292,7 @@ function CaseLinkPanel({
           <input
             value={caseTitle}
             onChange={(event) => onCaseTitleChange(event.target.value)}
-            placeholder="Contoh: SAP job cancelled / dev_w error RCA"
+            placeholder="Contoh: H1P PRD CONVT_NO_NUMBER RCA"
           />
         </label>
       </div>
@@ -276,6 +319,8 @@ export default function ToolLogEvidenceV2() {
   const [recentCases, setRecentCases] = React.useState([])
   const [caseId, setCaseId] = React.useState(() => loadJson(CASE_KEY, ''))
   const [caseTitle, setCaseTitle] = React.useState('')
+  const [caseSid, setCaseSid] = React.useState(() => normalizeSid(loadJson(CASE_SID_KEY, '')))
+  const [caseEnvironment, setCaseEnvironment] = React.useState(() => normalizeEnvironment(loadJson(CASE_ENV_KEY, '')))
   const [savingCase, setSavingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
 
@@ -291,6 +336,19 @@ export default function ToolLogEvidenceV2() {
       return []
     }
   }, [])
+
+  const clearStaleCase = React.useCallback(() => {
+    setCaseId('')
+    saveJson(CASE_KEY, '')
+    setSaveStatus('Linked case was not found in DB. Cleared stale local case id. Create/select case first, then save parsed summary and evidence.')
+  }, [])
+
+  const selectCase = React.useCallback((nextCaseId) => {
+    setCaseId(nextCaseId)
+    const selected = recentCases.find((item) => caseItemId(item) === nextCaseId)
+    if (selected?.sid) setCaseSid(normalizeSid(selected.sid))
+    if (selected?.environment) setCaseEnvironment(normalizeEnvironment(selected.environment))
+  }, [recentCases])
 
   React.useEffect(() => {
     let active = true
@@ -309,22 +367,38 @@ export default function ToolLogEvidenceV2() {
     saveJson(CASE_KEY, caseId || '')
   }, [caseId])
 
+  React.useEffect(() => {
+    saveJson(CASE_SID_KEY, caseSid || '')
+  }, [caseSid])
+
+  React.useEffect(() => {
+    saveJson(CASE_ENV_KEY, caseEnvironment || '')
+  }, [caseEnvironment])
+
   const persistAnalysis = React.useCallback(async (result, nextFiles = files) => {
     if (!caseId || !result) return
     setSavingCase(true)
     setSaveStatus('Saving parsed summary to Case History…')
     try {
       const { saveParsedResult, uploadEvidence } = await import('../evidence-api-client.js')
-      const saved = await saveParsedResult(caseId, buildParsedPayload(result))
-      if (saved?.ok === false) throw new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
+      const sid = normalizeSid(caseSid)
+      const environment = normalizeEnvironment(caseEnvironment)
+      const saved = await saveParsedResult(caseId, buildParsedPayload(result, { sid, environment }))
+      if (saved?.ok === false) {
+        const saveError = new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
+        saveError.status = saved?.status
+        throw saveError
+      }
 
       let uploaded = 0
       for (const file of nextFiles.slice(0, 20)) {
         const response = await uploadEvidence(file, {
           case_id: caseId,
           tool: 'Log Evidence V2',
+          sid,
           title: file.name,
-          tags: ['log-evidence-v2', 'auto-linked'],
+          note: environment ? `Environment: ${environment}` : '',
+          tags: ['log-evidence-v2', 'auto-linked', sid, environment].filter(Boolean),
         })
         if (response?.ok !== false) uploaded += 1
       }
@@ -332,11 +406,15 @@ export default function ToolLogEvidenceV2() {
       setSaveStatus(`Saved to ${caseId}. Linked evidence files: ${uploaded}.`)
       loadCases()
     } catch (error) {
-      setSaveStatus(error?.message || 'Failed to save parsed summary.')
+      if (isMissingCaseError(error)) {
+        clearStaleCase()
+      } else {
+        setSaveStatus(error?.message || 'Failed to save parsed summary.')
+      }
     } finally {
       setSavingCase(false)
     }
-  }, [caseId, files, loadCases])
+  }, [caseId, caseSid, caseEnvironment, clearStaleCase, files, loadCases])
 
   const createLinkedCase = React.useCallback(async () => {
     setSavingCase(true)
@@ -344,9 +422,13 @@ export default function ToolLogEvidenceV2() {
     try {
       const { createCase } = await import('../evidence-api-client.js')
       const primary = analysis?.primary || {}
-      const title = caseTitle.trim() || primary.name || 'Log Evidence RCA Case'
+      const sid = normalizeSid(caseSid)
+      const environment = normalizeEnvironment(caseEnvironment)
+      const title = caseTitle.trim() || [sid, environment, primary.name || 'Log Evidence RCA Case'].filter(Boolean).join(' ')
       const payload = {
         title,
+        sid,
+        environment,
         severity: analysis ? severityFromAnalysis(analysis) : 'INFO',
         summary: analysis?.summary || '',
         top_anomaly: primary.name || '',
@@ -367,14 +449,14 @@ export default function ToolLogEvidenceV2() {
 
       setCaseId(nextId)
       setCaseTitle('')
-      setSaveStatus(`Case linked: ${nextId}`)
+      setSaveStatus(`Case linked: ${nextId}. Save parsed summary and evidence next.`)
       loadCases()
     } catch (error) {
       setSaveStatus(error?.message || 'Failed to create case.')
     } finally {
       setSavingCase(false)
     }
-  }, [analysis, caseTitle, loadCases])
+  }, [analysis, caseTitle, caseSid, caseEnvironment, loadCases])
 
   const analyze = async (nextFiles = files) => {
     setBusy(true)
@@ -415,5 +497,5 @@ export default function ToolLogEvidenceV2() {
   const primary = analysis?.primary
   const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: item.name.slice(0, 16), hits: item.hits, crit: item.critHits })) || []
 
-  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><a href="#/tool/logs">Log Evidence Analyzer V2</a><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildLogEvidenceReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><IncidentCockpitStrip analysis={analysis} caseId={caseId} status={status} /><div className="evidenceGrid"><CaseLinkPanel caseId={caseId} caseTitle={caseTitle} recentCases={recentCases} savingCase={savingCase} saveStatus={saveStatus} onCaseIdChange={setCaseId} onCaseTitleChange={setCaseTitle} onCreateCase={createLinkedCase} onSaveCurrent={() => persistAnalysis(analysis, files)} hasAnalysis={Boolean(analysis)} /><section className="evidencePanel"><h2>Persistence Flow</h2><div className="evidenceList compact"><div><b>Selected Case</b><span>{caseId || 'Not linked yet'}</span></div><div><b>Auto-save</b><span>{caseId ? 'Enabled after parsing' : 'Create/select case first'}</span></div><div><b>Mobile Path</b><span>Open #/cases/{caseId || ':id'} after save</span></div></div></section></div><SummaryStrip analysis={analysis} primary={primary} status={status} />{analysis && <InfraSaturationPanel analysis={analysis} />}{analysis && <ScoringBreakdownPanel analysis={analysis} />}<div className="evidenceGrid"><PrimaryErrorPanel primary={primary} status={status} /><JobProgramMappingPanel primary={primary} /></div>{analysis ? <div className="evidenceGrid wide"><React.Suspense fallback={<section className="evidencePanel"><h2>Loading Charts</h2><p>Preparing evidence visualization…</p></section>}><LogEvidenceCharts chartData={chartData} timeline={analysis.timeline} /></React.Suspense><ErrorEvidenceRanking errorGroups={analysis.errorGroups} /></div> : <EmptyState title="How to use this analyzer"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
+  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><a href="#/tool/logs">Log Evidence Analyzer V2</a><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildLogEvidenceReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><IncidentCockpitStrip analysis={analysis} caseId={caseId} status={status} /><div className="evidenceGrid"><CaseLinkPanel caseId={caseId} caseTitle={caseTitle} caseSid={caseSid} caseEnvironment={caseEnvironment} recentCases={recentCases} savingCase={savingCase} saveStatus={saveStatus} onCaseIdChange={selectCase} onCaseTitleChange={setCaseTitle} onCaseSidChange={setCaseSid} onCaseEnvironmentChange={setCaseEnvironment} onCreateCase={createLinkedCase} onSaveCurrent={() => persistAnalysis(analysis, files)} hasAnalysis={Boolean(analysis)} /><section className="evidencePanel"><h2>Persistence Flow</h2><div className="evidenceList compact"><div><b>Selected Case</b><span>{caseId || 'Not linked yet'}</span></div><div><b>Case Metadata</b><span>{[caseSid || 'SID not set', caseEnvironment || 'environment not set'].join(' · ')}</span></div><div><b>Required Order</b><span>Create/select case first → save parsed summary → upload evidence</span></div><div><b>Auto-save</b><span>{caseId ? 'Enabled after parsing' : 'Create/select case first'}</span></div><div><b>Mobile Path</b><span>Open #/cases/{caseId || ':id'} after save</span></div></div></section></div><SummaryStrip analysis={analysis} primary={primary} status={status} />{analysis && <InfraSaturationPanel analysis={analysis} />}{analysis && <ScoringBreakdownPanel analysis={analysis} />}<div className="evidenceGrid"><PrimaryErrorPanel primary={primary} status={status} /><JobProgramMappingPanel primary={primary} /></div>{analysis ? <div className="evidenceGrid wide"><React.Suspense fallback={<section className="evidencePanel"><h2>Loading Charts</h2><p>Preparing evidence visualization…</p></section>}><LogEvidenceCharts chartData={chartData} timeline={analysis.timeline} /></React.Suspense><ErrorEvidenceRanking errorGroups={analysis.errorGroups} /></div> : <EmptyState title="How to use this analyzer"><p>Create/select a case first when you want DB-first persistence. Then upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Save parsed summary and evidence to Case History.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
 }
