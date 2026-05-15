@@ -17,9 +17,8 @@ export function caseItemId(item) {
 
 export function findFallbackCase(items = [], title = '') {
   const wanted = String(title || '').trim().toLowerCase()
-  if (!items.length) return null
-  if (!wanted) return items[0]
-  return items.find((item) => String(item.title || '').trim().toLowerCase() === wanted) || items[0]
+  if (!items.length || !wanted) return null
+  return items.find((item) => String(item.title || '').trim().toLowerCase() === wanted) || null
 }
 
 export function severityFromValue(value = '') {
