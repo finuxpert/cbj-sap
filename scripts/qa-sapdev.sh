@@ -155,7 +155,7 @@ bundle_grep "WP-SCOUT" "WP-SCOUT / RCA Comparator"
 bundle_grep "ST03N Impact" "ST03N Impact V2"
 bundle_grep "Log Evidence" "Log Evidence V2"
 bundle_grep "Case History Link" "Log Evidence to Case History panel"
-bundle_grep "Save Parsed Summary" "parsed summary save action"
+bundle_grep "Save to Case History" "case history save action"
 bundle_grep "sap-rca-case-history" "Case History PDF export"
 bundle_grep "Export PDF" "PDF export controls"
 
