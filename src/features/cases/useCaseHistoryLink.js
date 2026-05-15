@@ -123,9 +123,9 @@ export default function useCaseHistoryLink({
     writeStoredCaseId(nextCaseId || '')
     if (nextCaseId) {
       setCaseTitle('')
-      setSaveStatus(`Selected case is ready. Click Save to Case History.`)
+      setSaveStatus('Selected case is ready. Click Save to Case History.')
     } else {
-      setSaveStatus('Case link cleared.')
+      setSaveStatus('')
     }
   }, [writeStoredCaseId])
 
@@ -141,11 +141,7 @@ export default function useCaseHistoryLink({
       writeStoredCaseId('')
     }
     setCaseTitle(nextTitle)
-    if (String(nextTitle || '').trim()) {
-      setSaveStatus('Click Create Case to link this analysis to a new DB case.')
-    } else {
-      setSaveStatus('')
-    }
+    setSaveStatus('')
   }, [caseId, writeStoredCaseId])
 
   const loadCases = React.useCallback(async () => {
@@ -228,6 +224,14 @@ export default function useCaseHistoryLink({
 
   const createLinkedCase = React.useCallback(async (analysis, context = {}) => {
     if (savingCase || creatingCase) return ''
+    if (!analysis) {
+      setSaveStatus('Upload and analyze evidence first.')
+      return ''
+    }
+    if (!caseTitle.trim()) {
+      setSaveStatus('Enter a case title first.')
+      return ''
+    }
     const normalizedContext = normalizeContext(context)
     setCreatingCase(true)
     setSaveStatus('Creating…')
