@@ -18,10 +18,13 @@ export default function CaseLinkPanel({
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
 }) {
-  const [mode, setMode] = React.useState('new')
+  const createOnly = String(description || '').toLowerCase().includes('wp-scout')
+  const [mode, setMode] = React.useState(createOnly ? 'new' : 'new')
   const linkedCaseId = mode === 'existing' ? (caseId || '') : ''
-  const canSave = mode === 'existing' && Boolean(caseId) && Boolean(hasAnalysis) && !savingCase
-  const canCreate = mode === 'new' && !savingCase
+  const canSave = createOnly
+    ? Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
+    : mode === 'existing' && Boolean(caseId) && Boolean(hasAnalysis) && !savingCase
+  const canCreate = (createOnly || mode === 'new') && !savingCase
 
   const selectableCases = recentCases.filter((item) => {
     const id = caseItemId(item)
@@ -35,9 +38,10 @@ export default function CaseLinkPanel({
   }, [caseId, onCaseIdChange])
 
   const switchToExisting = React.useCallback(() => {
+    if (createOnly) return
     setMode('existing')
     if (caseTitle) onCaseTitleChange('')
-  }, [caseTitle, onCaseTitleChange])
+  }, [caseTitle, createOnly, onCaseTitleChange])
 
   const handleNewTitleChange = React.useCallback((nextTitle) => {
     setMode('new')
@@ -46,20 +50,59 @@ export default function CaseLinkPanel({
   }, [caseId, onCaseIdChange, onCaseTitleChange])
 
   const handleExistingCaseChange = React.useCallback((nextCaseId) => {
+    if (createOnly) return
     setMode('existing')
     onCaseIdChange(nextCaseId)
     if (caseTitle) onCaseTitleChange('')
-  }, [caseTitle, onCaseIdChange, onCaseTitleChange])
+  }, [caseTitle, createOnly, onCaseIdChange, onCaseTitleChange])
 
   const handleCreateCase = React.useCallback(() => {
-    setMode('existing')
+    setMode(createOnly ? 'new' : 'existing')
     onCreateCase()
-  }, [onCreateCase])
+  }, [createOnly, onCreateCase])
 
   const handleSaveCurrent = React.useCallback(() => {
     if (!canSave) return
     onSaveCurrent()
   }, [canSave, onSaveCurrent])
+
+  if (createOnly) {
+    return (
+      <section className="evidencePanel caseHistoryLinkPanel">
+        <h2>{title}</h2>
+        <p className="mutedText">{description}</p>
+
+        <div className="evidenceList compact">
+          <label>
+            <b>New Case Title</b>
+            <input
+              value={caseTitle}
+              onFocus={switchToNew}
+              onChange={(event) => handleNewTitleChange(event.target.value)}
+              placeholder={titlePlaceholder}
+            />
+            <small>WP-SCOUT uses create-only mode to avoid saving parsed evidence into an old case by accident.</small>
+          </label>
+          <div>
+            <b>Linked Case</b>
+            <span>{caseId || 'Not linked yet'}</span>
+          </div>
+        </div>
+
+        <div className="caseHistoryActions">
+          <button className="btn" type="button" onClick={handleCreateCase} disabled={!canCreate}>
+            {savingCase && !caseId ? 'Creating…' : createLabel}
+          </button>
+          <button className="btn primary" type="button" onClick={handleSaveCurrent} disabled={!canSave}>
+            {savingCase && caseId ? 'Saving…' : saveLabel}
+          </button>
+        </div>
+
+        <small>Flow: upload evidence → enter title → Create Case → Save to Case History.</small>
+        {saveStatus && <small>{saveStatus}</small>}
+      </section>
+    )
+  }
 
   return (
     <section className="evidencePanel caseHistoryLinkPanel">
