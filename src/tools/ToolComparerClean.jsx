@@ -15,7 +15,11 @@ import {
   Legend,
 } from 'recharts'
 import EvidenceHistory from '../features/evidence/EvidenceHistory.jsx'
-import { loadJson, saveJson } from './evidence-utils.js'
+import { expandZipAwareFiles, loadJson, saveJson } from './evidence-utils.js'
+import {
+  clearWpScoutParsedEvidence,
+  setWpScoutParsedEvidence,
+} from '../features/pdf/wpScoutParsedEvidenceStore.js'
 import './ToolComparerClean.css'
 import './ToolComparerCleanVisual.css'
 import './ToolComparerDynatrace.css'
@@ -423,11 +427,25 @@ function buildComparerParsedPayload(analysis) {
   }
 }
 
+function summarizeParsedEvidence(rows = [], resourceTrend = [], resourceSamples = []) {
+  const critical = rows.filter((row) => row.severity === 'CRIT').length
+  const warning = rows.filter((row) => row.severity === 'WARN').length
+  const hosts = new Set(rows.map((row) => row.host).filter(Boolean)).size
+  return {
+    crit: critical,
+    warn: warning,
+    hosts,
+    maxRss: Math.max(0, ...rows.map((row) => Number(row.rssGb || 0))),
+    peakCpu: Math.max(0, ...resourceTrend.map((item) => Number(item.cpu || 0)), ...rows.map((row) => Number(row.cpu || 0))),
+    peakMem: Math.max(0, ...resourceTrend.map((item) => Number(item.mem || 0)), ...resourceSamples.map((item) => Number(item.mem || 0))),
+    peakSwap: Math.max(0, ...resourceTrend.map((item) => Number(item.swapSi || 0)), ...resourceSamples.map((item) => Number(item.swapSi || 0))),
+  }
+}
+
 function intakeBadge(state = 'idle') {
   if (state === 'failed') return 'Failed'
   if (state === 'analyzed') return 'Parsed'
   if (state === 'analyzing') return 'Analyzing'
-  if (state === 'selected') return 'ZIP/TXT'
   return 'ZIP'
 }
 
@@ -435,7 +453,6 @@ function intakeSummary(state, selectedFiles, rows, lastLoad, error) {
   if (state === 'failed') return `Parse failed: ${error || 'Unknown parse error.'}`
   if (state === 'analyzed') return lastLoad || `Parsed ${rows.length} WP rows from ${selectedFiles.length} file(s).`
   if (state === 'analyzing') return 'Analyzing uploaded evidence…'
-  if (state === 'selected') return `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected. Click Analyze Evidence to continue.`
   return 'No file selected'
 }
 
@@ -548,7 +565,7 @@ function IntakeSummary({ state, selectedFiles, files, rows, busy, lastLoad }) {
   const fileCount = selectedFiles.length || files.length
   const stepItems = [
     'Upload ZIP/TXT',
-    'Analyze Evidence',
+    'Parse & review dashboard',
     'Create or link case',
     'Save to Case History',
     'Check Evidence History (Postgres)',
@@ -571,7 +588,7 @@ function IntakeSummary({ state, selectedFiles, files, rows, busy, lastLoad }) {
           <span>Parsed rows</span>
         </div>
         <div className="cmpCleanIntakeStat">
-          <strong>{busy ? 'Running' : state === 'analyzed' ? 'Ready' : state === 'selected' ? 'Selected' : 'Waiting'}</strong>
+          <strong>{busy ? 'Running' : state === 'analyzed' ? 'Ready' : 'Waiting'}</strong>
           <span>Analysis state</span>
         </div>
       </div>
@@ -596,7 +613,8 @@ function EvidenceIntakeCard({
 }) {
   const canAnalyze = selectedFiles.length > 0 && analysisState !== 'analyzing'
   const summaryTone = analysisState === 'failed' ? 'error' : analysisState === 'analyzed' ? 'success' : 'info'
-  const parseLabel = analysisState === 'analyzing' ? 'Analyzing…' : analysisState === 'analyzed' ? 'Re-analyze' : 'Analyze Evidence'
+  const uploadLabel = selectedFiles.length ? 'Re-upload Evidence' : 'Upload ZIP/TXT'
+  const parseLabel = analysisState === 'analyzing' ? 'Analyzing…' : 'Re-analyze'
 
   return (
     <section ref={intakeRef} className="cmpCleanEvidenceIntake">
@@ -604,14 +622,14 @@ function EvidenceIntakeCard({
         <div>
           <span className={`cmpCleanIntakeBadge ${analysisState}`}>{intakeBadge(analysisState)}</span>
           <h2>WP-SCOUT Evidence Intake</h2>
-          <p>Upload ZIP/TXT once, then analyze and link the result to Case History.</p>
+          <p>Upload ZIP/TXT once. The same parsed evidence drives the dashboard, PDF export, and Case History save.</p>
         </div>
         <div className="cmpCleanEvidenceIntakeActions">
           <input ref={inputRef} hidden type="file" multiple accept=".zip,.txt,.log,.csv" onChange={(e) => onChooseFiles(e.target.files)} />
           <button className="btn" type="button" onClick={() => inputRef.current?.click()} disabled={analysisState === 'analyzing'}>
-            Upload ZIP/TXT
+            {uploadLabel}
           </button>
-          <button className="btn primary" type="button" onClick={onAnalyze} disabled={!canAnalyze}>
+          <button className="btn" type="button" onClick={onAnalyze} disabled={!canAnalyze}>
             {parseLabel}
           </button>
           <button className="btn ghost" type="button" onClick={onClear} disabled={analysisState === 'analyzing' || (!selectedFiles.length && analysisState === 'idle')}>
@@ -623,7 +641,7 @@ function EvidenceIntakeCard({
       <div className="cmpCleanEvidenceIntakeBody">
         <div className={`cmpCleanEvidenceStatus ${summaryTone}`}>
           <strong>{summaryText}</strong>
-          {selectedFiles.length ? <span>{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} staged for this RCA run.</span> : <span>Select ZIP or TXT evidence to start the pipeline.</span>}
+          {selectedFiles.length ? <span>{selectedFiles.length} uploaded file{selectedFiles.length > 1 ? 's' : ''} are connected to the current dashboard, export, and save flow.</span> : <span>Upload WP-SCOUT ZIP/TXT evidence to populate the dashboard.</span>}
         </div>
         {error ? <div className="cmpCleanEvidenceError">{error}</div> : null}
       </div>
@@ -636,6 +654,7 @@ export default function ToolComparerClean() {
   const intakeRef = React.useRef(null)
   const [selectedFiles, setSelectedFiles] = React.useState([])
   const [files, setFiles] = React.useState([])
+  const [parsedFileCount, setParsedFileCount] = React.useState(0)
   const [rows, setRows] = React.useState([])
   const [resourceSamples, setResourceSamples] = React.useState([])
   const [query, setQuery] = React.useState('')
@@ -662,6 +681,7 @@ export default function ToolComparerClean() {
   const clearEvidenceState = React.useCallback(() => {
     setSelectedFiles([])
     setFiles([])
+    setParsedFileCount(0)
     setRows([])
     setResourceSamples([])
     setHostFilter('ALL')
@@ -669,26 +689,89 @@ export default function ToolComparerClean() {
     setError('')
     setLastLoad('')
     setAnalysisState('idle')
+    clearWpScoutParsedEvidence()
     if (inputRef.current) inputRef.current.value = ''
   }, [])
 
-  const handleChooseFiles = React.useCallback((fileList) => {
+  const persistPdfEvidence = React.useCallback((nextRows, nextResourceSamples, nextResourceTrend, sourceFiles, expandedFiles) => {
+    setWpScoutParsedEvidence(nextRows, {
+      source: sourceFiles.some((file) => /\.zip$/i.test(file.name)) ? 'zip-evidence-intake' : 'text-evidence-intake',
+      fileName: sourceFiles.map((file) => file.name).join(', '),
+      sourceFiles: sourceFiles.map((file) => file.name),
+      expandedFiles: expandedFiles.map((file) => file.name),
+      resourceSamples: nextResourceSamples,
+      resourceTrend: nextResourceTrend,
+      summary: summarizeParsedEvidence(nextRows, nextResourceTrend, nextResourceSamples),
+    })
+  }, [])
+
+  const applyParsedEvidence = React.useCallback((sourceFiles, expandedFiles, nextRows, nextResourceSamples) => {
+    const nextResourceTrend = buildResourceTrend(nextRows, nextResourceSamples)
+    setSelectedFiles(sourceFiles)
+    setFiles(sourceFiles)
+    setParsedFileCount(expandedFiles.length)
+    setRows(nextRows)
+    setResourceSamples(nextResourceSamples)
+    setHostFilter('ALL')
+    setJobFilter('ALL')
+    persistPdfEvidence(nextRows, nextResourceSamples, nextResourceTrend, sourceFiles, expandedFiles)
+    return nextResourceTrend
+  }, [persistPdfEvidence])
+
+  const handleEvidenceFiles = React.useCallback(async (fileList) => {
     const list = Array.from(fileList || []).filter(Boolean)
     setSelectedFiles(list)
-    setFiles([])
+    if (!list.length) {
+      clearEvidenceState()
+      setLastLoad('No file selected.')
+      return
+    }
+    setFiles(list)
+    setParsedFileCount(0)
     setRows([])
     setResourceSamples([])
     setHostFilter('ALL')
     setJobFilter('ALL')
     setError('')
-    if (!list.length) {
-      setLastLoad('No file selected.')
-      setAnalysisState('idle')
-      return
+    setBusy(true)
+    setAnalysisState('analyzing')
+    setLastLoad(`Analyzing ${list.length} uploaded file(s)…`)
+    try {
+      const expandedFiles = await expandZipAwareFiles(list, ['txt', 'log', 'csv'])
+      if (!expandedFiles.length) {
+        const hasZip = list.some((file) => /\.zip$/i.test(file.name))
+        throw new Error(hasZip
+          ? 'ZIP contains no supported .txt/.log/.csv evidence files.'
+          : 'No supported .txt/.log/.csv evidence files detected.')
+      }
+
+      const parsed = []
+      for (const file of expandedFiles) {
+        const text = await file.text()
+        parsed.push(parseFileText(file.name, text))
+      }
+      const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
+      const nextSamples = parsed.flatMap((item) => item.resourceSamples || [])
+      applyParsedEvidence(list, expandedFiles, nextRows, nextSamples)
+      const summary = nextRows.length
+        ? `Parsed ${nextRows.length} WP rows from ${expandedFiles.length} file${expandedFiles.length > 1 ? 's' : ''}.`
+        : 'No WP rows detected. Check evidence format.'
+      setLastLoad(summary)
+      setAnalysisState('analyzed')
+    } catch (err) {
+      console.error('[WP-SCOUT Comparator] parse failed:', err)
+      setFiles([])
+      setParsedFileCount(0)
+      setRows([])
+      setResourceSamples([])
+      setError(err?.message || String(err))
+      setLastLoad(`Parse failed: ${err?.message || String(err)}`)
+      setAnalysisState('failed')
+      clearWpScoutParsedEvidence()
+    } finally {
+      setBusy(false)
     }
-    setLastLoad(`${list.length} file${list.length > 1 ? 's' : ''} selected. Click Analyze Evidence to continue.`)
-    setAnalysisState('selected')
-  }, [])
+  }, [applyParsedEvidence, clearEvidenceState])
 
   const ingest = React.useCallback(async () => {
     if (!selectedFiles.length) {
@@ -696,45 +779,17 @@ export default function ToolComparerClean() {
       setLastLoad('No file selected.')
       return
     }
-    setBusy(true)
-    setError('')
-    setAnalysisState('analyzing')
-    setLastLoad(`Analyzing ${selectedFiles.length} file(s)…`)
-    try {
-      const parsed = []
-      for (const file of selectedFiles) {
-        const text = await file.text()
-        parsed.push(parseFileText(file.name, text))
-      }
-      const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
-      const nextSamples = parsed.flatMap((item) => item.resourceSamples || [])
-      setFiles(selectedFiles)
-      setRows(nextRows)
-      setResourceSamples(nextSamples)
-      setHostFilter('ALL')
-      setJobFilter('ALL')
-      const summary = nextRows.length
-        ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).`
-        : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.'
-      setLastLoad(summary)
-      setAnalysisState('analyzed')
-    } catch (err) {
-      console.error('[WP-SCOUT Comparator] parse failed:', err)
-      setFiles([])
-      setRows([])
-      setResourceSamples([])
-      setError(err?.message || String(err))
-      setLastLoad(`Parse failed: ${err?.message || String(err)}`)
-      setAnalysisState('failed')
-    } finally {
-      setBusy(false)
-    }
-  }, [selectedFiles])
+    await handleEvidenceFiles(selectedFiles)
+  }, [handleEvidenceFiles, selectedFiles])
+
+  const handleChooseFiles = React.useCallback(async (fileList) => {
+    await handleEvidenceFiles(fileList)
+  }, [handleEvidenceFiles])
 
   const uniqueRows = React.useMemo(() => uniqueOffenders(rows), [rows])
   const resourceTrend = React.useMemo(() => buildResourceTrend(rows, resourceSamples), [resourceSamples, rows])
   const baseRows = viewMode === 'UNIQUE' ? uniqueRows : rows
-  const caseAnalysis = React.useMemo(() => buildComparerAnalysis(rows, files.length, resourceTrend), [files.length, resourceTrend, rows])
+  const caseAnalysis = React.useMemo(() => buildComparerAnalysis(rows, parsedFileCount || files.length, resourceTrend), [files.length, parsedFileCount, resourceTrend, rows])
 
   const hostOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.host))).sort()], [rows])
   const jobOptions = React.useMemo(() => ['ALL', ...Array.from(new Set(rows.map((r) => r.job).filter(Boolean))).sort().slice(0, 80)], [rows])
@@ -790,6 +845,13 @@ export default function ToolComparerClean() {
   }, [uniqueRows])
 
   const summaryText = intakeSummary(analysisState, selectedFiles, rows, lastLoad, error)
+  const dashboardEmptyMessage = !selectedFiles.length
+    ? 'Upload WP-SCOUT ZIP/TXT evidence to populate the dashboard.'
+    : analysisState === 'failed'
+      ? error || 'Parse failed.'
+      : analysisState === 'analyzed' && !rows.length
+        ? 'No WP rows detected. Check evidence format.'
+        : 'Analyzing uploaded evidence…'
 
   return (
     <section className="cmpCleanShell">
@@ -797,7 +859,7 @@ export default function ToolComparerClean() {
         <div>
           <a className="cmpCleanKicker" href="#/tool/comparer">WP-SCOUT / RCA Comparator</a>
           <h1>SAP RCA Workspace</h1>
-          <p>Upload WP-SCOUT log once, review the analysis, then link the result to Case History.</p>
+          <p>Upload WP-SCOUT ZIP/TXT once, review the analysis, then link the same result to Case History.</p>
           {lastLoad ? <small className="cmpCleanLoadState">{lastLoad}</small> : null}
         </div>
       </header>
@@ -858,7 +920,7 @@ export default function ToolComparerClean() {
           <div className="cmpCleanPanelHead">
             <div>
               <h2>Offender Queue</h2>
-              <p>{viewMode === 'UNIQUE' ? 'Unique offenders by host + PID + job.' : 'Raw WP rows.'}</p>
+              <p>{viewMode === 'UNIQUE' ? 'Unique offenders by host + PID + job from the current evidence intake.' : 'Raw WP rows from the current evidence intake.'}</p>
             </div>
             <div className="cmpCleanFilters">
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search host, PID, job, error…" />
@@ -884,7 +946,7 @@ export default function ToolComparerClean() {
                     <td>{row.host}</td><td>{row.pid}</td><td>{row.type}</td><td>{row.rssGb.toFixed(2)} GB</td><td>{row.ageRaw}</td><td title={row.job}>{row.job}</td><td>{row.hits || 1}</td><td>{row.score}</td>
                   </tr>
                 ))}
-                {!filteredRows.length ? <tr><td colSpan="9" className="cmpCleanEmpty">No rows for current filter.</td></tr> : null}
+                {!filteredRows.length ? <tr><td colSpan="9" className="cmpCleanEmpty">{rows.length ? 'No rows for current filter.' : dashboardEmptyMessage}</td></tr> : null}
               </tbody>
             </table>
           </div>
@@ -910,7 +972,7 @@ export default function ToolComparerClean() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            ) : <EmptyChart />}
+            ) : <EmptyChart label={dashboardEmptyMessage} />}
           </div>
         </section>
 
@@ -932,7 +994,7 @@ export default function ToolComparerClean() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-            ) : <EmptyChart label="No host pressure yet." />}
+            ) : <EmptyChart label={dashboardEmptyMessage} />}
           </div>
         </section>
       </div>

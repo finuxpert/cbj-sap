@@ -14,7 +14,6 @@ import CaseDetailWithAnalytics from './app/pages/CaseDetailWithAnalytics.jsx'
 import NotFound from './app/pages/NotFound.jsx'
 import ToolExportDock from './features/pdf/ToolExportDock.jsx'
 import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
-import ComparatorUiGuard from './features/comparer/ComparatorUiGuard.jsx'
 
 const APP_BUILD_STAMP = 'sap-20260508-case-detail-analytics'
 
@@ -23,7 +22,6 @@ export default function App() {
   const tool = route.name === 'tool' ? tools.find((t) => t.slug === route.slug) : null
   const ActiveTool = tool ? tool.Component : null
   const showEvidencePanel = route.name === 'tool' && route.slug === 'logs'
-  const showComparatorGuard = route.name === 'tool' && route.slug === 'comparer'
 
   return (
     <div className={`appShell ${route.name === 'tool' ? 'isTool' : ''}`} data-build={APP_BUILD_STAMP}>
@@ -36,7 +34,6 @@ export default function App() {
         {route.name === 'caseDetail' && <CaseDetailWithAnalytics caseId={route.caseId} />}
         {route.name === 'tool' && ActiveTool && (
           <React.Suspense fallback={<section className="container section"><div className="card">Loading RCA module…</div></section>}>
-            {showComparatorGuard && <ComparatorUiGuard />}
             {showEvidencePanel && <ToolEvidencePanel tool={route.slug} />}
             <div className="fullBleed"><ActiveTool /></div>
             <ToolExportDock slug={route.slug} />
