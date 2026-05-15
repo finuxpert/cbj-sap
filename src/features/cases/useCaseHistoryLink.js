@@ -2,8 +2,6 @@ import React from 'react'
 import { createCase, listMobileCases, saveParsedResult, uploadEvidence } from '../../evidence-api-client.js'
 import { caseItemId, findFallbackCase, normalizeCaseId, normalizeCaseList } from './caseHistoryLinkUtils.js'
 
-const EXPLICIT_SAVE_WINDOW_MS = 8000
-
 function isMissingCaseError(error) {
   const message = String(error?.message || error?.detail || error?.raw || '').toLowerCase()
   return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
@@ -89,13 +87,6 @@ function dbWriteSuffix(response = {}) {
   return [enabled, written, status].filter(Boolean).join(', ')
 }
 
-function hasRecentExplicitSaveIntent() {
-  if (typeof window === 'undefined') return false
-  const lastIntent = Number(window.__SAP_RCA_EXPLICIT_CASE_SAVE_TS__ || 0)
-  if (!lastIntent) return false
-  return Date.now() - lastIntent <= EXPLICIT_SAVE_WINDOW_MS
-}
-
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -166,7 +157,7 @@ export default function useCaseHistoryLink({
     loadCases()
   }, [loadCases])
 
-  const persistAnalysis = React.useCallback(async (analysis, files = [], context = {}) => {
+  const persistAnalysis = React.useCallback(async (analysis, files = [], context = {}, options = {}) => {
     const normalizedContext = normalizeContext(context)
     if (!caseId || !analysis || !buildParsedPayload) {
       setSaveStatus('Create/select case first, then save parsed summary and evidence.')
@@ -176,7 +167,7 @@ export default function useCaseHistoryLink({
       setSaveStatus('New case title is active. Click Create Case first, then save parsed summary.')
       return
     }
-    if (requireExplicitSaveIntent && !hasRecentExplicitSaveIntent()) {
+    if (requireExplicitSaveIntent && options?.explicitSaveIntent !== true) {
       setSaveStatus('Save blocked: click Save to Case History explicitly after create/select case. Upload & Analyze does not write Case History.')
       return
     }
