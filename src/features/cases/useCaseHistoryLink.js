@@ -39,17 +39,12 @@ export default function useCaseHistoryLink({
   const [creatingCase, setCreatingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
 
-  const writeStoredCaseId = React.useCallback((nextCaseId) => {
-    if (!storageKey) return
-    if (saveJson) {
-      saveJson(storageKey, nextCaseId || '')
-      return
-    }
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(nextCaseId || ''))
-    } catch {
-      // selected case is convenience cache only
-    }
+  const writeStoredCaseId = React.useCallback(() => {
+    // Intentional no-op: case selection must be explicit per tool session.
+    // Persisting selected case IDs causes stale local links and accidental saves
+    // to an old incident after reload or when switching tools.
+    void storageKey
+    void saveJson
   }, [saveJson, storageKey])
 
   const setCaseId = React.useCallback((nextCaseId) => {
