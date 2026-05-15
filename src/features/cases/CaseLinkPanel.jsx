@@ -23,6 +23,22 @@ function messageTone(message = '') {
   return 'info'
 }
 
+function shouldUsePersistedStatus(message = '') {
+  const text = String(message || '').toLowerCase()
+  if (!text) return false
+  return (
+    text.includes('creating')
+    || text.includes('saving')
+    || text.includes('created')
+    || text.includes('saved')
+    || text.includes('failed')
+    || text.includes('error')
+    || text.includes('db write failed')
+    || text.includes('not found')
+    || text.includes('blocked')
+  )
+}
+
 export default function CaseLinkPanel({
   title = 'Case History Link',
   description = 'Upload analyzes only. Create or select a case, then click Save to Case History.',
@@ -47,6 +63,7 @@ export default function CaseLinkPanel({
   const visibleCases = recentCases.filter((item) => String(item?.status || '').toUpperCase() !== 'ARCHIVED')
   const linkedCase = findCase(recentCases, caseId)
   const linkedCaseDetails = linkedCase ? caseLabel(linkedCase) : caseId
+  const hasTitle = Boolean(caseTitle.trim())
 
   React.useEffect(() => {
     if (mode === 'link') setSelectedExistingCase(caseId || '')
@@ -76,19 +93,23 @@ export default function CaseLinkPanel({
     if (caseTitle) onCaseTitleChange('')
   }, [caseTitle, onCaseTitleChange])
 
-  const canCreate = mode === 'create' && Boolean(hasAnalysis) && Boolean(caseTitle.trim()) && !savingCase
+  const canCreate = mode === 'create' && hasTitle && Boolean(hasAnalysis) && !savingCase
   const canUseSelectedCase = mode === 'link' && Boolean(selectedExistingCase) && !savingCase
-  const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !caseTitle.trim() && !savingCase
+  const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !hasTitle
+
+  const handleCreateCase = React.useCallback(async () => {
+    if (!canCreate) return
+    await onCreateCase()
+  }, [canCreate, onCreateCase])
 
   const handlePrimaryAction = React.useCallback(async () => {
     if (mode === 'create') {
-      if (!canCreate) return
-      await onCreateCase()
+      await handleCreateCase()
       return
     }
     if (!canUseSelectedCase) return
     onCaseIdChange(selectedExistingCase)
-  }, [canCreate, canUseSelectedCase, mode, onCaseIdChange, onCreateCase, selectedExistingCase])
+  }, [canUseSelectedCase, handleCreateCase, mode, onCaseIdChange, selectedExistingCase])
 
   const handleSave = React.useCallback(() => {
     if (!canSave) return
@@ -102,23 +123,21 @@ export default function CaseLinkPanel({
     guidance = 'Saving parsed summary and evidence metadata…'
   } else if (!hasAnalysis) {
     guidance = 'Upload and analyze evidence first.'
-  } else if (mode === 'create' && caseTitle.trim() && !caseId) {
+  } else if (mode === 'create' && !hasTitle && !caseId) {
+    guidance = 'Enter a case title first.'
+  } else if (mode === 'create' && hasTitle && !caseId) {
     guidance = 'Click Create Case to link this analysis to a new DB case.'
-  } else if (mode === 'create' && !caseTitle.trim() && !caseId) {
-    guidance = 'Enter a case title to enable Create Case.'
   } else if (mode === 'link' && !visibleCases.length) {
     guidance = 'No existing DB case found. Create a new case first.'
   } else if (mode === 'link' && !selectedExistingCase && !caseId) {
     guidance = 'Choose an existing DB case first.'
   } else if (mode === 'link' && selectedExistingCase && !caseId) {
     guidance = 'Selected case is ready. Click Use Selected Case.'
-  } else if (caseId && !canSave) {
-    guidance = 'Clear the new-case title before saving to Case History.'
   } else if (caseId && canSave) {
     guidance = 'Selected case is ready. Click Save to Case History.'
   }
 
-  const statusMessage = saveStatus || guidance
+  const statusMessage = shouldUsePersistedStatus(saveStatus) ? saveStatus : guidance
   const statusTone = messageTone(statusMessage)
   const linkedBadgeText = caseId ? `Linked: ${caseId}` : 'Not linked yet'
   const linkedBadgeTone = caseId ? 'success' : 'neutral'
