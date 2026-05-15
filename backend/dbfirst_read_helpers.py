@@ -72,6 +72,21 @@ def _cbj_pick_existing_column(columns, candidates):
     return None
 
 
+def _cbj_case_lookup_keys(case_key, case_obj: dict) -> list[str]:
+    keys = []
+    for value in (
+        case_obj.get("id"),
+        case_obj.get("case_no"),
+        case_obj.get("case_id"),
+        case_obj.get("case_key"),
+        case_key,
+    ):
+        text = str(value or "").strip()
+        if text and text not in keys:
+            keys.append(text)
+    return keys
+
+
 def _cbj_apply_normalized_rca_aliases(item: dict) -> dict:
     """Promote normalized RCA data stored inside result_json into top-level read fields.
 
@@ -221,6 +236,7 @@ def _cbj_dbfirst_fetch_case_detail(case_key):
 
             case_obj = _cbj_json_safe(dict(case_row))
             case_obj.setdefault("read_source", "postgres")
+            lookup_keys = _cbj_case_lookup_keys(case_key, case_obj)
 
             # Attach related evidence when possible.
             evidence_rows = []
@@ -239,8 +255,8 @@ def _cbj_dbfirst_fetch_case_detail(case_key):
                 )
                 if evidence_case_col:
                     cur.execute(
-                        f'SELECT * FROM evidence WHERE "{evidence_case_col}"::text = %s ORDER BY 1 DESC LIMIT 500',
-                        (str(case_key),),
+                        f'SELECT * FROM evidence WHERE "{evidence_case_col}"::text = ANY(%s) ORDER BY 1 DESC LIMIT 500',
+                        (lookup_keys,),
                     )
                     evidence_rows = [_cbj_json_safe(dict(r)) for r in cur.fetchall()]
             except Exception as exc:
@@ -263,8 +279,8 @@ def _cbj_dbfirst_fetch_case_detail(case_key):
                 )
                 if parsed_case_col:
                     cur.execute(
-                        f'SELECT * FROM parsed_results WHERE "{parsed_case_col}"::text = %s ORDER BY 1 DESC LIMIT 200',
-                        (str(case_key),),
+                        f'SELECT * FROM parsed_results WHERE "{parsed_case_col}"::text = ANY(%s) ORDER BY 1 DESC LIMIT 200',
+                        (lookup_keys,),
                     )
                     parsed_rows = [_cbj_apply_normalized_rca_aliases(_cbj_json_safe(dict(r))) for r in cur.fetchall()]
             except Exception as exc:
