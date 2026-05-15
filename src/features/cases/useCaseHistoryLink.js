@@ -50,11 +50,19 @@ function compactJson(value) {
   }
 }
 
+function normalizeDbFailure(detail = '') {
+  const text = String(detail || '').trim()
+  if (!text) return 'DB write failed.'
+  if (text.toLowerCase().startsWith('db write failed')) return text
+  return `DB write failed: ${text}`
+}
+
 function backendErrorMessage(response = {}, fallback = 'Failed to create case') {
   const status = response?.status ? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}` : ''
   const detail = response?.detail || response?.message || response?.error || response?.raw || ''
   const raw = !detail ? compactJson(response) : ''
-  return [fallback, status, detail || raw].filter(Boolean).join(' — ')
+  const normalizedDetail = Number(response?.status || 0) === 503 ? normalizeDbFailure(detail || raw) : (detail || raw)
+  return [fallback, status, normalizedDetail].filter(Boolean).join(' — ')
 }
 
 function normalizeCreatedCaseId(response = {}) {
@@ -106,9 +114,6 @@ export default function useCaseHistoryLink({
   const [saveStatus, setSaveStatus] = React.useState('')
 
   const writeStoredCaseId = React.useCallback(() => {
-    // Intentional no-op: case selection must be explicit per tool session.
-    // Persisting selected case IDs causes stale local links and accidental saves
-    // to an old incident after reload or when switching tools.
     void storageKey
     void saveJson
   }, [saveJson, storageKey])
@@ -118,9 +123,9 @@ export default function useCaseHistoryLink({
     writeStoredCaseId(nextCaseId || '')
     if (nextCaseId) {
       setCaseTitle('')
-      setSaveStatus(`Case selected: ${nextCaseId}`)
+      setSaveStatus(`Selected case is ready. Click Save to Case History.`)
     } else {
-      setSaveStatus('Not linked. Create/select case first, then save parsed summary and evidence.')
+      setSaveStatus('Case link cleared.')
     }
   }, [writeStoredCaseId])
 
@@ -137,7 +142,9 @@ export default function useCaseHistoryLink({
     }
     setCaseTitle(nextTitle)
     if (String(nextTitle || '').trim()) {
-      setSaveStatus('New case title active. Click Create Case first, then save parsed summary.')
+      setSaveStatus('Click Create Case to link this analysis to a new DB case.')
+    } else {
+      setSaveStatus('')
     }
   }, [caseId, writeStoredCaseId])
 
@@ -160,11 +167,11 @@ export default function useCaseHistoryLink({
   const persistAnalysis = React.useCallback(async (analysis, files = [], context = {}, options = {}) => {
     const normalizedContext = normalizeContext(context)
     if (!caseId || !analysis || !buildParsedPayload) {
-      setSaveStatus('Create/select case first, then save parsed summary and evidence.')
+      setSaveStatus(!analysis ? 'Upload and analyze evidence first.' : 'Create or link a case first.')
       return
     }
     if (caseTitle.trim()) {
-      setSaveStatus('New case title is active. Click Create Case first, then save parsed summary.')
+      setSaveStatus('Click Create Case to link this analysis to a new DB case.')
       return
     }
     if (requireExplicitSaveIntent && options?.explicitSaveIntent !== true) {
@@ -172,12 +179,15 @@ export default function useCaseHistoryLink({
       return
     }
     setSavingCase(true)
-    setSaveStatus('Saving parsed summary to Case History…')
+    setSaveStatus('Saving…')
     try {
       const payload = buildParsedPayload(analysis, normalizedContext)
       const saved = await saveParsedResult(caseId, payload)
       if (saved?.ok === false) {
-        const saveError = new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
+        const detail = Number(saved?.status || 0) === 503
+          ? normalizeDbFailure(saved?.detail || saved?.raw)
+          : (saved?.detail || saved?.raw || 'Failed to save parsed result')
+        const saveError = new Error(detail)
         saveError.status = saved?.status
         throw saveError
       }
@@ -192,14 +202,22 @@ export default function useCaseHistoryLink({
           note: normalizedContext.environment ? `Environment: ${normalizedContext.environment}` : '',
           tags: uploadTagsFor(uploadTags, normalizedContext),
         })
-        if (response?.ok !== false) uploaded += 1
+        if (response?.ok === false) {
+          const detail = Number(response?.status || 0) === 503
+            ? normalizeDbFailure(response?.detail || response?.raw)
+            : (response?.detail || response?.raw || 'Failed to upload evidence metadata')
+          const uploadError = new Error(detail)
+          uploadError.status = response?.status
+          throw uploadError
+        }
+        uploaded += 1
       }
 
       setSaveStatus(`Saved to ${caseId}. Linked evidence files: ${uploaded}.`)
       loadCases()
     } catch (error) {
       if (isMissingCaseError(error)) {
-        clearCaseId('Linked case was not found in DB. Cleared stale local case id. Create/select case first, then save parsed summary and evidence.')
+        clearCaseId('Linked case was not found in DB. Create or link a case first.')
       } else {
         setSaveStatus(error?.message || 'Failed to save parsed summary.')
       }
@@ -212,7 +230,7 @@ export default function useCaseHistoryLink({
     if (savingCase || creatingCase) return ''
     const normalizedContext = normalizeContext(context)
     setCreatingCase(true)
-    setSaveStatus('Creating new case…')
+    setSaveStatus('Creating…')
     try {
       const title = caseTitle.trim() || defaultCaseTitle
       const suggestedPayload = buildCasePayload ? buildCasePayload(analysis, title, normalizedContext) : {}
@@ -240,8 +258,8 @@ export default function useCaseHistoryLink({
       const refreshedCases = await loadCases()
       const dbStatus = dbWriteSuffix(response)
       const visibleAfterReload = refreshedCases.some((item) => caseItemId(item) === nextId)
-      const reloadNote = visibleAfterReload ? 'visible in Case History' : 'created, but not visible in recent list yet; hard refresh may be needed'
-      setSaveStatus(`New case created and linked: ${nextId}${dbStatus ? ` (${dbStatus})` : ''}. ${reloadNote}. Click Save to Case History next.`)
+      const reloadNote = visibleAfterReload ? '' : ' The recent list may still be refreshing.'
+      setSaveStatus(`New case created and linked: ${nextId}${dbStatus ? ` (${dbStatus})` : ''}. Click Save to Case History next.${reloadNote}`)
       return nextId
     } catch (error) {
       setSaveStatus(error?.message || 'Failed to create case.')
