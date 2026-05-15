@@ -7,19 +7,22 @@ function isMissingCaseError(error) {
   return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
 }
 
-function activeElementText() {
-  if (typeof document === 'undefined') return ''
-  const active = document.activeElement
-  return String(active?.textContent || active?.value || active?.getAttribute?.('aria-label') || '').toLowerCase()
+function normalizeContext(context = {}) {
+  const sid = String(context?.sid || '').trim().toUpperCase()
+  const environment = String(context?.environment || '').trim().toUpperCase()
+  return {
+    ...context,
+    sid,
+    environment,
+  }
 }
 
-function isManualSaveAction() {
-  const text = activeElementText()
-  return !text || text.includes('save')
-}
-
-function isCreateAction() {
-  return activeElementText().includes('create')
+function uploadTagsFor(baseTags = [], context = {}) {
+  return [
+    ...baseTags,
+    context.sid,
+    context.environment,
+  ].filter(Boolean)
 }
 
 export default function useCaseHistoryLink({
@@ -91,11 +94,8 @@ export default function useCaseHistoryLink({
     loadCases()
   }, [loadCases])
 
-  const persistAnalysis = React.useCallback(async (analysis, files = []) => {
-    if (creatingCase || savingCase || isCreateAction()) {
-      setSaveStatus('Case is being created. Wait until it is linked, then click Save to Case History.')
-      return
-    }
+  const persistAnalysis = React.useCallback(async (analysis, files = [], context = {}) => {
+    const normalizedContext = normalizeContext(context)
     if (!caseId || !analysis || !buildParsedPayload) {
       setSaveStatus('Create/select case first, then save parsed summary and evidence.')
       return
@@ -104,14 +104,11 @@ export default function useCaseHistoryLink({
       setSaveStatus('New case title is active. Click Create Case first, then save parsed summary.')
       return
     }
-    if (!isManualSaveAction()) {
-      setSaveStatus('Analysis parsed. Click Save to Case History to persist parsed summary and evidence.')
-      return
-    }
     setSavingCase(true)
     setSaveStatus('Saving parsed summary to Case History…')
     try {
-      const saved = await saveParsedResult(caseId, buildParsedPayload(analysis))
+      const payload = buildParsedPayload(analysis, normalizedContext)
+      const saved = await saveParsedResult(caseId, payload)
       if (saved?.ok === false) {
         const saveError = new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
         saveError.status = saved?.status
@@ -123,8 +120,10 @@ export default function useCaseHistoryLink({
         const response = await uploadEvidence(file, {
           case_id: caseId,
           tool: toolName,
+          sid: normalizedContext.sid || payload?.sid || payload?.result_json?.sid || '',
           title: file.name,
-          tags: uploadTags,
+          note: normalizedContext.environment ? `Environment: ${normalizedContext.environment}` : '',
+          tags: uploadTagsFor(uploadTags, normalizedContext),
         })
         if (response?.ok !== false) uploaded += 1
       }
@@ -140,16 +139,17 @@ export default function useCaseHistoryLink({
     } finally {
       setSavingCase(false)
     }
-  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, creatingCase, loadCases, savingCase, toolName, uploadLimit, uploadTags])
+  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, loadCases, toolName, uploadLimit, uploadTags])
 
-  const createLinkedCase = React.useCallback(async (analysis) => {
+  const createLinkedCase = React.useCallback(async (analysis, context = {}) => {
     if (savingCase || creatingCase) return ''
+    const normalizedContext = normalizeContext(context)
     setCreatingCase(true)
     setSaveStatus('Creating new case…')
     try {
       const title = caseTitle.trim() || defaultCaseTitle
       const payload = buildCasePayload
-        ? buildCasePayload(analysis, title)
+        ? buildCasePayload(analysis, title, normalizedContext)
         : { title, severity: 'INFO', status: 'OPEN', created_by: 'sap-rca-workspace' }
 
       const response = await createCase(payload)
