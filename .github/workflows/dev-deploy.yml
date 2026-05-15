@@ -110,6 +110,12 @@ jobs:
           set -euo pipefail
           bash scripts/qa-backend-syntax.sh
 
+      - name: Run case flow regression QA
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          bash scripts/qa-case-flow-contracts.sh
+
       - name: Run optional mutating SAPDEV QA suite
         if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_mutating_qa == 'RUN_MUTATING_QA'
         working-directory: /home/sadmin/sap
