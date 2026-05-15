@@ -40,6 +40,53 @@ function buildIdentityOnlyCasePayload(title, suggested = {}, context = {}) {
   }
 }
 
+function compactJson(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value.slice(0, 260)
+  try {
+    return JSON.stringify(value).slice(0, 260)
+  } catch {
+    return String(value).slice(0, 260)
+  }
+}
+
+function backendErrorMessage(response = {}, fallback = 'Failed to create case') {
+  const status = response?.status ? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}` : ''
+  const detail = response?.detail || response?.message || response?.error || response?.raw || ''
+  const raw = !detail ? compactJson(response) : ''
+  return [fallback, status, detail || raw].filter(Boolean).join(' — ')
+}
+
+function normalizeCreatedCaseId(response = {}) {
+  const candidates = [
+    response?.case,
+    response?.item,
+    response?.data,
+    response?.result,
+    response,
+  ]
+
+  for (const candidate of candidates) {
+    const nextId = normalizeCaseId(candidate)
+      || candidate?.case_id
+      || candidate?.caseNo
+      || candidate?.case_no
+      || candidate?.id
+    if (nextId) return String(nextId)
+  }
+
+  return ''
+}
+
+function dbWriteSuffix(response = {}) {
+  const dbWrite = response?.db_write
+  if (!dbWrite || typeof dbWrite !== 'object') return ''
+  const enabled = dbWrite.enabled === false ? 'disabled' : 'enabled'
+  const written = dbWrite.written === false ? 'not written' : dbWrite.written === true ? 'written' : ''
+  const status = dbWrite.status ? `status ${dbWrite.status}` : ''
+  return [enabled, written, status].filter(Boolean).join(', ')
+}
+
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -167,9 +214,11 @@ export default function useCaseHistoryLink({
       const payload = buildIdentityOnlyCasePayload(title, suggestedPayload, normalizedContext)
 
       const response = await createCase(payload)
-      if (response?.ok === false) throw new Error(response?.detail || response?.raw || 'Failed to create case')
+      if (response?.ok === false) {
+        throw new Error(backendErrorMessage(response))
+      }
 
-      let nextId = normalizeCaseId(response)
+      let nextId = normalizeCreatedCaseId(response)
       if (!nextId) {
         const refreshedCases = await loadCases()
         const fallback = findFallbackCase(refreshedCases, payload.title || title)
@@ -177,14 +226,17 @@ export default function useCaseHistoryLink({
       }
 
       if (!nextId) {
-        throw new Error('Case was submitted, but no selectable case id was returned. Open Cases, refresh, then select the case manually.')
+        throw new Error(`Case create response did not include a selectable id. Response: ${compactJson(response) || 'empty response'}`)
       }
 
       setCaseIdState(nextId)
       writeStoredCaseId(nextId)
       setCaseTitle('')
-      setSaveStatus(`New case created and linked: ${nextId}. Click Save to Case History next.`)
-      loadCases()
+      const refreshedCases = await loadCases()
+      const dbStatus = dbWriteSuffix(response)
+      const visibleAfterReload = refreshedCases.some((item) => caseItemId(item) === nextId)
+      const reloadNote = visibleAfterReload ? 'visible in Case History' : 'created, but not visible in recent list yet; hard refresh may be needed'
+      setSaveStatus(`New case created and linked: ${nextId}${dbStatus ? ` (${dbStatus})` : ''}. ${reloadNote}. Click Save to Case History next.`)
       return nextId
     } catch (error) {
       setSaveStatus(error?.message || 'Failed to create case.')
