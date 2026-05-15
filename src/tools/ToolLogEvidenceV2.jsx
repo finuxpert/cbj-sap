@@ -231,6 +231,7 @@ export default function ToolLogEvidenceV2() {
     defaultCaseTitle: 'Log Evidence RCA Case',
     toolName: 'Log Evidence V2',
     uploadTags: ['log-evidence-v2', 'sap-rca'],
+    requireExplicitSaveIntent: true,
     saveJson,
   })
 
