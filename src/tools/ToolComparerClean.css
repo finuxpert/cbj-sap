@@ -18,6 +18,23 @@
 .cmpCleanActions { display: flex; gap: 10px; }
 .cmpCleanPrimary, .cmpCleanFilters input, .cmpCleanFilters select { border: 1px solid var(--cmp-clean-border); border-radius: 999px; background: rgba(255,255,255,.055); color: var(--cmp-clean-text); }
 .cmpCleanPrimary { min-height: 42px; padding: 0 18px; background: linear-gradient(135deg, rgba(40,216,189,.28), rgba(70,130,255,.16)); font-weight: 950; cursor: pointer; }
+.cmpCleanEvidenceIntake { margin-top: 14px; border: 1px solid rgba(40,216,189,.20); border-radius: 22px; background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018)); padding: 18px; box-shadow: 0 18px 44px rgba(0,0,0,.22); }
+.cmpCleanEvidenceIntakeHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.cmpCleanEvidenceIntakeHead h2 { margin: 8px 0 6px; font-size: 22px; letter-spacing: -.03em; }
+.cmpCleanEvidenceIntakeHead p { margin: 0; color: var(--cmp-clean-muted); font-size: 13px; line-height: 1.55; }
+.cmpCleanIntakeBadge { display: inline-flex; align-items: center; justify-content: center; min-height: 26px; border-radius: 999px; padding: 0 10px; border: 1px solid rgba(156,255,225,.16); background: rgba(255,255,255,.05); color: rgba(243,255,251,.88); font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.cmpCleanIntakeBadge.selected, .cmpCleanIntakeBadge.idle { background: rgba(255,255,255,.06); }
+.cmpCleanIntakeBadge.analyzing { background: rgba(246,189,96,.16); border-color: rgba(246,189,96,.24); color: #fff0cf; }
+.cmpCleanIntakeBadge.analyzed { background: rgba(40,216,189,.16); border-color: rgba(40,216,189,.24); color: #d9fff4; }
+.cmpCleanIntakeBadge.failed { background: rgba(255,100,124,.16); border-color: rgba(255,100,124,.24); color: #ffe3e8; }
+.cmpCleanEvidenceIntakeActions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.cmpCleanEvidenceIntakeBody { display: grid; gap: 10px; margin-top: 16px; }
+.cmpCleanEvidenceStatus { display: grid; gap: 6px; border-radius: 16px; padding: 14px 16px; border: 1px solid rgba(156,255,225,.14); background: rgba(255,255,255,.04); }
+.cmpCleanEvidenceStatus strong { font-size: 14px; letter-spacing: -.01em; }
+.cmpCleanEvidenceStatus span { color: var(--cmp-clean-muted); font-size: 12px; line-height: 1.5; }
+.cmpCleanEvidenceStatus.success { border-color: rgba(40,216,189,.22); background: rgba(40,216,189,.08); }
+.cmpCleanEvidenceStatus.error { border-color: rgba(255,100,124,.22); background: rgba(255,100,124,.08); }
+.cmpCleanEvidenceError { border: 1px solid rgba(255,100,124,.24); border-radius: 14px; background: rgba(255,100,124,.08); padding: 12px 14px; color: #ffe3e8; font-size: 12px; line-height: 1.5; }
 .cmpCleanTopRow { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(340px, .92fr); gap: 14px; margin-top: 14px; align-items: start; }
 .cmpCleanSideRail { display: grid; gap: 14px; align-content: start; }
 .cmpCleanIntakeCard { border: 1px solid rgba(40,216,189,.24); border-radius: 20px; background: radial-gradient(circle at 16% 12%, rgba(40,216,189,.10), transparent 34%), rgba(10,30,25,.52); padding: 18px; }
@@ -79,7 +96,7 @@
 .caseLinkStepHead h3 { margin: 0; font-size: 14px; letter-spacing: -.01em; }
 .caseLinkStepNumber { display: inline-flex; align-items: center; justify-content: center; min-width: 62px; min-height: 24px; border-radius: 999px; background: rgba(40,216,189,.12); color: #d9fff4; padding: 0 10px; font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
 .caseHistoryModeSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.caseHistoryModeSwitch .btn, .caseLinkActions .btn, .evidenceHistoryHead .btn { min-height: 42px; border-radius: 12px; }
+.caseHistoryModeSwitch .btn, .caseLinkActions .btn, .evidenceHistoryHead .btn, .cmpCleanEvidenceIntakeActions .btn { min-height: 42px; border-radius: 12px; }
 .caseHistoryModeSwitch .btn[data-active="true"] { border-color: rgba(40,216,189,.35); background: rgba(40,216,189,.12); }
 .caseLinkField { display: grid; gap: 8px; }
 .caseLinkField label { color: rgba(233,255,249,.92); font-size: 13px; font-weight: 850; }
@@ -142,4 +159,4 @@
 .cmpResourceTrendChart .recharts-legend-item:nth-child(3)::after { content: ' = Swap'; color: #ff5d73; margin-left: 4px; font-size: 11px; font-weight: 900; }
 .cmpTrendSwapDot { fill: #ff5d73; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
 @media (max-width: 1200px) { .cmpCleanStats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cmpCleanGrid, .cmpCleanTopRow { grid-template-columns: 1fr; } .cmpCleanPanel.span2 { grid-row: auto; } }
-@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock, .evidenceHistoryHead, .caseLinkStepHead { align-items: stretch; flex-direction: column; } .cmpCleanStats, .cmpCleanIntakeMeta, .caseHistoryModeSwitch, .caseLinkActions, .cmpCleanFlowList { grid-template-columns: 1fr; } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .evidenceHistoryRow { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock, .evidenceHistoryHead, .caseLinkStepHead, .cmpCleanEvidenceIntakeHead { align-items: stretch; flex-direction: column; } .cmpCleanStats, .cmpCleanIntakeMeta, .caseHistoryModeSwitch, .caseLinkActions, .cmpCleanFlowList { grid-template-columns: 1fr; } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .evidenceHistoryRow, .cmpCleanEvidenceIntakeActions { grid-template-columns: 1fr; } .cmpCleanEvidenceIntakeActions { display: grid; } }
