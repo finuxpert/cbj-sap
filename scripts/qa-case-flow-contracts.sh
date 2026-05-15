@@ -6,16 +6,27 @@ log() {
 }
 
 log "Validate identity-only case create and explicit parsed-result save contract"
-TMP_CASE_FLOW_ROOT="$(mktemp -d)" SAP_EVIDENCE_ROOT="$TMP_CASE_FLOW_ROOT" python3 - <<'PY'
+TMP_CASE_FLOW_ROOT="$(mktemp -d)" SAP_EVIDENCE_ROOT="$TMP_CASE_FLOW_ROOT" DB_MODE="file" DATABASE_URL="" python3 - <<'PY'
 import importlib
 import os
 
-# Reload storage modules after SAP_EVIDENCE_ROOT override so this QA never touches DEV data.
+# Reload storage and DB modules after env overrides so this QA never touches DEV data or PostgreSQL.
+assert os.environ.get('SAP_EVIDENCE_ROOT'), 'SAP_EVIDENCE_ROOT must point at a temp directory'
+assert os.environ.get('DB_MODE') == 'file', 'DB_MODE must be disabled for this non-mutating QA'
+assert os.environ.get('DATABASE_URL', '') == '', 'DATABASE_URL must be empty for this non-mutating QA'
+
 import backend.storage_config as storage_config
 storage_config = importlib.reload(storage_config)
 
 import backend.storage_helpers as storage_helpers
 storage_helpers = importlib.reload(storage_helpers)
+
+import backend.db.session as db_session
+db_session = importlib.reload(db_session)
+assert db_session.db_enabled() is False, 'Database writes must be disabled in case-flow contract QA'
+
+import backend.db.repositories as db_repositories
+db_repositories = importlib.reload(db_repositories)
 
 import backend.case_service as case_service
 case_service = importlib.reload(case_service)
@@ -44,6 +55,7 @@ case_id = created['case']['id']
 case_data = storage_helpers.read_case(case_id)
 
 assert created['ok'] is True
+assert created['db_write']['enabled'] is False
 assert case_data['title'] == 'ISSUE-QA H1P PRD identity only flow'
 assert case_data['sid'] == 'H1P'
 assert case_data['environment'] == 'PRD'
@@ -70,6 +82,7 @@ identity_created = case_service.create_case_item(CaseCreate(
 ))
 identity_id = identity_created['case']['id']
 identity_case = storage_helpers.read_case(identity_id)
+assert identity_created['db_write']['enabled'] is False
 assert identity_case['severity'] == 'INFO'
 assert identity_case['status'] == 'OPEN'
 assert identity_case['case_stage'] == 'INTAKE'
@@ -96,6 +109,8 @@ saved = parsed_result_service.add_case_parsed_result(identity_id, ParsedResultCr
 
 updated = storage_helpers.read_case(identity_id)
 assert saved['ok'] is True
+assert saved['db_write']['case']['enabled'] is False
+assert saved['db_write']['parsed_result']['enabled'] is False
 assert len(updated['parsed_results']) == 1
 assert updated['case_stage'] == 'CLASSIFIED'
 assert updated['severity'] == 'CRIT'
