@@ -4,6 +4,8 @@ import re
 import uuid
 from typing import Any
 
+from fastapi import HTTPException
+
 try:
     from .case_helpers import mobile_case_payload, summarize_case
 except Exception:
@@ -204,6 +206,15 @@ def _normalize_suspect(value: Any, blob: str = "") -> tuple[str, str]:
     return original or "SAP_RCA_UNCLASSIFIED", original or "SAP_RCA_UNCLASSIFIED"
 
 
+def _require_db_write_ok(db_write: dict, action: str) -> None:
+    if not isinstance(db_write, dict) or not db_write.get("enabled"):
+        return
+    if db_write.get("written") is True and db_write.get("status") == "ok":
+        return
+    detail = db_write.get("error") or db_write.get("status") or "unknown database write failure"
+    raise HTTPException(status_code=503, detail=f"Database write failed during {action}: {detail}")
+
+
 def _compact_normalized_fields(payload: ParsedResultCreate, case_data: dict | None = None) -> dict[str, Any]:
     case_data = case_data or {}
     result_json = _payload_value(payload, "result_json") or {}
@@ -314,6 +325,8 @@ def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[st
     write_case(case_data)
     db_case_write = upsert_case_best_effort(case_data)
     db_result_write = insert_parsed_result_best_effort(case_data.get("id") or case_id, result)
+    _require_db_write_ok(db_case_write, "update case after parsed result")
+    _require_db_write_ok(db_result_write, "save parsed result")
     return {
         "ok": True,
         "result": result,
