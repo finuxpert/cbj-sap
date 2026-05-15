@@ -4,7 +4,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .models import Case, Evidence, ParsedResult
+from sqlalchemy import delete
+
+from .models import AuditLog, Case, CaseAnalyticsCache, Evidence, ParsedResult, Report
 from .session import db_enabled, session_scope
 
 
@@ -114,10 +116,41 @@ def insert_parsed_result_best_effort(case_id: str, result: dict) -> dict:
                 top_anomaly=str(result.get("top_anomaly") or ""),
                 top_suspect=str(result.get("top_suspect") or ""),
                 summary=str(result.get("summary") or ""),
-                result_json=result.get("result_json") or {},
+                result_json={
+                    **(result.get("result_json") or {}),
+                    "normalized_rca": result.get("normalized_rca") or {},
+                    "original_top_suspect": result.get("original_top_suspect") or "",
+                    "rca_model_version": result.get("rca_model_version") or result.get("normalized_rca", {}).get("rca_model_version") or "",
+                },
                 created_at=_parse_dt(result.get("created_at")),
             )
             session.add(obj)
         return {"enabled": True, "written": True, "status": "ok"}
     except Exception as exc:
         return {"enabled": True, "written": False, "status": "error", "error": str(exc)}
+
+
+def delete_case_cascade_best_effort(case_id: str) -> dict:
+    """Delete one case and related DB rows for DB-first maintenance workflows."""
+    if not db_enabled():
+        return {"enabled": False, "deleted": False, "status": "disabled"}
+    try:
+        key = str(case_id or "").strip()
+        if not key:
+            return {"enabled": True, "deleted": False, "status": "missing_case_id"}
+        with session_scope() as session:
+            case_obj = session.get(Case, key)
+            if case_obj is None:
+                return {"enabled": True, "deleted": False, "status": "not_found"}
+
+            deleted = {"parsed_results": 0, "reports": 0, "audit_logs": 0, "analytics_cache": 0, "evidence": 0, "cases": 0}
+            deleted["parsed_results"] = session.execute(delete(ParsedResult).where(ParsedResult.case_id == key)).rowcount or 0
+            deleted["reports"] = session.execute(delete(Report).where(Report.case_id == key)).rowcount or 0
+            deleted["audit_logs"] = session.execute(delete(AuditLog).where(AuditLog.case_id == key)).rowcount or 0
+            deleted["analytics_cache"] = session.execute(delete(CaseAnalyticsCache).where(CaseAnalyticsCache.case_id == key)).rowcount or 0
+            deleted["evidence"] = session.execute(delete(Evidence).where(Evidence.case_id == key)).rowcount or 0
+            session.delete(case_obj)
+            deleted["cases"] = 1
+        return {"enabled": True, "deleted": True, "status": "ok", "rows": deleted}
+    except Exception as exc:
+        return {"enabled": True, "deleted": False, "status": "error", "error": str(exc)}
