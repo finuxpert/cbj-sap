@@ -17,7 +17,7 @@ function findCase(items = [], id = '') {
 
 export default function CaseLinkPanel({
   title = 'Case History Link',
-  description = 'Pilih atau buat case supaya hasil parsing tersimpan dan bisa dibuka ulang dari #/cases maupun mobile.',
+  description = 'Upload analyzes only. Create or select a case, then click Save to Case History.',
   caseId,
   caseTitle,
   recentCases = [],
@@ -31,19 +31,14 @@ export default function CaseLinkPanel({
   createLabel = 'Create Case',
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
+  children,
 }) {
   const [mode, setMode] = React.useState('create')
-  const normalizedDescription = String(description || '').toLowerCase()
-  const wpScoutCreateOnly = normalizedDescription.includes('hasil wp-scout comparator')
   const linkedCase = findCase(recentCases, caseId)
   const linkedCaseText = caseId ? (linkedCase ? caseLabel(linkedCase) : caseId) : 'Not linked yet'
   const visibleCases = recentCases.filter((item) => String(item?.status || '').toUpperCase() !== 'ARCHIVED')
   const canCreate = mode === 'create' && !savingCase
   const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
-
-  React.useEffect(() => {
-    if (wpScoutCreateOnly && mode !== 'create') setMode('create')
-  }, [mode, wpScoutCreateOnly])
 
   const resetLink = React.useCallback(() => {
     if (caseId) onCaseIdChange('')
@@ -55,10 +50,9 @@ export default function CaseLinkPanel({
   }, [resetLink])
 
   const enterLinkMode = React.useCallback(() => {
-    if (wpScoutCreateOnly) return
     setMode('link')
     if (caseTitle) onCaseTitleChange('')
-  }, [caseTitle, onCaseTitleChange, wpScoutCreateOnly])
+  }, [caseTitle, onCaseTitleChange])
 
   const handleTitleChange = React.useCallback((nextTitle) => {
     setMode('create')
@@ -67,11 +61,10 @@ export default function CaseLinkPanel({
   }, [onCaseTitleChange, resetLink])
 
   const handleCaseSelect = React.useCallback((nextCaseId) => {
-    if (wpScoutCreateOnly) return
     setMode('link')
     onCaseIdChange(nextCaseId)
     if (caseTitle) onCaseTitleChange('')
-  }, [caseTitle, onCaseIdChange, onCaseTitleChange, wpScoutCreateOnly])
+  }, [caseTitle, onCaseIdChange, onCaseTitleChange])
 
   const handleCreateCase = React.useCallback(() => {
     if (!canCreate) return
@@ -88,12 +81,10 @@ export default function CaseLinkPanel({
       <h2>{title}</h2>
       <p className="mutedText">{description}</p>
 
-      {!wpScoutCreateOnly ? (
-        <div className="caseHistoryModeSwitch" role="group" aria-label="Case link mode">
-          <button type="button" className="btn" data-active={mode === 'create'} onClick={enterCreateMode}>Create New Case</button>
-          <button type="button" className="btn" data-active={mode === 'link'} onClick={enterLinkMode}>Link Existing Case</button>
-        </div>
-      ) : null}
+      <div className="caseHistoryModeSwitch" role="group" aria-label="Case link mode">
+        <button type="button" className="btn" data-active={mode === 'create'} onClick={enterCreateMode}>Create New Case</button>
+        <button type="button" className="btn" data-active={mode === 'link'} onClick={enterLinkMode}>Link Existing Case</button>
+      </div>
 
       <div className="evidenceList compact">
         {mode === 'create' ? (
@@ -120,6 +111,8 @@ export default function CaseLinkPanel({
             <small>Use this only when this evidence belongs to the same incident/RCA case.</small>
           </label>
         )}
+
+        {children}
 
         <div>
           <b>Linked Case</b>
