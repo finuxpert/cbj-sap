@@ -15,25 +15,13 @@ export default function useCaseHistoryLink({
   toolName = 'SAP RCA Workspace',
   uploadLimit = 20,
   uploadTags = [],
-  loadJson,
   saveJson,
 }) {
-  const readStoredCaseId = React.useCallback(() => {
-    if (!storageKey) return ''
-    if (loadJson) return loadJson(storageKey, '')
-    try {
-      return JSON.parse(localStorage.getItem(storageKey) || '""') || ''
-    } catch {
-      return localStorage.getItem(storageKey) || ''
-    }
-  }, [loadJson, storageKey])
-
   const [recentCases, setRecentCases] = React.useState([])
   const [caseId, setCaseIdState] = React.useState('')
   const [caseTitle, setCaseTitle] = React.useState('')
   const [savingCase, setSavingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
-  const [restoredCaseId, setRestoredCaseId] = React.useState(readStoredCaseId)
 
   const writeStoredCaseId = React.useCallback((nextCaseId) => {
     if (!storageKey) return
@@ -51,15 +39,30 @@ export default function useCaseHistoryLink({
   const setCaseId = React.useCallback((nextCaseId) => {
     setCaseIdState(nextCaseId || '')
     writeStoredCaseId(nextCaseId || '')
-    if (nextCaseId) setSaveStatus(`Case selected: ${nextCaseId}`)
+    if (nextCaseId) {
+      setCaseTitle('')
+      setSaveStatus(`Case selected: ${nextCaseId}`)
+    } else {
+      setSaveStatus('Not linked. Create/select case first, then save parsed summary and evidence.')
+    }
   }, [writeStoredCaseId])
 
   const clearCaseId = React.useCallback((message = '') => {
     setCaseIdState('')
-    setRestoredCaseId('')
     writeStoredCaseId('')
     if (message) setSaveStatus(message)
   }, [writeStoredCaseId])
+
+  const setNewCaseTitle = React.useCallback((nextTitle = '') => {
+    if (caseId) {
+      setCaseIdState('')
+      writeStoredCaseId('')
+    }
+    setCaseTitle(nextTitle)
+    if (String(nextTitle || '').trim()) {
+      setSaveStatus('New case title active. Click Create Case first, then save parsed summary.')
+    }
+  }, [caseId, writeStoredCaseId])
 
   const loadCases = React.useCallback(async () => {
     try {
@@ -77,19 +80,13 @@ export default function useCaseHistoryLink({
     loadCases()
   }, [loadCases])
 
-  React.useEffect(() => {
-    if (!restoredCaseId || caseId) return
-    const exists = recentCases.some((item) => caseItemId(item) === restoredCaseId)
-    if (exists) {
-      setCaseIdState(restoredCaseId)
-      return
-    }
-    if (recentCases.length) clearCaseId('Saved local case was not found. Please create or select a case before saving evidence.')
-  }, [caseId, clearCaseId, recentCases, restoredCaseId])
-
   const persistAnalysis = React.useCallback(async (analysis, files = []) => {
     if (!caseId || !analysis || !buildParsedPayload) {
       setSaveStatus('Create/select case first, then save parsed summary and evidence.')
+      return
+    }
+    if (caseTitle.trim()) {
+      setSaveStatus('New case title is active. Click Create Case first, then save parsed summary.')
       return
     }
     setSavingCase(true)
@@ -124,7 +121,7 @@ export default function useCaseHistoryLink({
     } finally {
       setSavingCase(false)
     }
-  }, [buildParsedPayload, caseId, clearCaseId, loadCases, toolName, uploadLimit, uploadTags])
+  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, loadCases, toolName, uploadLimit, uploadTags])
 
   const createLinkedCase = React.useCallback(async (analysis) => {
     setSavingCase(true)
@@ -150,7 +147,6 @@ export default function useCaseHistoryLink({
       }
 
       setCaseIdState(nextId)
-      setRestoredCaseId(nextId)
       writeStoredCaseId(nextId)
       setCaseTitle('')
       setSaveStatus(`New case created and linked: ${nextId}`)
@@ -171,7 +167,7 @@ export default function useCaseHistoryLink({
     savingCase,
     saveStatus,
     setCaseId,
-    setCaseTitle,
+    setCaseTitle: setNewCaseTitle,
     clearCaseId,
     loadCases,
     persistAnalysis,
