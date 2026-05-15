@@ -53,6 +53,8 @@ jobs:
           git reset --hard origin/dev
           echo "Local HEAD after sync: $(git rev-parse --short HEAD)"
           git log --oneline -5
+          echo "Cleaning previous Vite build output..."
+          rm -rf dist 2>/dev/null || sudo rm -rf dist
           npm ci
           npm run build
           test -f dist/index.html
