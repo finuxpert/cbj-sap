@@ -588,7 +588,6 @@ export default function ToolComparerClean() {
       setHostFilter('ALL')
       setJobFilter('ALL')
       setLastLoad(nextRows.length ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).` : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.')
-      if (caseLink.caseId && nextAnalysis) await caseLink.persistAnalysis(nextAnalysis, list)
     } catch (err) {
       console.error('[WP-SCOUT Comparator] parse failed:', err)
       setError(err?.message || String(err))
