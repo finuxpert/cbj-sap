@@ -18,8 +18,9 @@ export default function CaseLinkPanel({
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
 }) {
-  const createOnly = String(description || '').toLowerCase().includes('wp-scout')
-  const [mode, setMode] = React.useState(createOnly ? 'new' : 'new')
+  const normalizedDescription = String(description || '').toLowerCase()
+  const createOnly = normalizedDescription.includes('hasil wp-scout comparator')
+  const [mode, setMode] = React.useState('new')
   const linkedCaseId = mode === 'existing' ? (caseId || '') : ''
   const canSave = createOnly
     ? Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
