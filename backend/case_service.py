@@ -77,6 +77,7 @@ ENV_ALIASES = {
 
 SID_RE = re.compile(r"\b[A-Z][A-Z0-9]{2}\b")
 SID_STOPWORDS = {"SAP", "CPU", "MEM", "RFC", "SQL", "HDB", "DIA", "BTC", "ICM", "SNC", "SSL", "DEV", "QAS", "PRD", "ERR", "LOG"}
+IMMUTABLE_CASE_FIELDS = {"id", "case_no", "case_id", "title", "top_anomaly", "top_suspect", "created_at", "created_by"}
 
 
 def _normalize_case_stage(value: str | None) -> str:
@@ -180,8 +181,12 @@ def get_case_item(case_id: str) -> dict[str, Any]:
 def update_case_item(case_id: str, patch: CaseUpdate) -> dict[str, Any]:
     case_data = read_case(case_id)
     data = patch.dict(exclude_unset=True)
+    ignored_fields = []
     for key, value in data.items():
         if value is None:
+            continue
+        if key in IMMUTABLE_CASE_FIELDS:
+            ignored_fields.append(key)
             continue
         if key in {"severity", "status"}:
             case_data[key] = value.upper()
@@ -196,7 +201,7 @@ def update_case_item(case_id: str, patch: CaseUpdate) -> dict[str, Any]:
     case_data["updated_at"] = now_iso()
     write_case(case_data)
     db_write = upsert_case_best_effort(case_data)
-    return {"ok": True, "case": case_data, "db_write": db_write}
+    return {"ok": True, "case": case_data, "db_write": db_write, "ignored_immutable_fields": ignored_fields}
 
 
 def delete_case_item(case_id: str) -> dict[str, Any]:
