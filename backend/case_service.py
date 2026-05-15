@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from fastapi import HTTPException
@@ -60,21 +61,67 @@ VALID_CASE_STAGES = {
     "RESOLVED",
 }
 
+ENV_ALIASES = {
+    "PRD": "PRD",
+    "PROD": "PRD",
+    "PRODUCTION": "PRD",
+    "LIVE": "PRD",
+    "QAS": "QAS",
+    "QA": "QAS",
+    "QUALITY": "QAS",
+    "UAT": "QAS",
+    "DEV": "DEV",
+    "DEVELOPMENT": "DEV",
+    "DR": "DR",
+}
+
+SID_RE = re.compile(r"\b[A-Z][A-Z0-9]{2}\b")
+SID_STOPWORDS = {"SAP", "CPU", "MEM", "RFC", "SQL", "HDB", "DIA", "BTC", "ICM", "SNC", "SSL", "DEV", "QAS", "PRD", "ERR", "LOG"}
+
 
 def _normalize_case_stage(value: str | None) -> str:
     stage = str(value or "INTAKE").strip().upper()
     return stage if stage in VALID_CASE_STAGES else "INTAKE"
 
 
+def _case_blob(*values: Any) -> str:
+    return " ".join(str(value or "") for value in values if value not in (None, "", [], {}))
+
+
+def _infer_sid(explicit: str | None, blob: str) -> str:
+    candidate = str(explicit or "").strip().upper()
+    if SID_RE.fullmatch(candidate) and candidate not in SID_STOPWORDS:
+        return candidate
+
+    for match in SID_RE.findall(blob.upper()):
+        if match not in SID_STOPWORDS:
+            return match
+    return ""
+
+
+def _infer_environment(explicit: str | None, blob: str) -> str:
+    candidate = str(explicit or "").strip().upper()
+    if candidate in ENV_ALIASES:
+        return ENV_ALIASES[candidate]
+
+    hay = f" {blob.upper().replace('_', ' ').replace('-', ' ')} "
+    for alias, normalized in ENV_ALIASES.items():
+        if f" {alias} " in hay:
+            return normalized
+    return ""
+
+
 def create_case_item(payload: CaseCreate) -> dict[str, Any]:
     ensure_dirs()
     case_no = make_case_no()
+    blob = _case_blob(payload.title, payload.summary, payload.top_anomaly, payload.top_suspect, payload.sid, payload.environment)
+
     data = {
         "id": case_no,
         "case_no": case_no,
         "title": payload.title.strip() or case_no,
-        "sid": payload.sid or "",
-        "environment": payload.environment or "",
+        "sid": _infer_sid(payload.sid, blob),
+        "environment": _infer_environment(payload.environment, blob),
         "severity": (payload.severity or "INFO").upper(),
         "status": (payload.status or "OPEN").upper(),
         "case_stage": _normalize_case_stage(payload.case_stage),
@@ -140,6 +187,10 @@ def update_case_item(case_id: str, patch: CaseUpdate) -> dict[str, Any]:
             case_data[key] = value.upper()
         elif key == "case_stage":
             case_data[key] = _normalize_case_stage(value)
+        elif key == "sid":
+            case_data[key] = _infer_sid(str(value), str(value))
+        elif key == "environment":
+            case_data[key] = _infer_environment(str(value), str(value))
         else:
             case_data[key] = value
     case_data["updated_at"] = now_iso()
