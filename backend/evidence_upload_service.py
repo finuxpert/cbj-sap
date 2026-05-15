@@ -34,6 +34,15 @@ except Exception:
             return {"enabled": False, "written": False, "status": "unavailable"}
 
 
+def _require_db_write_ok(db_write: dict | None, action: str) -> None:
+    if not isinstance(db_write, dict) or not db_write.get("enabled"):
+        return
+    if db_write.get("written") is True and db_write.get("status") == "ok":
+        return
+    detail = db_write.get("error") or db_write.get("status") or "unknown database write failure"
+    raise HTTPException(status_code=503, detail=f"Database write failed during {action}: {detail}")
+
+
 async def handle_upload_evidence(
     *,
     file: UploadFile,
@@ -46,8 +55,8 @@ async def handle_upload_evidence(
 ) -> dict:
     """Persist uploaded evidence and optionally link it to an RCA case.
 
-    This intentionally preserves the existing /upload API contract while moving
-    the implementation out of evidence_api.py so the route can stay thin.
+    Full-DB mode stores binary files on disk but treats PostgreSQL metadata as
+    the source of truth for Case History and Grafana.
     """
     ensure_dirs()
     original = safe_name(file.filename or "evidence.bin")
@@ -96,6 +105,7 @@ async def handle_upload_evidence(
     }
     write_meta(evidence_id, meta)
     db_evidence_write = upsert_evidence_best_effort(meta)
+    _require_db_write_ok(db_evidence_write, "save evidence metadata")
 
     linked_case = None
     db_case_write = None
@@ -115,9 +125,11 @@ async def handle_upload_evidence(
             case_data["updated_at"] = now_iso()
             write_case(case_data)
             db_case_write = upsert_case_best_effort(case_data)
+            _require_db_write_ok(db_case_write, "update linked case evidence")
             linked_case = summarize_case(case_data)
         except HTTPException:
-            linked_case = {"warning": "case_id was provided but case was not found"}
+            linked_case = {"warning": "case_id was provided but case was not found or DB update failed"}
+            raise
 
     return {
         "ok": True,
