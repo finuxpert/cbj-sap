@@ -15,6 +15,14 @@ function findCase(items = [], id = '') {
   return items.find((item) => caseItemId(item) === id) || null
 }
 
+function statusTone(message = '') {
+  const text = String(message || '').toLowerCase()
+  if (!text) return ''
+  if (text.includes('fail') || text.includes('error') || text.includes('blocked') || text.includes('not found')) return 'error'
+  if (text.includes('created') || text.includes('saved') || text.includes('selected')) return 'success'
+  return 'info'
+}
+
 export default function CaseLinkPanel({
   title = 'Case History Link',
   description = 'Upload analyzes only. Create or select a case, then click Save to Case History.',
@@ -37,8 +45,9 @@ export default function CaseLinkPanel({
   const linkedCase = findCase(recentCases, caseId)
   const linkedCaseText = caseId ? (linkedCase ? caseLabel(linkedCase) : caseId) : 'Not linked yet'
   const visibleCases = recentCases.filter((item) => String(item?.status || '').toUpperCase() !== 'ARCHIVED')
-  const canCreate = mode === 'create' && !savingCase
+  const canCreate = mode === 'create' && !savingCase && Boolean(hasAnalysis) && Boolean(caseTitle.trim())
   const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
+  const tone = statusTone(saveStatus)
 
   const resetLink = React.useCallback(() => {
     if (caseId) onCaseIdChange('')
@@ -68,11 +77,7 @@ export default function CaseLinkPanel({
 
   const handleCreateCase = React.useCallback(async () => {
     if (!canCreate) return
-    try {
-      await onCreateCase()
-    } catch (error) {
-      console.error('[CaseLinkPanel] create case failed:', error)
-    }
+    await onCreateCase()
   }, [canCreate, onCreateCase])
 
   const handleSave = React.useCallback(() => {
@@ -100,7 +105,7 @@ export default function CaseLinkPanel({
               onChange={(event) => handleTitleChange(event.target.value)}
               placeholder={titlePlaceholder}
             />
-            <small>Create a new incident case first. Save is enabled only after a case is linked.</small>
+            <small>Create a new incident case after analysis is ready. Save is enabled only after a case is linked.</small>
           </label>
         ) : (
           <label>
@@ -135,10 +140,10 @@ export default function CaseLinkPanel({
 
       <small>
         {mode === 'create'
-          ? 'Flow: enter title → Create Case → Save to Case History.'
+          ? 'Flow: Upload & Analyze → New Case Title → Create Case → Save to Case History.'
           : 'Flow: choose case explicitly → Save to Case History.'}
       </small>
-      {saveStatus && <small>{saveStatus}</small>}
+      {saveStatus && <small data-tone={tone}>{saveStatus}</small>}
     </section>
   )
 }
