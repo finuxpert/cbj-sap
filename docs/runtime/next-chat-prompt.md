@@ -2,10 +2,10 @@
 
 Use this file to continue the project in a new chat without re-explaining the current state.
 
-## Continuation Prompt — Case Flow Stabilization GREEN → DB-first RCA Ingestion
+## Continuation Prompt — Full DB Case History + Grafana-ready RCA Ingestion
 
 ```text
-Lanjut SAP Intelligent RCA Workspace — case flow stabilization sudah GREEN di repo, lanjut DB-first RCA ingestion + real SAP sample quality.
+Lanjut SAP Intelligent RCA Workspace — Case History sekarang diarahkan full DB supaya UI/API/Grafana pakai satu source of truth.
 
 Repo:
 - finuxpert/cbj-sap
@@ -20,9 +20,9 @@ Mode:
 - jangan sentuh PROD/nginx kecuali diminta eksplisit
 - jangan reintroduce MutationObserver/runtime injector
 - jangan rewrite besar
-- fokus real SAP ingestion quality, RCA normalization, PostgreSQL persistence, Case History stability
-- pertahankan API contract
-- pertahankan hybrid PostgreSQL/file fallback selama transisi
+- fokus full PostgreSQL Case History, Grafana readiness, real SAP ingestion quality, RCA normalization, dan Case History stability
+- pertahankan API contract semampunya, tapi DB adalah source of truth untuk Case History
+- file system hanya untuk binary evidence storage, bukan source of truth Case History
 
 Current infra:
 - DEV URL: https://sapdev.cbj-kontruksi.com
@@ -32,7 +32,8 @@ Current infra:
 - PostgreSQL container: cbj-postgres-dev
 - Database: sap_rca_dev
 - Storage root: /var/www/svr01-dev/sap-data
-- Legacy case JSON path: /var/www/svr01-dev/sap-data/cases
+- File storage role: binary evidence only
+- Legacy case JSON path exists but must not be used as Case History source of truth
 
 Validated baseline:
 - DB clean-state already validated.
@@ -60,7 +61,41 @@ Recent case-flow stabilization commits:
 - e2397a18dca52f5a9124e918826e4b003ddac6af — Run case flow regression QA in SAPDEV deploy.
 - 56cce3e614a5117296d29f195f3892571089811f — Keep case flow QA isolated from DEV database.
 
-Case flow contract now expected:
+Recent full-DB/Grafana direction commits:
+- 4b439aaa1467e9d789a9ab51f1029f194c89ca07 — Make parsed results history DB-only when database is enabled.
+- 863ef38dda0799dfd405c3b8e71c667c559174be — Make evidence history DB-only for Grafana consistency.
+- 3bd90d881b16b1a2b8dffbd40e393de7de7de6da — Report DB mode consistently for DB-first reads.
+- 1415e640128d880c54cef413a08e3cb38da636b0 — Require DB write success for case mutations when DB is enabled.
+- 6ba2f78871deac05609cd97c6ff5b9d718c9a087 — Require DB write success for parsed result persistence.
+- ff12803ec89e4375672c824461ba069e6194ed8c — Require DB write success for evidence uploads.
+- 5d45b0ae65ea5fefd5e786c32be493c386ab88c9 — Report Case History as DB source of truth in health.
+
+Full DB Case History contract:
+1. /cases, /mobile/cases, single case detail:
+   - read PostgreSQL through DB-first middleware when DB runtime is enabled
+   - no legacy JSON fallback for Case History UI/Grafana state
+
+2. /parsed-results-history:
+   - DB-only when DB runtime is enabled
+   - returns read_source=postgres
+   - no fallback to JSON parsed_results
+
+3. /evidence-history:
+   - DB-only when DB runtime is enabled
+   - returns read_source=postgres
+   - no fallback to file metadata
+
+4. Mutations:
+   - create/update case requires DB write success when DB is enabled
+   - save parsed result requires DB case update and parsed_result insert success when DB is enabled
+   - upload evidence stores binary file on disk but requires DB metadata write success when DB is enabled
+   - API must not claim success if PostgreSQL write failed, because Grafana depends on DB
+
+5. File system:
+   - still used for uploaded evidence binaries
+   - not the source of truth for Case History, parsed results, or evidence history
+
+Case flow contract:
 1. Upload & Analyze:
    - analyzes only
    - must not save parsed_results automatically
@@ -93,8 +128,9 @@ Regression QA added:
 Important QA notes:
 - Do not use old contaminated cases like CASE-20260515-001.
 - Use fresh cases such as ISSUE-5 / ISSUE-6 / CASE generated after latest deploy.
-- Before Save to Case History: parsed-results-history?case_id=CASE_ID should return 0.
+- Before Save to Case History: parsed-results-history?case_id=CASE_ID should return 0 from PostgreSQL.
 - After Save to Case History: parsed result count should be > 0 and evidence_count > 0 if files were uploaded.
+- Grafana should query PostgreSQL tables directly: cases, parsed_results, evidence.
 
 Known operational note:
 - GitHub connector commits update branch dev, but may not expose workflow_dispatch in available tools.
@@ -105,18 +141,23 @@ Recommended next focus:
 2. QA real UI Create Case from WP-SCOUT/Log Evidence V2 using a new case.
 3. Validate Upload & Analyze does not save automatically.
 4. Validate explicit Save to Case History writes parsed result/evidence and keeps identity stable.
-5. After stable, continue DB-first persistence depth: real SAP sample normalization, evidence quality, ST03N structured persistence, and Case History DB read consistency.
+5. Build Grafana SQL views/panels from PostgreSQL only.
+6. Continue real SAP sample quality pass: WP-SCOUT/SM21/ST22/dev_w taxonomy and normalized RCA fields.
 
 Primary files:
 - src/features/cases/CaseLinkPanel.jsx
 - src/features/cases/useCaseHistoryLink.js
 - src/tools/ToolLogEvidenceV2.jsx
 - src/evidence-api-client.js
+- backend/evidence_api.py
 - backend/case_service.py
 - backend/parsed_result_service.py
+- backend/dbfirst_middleware.py
 - backend/dbfirst_read_helpers.py
 - backend/db/repositories.py
+- backend/evidence_history_service.py
 - backend/evidence_upload_service.py
+- backend/parsed_results_history_service.py
 - scripts/qa-case-flow-contracts.sh
 - .github/workflows/dev-deploy.yml
 
@@ -126,27 +167,27 @@ Guardrails:
 - Do not touch nginx unless explicitly requested.
 - Do not reintroduce runtime injectors/MutationObserver.
 - Do not rewrite large frontend modules.
-- Prefer backend-safe compatibility and frontend small UX improvement.
+- Prefer backend-safe compatibility and small focused patches.
 ```
 
 ## Current Scores
 
 | Area | Score |
 |---|---:|
-| DB-first read architecture | 94 |
+| DB source-of-truth architecture | 92 |
 | Case lifecycle maintenance | 96 |
 | Delete cascade safety | 96 |
 | QA pollution control | 98 |
 | Case flow stability | 94 |
+| Grafana readiness | 88 |
 | Real SAP ingestion foundation | 88 |
 | RCA normalization engine | 87 |
 | Frontend ingestion UX | 82 |
 | ST03N structured persistence | 72 |
-| Grafana RCA aggregation | 80 |
-| Overall RCA workspace maturity | 90 |
+| Overall RCA workspace maturity | 91 |
 
 ## Best Next First Patch
 
 ```text
-After SAPDEV deploy is confirmed green, start real SAP sample quality pass: strengthen parsed_result_service normalization for WP-SCOUT/SM21/ST22/dev_w evidence and add non-mutating fixtures or contract tests that verify SID/env/host/program/job/error taxonomy extraction without touching DEV database.
+After SAPDEV deploy is confirmed green, add PostgreSQL/Grafana-focused SQL views or documented queries for cases, parsed_results, and evidence. Then strengthen real SAP sample normalization for WP-SCOUT/SM21/ST22/dev_w evidence with non-mutating fixtures/contract tests.
 ```
