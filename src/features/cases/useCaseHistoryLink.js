@@ -7,11 +7,19 @@ function isMissingCaseError(error) {
   return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
 }
 
-function isManualSaveAction() {
-  if (typeof document === 'undefined') return true
+function activeElementText() {
+  if (typeof document === 'undefined') return ''
   const active = document.activeElement
-  const text = String(active?.textContent || active?.value || active?.getAttribute?.('aria-label') || '').toLowerCase()
-  return text.includes('save')
+  return String(active?.textContent || active?.value || active?.getAttribute?.('aria-label') || '').toLowerCase()
+}
+
+function isManualSaveAction() {
+  const text = activeElementText()
+  return !text || text.includes('save')
+}
+
+function isCreateAction() {
+  return activeElementText().includes('create')
 }
 
 export default function useCaseHistoryLink({
@@ -28,6 +36,7 @@ export default function useCaseHistoryLink({
   const [caseId, setCaseIdState] = React.useState('')
   const [caseTitle, setCaseTitle] = React.useState('')
   const [savingCase, setSavingCase] = React.useState(false)
+  const [creatingCase, setCreatingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
 
   const writeStoredCaseId = React.useCallback((nextCaseId) => {
@@ -88,6 +97,10 @@ export default function useCaseHistoryLink({
   }, [loadCases])
 
   const persistAnalysis = React.useCallback(async (analysis, files = []) => {
+    if (creatingCase || savingCase || isCreateAction()) {
+      setSaveStatus('Case is being created. Wait until it is linked, then click Save to Case History.')
+      return
+    }
     if (!caseId || !analysis || !buildParsedPayload) {
       setSaveStatus('Create/select case first, then save parsed summary and evidence.')
       return
@@ -132,10 +145,11 @@ export default function useCaseHistoryLink({
     } finally {
       setSavingCase(false)
     }
-  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, loadCases, toolName, uploadLimit, uploadTags])
+  }, [buildParsedPayload, caseId, caseTitle, clearCaseId, creatingCase, loadCases, savingCase, toolName, uploadLimit, uploadTags])
 
   const createLinkedCase = React.useCallback(async (analysis) => {
-    setSavingCase(true)
+    if (savingCase || creatingCase) return ''
+    setCreatingCase(true)
     setSaveStatus('Creating new case…')
     try {
       const title = caseTitle.trim() || defaultCaseTitle
@@ -160,22 +174,23 @@ export default function useCaseHistoryLink({
       setCaseIdState(nextId)
       writeStoredCaseId(nextId)
       setCaseTitle('')
-      setSaveStatus(`New case created and linked: ${nextId}`)
+      setSaveStatus(`New case created and linked: ${nextId}. Click Save to Case History next.`)
       loadCases()
       return nextId
     } catch (error) {
       setSaveStatus(error?.message || 'Failed to create case.')
       return ''
     } finally {
-      setSavingCase(false)
+      setCreatingCase(false)
     }
-  }, [buildCasePayload, caseTitle, defaultCaseTitle, loadCases, writeStoredCaseId])
+  }, [buildCasePayload, caseTitle, creatingCase, defaultCaseTitle, loadCases, savingCase, writeStoredCaseId])
 
   return {
     recentCases,
     caseId,
     caseTitle,
-    savingCase,
+    savingCase: savingCase || creatingCase,
+    creatingCase,
     saveStatus,
     setCaseId,
     setCaseTitle: setNewCaseTitle,
