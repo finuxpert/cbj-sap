@@ -54,8 +54,8 @@ SELECT
   pr.case_id,
   c.case_no,
   c.title AS case_title,
-  c.sid,
-  c.environment,
+  c.sid AS case_sid,
+  c.environment AS case_environment,
   c.status AS case_status,
   c.case_stage,
   pr.evidence_id,
@@ -68,6 +68,7 @@ SELECT
   pr.top_suspect,
   pr.summary,
   pr.result_json,
+  pr.result_json -> 'normalized_rca' AS normalized_rca,
   pr.created_at
 FROM parsed_results pr
 LEFT JOIN cases c ON c.id = pr.case_id;
@@ -102,7 +103,11 @@ LEFT JOIN cases c ON c.id = e.case_id;
 
 CREATE OR REPLACE VIEW grafana_rca_case_summary AS
 SELECT
-  c.updated_at AS "time",
+  GREATEST(
+    c.updated_at,
+    COALESCE(pr.latest_parsed_at, c.updated_at),
+    COALESCE(ev.latest_evidence_at, c.updated_at)
+  ) AS "time",
   c.id AS case_id,
   c.case_no,
   c.title,
@@ -148,4 +153,4 @@ LEFT JOIN LATERAL (
 -- - grafana_rca_cases."time"
 -- - grafana_rca_parsed_results."time"
 -- - grafana_rca_evidence."time"
--- - grafana_rca_case_summary.last_activity_at
+-- - grafana_rca_case_summary."time"
