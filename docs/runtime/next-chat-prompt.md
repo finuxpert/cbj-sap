@@ -2,10 +2,10 @@
 
 Use this file to continue the project in a new chat without re-explaining the current state.
 
-## Continuation Prompt — PDF Export + WP-SCOUT Visual Analytics
+## Continuation Prompt — DB-first RCA Ingestion + Real SAP Sample Quality
 
 ```text
-Lanjut SAP Intelligent RCA Workspace — fokus PDF export dan WP-SCOUT visual analytics.
+Lanjut SAP Intelligent RCA Workspace — fokus DB-first RCA ingestion dan real SAP sample quality.
 
 Repo:
 - finuxpert/cbj-sap
@@ -17,253 +17,139 @@ Mode:
 - GitHub connector only
 - incremental patch only
 - jangan pakai local CLI kecuali saya izinkan
-- jangan sentuh PROD/nginx/workflow
+- jangan sentuh PROD/nginx kecuali diminta eksplisit
 - jangan reintroduce MutationObserver/runtime injector
 - jangan rewrite besar
-- fokus PDF export engine, report quality, dan visual analytics WP-SCOUT
+- fokus real SAP ingestion quality, RCA normalization, PostgreSQL persistence, dan Case History stability
 - pertahankan API contract
-- pertahankan hybrid PostgreSQL/file fallback
+- pertahankan hybrid PostgreSQL/file fallback selama transisi
 
-Baca dulu:
-- docs/runtime/backend-modularization-status.md
-- docs/runtime/next-chat-prompt.md
-- src/features/pdf/ToolExportDock.jsx
-- src/features/pdf/structuredPdfPolished.js
-- src/features/pdf/structuredPdf.js
-- src/tools/ToolComparerClean.jsx
-- src/tools/ToolComparerClean.css
+Current infra:
+- DEV URL: https://sapdev.cbj-kontruksi.com
+- Backend service: sap-evidence-api.service
+- Backend internal API: http://127.0.0.1:8090
+- Public API path: https://sapdev.cbj-kontruksi.com/sap-api
+- PostgreSQL container: cbj-postgres-dev
+- Database: sap_rca_dev
+- Storage root: /var/www/svr01-dev/sap-data
+- Legacy case JSON path: /var/www/svr01-dev/sap-data/cases
 
-Current project state:
-Aplikasi core sudah matang sebagai SAP RCA / Observability Intelligence Workspace. Fokus terbaru adalah meningkatkan kualitas PDF export dan visual analytics agar hasil report lebih enterprise-ready, terutama untuk WP-SCOUT Comparator.
+Current status:
+- DB clean-state sudah berhasil divalidasi beberapa kali.
+- Legacy JSON leakage sudah ditutup dengan strict DB-first reads.
+- File-based dummy/QA cases sudah dibersihkan/diarsipkan.
+- QA auto pollution dari workflow sudah dihentikan.
+- Case delete cascade sudah bekerja end-to-end.
+- SID/environment inference sudah berhasil dites via API.
+- Real lifecycle sudah valid: create case -> upload evidence -> save parsed result -> delete cascade.
 
-Current overall app maturity:
-- Core RCA Engine: 97–98%
-- Operational UI/UX: 97–98%
-- Observability Workspace Feel: 98%
-- PDF Export Engine: 94–96% setelah polished export engine
-- PDF Visual Quality: 92–94% setelah cleanup dan chart filtering
-- WP-SCOUT Visual Analytics: 93–95% setelah trend CPU/Mem/Swap chart
+Latest validated manual API result:
+- Created case title: H1P PRD CONVT_NO_NUMBER test
+- Result: sid=H1P, environment=PRD, severity=CRIT, db_write.status=ok
 
-Latest important commits in this chat:
-- 9ab69e31c03f44ec71a4745a0f4bf0d350f2c1d2 — Add polished structured PDF export engine
-- 3bf03f3302d622bfd4d9cd12eacdfe4823261e54 — Use polished structured PDF export engine
-- 474267cca3e41212557d97a89318b57c67baaf0b — Add WP-SCOUT resource trend chart
-- 7977b7a47dd77b207067eae3b43be7fee43b5b2d — Style WP-SCOUT resource trend chart
+Important recent commits:
+- 6df968118042182a82ff3b6eccac561a498a8d5d — Make DB-first case reads strict for clean state
+- c11166a83b622c744bf0e48a1787d3a3ed6cb9fb — Make mobile case flow DB-first
+- 0deee3bff57f17b96cce4fc42711a8083fbc8cda — Stop SAPDEV deploy from seeding QA cases
+- 9c5ee17a7ad003e66a6a5baf3b505c90567f47c9 — Normalize RCA parsed result persistence
+- bd8a68100b4d49ec0ee38d4825769ffc1ccf70b8 — Add DB cascade delete for case maintenance
+- c0e1cc6db9965b165607581eba12913b5406c278 — Wire case delete endpoint to DB cascade
+- b6e72f83c7cd1d44c36bd78c19e50e3989cba2eb — Surface normalized RCA fields from DB reads
+- 7c023881d530bf848f9fdecc42410080e08d3131 — Add SID and environment inference for cases
 
-Current PDF export status:
-- Structured PDF export aktif untuk comparer, analyzer, logs.
-- Export entry: src/features/pdf/ToolExportDock.jsx
-- Active engine now imports from: src/features/pdf/structuredPdfPolished.js
-- Old engine retained: src/features/pdf/structuredPdf.js
-- Export memakai jsPDF.
-- PDF bukan screenshot full page.
-- PDF mengambil structured DOM state.
-- PDF sudah punya executive cover.
-- PDF sudah punya KPI cards.
-- PDF sudah capture SVG/Recharts chart ke PNG.
-- PDF sudah punya Visual Evidence / Charts section.
-- PDF sudah filter noisy panel seperti Case History, Evidence History, Download/Refresh list.
-- PDF sudah punya RCA Visual Summary block:
-  - confidence gauge with jsPDF-safe tick lines
-  - severity indicator
-  - offender/evidence score bars
-  - infra pressure bars where data can be parsed
-  - mini incident timeline where data can be parsed
-- Export tetap fallback ke window.print() kalau gagal.
+What is now fixed:
+1. /cases DB-first strict mode:
+   - Empty PostgreSQL returns empty response, not legacy JSON fallback.
+   - Response keeps both `cases` and `items` for frontend compatibility.
 
-Recent PDF cleanup details:
-- structuredPdfPolished.js dibuat sebagai rollback-safe engine baru karena direct overwrite structuredPdf.js sempat kena SHA conflict.
-- ToolExportDock.jsx sekarang import `exportStructuredPdf` dari `./structuredPdfPolished.js`.
-- Cleanup yang sudah masuk:
-  - compact text normalization
-  - label spacing for joined text such as SeverityCRIT, BottleneckCPU, Unique297
-  - noise filter for Case History / Evidence History / Download / Refresh / Create Case
-  - WP-SCOUT primary suspect extraction from RCA finding/top offender row
-  - chart dedupe per title
-  - skip SVG chart yang tidak meaningful
-  - shorter panel body to avoid DOM dump in PDF
+2. /mobile/cases DB-first:
+   - Mobile/history panels no longer leak legacy JSON cases in clean state.
 
-Current WP-SCOUT visual analytics status:
-- WP-SCOUT Comparator file: src/tools/ToolComparerClean.jsx
-- CSS file: src/tools/ToolComparerClean.css
-- Added chart: `Trend – CPU / Mem / Swap`
-- Chart uses Recharts LineChart, so it should be captured by PDF visual evidence.
-- Series:
-  - CPU %
-  - Mem %
-  - Swap si
-- Red dot indicates `swap si > 0`.
-- Tooltip explains whether swap activity is detected.
-- Badge summary:
-  - Peak CPU
-  - Peak Mem
-  - Swap
-- If uploaded WP-SCOUT text contains telemetry lines for CPU/Mem/Swap, chart uses that telemetry.
-- If no raw memory telemetry is detected, Mem% is estimated from WP RSS pressure and UI shows a note.
-- `resource_trend` is also included in parsed result payload for Case History.
+3. QA workflow no longer pollutes DB:
+   - Deploy workflow no longer runs mutating QA automatically.
+   - Mutating QA requires explicit manual opt-in.
 
-Important implementation notes for WP-SCOUT trend:
-- Parser detects snapshot labels from:
-  - `snapshot @ ...`
-  - HH:MM / HH:MM:SS inside snapshot text
-  - fallback filename timestamp-ish pattern
-- Parser attempts telemetry line extraction using CPU/Mem/Swap/SI patterns.
-- Fallback trend uses grouped WP rows by snapshot/file and estimates memory pressure from RSS.
-- Swap fallback becomes non-zero only for critical high RSS + long age heuristic.
-- This feature is UI-only/frontend-side and does not change backend contracts.
+4. RCA parsed result normalization:
+   - backend/parsed_result_service.py normalizes SID, environment, hosts, severity, top_suspect taxonomy, and case stage.
+   - Initial taxonomy includes ABAP conversion/data format, ABAP runtime dump, background job failure, WP saturation, DB response time, enqueue contention, RFC communication, and memory pressure.
 
-Known issues / next gaps:
-1. Need validate build after latest commits because workflow run was not visible from GitHub connector.
-2. Recharts line colors are styled via CSS selectors; if color order looks off, set explicit `stroke` props in JSX instead.
-3. Need export sample PDFs again after DEV deploy/build:
-   - WP-SCOUT Comparator
-   - ST03N Impact Analyzer
-   - Log Evidence
-4. Need confirm WP-SCOUT trend appears in generated PDF under Visual Evidence / Charts.
-5. Need verify `structuredPdfPolished.js` chart filter does not skip the new trend chart.
-6. Need better native PDF trend summary if chart capture is insufficient.
-7. Need optional landscape PDF page for wide trend chart.
-8. Need source evidence appendix mode for long tables/list data.
-9. Need better handling for real OS telemetry formats if actual WP-SCOUT text has different CPU/Mem/Swap syntax.
-10. Need avoid overestimating Mem% fallback if user wants strict raw telemetry only.
+5. DB read enrichment:
+   - backend/dbfirst_read_helpers.py promotes result_json.normalized_rca into top-level API fields.
+   - Parsed results can expose sid, environment, hosts, affected_hosts, instances, workprocesses, jobs, programs, transactions, users, error_signatures, log_families, correlation_keys, evidence_ids, and rca_model_version.
 
-Recommended next validation steps:
-1. Check GitHub build/deploy workflow status for latest dev commits.
-2. If user permits local CLI, run build only:
-   - npm run build
-3. Open DEV after deploy:
-   - https://sapdev.cbj-kontruksi.com
-4. Upload WP-SCOUT multi snapshot evidence.
-5. Confirm trend panel appears.
-6. Export PDF.
-7. Inspect PDF:
-   - cover should be cleaner
-   - Case History/Evidence History noise should be gone
-   - Trend – CPU / Mem / Swap should be captured in Visual Evidence / Charts
-   - WP-SCOUT primary suspect should show host/PID/type/job, not DOM dump
+6. Case delete cascade:
+   - DELETE /cases/{id} now removes case, parsed_results, evidence, reports, audit_logs, analytics_cache, and legacy JSON file if present.
+   - Validated by deleting CASE-20260515-001 and CASE-20260515-002, then count returned to 0.
 
-Priority next patch options:
-A. Validate/build fix only if latest build fails.
-B. Tune WP-SCOUT trend parser against real WP-SCOUT resource telemetry text.
-C. Add explicit Recharts stroke colors in JSX instead of CSS nth-of-type.
-D. Add native PDF trend mini-graph fallback to structuredPdfPolished.js.
-E. Add landscape visual analytics PDF page for wide charts.
-F. Add strict/estimated toggle for WP-SCOUT resource trend.
+7. SID/environment inference during case creation:
+   - backend/case_service.py infers SID/env from title, summary, anomaly, and suspect.
+   - Validated with title `H1P PRD CONVT_NO_NUMBER test`.
 
-Important rule:
-Do not touch backend, nginx, PROD, workflows, or app RCA logic unless user explicitly asks. Keep all changes incremental and connector-only.
+Known issues / gaps:
+1. Frontend Log Evidence V2 still has old UX for case metadata; backend now handles inference but UI does not expose explicit SID/env inputs yet.
+2. ToolLogEvidenceV2.jsx stores selected case id in localStorage. After DB cleanup, browser can keep stale case id and cause 404 when saving parsed result.
+3. Upload can happen before current case exists if stale case id is selected or user saves in wrong order.
+4. Need frontend guard to clear stale CASE_KEY when selected case no longer exists.
+5. Need manual SID/env fields in CaseLinkPanel for Log Evidence V2.
+6. Need stronger evidence upload ordering: create/select case first, then save parsed result + upload evidence.
+7. Current DB schema stores normalized RCA mostly in result_json.normalized_rca; read helper promotes it to top-level API fields.
+8. Case stage may still need stronger DB persistence/model migration later.
+9. Grafana panels may need refresh/update to use enriched fields.
+10. ST03N structured persistence still needs deeper model.
+
+Recommended next patch:
+- Patch src/tools/ToolLogEvidenceV2.jsx incrementally:
+  1. Add SID input and Environment select in CaseLinkPanel.
+  2. Store metadata state: sid/environment.
+  3. Send sid/environment in createCase payload.
+  4. Send sid/environment in saveParsedResult payload.
+  5. Send sid in uploadEvidence metadata.
+  6. Validate selected case id before save; if 404, clear CASE_KEY and show message.
+  7. Clarify UX text: Create/select case first, then save parsed summary and evidence.
+
+After that:
+- Upload one real SAP sample from Log Evidence V2.
+- Validate cases count, parsed_results count, evidence count.
+- Confirm case_stage becomes CLASSIFIED after parsed result.
+- Confirm top_suspect canonical if taxonomy matches.
+- Confirm sid/environment populated either from UI or inference.
+- Confirm delete cascade returns all counts to 0.
+
+Primary files for next patch:
+- src/tools/ToolLogEvidenceV2.jsx
+- src/evidence-api-client.js
+- backend/case_service.py
+- backend/parsed_result_service.py
+- backend/dbfirst_read_helpers.py
+- backend/db/repositories.py
+- backend/evidence_upload_service.py
+
+Guardrails:
+- Incremental only.
+- Do not touch PROD.
+- Do not touch nginx unless explicitly requested.
+- Do not reintroduce runtime injectors/MutationObserver.
+- Do not rewrite large frontend modules.
+- Prefer backend-safe compatibility and frontend small UX improvement.
 ```
 
 ## Current Scores
 
 | Area | Score |
 |---|---:|
-| Core RCA Engine | 97–98 |
-| Operational UI/UX | 97–98 |
-| Observability Workspace Feel | 98 |
-| Log Evidence V2 | 97 |
-| WP-SCOUT / RCA Comparator | 95–96 |
-| WP-SCOUT Visual Analytics | 93–95 |
-| ST03N Impact Analyzer | 92–94 |
-| Case History / Evidence Persistence | 92 |
-| RCA Correlation Engine | 95 |
-| Historical Similarity Foundation | 84 |
-| PDF Export Engine | 94–96 |
-| PDF Visual Quality | 92–94 |
-| PDF Executive Readability | 92–94 |
-
-## PDF Engine Files
-
-### Primary files
-
-```text
-src/features/pdf/ToolExportDock.jsx
-src/features/pdf/structuredPdfPolished.js
-src/features/pdf/structuredPdf.js
-```
-
-### Active export behavior
-
-- `ToolExportDock.jsx` renders floating Export PDF button for:
-  - comparer
-  - analyzer
-  - logs
-- It calls `exportStructuredPdf(slug)` from `structuredPdfPolished.js`.
-- If export fails, it falls back to `window.print()`.
-- `structuredPdfPolished.js` builds report from DOM using:
-  - `buildReportFromDom(slug)`
-  - `collectDecisionCards()`
-  - `collectRows()`
-  - `collectPanels()`
-  - `collectChartImages()`
-- Chart export captures Recharts/SVG into PNG using canvas.
-- Native PDF analytics block is drawn directly with jsPDF-safe primitives.
-
-## WP-SCOUT Trend Files
-
-```text
-src/tools/ToolComparerClean.jsx
-src/tools/ToolComparerClean.css
-```
-
-### Current trend behavior
-
-- New panel title: `Trend – CPU / Mem / Swap`
-- X-axis: snapshot/time label
-- Left Y-axis: CPU% and Mem%
-- Right Y-axis: Swap si
-- Red dot: swap si > 0
-- Badge summary: Peak CPU, Peak Mem, Swap
-- Tooltip explains swap pressure.
-- Data source priority:
-  1. Raw telemetry line parse from uploaded text
-  2. RSS pressure fallback estimate from WP rows
-- Result payload includes:
-  - `resource_trend`
-
-## PDF Evolution Roadmap
-
-### Phase 1 — Stabilize current export
-
-1. Check latest GitHub Action/build status.
-2. Fix any syntax/runtime risk in `structuredPdfPolished.js` or `ToolComparerClean.jsx`.
-3. Ensure PDF generation works on mobile and desktop.
-4. Confirm chart capture still works after adding WP-SCOUT trend chart.
-
-### Phase 2 — Better visual report blocks
-
-1. Native trend summary fallback if Recharts capture fails.
-2. Native infra pressure bars.
-3. Native top evidence bar chart.
-4. Native incident timeline mini graph.
-5. Better section spacing/card layout.
-
-### Phase 3 — Advanced enterprise report
-
-1. Landscape visual analytics page.
-2. WP-SCOUT host/PID offender heatmap.
-3. ST03N component mix visual.
-4. Log Evidence error-family distribution visual.
-5. RCA relationship graph.
-6. Appendix pagination system.
-
-## Guardrails
-
-- Do not touch PROD.
-- Do not change nginx.
-- Do not modify GitHub workflows unless explicitly requested.
-- Do not use local CLI unless user explicitly permits.
-- Keep API contracts unchanged.
-- Keep DB-first/PostgreSQL hybrid behavior unchanged.
-- Avoid MutationObserver/runtime DOM injectors.
-- Avoid large rewrites.
-- Prefer incremental patches.
-- Focus on PDF export and WP-SCOUT visual analytics unless user changes priority.
+| DB-first read architecture | 94 |
+| Case lifecycle maintenance | 95 |
+| Delete cascade safety | 96 |
+| QA pollution control | 96 |
+| Real SAP ingestion foundation | 88 |
+| RCA normalization engine | 86 |
+| Frontend ingestion UX | 74 |
+| ST03N structured persistence | 72 |
+| Grafana RCA aggregation | 80 |
+| Overall RCA workspace maturity | 88 |
 
 ## Best Next First Patch
 
-Recommended first patch in next chat:
-
 ```text
-Check latest build/deploy status for branch dev, then validate ToolComparerClean.jsx and structuredPdfPolished.js after the WP-SCOUT trend chart + polished PDF engine. If build is green, generate/inspect new PDF samples; if build fails, fix only the failing frontend code incrementally.
+Patch ToolLogEvidenceV2.jsx incrementally to add SID/environment metadata controls, pass them through createCase/saveParsedResult/uploadEvidence, and clear stale localStorage case id when backend returns 404. Keep backend unchanged unless required by build.
 ```
