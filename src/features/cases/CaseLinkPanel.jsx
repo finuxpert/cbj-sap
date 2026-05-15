@@ -24,6 +24,16 @@ export default function CaseLinkPanel({
     return status !== 'ARCHIVED' || id === caseId
   })
 
+  const startNewCase = React.useCallback((nextTitle = caseTitle) => {
+    if (caseId) onCaseIdChange('')
+    onCaseTitleChange(nextTitle)
+  }, [caseId, caseTitle, onCaseIdChange, onCaseTitleChange])
+
+  const handleExistingCaseChange = React.useCallback((nextCaseId) => {
+    onCaseIdChange(nextCaseId)
+    if (nextCaseId && caseTitle) onCaseTitleChange('')
+  }, [caseTitle, onCaseIdChange, onCaseTitleChange])
+
   return (
     <section className="evidencePanel caseHistoryLinkPanel">
       <h2>{title}</h2>
@@ -31,7 +41,7 @@ export default function CaseLinkPanel({
       <div className="evidenceList compact">
         <label>
           <b>Existing Case</b>
-          <select value={caseId} onChange={(event) => onCaseIdChange(event.target.value)}>
+          <select value={caseId} onChange={(event) => handleExistingCaseChange(event.target.value)}>
             <option value="">Not linked</option>
             {selectableCases.map((item) => {
               const id = caseItemId(item)
@@ -45,9 +55,11 @@ export default function CaseLinkPanel({
           <b>New Case Title</b>
           <input
             value={caseTitle}
-            onChange={(event) => onCaseTitleChange(event.target.value)}
+            onFocus={() => startNewCase(caseTitle)}
+            onChange={(event) => startNewCase(event.target.value)}
             placeholder={titlePlaceholder}
           />
+          {caseId ? <small>Typing a new title will unlink the selected case first.</small> : null}
         </label>
       </div>
       <div className="caseHistoryActions">
