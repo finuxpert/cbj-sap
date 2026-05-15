@@ -30,12 +30,12 @@ function buildIdentityOnlyCasePayload(title, suggested = {}, context = {}) {
     title,
     sid: context.sid || suggested.sid || '',
     environment: context.environment || suggested.environment || '',
-    severity: 'INFO',
-    status: 'OPEN',
-    case_stage: 'INTAKE',
-    summary: '',
-    top_anomaly: '',
-    top_suspect: '',
+    severity: suggested.severity || 'INFO',
+    status: suggested.status || 'OPEN',
+    case_stage: suggested.case_stage || 'INTAKE',
+    summary: suggested.summary || '',
+    top_anomaly: suggested.top_anomaly || '',
+    top_suspect: suggested.top_suspect || '',
     created_by: suggested.created_by || 'sap-rca-workspace',
   }
 }
@@ -224,10 +224,6 @@ export default function useCaseHistoryLink({
 
   const createLinkedCase = React.useCallback(async (analysis, context = {}) => {
     if (savingCase || creatingCase) return ''
-    if (!analysis) {
-      setSaveStatus('Upload and analyze evidence first.')
-      return ''
-    }
     if (!caseTitle.trim()) {
       setSaveStatus('Enter a case title first.')
       return ''
@@ -237,7 +233,7 @@ export default function useCaseHistoryLink({
     setSaveStatus('Creating…')
     try {
       const title = caseTitle.trim() || defaultCaseTitle
-      const suggestedPayload = buildCasePayload ? buildCasePayload(analysis, title, normalizedContext) : {}
+      const suggestedPayload = analysis && buildCasePayload ? buildCasePayload(analysis, title, normalizedContext) : {}
       const payload = buildIdentityOnlyCasePayload(title, suggestedPayload, normalizedContext)
 
       const response = await createCase(payload)
@@ -263,7 +259,8 @@ export default function useCaseHistoryLink({
       const dbStatus = dbWriteSuffix(response)
       const visibleAfterReload = refreshedCases.some((item) => caseItemId(item) === nextId)
       const reloadNote = visibleAfterReload ? '' : ' The recent list may still be refreshing.'
-      setSaveStatus(`New case created and linked: ${nextId}${dbStatus ? ` (${dbStatus})` : ''}. Click Save to Case History next.${reloadNote}`)
+      const nextStep = analysis ? 'Click Save to Case History next.' : 'Upload and analyze evidence, then Save to Case History.'
+      setSaveStatus(`New case created and linked: ${nextId}${dbStatus ? ` (${dbStatus})` : ''}. ${nextStep}${reloadNote}`)
       return nextId
     } catch (error) {
       setSaveStatus(error?.message || 'Failed to create case.')
