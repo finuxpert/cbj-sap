@@ -4,10 +4,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import delete
+from sqlalchemy import delete, text
 
 from .models import AuditLog, Case, CaseAnalyticsCache, Evidence, ParsedResult, Report
 from .session import db_enabled, session_scope
+
+VALID_CASE_STAGES = {
+    "INTAKE",
+    "WAITING_EVIDENCE",
+    "ANALYZING",
+    "CLASSIFIED",
+    "RESOLVED",
+}
 
 
 def _parse_dt(value: Any) -> datetime:
@@ -19,6 +27,18 @@ def _parse_dt(value: Any) -> datetime:
         except Exception:
             pass
     return datetime.now(timezone.utc)
+
+
+def _normalize_case_stage(value: Any) -> str:
+    stage = str(value or "INTAKE").strip().upper()
+    return stage if stage in VALID_CASE_STAGES else "INTAKE"
+
+
+def _ensure_case_stage_column(session) -> None:
+    # Existing DEV DBs were created before case_stage existed in the ORM model.
+    # Keep this idempotent and local to case writes so incremental deploys remain safe.
+    session.execute(text("ALTER TABLE cases ADD COLUMN IF NOT EXISTS case_stage VARCHAR(40) DEFAULT 'INTAKE'"))
+    session.execute(text("CREATE INDEX IF NOT EXISTS ix_cases_case_stage ON cases (case_stage)"))
 
 
 def _tags_to_json(value: Any) -> dict:
@@ -37,6 +57,7 @@ def upsert_case_best_effort(case_data: dict) -> dict:
         if not case_id:
             return {"enabled": True, "written": False, "status": "missing_case_id"}
         with session_scope() as session:
+            _ensure_case_stage_column(session)
             obj = session.get(Case, str(case_id))
             if obj is None:
                 obj = Case(id=str(case_id), case_no=str(case_data.get("case_no") or case_id), title=str(case_data.get("title") or case_id))
@@ -47,13 +68,14 @@ def upsert_case_best_effort(case_data: dict) -> dict:
             obj.environment = str(case_data.get("environment") or "")
             obj.severity = str(case_data.get("severity") or "INFO").upper()
             obj.status = str(case_data.get("status") or "OPEN").upper()
+            obj.case_stage = _normalize_case_stage(case_data.get("case_stage"))
             obj.summary = str(case_data.get("summary") or "")
             obj.top_anomaly = str(case_data.get("top_anomaly") or "")
             obj.top_suspect = str(case_data.get("top_suspect") or "")
             obj.created_by = str(case_data.get("created_by") or "")
             obj.created_at = _parse_dt(case_data.get("created_at"))
             obj.updated_at = _parse_dt(case_data.get("updated_at"))
-        return {"enabled": True, "written": True, "status": "ok"}
+        return {"enabled": True, "written": True, "status": "ok", "case_stage": _normalize_case_stage(case_data.get("case_stage"))}
     except Exception as exc:
         return {"enabled": True, "written": False, "status": "error", "error": str(exc)}
 
@@ -139,6 +161,7 @@ def delete_case_cascade_best_effort(case_id: str) -> dict:
         if not key:
             return {"enabled": True, "deleted": False, "status": "missing_case_id"}
         with session_scope() as session:
+            _ensure_case_stage_column(session)
             case_obj = session.get(Case, key)
             if case_obj is None:
                 return {"enabled": True, "deleted": False, "status": "not_found"}
