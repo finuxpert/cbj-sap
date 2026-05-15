@@ -532,6 +532,45 @@ function ResourceTrendPanel({ data }) {
   )
 }
 
+function IntakeSummary({ files, rows, busy, lastLoad, hasAnalysis }) {
+  const fileCount = files.length
+  const stepItems = [
+    'Upload & Analyze',
+    'Review analysis',
+    'Create or link case',
+    'Save to Case History',
+    'Check Evidence History (Postgres)',
+  ]
+
+  return (
+    <section className="cmpCleanIntakeCard">
+      <div className="cmpCleanIntakeHead">
+        <span className="cmpCleanKicker">Workflow</span>
+        <h2>One clear RCA flow</h2>
+        <p>Use the single upload action in the header, then finish case linking and save on the right panel.</p>
+      </div>
+      <div className="cmpCleanIntakeMeta">
+        <div className="cmpCleanIntakeStat">
+          <strong>{fileCount}</strong>
+          <span>Files loaded</span>
+        </div>
+        <div className="cmpCleanIntakeStat">
+          <strong>{rows.length}</strong>
+          <span>Parsed rows</span>
+        </div>
+        <div className="cmpCleanIntakeStat">
+          <strong>{busy ? 'Running' : hasAnalysis ? 'Ready' : 'Waiting'}</strong>
+          <span>Analysis state</span>
+        </div>
+      </div>
+      <ol className="cmpCleanFlowList">
+        {stepItems.map((item) => <li key={item}>{item}</li>)}
+      </ol>
+      <div className="cmpCleanIntakeStatus">{lastLoad || 'No evidence analyzed yet. Upload WP-SCOUT files from the header to start.'}</div>
+    </section>
+  )
+}
+
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
   const [files, setFiles] = React.useState([])
@@ -571,7 +610,6 @@ export default function ToolComparerClean() {
       }
       const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
       const nextSamples = parsed.flatMap((item) => item.resourceSamples || [])
-      const nextTrend = buildResourceTrend(nextRows, nextSamples)
       setFiles(list)
       setRows(nextRows)
       setResourceSamples(nextSamples)
@@ -652,7 +690,7 @@ export default function ToolComparerClean() {
         <div>
           <a className="cmpCleanKicker" href="#/tool/comparer">WP-SCOUT / RCA Comparator</a>
           <h1>SAP RCA Workspace</h1>
-          <p>Upload WP-SCOUT log. Rank offender. Export RCA evidence.</p>
+          <p>Upload WP-SCOUT log once, review the analysis, then link the result to Case History.</p>
           {lastLoad ? <small className="cmpCleanLoadState">{lastLoad}</small> : null}
         </div>
         <div className="cmpCleanActions">
@@ -662,14 +700,11 @@ export default function ToolComparerClean() {
       </header>
 
       <div className="cmpCleanTopRow">
-        <div className="cmpCleanDrop" onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}>
-          <strong>Drop / select WP-SCOUT log</strong>
-          <span>Accepted: .log, .txt, .csv. Default view groups duplicate rows into unique offenders.</span>
-        </div>
-        <div>
+        <IntakeSummary files={files} rows={rows} busy={busy} lastLoad={lastLoad} hasAnalysis={Boolean(caseAnalysis)} />
+        <div className="cmpCleanSideRail">
           <CaseLinkPanel
             title="Case History Link"
-            description="Pilih atau buat case supaya hasil WP-SCOUT comparator tersimpan dan raw evidence bisa dibuka ulang dari #/cases maupun mobile."
+            description="Follow the guided flow: create a new RCA case or explicitly link an existing DB case before saving the parsed result."
             caseId={caseLink.caseId}
             caseTitle={caseLink.caseTitle}
             recentCases={caseLink.recentCases}
