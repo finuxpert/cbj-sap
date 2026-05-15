@@ -7,6 +7,13 @@ function isMissingCaseError(error) {
   return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
 }
 
+function isManualSaveAction() {
+  if (typeof document === 'undefined') return true
+  const active = document.activeElement
+  const text = String(active?.textContent || active?.value || active?.getAttribute?.('aria-label') || '').toLowerCase()
+  return text.includes('save')
+}
+
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -87,6 +94,10 @@ export default function useCaseHistoryLink({
     }
     if (caseTitle.trim()) {
       setSaveStatus('New case title is active. Click Create Case first, then save parsed summary.')
+      return
+    }
+    if (!isManualSaveAction()) {
+      setSaveStatus('Analysis parsed. Click Save to Case History to persist parsed summary and evidence.')
       return
     }
     setSavingCase(true)
