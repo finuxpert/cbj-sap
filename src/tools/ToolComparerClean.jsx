@@ -423,8 +423,20 @@ function buildComparerParsedPayload(analysis) {
   }
 }
 
-async function readAsText(file) {
-  return file.text()
+function intakeBadge(state = 'idle') {
+  if (state === 'failed') return 'Failed'
+  if (state === 'analyzed') return 'Parsed'
+  if (state === 'analyzing') return 'Analyzing'
+  if (state === 'selected') return 'ZIP/TXT'
+  return 'ZIP'
+}
+
+function intakeSummary(state, selectedFiles, rows, lastLoad, error) {
+  if (state === 'failed') return `Parse failed: ${error || 'Unknown parse error.'}`
+  if (state === 'analyzed') return lastLoad || `Parsed ${rows.length} WP rows from ${selectedFiles.length} file(s).`
+  if (state === 'analyzing') return 'Analyzing uploaded evidence…'
+  if (state === 'selected') return `${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} selected. Click Analyze Evidence to continue.`
+  return 'No file selected'
 }
 
 function EmptyChart({ label = 'Upload WP-SCOUT log untuk menampilkan chart' }) {
@@ -532,11 +544,11 @@ function ResourceTrendPanel({ data }) {
   )
 }
 
-function IntakeSummary({ files, rows, busy, lastLoad, hasAnalysis }) {
-  const fileCount = files.length
+function IntakeSummary({ state, selectedFiles, files, rows, busy, lastLoad }) {
+  const fileCount = selectedFiles.length || files.length
   const stepItems = [
-    'Upload & Analyze',
-    'Review analysis',
+    'Upload ZIP/TXT',
+    'Analyze Evidence',
     'Create or link case',
     'Save to Case History',
     'Check Evidence History (Postgres)',
@@ -547,32 +559,82 @@ function IntakeSummary({ files, rows, busy, lastLoad, hasAnalysis }) {
       <div className="cmpCleanIntakeHead">
         <span className="cmpCleanKicker">Workflow</span>
         <h2>One clear RCA flow</h2>
-        <p>Use the single upload action in the header, then finish case linking and save on the right panel.</p>
+        <p>Use the Evidence Intake bar once, review the analysis, then finish case linking and save on the right panel.</p>
       </div>
       <div className="cmpCleanIntakeMeta">
         <div className="cmpCleanIntakeStat">
           <strong>{fileCount}</strong>
-          <span>Files loaded</span>
+          <span>Files staged</span>
         </div>
         <div className="cmpCleanIntakeStat">
           <strong>{rows.length}</strong>
           <span>Parsed rows</span>
         </div>
         <div className="cmpCleanIntakeStat">
-          <strong>{busy ? 'Running' : hasAnalysis ? 'Ready' : 'Waiting'}</strong>
+          <strong>{busy ? 'Running' : state === 'analyzed' ? 'Ready' : state === 'selected' ? 'Selected' : 'Waiting'}</strong>
           <span>Analysis state</span>
         </div>
       </div>
       <ol className="cmpCleanFlowList">
         {stepItems.map((item) => <li key={item}>{item}</li>)}
       </ol>
-      <div className="cmpCleanIntakeStatus">{lastLoad || 'No evidence analyzed yet. Upload WP-SCOUT files from the header to start.'}</div>
+      <div className="cmpCleanIntakeStatus">{lastLoad || 'No evidence analyzed yet. Use the Evidence Intake card below to start.'}</div>
+    </section>
+  )
+}
+
+function EvidenceIntakeCard({
+  intakeRef,
+  inputRef,
+  selectedFiles,
+  analysisState,
+  summaryText,
+  error,
+  onChooseFiles,
+  onAnalyze,
+  onClear,
+}) {
+  const canAnalyze = selectedFiles.length > 0 && analysisState !== 'analyzing'
+  const summaryTone = analysisState === 'failed' ? 'error' : analysisState === 'analyzed' ? 'success' : 'info'
+  const parseLabel = analysisState === 'analyzing' ? 'Analyzing…' : analysisState === 'analyzed' ? 'Re-analyze' : 'Analyze Evidence'
+
+  return (
+    <section ref={intakeRef} className="cmpCleanEvidenceIntake">
+      <div className="cmpCleanEvidenceIntakeHead">
+        <div>
+          <span className={`cmpCleanIntakeBadge ${analysisState}`}>{intakeBadge(analysisState)}</span>
+          <h2>WP-SCOUT Evidence Intake</h2>
+          <p>Upload ZIP/TXT once, then analyze and link the result to Case History.</p>
+        </div>
+        <div className="cmpCleanEvidenceIntakeActions">
+          <input ref={inputRef} hidden type="file" multiple accept=".zip,.txt,.log,.csv" onChange={(e) => onChooseFiles(e.target.files)} />
+          <button className="btn" type="button" onClick={() => inputRef.current?.click()} disabled={analysisState === 'analyzing'}>
+            Upload ZIP/TXT
+          </button>
+          <button className="btn primary" type="button" onClick={onAnalyze} disabled={!canAnalyze}>
+            {parseLabel}
+          </button>
+          <button className="btn ghost" type="button" onClick={onClear} disabled={analysisState === 'analyzing' || (!selectedFiles.length && analysisState === 'idle')}>
+            Clear
+          </button>
+        </div>
+      </div>
+
+      <div className="cmpCleanEvidenceIntakeBody">
+        <div className={`cmpCleanEvidenceStatus ${summaryTone}`}>
+          <strong>{summaryText}</strong>
+          {selectedFiles.length ? <span>{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} staged for this RCA run.</span> : <span>Select ZIP or TXT evidence to start the pipeline.</span>}
+        </div>
+        {error ? <div className="cmpCleanEvidenceError">{error}</div> : null}
+      </div>
     </section>
   )
 }
 
 export default function ToolComparerClean() {
   const inputRef = React.useRef(null)
+  const intakeRef = React.useRef(null)
+  const [selectedFiles, setSelectedFiles] = React.useState([])
   const [files, setFiles] = React.useState([])
   const [rows, setRows] = React.useState([])
   const [resourceSamples, setResourceSamples] = React.useState([])
@@ -584,6 +646,7 @@ export default function ToolComparerClean() {
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
   const [lastLoad, setLastLoad] = React.useState('')
+  const [analysisState, setAnalysisState] = React.useState('idle')
   const caseLink = useCaseHistoryLink({
     storageKey: CASE_KEY,
     buildCasePayload: buildComparerCasePayload,
@@ -596,35 +659,77 @@ export default function ToolComparerClean() {
     saveJson,
   })
 
-  const ingest = async (fileList) => {
+  const clearEvidenceState = React.useCallback(() => {
+    setSelectedFiles([])
+    setFiles([])
+    setRows([])
+    setResourceSamples([])
+    setHostFilter('ALL')
+    setJobFilter('ALL')
+    setError('')
+    setLastLoad('')
+    setAnalysisState('idle')
+    if (inputRef.current) inputRef.current.value = ''
+  }, [])
+
+  const handleChooseFiles = React.useCallback((fileList) => {
     const list = Array.from(fileList || []).filter(Boolean)
-    if (!list.length) return
+    setSelectedFiles(list)
+    setFiles([])
+    setRows([])
+    setResourceSamples([])
+    setHostFilter('ALL')
+    setJobFilter('ALL')
+    setError('')
+    if (!list.length) {
+      setLastLoad('No file selected.')
+      setAnalysisState('idle')
+      return
+    }
+    setLastLoad(`${list.length} file${list.length > 1 ? 's' : ''} selected. Click Analyze Evidence to continue.`)
+    setAnalysisState('selected')
+  }, [])
+
+  const ingest = React.useCallback(async () => {
+    if (!selectedFiles.length) {
+      setAnalysisState('idle')
+      setLastLoad('No file selected.')
+      return
+    }
     setBusy(true)
     setError('')
-    setLastLoad(`Parsing ${list.length} file(s)…`)
+    setAnalysisState('analyzing')
+    setLastLoad(`Analyzing ${selectedFiles.length} file(s)…`)
     try {
       const parsed = []
-      for (const file of list) {
-        const text = await readAsText(file)
+      for (const file of selectedFiles) {
+        const text = await file.text()
         parsed.push(parseFileText(file.name, text))
       }
       const nextRows = parsed.flatMap((item) => item.rows).sort((a, b) => b.score - a.score)
       const nextSamples = parsed.flatMap((item) => item.resourceSamples || [])
-      setFiles(list)
+      setFiles(selectedFiles)
       setRows(nextRows)
       setResourceSamples(nextSamples)
       setHostFilter('ALL')
       setJobFilter('ALL')
-      setLastLoad(nextRows.length ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).` : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.')
+      const summary = nextRows.length
+        ? `Parsed ${nextRows.length} WP rows from ${parsed.length} file(s).`
+        : 'No WP rows detected. Check file format or upload raw WP-SCOUT log.'
+      setLastLoad(summary)
+      setAnalysisState('analyzed')
     } catch (err) {
       console.error('[WP-SCOUT Comparator] parse failed:', err)
+      setFiles([])
+      setRows([])
+      setResourceSamples([])
       setError(err?.message || String(err))
-      setLastLoad('Parse failed.')
+      setLastLoad(`Parse failed: ${err?.message || String(err)}`)
+      setAnalysisState('failed')
     } finally {
       setBusy(false)
-      if (inputRef.current) inputRef.current.value = ''
     }
-  }
+  }, [selectedFiles])
 
   const uniqueRows = React.useMemo(() => uniqueOffenders(rows), [rows])
   const resourceTrend = React.useMemo(() => buildResourceTrend(rows, resourceSamples), [resourceSamples, rows])
@@ -684,6 +789,8 @@ export default function ToolComparerClean() {
     }))
   }, [uniqueRows])
 
+  const summaryText = intakeSummary(analysisState, selectedFiles, rows, lastLoad, error)
+
   return (
     <section className="cmpCleanShell">
       <header className="cmpCleanHeader">
@@ -693,14 +800,22 @@ export default function ToolComparerClean() {
           <p>Upload WP-SCOUT log once, review the analysis, then link the result to Case History.</p>
           {lastLoad ? <small className="cmpCleanLoadState">{lastLoad}</small> : null}
         </div>
-        <div className="cmpCleanActions">
-          <input ref={inputRef} hidden type="file" multiple accept=".log,.txt,.csv" onChange={(e) => ingest(e.target.files)} />
-          <button className="cmpCleanPrimary" type="button" onClick={() => inputRef.current?.click()} disabled={busy}>{busy ? 'Parsing…' : 'Upload & Analyze'}</button>
-        </div>
       </header>
 
+      <EvidenceIntakeCard
+        intakeRef={intakeRef}
+        inputRef={inputRef}
+        selectedFiles={selectedFiles}
+        analysisState={analysisState}
+        summaryText={summaryText}
+        error={error}
+        onChooseFiles={handleChooseFiles}
+        onAnalyze={ingest}
+        onClear={clearEvidenceState}
+      />
+
       <div className="cmpCleanTopRow">
-        <IntakeSummary files={files} rows={rows} busy={busy} lastLoad={lastLoad} hasAnalysis={Boolean(caseAnalysis)} />
+        <IntakeSummary state={analysisState} selectedFiles={selectedFiles} files={files} rows={rows} busy={busy} lastLoad={lastLoad} />
         <div className="cmpCleanSideRail">
           <CaseLinkPanel
             title="Case History Link"
@@ -725,8 +840,6 @@ export default function ToolComparerClean() {
           <EvidenceHistory tool="comparer" limit={5} />
         </div>
       </div>
-
-      {error ? <div className="cmpCleanError">{error}</div> : null}
 
       <div className="cmpCleanStats">
         <MiniStat label="Unique" value={stats.total} />
