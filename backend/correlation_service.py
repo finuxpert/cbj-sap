@@ -72,9 +72,20 @@ HOST_STOPWORDS = {
     "workprocess",
     "workprocesses",
     "wp",
+    "component",
+    "crit",
+    "db",
+    "dbms",
+    "incident",
+    "line",
+    "raw",
+    "report",
+    "telemetry",
 }
 
 HOST_LIKE_RE = re.compile(r"^(?=.{3,63}$)(?!\d+$)(?:[a-z0-9]+(?:-[a-z0-9]+)*)(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$")
+HOST_DATE_RE = re.compile(r"(?:^|[-_.])(?:\d{2}[.-]\d{2}[.-]\d{4}|\d{4}[.-]\d{2}[.-]\d{2})(?:$|[-_.])", re.IGNORECASE)
+HOST_FILE_FRAGMENT_RE = re.compile(r"\.(?:log|txt|csv|json|zip)(?:$|[-_.])", re.IGNORECASE)
 
 
 def _as_text(value: Any) -> str:
@@ -150,9 +161,19 @@ def _looks_like_host(value: Any) -> bool:
     text = _as_text(value).lower()
     if not text or text in HOST_STOPWORDS:
         return False
+    if not re.search(r"[a-z]", text):
+        return False
+    if HOST_DATE_RE.search(text):
+        return False
+    if HOST_FILE_FRAGMENT_RE.search(text):
+        return False
     if text.endswith((".log", ".txt", ".csv", ".json", ".zip")):
         return False
     if "/" in text or "\\" in text or ":" in text:
+        return False
+    if re.fullmatch(r"\d+(?:[._-]\d+){2,}", text):
+        return False
+    if all(part.isdigit() for part in re.split(r"[-_.]+", text) if part):
         return False
     if text.split(".") and all(part in HOST_STOPWORDS for part in text.split(".")):
         return False

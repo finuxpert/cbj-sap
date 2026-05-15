@@ -55,10 +55,23 @@ const HOST_STOPWORDS = new Set([
   'workprocess',
   'workprocesses',
   'wp',
+  'component',
+  'crit',
+  'db',
+  'dbms',
+  'dailycheck',
+  'filename',
+  'incident',
+  'line',
+  'raw',
+  'report',
+  'telemetry',
 ])
 
 const HOST_LIKE_RE = /^(?=.{3,63}$)(?!\d+$)(?:[a-z0-9]+(?:-[a-z0-9]+)*)(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$/
 const WP_RE = /^(?:wp|dia|btc|upd|spo|icm)?[-_ ]?\d{1,4}$/i
+const HOST_DATE_RE = /(?:^|[-_.])(?:\d{2}[.-]\d{2}[.-]\d{4}|\d{4}[.-]\d{2}[.-]\d{2})(?:$|[-_.])/i
+const HOST_FILE_FRAGMENT_RE = /\.(?:log|txt|csv|json|zip)(?:$|[-_.])/i
 
 function normalizeToken(value) {
   return String(value || '').trim()
@@ -83,8 +96,13 @@ function looksLikeValidHost(value = '') {
   if (!text || text.length < 3 || text.length > 63) return false
   if (HOST_STOPWORDS.has(text)) return false
   if (/^\d+$/.test(text)) return false
+  if (!/[a-z]/.test(text)) return false
+  if (HOST_DATE_RE.test(text)) return false
+  if (HOST_FILE_FRAGMENT_RE.test(text)) return false
   if (text.endsWith('.log') || text.endsWith('.txt') || text.endsWith('.csv') || text.endsWith('.json') || text.endsWith('.zip')) return false
   if (text.includes('/') || text.includes('\\') || text.includes(':')) return false
+  if (/^\d+(?:[._-]\d+){2,}$/.test(text)) return false
+  if (text.split(/[-_.]/).filter(Boolean).every((part) => /^\d+$/.test(part))) return false
   if (text.split('.').every((part) => HOST_STOPWORDS.has(part))) return false
   return HOST_LIKE_RE.test(text)
 }
@@ -100,8 +118,8 @@ export function sanitizeCorrelationHosts(value, limit = 8) {
   }
 
   return {
-    items: validHosts.slice(0, limit),
-    all: validHosts,
+    items: validHosts.slice(0, limit).map((item) => item.toUpperCase()),
+    all: validHosts.map((item) => item.toUpperCase()),
     hiddenCount: Math.max(validHosts.length - limit, 0),
     needsReview: rawCount > 0 && validHosts.length === 0,
   }

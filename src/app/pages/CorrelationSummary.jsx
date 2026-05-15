@@ -34,7 +34,10 @@ export default function CorrelationSummary({ correlation, loading }) {
   return (
     <article className="caseDetailPanel caseDetailAnalyticsPanel caseCorrelationSummary" data-rca-correlation="true">
       <div className="intelHead">
-        <span>RCA Correlation Summary</span>
+        <div>
+          <span>RCA Analytics</span>
+          <small className="rcaPanelSubtext">Backend-generated analytics from Case History API</small>
+        </div>
         <strong className={`rcaSeverityBadge is${severity.toLowerCase()}`} data-correlation-severity>{severity}</strong>
       </div>
 

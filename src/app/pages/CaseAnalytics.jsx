@@ -51,6 +51,8 @@ function normalizeResourceRows(rows = []) {
     cpu: Number(item?.cpu ?? item?.cpu_pct ?? item?.cpu_percent ?? 0) || 0,
     mem: Number(item?.mem ?? item?.memory ?? item?.memory_pct ?? item?.mem_percent ?? 0) || 0,
     swap: Number(item?.swap ?? item?.swap_pct ?? item?.swap_percent ?? 0) || 0,
+    source: String(item?.source || item?.telemetry_source || item?.kind || ''),
+    estimated: Boolean(item?.estimated) || /fallback|estimated|rss-pressure|frontend-fallback/i.test(String(item?.source || item?.telemetry_source || item?.kind || '')),
   })).filter((item) => item.cpu > 0 || item.mem > 0 || item.swap > 0).slice(-30)
 }
 
@@ -247,6 +249,12 @@ function TimelineCard({ data }) {
 
 function ResourceChart({ data }) {
   if (!data.length) return <EmptyChart title="CPU / Memory / Swap" hint="Host resource utilization over time" />
+  const hasEstimated = data.some((item) => item.estimated)
+  const sourceLabel = hasEstimated
+    ? 'Estimated'
+    : data.some((item) => /telemetry/i.test(String(item.source || '')))
+      ? 'Telemetry'
+      : 'Fallback'
 
   return (
     <section className="caseDetailAnalyticsWide caseResourcePanel">
@@ -255,7 +263,7 @@ function ResourceChart({ data }) {
           <h3>CPU / Memory / Swap</h3>
           <span>Host resource utilization over time</span>
         </div>
-        <b>{data.length}</b>
+        <b>{sourceLabel}</b>
       </div>
       <div className="caseResourceLegend">
         <span className="isCpu">CPU %</span>
@@ -275,6 +283,11 @@ function ResourceChart({ data }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <p className="caseAnalyticsChartNote">
+        {hasEstimated
+          ? 'Memory/CPU trend may be estimated from parsed WP evidence when raw telemetry is missing.'
+          : 'Rendered from telemetry-like resource samples stored with the case analytics payload.'}
+      </p>
     </section>
   )
 }
