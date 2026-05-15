@@ -2,6 +2,11 @@ import React from 'react'
 import { createCase, listMobileCases, saveParsedResult, uploadEvidence } from '../../evidence-api-client.js'
 import { caseItemId, findFallbackCase, normalizeCaseId, normalizeCaseList } from './caseHistoryLinkUtils.js'
 
+function isMissingCaseError(error) {
+  const message = String(error?.message || error?.detail || error?.raw || '').toLowerCase()
+  return Number(error?.status || 0) === 404 || message.includes('404') || message.includes('not found')
+}
+
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -24,10 +29,37 @@ export default function useCaseHistoryLink({
   }, [loadJson, storageKey])
 
   const [recentCases, setRecentCases] = React.useState([])
-  const [caseId, setCaseId] = React.useState(readStoredCaseId)
+  const [caseId, setCaseIdState] = React.useState('')
   const [caseTitle, setCaseTitle] = React.useState('')
   const [savingCase, setSavingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
+  const [restoredCaseId, setRestoredCaseId] = React.useState(readStoredCaseId)
+
+  const writeStoredCaseId = React.useCallback((nextCaseId) => {
+    if (!storageKey) return
+    if (saveJson) {
+      saveJson(storageKey, nextCaseId || '')
+      return
+    }
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(nextCaseId || ''))
+    } catch {
+      // selected case is convenience cache only
+    }
+  }, [saveJson, storageKey])
+
+  const setCaseId = React.useCallback((nextCaseId) => {
+    setCaseIdState(nextCaseId || '')
+    writeStoredCaseId(nextCaseId || '')
+    if (nextCaseId) setSaveStatus(`Case selected: ${nextCaseId}`)
+  }, [writeStoredCaseId])
+
+  const clearCaseId = React.useCallback((message = '') => {
+    setCaseIdState('')
+    setRestoredCaseId('')
+    writeStoredCaseId('')
+    if (message) setSaveStatus(message)
+  }, [writeStoredCaseId])
 
   const loadCases = React.useCallback(async () => {
     try {
@@ -46,25 +78,29 @@ export default function useCaseHistoryLink({
   }, [loadCases])
 
   React.useEffect(() => {
-    if (!storageKey) return
-    if (saveJson) {
-      saveJson(storageKey, caseId || '')
+    if (!restoredCaseId || caseId) return
+    const exists = recentCases.some((item) => caseItemId(item) === restoredCaseId)
+    if (exists) {
+      setCaseIdState(restoredCaseId)
       return
     }
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(caseId || ''))
-    } catch {
-      // selected case is convenience cache only
-    }
-  }, [caseId, saveJson, storageKey])
+    if (recentCases.length) clearCaseId('Saved local case was not found. Please create or select a case before saving evidence.')
+  }, [caseId, clearCaseId, recentCases, restoredCaseId])
 
   const persistAnalysis = React.useCallback(async (analysis, files = []) => {
-    if (!caseId || !analysis || !buildParsedPayload) return
+    if (!caseId || !analysis || !buildParsedPayload) {
+      setSaveStatus('Create/select case first, then save parsed summary and evidence.')
+      return
+    }
     setSavingCase(true)
     setSaveStatus('Saving parsed summary to Case History…')
     try {
       const saved = await saveParsedResult(caseId, buildParsedPayload(analysis))
-      if (saved?.ok === false) throw new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
+      if (saved?.ok === false) {
+        const saveError = new Error(saved?.detail || saved?.raw || 'Failed to save parsed result')
+        saveError.status = saved?.status
+        throw saveError
+      }
 
       let uploaded = 0
       for (const file of (files || []).slice(0, uploadLimit)) {
@@ -80,15 +116,19 @@ export default function useCaseHistoryLink({
       setSaveStatus(`Saved to ${caseId}. Linked evidence files: ${uploaded}.`)
       loadCases()
     } catch (error) {
-      setSaveStatus(error?.message || 'Failed to save parsed summary.')
+      if (isMissingCaseError(error)) {
+        clearCaseId('Linked case was not found in DB. Cleared stale local case id. Create/select case first, then save parsed summary and evidence.')
+      } else {
+        setSaveStatus(error?.message || 'Failed to save parsed summary.')
+      }
     } finally {
       setSavingCase(false)
     }
-  }, [buildParsedPayload, caseId, loadCases, toolName, uploadLimit, uploadTags])
+  }, [buildParsedPayload, caseId, clearCaseId, loadCases, toolName, uploadLimit, uploadTags])
 
   const createLinkedCase = React.useCallback(async (analysis) => {
     setSavingCase(true)
-    setSaveStatus('Creating case…')
+    setSaveStatus('Creating new case…')
     try {
       const title = caseTitle.trim() || defaultCaseTitle
       const payload = buildCasePayload
@@ -109,9 +149,11 @@ export default function useCaseHistoryLink({
         throw new Error('Case was submitted, but no selectable case id was returned. Open Cases, refresh, then select the case manually.')
       }
 
-      setCaseId(nextId)
+      setCaseIdState(nextId)
+      setRestoredCaseId(nextId)
+      writeStoredCaseId(nextId)
       setCaseTitle('')
-      setSaveStatus(`Case linked: ${nextId}`)
+      setSaveStatus(`New case created and linked: ${nextId}`)
       loadCases()
       return nextId
     } catch (error) {
@@ -120,7 +162,7 @@ export default function useCaseHistoryLink({
     } finally {
       setSavingCase(false)
     }
-  }, [buildCasePayload, caseTitle, defaultCaseTitle, loadCases])
+  }, [buildCasePayload, caseTitle, defaultCaseTitle, loadCases, writeStoredCaseId])
 
   return {
     recentCases,
@@ -130,6 +172,7 @@ export default function useCaseHistoryLink({
     saveStatus,
     setCaseId,
     setCaseTitle,
+    clearCaseId,
     loadCases,
     persistAnalysis,
     createLinkedCase,
