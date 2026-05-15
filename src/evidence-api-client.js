@@ -2,11 +2,25 @@ const API_BASE = '/sap-api'
 
 async function toJson(response) {
   const text = await response.text()
+  let payload
   try {
-    return JSON.parse(text)
+    payload = JSON.parse(text)
   } catch {
-    return { ok: false, status: response.status, raw: text }
+    payload = { raw: text }
   }
+
+  if (!response.ok) {
+    return {
+      ...payload,
+      ok: false,
+      status: response.status,
+      statusText: response.statusText,
+      raw: payload?.raw ?? text,
+    }
+  }
+
+  if (payload && typeof payload === 'object') return payload
+  return { ok: false, status: response.status, raw: text }
 }
 
 function buildSearch(params = {}) {
@@ -138,7 +152,7 @@ export async function getCaseReplay(caseId) {
       session,
       replay_ready: Boolean(session.replay?.replay_ready),
       count: Number(session.replay?.count || 0),
-      events: Array.isArray(session.replay?.events) ? session.replay.events : [],
+      events: Array.isArray(session.replay?.events) ? session.replay?.events : [],
     }
   }
 
