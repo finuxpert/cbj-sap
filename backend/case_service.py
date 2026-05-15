@@ -40,13 +40,16 @@ except Exception:
     )
 
 try:
-    from .db.repositories import upsert_case_best_effort
+    from .db.repositories import delete_case_cascade_best_effort, upsert_case_best_effort
 except Exception:
     try:
-        from db.repositories import upsert_case_best_effort
+        from db.repositories import delete_case_cascade_best_effort, upsert_case_best_effort
     except Exception:
         def upsert_case_best_effort(case_data: dict) -> dict:
             return {"enabled": False, "written": False, "status": "unavailable"}
+
+        def delete_case_cascade_best_effort(case_id: str) -> dict:
+            return {"enabled": False, "deleted": False, "status": "unavailable"}
 
 
 VALID_CASE_STAGES = {
@@ -146,9 +149,26 @@ def update_case_item(case_id: str, patch: CaseUpdate) -> dict[str, Any]:
 
 
 def delete_case_item(case_id: str) -> dict[str, Any]:
-    p = case_path(case_id)
-    if not p.exists():
-        raise HTTPException(status_code=404, detail="Case not found")
     deleted_id = safe_case_id(case_id)
-    p.unlink(missing_ok=True)
-    return {"ok": True, "deleted": deleted_id}
+    if not deleted_id:
+        raise HTTPException(status_code=400, detail="Invalid case id")
+
+    db_delete = delete_case_cascade_best_effort(deleted_id)
+    p = case_path(deleted_id)
+    file_deleted = False
+    if p.exists():
+        p.unlink(missing_ok=True)
+        file_deleted = True
+
+    if db_delete.get("enabled") and db_delete.get("status") == "error":
+        raise HTTPException(status_code=500, detail=f"DB case delete failed: {db_delete.get('error')}")
+
+    if not file_deleted and not db_delete.get("deleted"):
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    return {
+        "ok": True,
+        "deleted": deleted_id,
+        "file_deleted": file_deleted,
+        "db_delete": db_delete,
+    }
