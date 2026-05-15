@@ -95,6 +95,13 @@ function dbWriteSuffix(response = {}) {
   return [enabled, written, status].filter(Boolean).join(', ')
 }
 
+function readStoredCaseId(storageKey, loadJson) {
+  if (!storageKey || !loadJson) return ''
+  const stored = loadJson(storageKey, '')
+  if (typeof stored === 'string') return stored
+  return normalizeCaseId(stored)
+}
+
 export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
@@ -104,18 +111,19 @@ export default function useCaseHistoryLink({
   uploadLimit = 20,
   uploadTags = [],
   requireExplicitSaveIntent = false,
+  loadJson,
   saveJson,
 }) {
   const [recentCases, setRecentCases] = React.useState([])
-  const [caseId, setCaseIdState] = React.useState('')
+  const [caseId, setCaseIdState] = React.useState(() => readStoredCaseId(storageKey, loadJson))
   const [caseTitle, setCaseTitle] = React.useState('')
   const [savingCase, setSavingCase] = React.useState(false)
   const [creatingCase, setCreatingCase] = React.useState(false)
   const [saveStatus, setSaveStatus] = React.useState('')
 
-  const writeStoredCaseId = React.useCallback(() => {
-    void storageKey
-    void saveJson
+  const writeStoredCaseId = React.useCallback((nextCaseId = '') => {
+    if (!storageKey || !saveJson) return false
+    return saveJson(storageKey, nextCaseId || '')
   }, [saveJson, storageKey])
 
   const setCaseId = React.useCallback((nextCaseId) => {
