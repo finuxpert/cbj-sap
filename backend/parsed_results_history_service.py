@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 try:
     from .dbfirst_read_helpers import (
         _cbj_dbfirst_fetch_parsed_results_history,
@@ -11,60 +13,51 @@ except Exception:
         _cbj_dbfirst_runtime_enabled,
     )
 
-try:
-    from .history_serializers import collect_file_parsed_results_history
-except Exception:
-    from history_serializers import collect_file_parsed_results_history
 
-try:
-    from .storage_config import CASE_DIR
-except Exception:
-    from storage_config import CASE_DIR
+def _db_mode() -> str:
+    return os.getenv("DB_MODE") or os.getenv("DATABASE_MODE") or "db"
 
 
 def list_parsed_results_history_dbfirst(case_id: str = "", tool: str = "", limit: int = 100) -> dict:
-    """
-    DB-first parsed result history service.
+    """Return parsed result history from PostgreSQL only when DB runtime is enabled.
 
-    Safe behavior:
-    - Reads PostgreSQL first when runtime DB is enabled.
-    - Falls back to JSON/file-backed case parsed_results if DB read fails or DB is disabled.
-    - Preserves the existing /parsed-results-history response contract.
+    Full-DB mode uses PostgreSQL as the Case History source of truth so Grafana,
+    UI, and API reads see the same data. Legacy JSON case files are intentionally
+    not read here anymore when DB runtime is configured.
     """
     limit = max(1, min(int(limit or 100), 500))
+    mode = _db_mode()
 
-    if _cbj_dbfirst_runtime_enabled():
-        try:
-            rows = _cbj_dbfirst_fetch_parsed_results_history(
-                case_id=case_id,
-                tool=tool,
-                limit=limit,
-            )
-            return {
-                "ok": True,
-                "read_source": "postgres",
-                "mode": "hybrid",
-                "count": len(rows),
-                "parsed_results": rows,
-                "fallback_reason": None,
-            }
-        except Exception as exc:
-            fallback_reason = str(exc)
-    else:
-        fallback_reason = "database_disabled"
+    if not _cbj_dbfirst_runtime_enabled():
+        return {
+            "ok": False,
+            "read_source": "postgres",
+            "mode": mode,
+            "count": 0,
+            "parsed_results": [],
+            "detail": "Database runtime not enabled/configured; parsed results history is DB-only.",
+        }
 
-    rows = collect_file_parsed_results_history(
-        CASE_DIR,
-        case_id=case_id,
-        tool=tool,
-        limit=limit,
-    )
-
-    return {
-        "ok": True,
-        "read_source": "file",
-        "mode": "hybrid",
-        "count": len(rows),
-        "parsed_results": rows,
-        "fallback_reason": fallback_reason,
-    }
+    try:
+        rows = _cbj_dbfirst_fetch_parsed_results_history(
+            case_id=case_id,
+            tool=tool,
+            limit=limit,
+        )
+        return {
+            "ok": True,
+            "read_source": "postgres",
+            "mode": mode,
+            "count": len(rows),
+            "parsed_results": rows,
+            "fallback_reason": None,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "read_source": "postgres",
+            "mode": mode,
+            "count": 0,
+            "parsed_results": [],
+            "fallback_reason": str(exc),
+        }
