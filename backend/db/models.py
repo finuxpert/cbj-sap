@@ -30,6 +30,7 @@ class Case(Base):
     environment: Mapped[str] = mapped_column(String(80), default="")
     severity: Mapped[str] = mapped_column(String(20), default="INFO", index=True)
     status: Mapped[str] = mapped_column(String(20), default="OPEN", index=True)
+    case_stage: Mapped[str] = mapped_column(String(40), default="INTAKE", index=True)
     summary: Mapped[str] = mapped_column(Text, default="")
     top_anomaly: Mapped[str] = mapped_column(Text, default="")
     top_suspect: Mapped[str] = mapped_column(Text, default="")
