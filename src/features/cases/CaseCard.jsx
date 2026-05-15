@@ -19,15 +19,28 @@ function severityClass(value) {
   return 'isInfo'
 }
 
+function stageLabel(value) {
+  return String(value || 'INTAKE').trim().toUpperCase() || 'INTAKE'
+}
+
+function countValue(primary, fallback = 0) {
+  if (Array.isArray(primary)) return primary.length
+  const number = Number(primary ?? fallback ?? 0)
+  return Number.isFinite(number) ? number : 0
+}
+
 export default function CaseCard({ caseItem, onArchive, archiving = false, selected = false, onSelect }) {
   const item = caseItem || {}
   const severity = item.severity || 'INFO'
   const status = item.status || 'OPEN'
+  const stage = stageLabel(item.case_stage)
   const title = item.title || item.case_no || 'Untitled RCA Case'
   const caseId = item.id || item.case_no || ''
   const summary = item.summary || 'Belum ada management summary. Upload dan parse evidence untuk generate RCA summary.'
   const topProblem = item.top_suspect || item.top_anomaly || 'Pending analysis'
   const tool = item.tool || '-'
+  const evidenceCount = countValue(item.evidence, item.evidence_count)
+  const parsedCount = countValue(item.parsed_results, item.parsed_count ?? item.parsed_results_count)
   const isArchived = String(status).toUpperCase() === 'ARCHIVED'
   const detailHref = `#/cases/${encodeURIComponent(caseId)}`
 
@@ -50,7 +63,10 @@ export default function CaseCard({ caseItem, onArchive, archiving = false, selec
           <span className="caseHistoryCaseNo">{item.case_no || item.id || 'CASE-DRAFT'}</span>
           <h3>{title}</h3>
         </div>
-        <span className={`caseHistorySeverity ${severityClass(severity)}`}>{severity}</span>
+        <div className="caseHistoryBadgeStack">
+          <span className={`caseHistorySeverity ${severityClass(severity)}`}>{severity}</span>
+          <span className={`caseHistoryStage is${stage.replace(/[^A-Z0-9]/g, '')}`}>{stage}</span>
+        </div>
       </div>
 
       <p className="caseHistorySummary">{summary}</p>
@@ -66,6 +82,10 @@ export default function CaseCard({ caseItem, onArchive, archiving = false, selec
           <dd>{status}</dd>
         </div>
         <div>
+          <dt>Stage</dt>
+          <dd>{stage}</dd>
+        </div>
+        <div>
           <dt>Tool</dt>
           <dd>{tool}</dd>
         </div>
@@ -75,7 +95,11 @@ export default function CaseCard({ caseItem, onArchive, archiving = false, selec
         </div>
         <div>
           <dt>Evidence</dt>
-          <dd>{item.evidence_count ?? 0}</dd>
+          <dd>{evidenceCount}</dd>
+        </div>
+        <div>
+          <dt>Parsed</dt>
+          <dd>{parsedCount}</dd>
         </div>
         <div>
           <dt>Updated</dt>
