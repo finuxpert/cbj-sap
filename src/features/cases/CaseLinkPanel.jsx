@@ -1,6 +1,20 @@
 import React from 'react'
 import { caseItemId } from './caseHistoryLinkUtils.js'
 
+function caseLabel(item = {}) {
+  const id = caseItemId(item)
+  const stage = String(item.case_stage || 'INTAKE').toUpperCase()
+  const severity = String(item.severity || 'INFO').toUpperCase()
+  const sid = item.sid ? ` · ${item.sid}` : ''
+  const env = item.environment ? `/${item.environment}` : ''
+  const status = item.status ? ` · ${String(item.status).toUpperCase()}` : ''
+  return `${item.case_no || id}${sid}${env} · ${stage} · ${severity}${status}`
+}
+
+function findCase(items = [], id = '') {
+  return items.find((item) => caseItemId(item) === id) || null
+}
+
 export default function CaseLinkPanel({
   title = 'Case History Link',
   description = 'Pilih atau buat case supaya hasil parsing tersimpan dan bisa dibuka ulang dari #/cases maupun mobile.',
@@ -18,144 +32,115 @@ export default function CaseLinkPanel({
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
 }) {
+  const [mode, setMode] = React.useState('create')
   const normalizedDescription = String(description || '').toLowerCase()
-  const createOnly = normalizedDescription.includes('hasil wp-scout comparator')
-  const [mode, setMode] = React.useState('new')
-  const linkedCaseId = mode === 'existing' ? (caseId || '') : ''
-  const canSave = createOnly
-    ? Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
-    : mode === 'existing' && Boolean(caseId) && Boolean(hasAnalysis) && !savingCase
-  const canCreate = (createOnly || mode === 'new') && !savingCase
+  const wpScoutCreateOnly = normalizedDescription.includes('hasil wp-scout comparator')
+  const linkedCase = findCase(recentCases, caseId)
+  const linkedCaseText = caseId ? (linkedCase ? caseLabel(linkedCase) : caseId) : 'Not linked yet'
+  const visibleCases = recentCases.filter((item) => String(item?.status || '').toUpperCase() !== 'ARCHIVED')
+  const canCreate = mode === 'create' && !savingCase
+  const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !caseTitle.trim()
 
-  const selectableCases = recentCases.filter((item) => {
-    const id = caseItemId(item)
-    const status = String(item?.status || '').toUpperCase()
-    return status !== 'ARCHIVED' || id === linkedCaseId
-  })
+  React.useEffect(() => {
+    if (wpScoutCreateOnly && mode !== 'create') setMode('create')
+  }, [mode, wpScoutCreateOnly])
 
-  const switchToNew = React.useCallback(() => {
-    setMode('new')
+  const resetLink = React.useCallback(() => {
     if (caseId) onCaseIdChange('')
   }, [caseId, onCaseIdChange])
 
-  const switchToExisting = React.useCallback(() => {
-    if (createOnly) return
-    setMode('existing')
+  const enterCreateMode = React.useCallback(() => {
+    setMode('create')
+    resetLink()
+  }, [resetLink])
+
+  const enterLinkMode = React.useCallback(() => {
+    if (wpScoutCreateOnly) return
+    setMode('link')
     if (caseTitle) onCaseTitleChange('')
-  }, [caseTitle, createOnly, onCaseTitleChange])
+  }, [caseTitle, onCaseTitleChange, wpScoutCreateOnly])
 
-  const handleNewTitleChange = React.useCallback((nextTitle) => {
-    setMode('new')
-    if (caseId) onCaseIdChange('')
+  const handleTitleChange = React.useCallback((nextTitle) => {
+    setMode('create')
+    resetLink()
     onCaseTitleChange(nextTitle)
-  }, [caseId, onCaseIdChange, onCaseTitleChange])
+  }, [onCaseTitleChange, resetLink])
 
-  const handleExistingCaseChange = React.useCallback((nextCaseId) => {
-    if (createOnly) return
-    setMode('existing')
+  const handleCaseSelect = React.useCallback((nextCaseId) => {
+    if (wpScoutCreateOnly) return
+    setMode('link')
     onCaseIdChange(nextCaseId)
     if (caseTitle) onCaseTitleChange('')
-  }, [caseTitle, createOnly, onCaseIdChange, onCaseTitleChange])
+  }, [caseTitle, onCaseIdChange, onCaseTitleChange, wpScoutCreateOnly])
 
   const handleCreateCase = React.useCallback(() => {
-    setMode(createOnly ? 'new' : 'existing')
+    if (!canCreate) return
     onCreateCase()
-  }, [createOnly, onCreateCase])
+  }, [canCreate, onCreateCase])
 
-  const handleSaveCurrent = React.useCallback(() => {
+  const handleSave = React.useCallback(() => {
     if (!canSave) return
     onSaveCurrent()
   }, [canSave, onSaveCurrent])
-
-  if (createOnly) {
-    return (
-      <section className="evidencePanel caseHistoryLinkPanel">
-        <h2>{title}</h2>
-        <p className="mutedText">{description}</p>
-
-        <div className="evidenceList compact">
-          <label>
-            <b>New Case Title</b>
-            <input
-              value={caseTitle}
-              onFocus={switchToNew}
-              onChange={(event) => handleNewTitleChange(event.target.value)}
-              placeholder={titlePlaceholder}
-            />
-            <small>WP-SCOUT uses create-only mode to avoid saving parsed evidence into an old case by accident.</small>
-          </label>
-          <div>
-            <b>Linked Case</b>
-            <span>{caseId || 'Not linked yet'}</span>
-          </div>
-        </div>
-
-        <div className="caseHistoryActions">
-          <button className="btn" type="button" onClick={handleCreateCase} disabled={!canCreate}>
-            {savingCase && !caseId ? 'Creating…' : createLabel}
-          </button>
-          <button className="btn primary" type="button" onClick={handleSaveCurrent} disabled={!canSave}>
-            {savingCase && caseId ? 'Saving…' : saveLabel}
-          </button>
-        </div>
-
-        <small>Flow: upload evidence → enter title → Create Case → Save to Case History.</small>
-        {saveStatus && <small>{saveStatus}</small>}
-      </section>
-    )
-  }
 
   return (
     <section className="evidencePanel caseHistoryLinkPanel">
       <h2>{title}</h2>
       <p className="mutedText">{description}</p>
 
-      <div className="caseHistoryModeSwitch" role="group" aria-label="Case link mode">
-        <button type="button" className="btn" data-active={mode === 'new'} onClick={switchToNew}>Create New Case</button>
-        <button type="button" className="btn" data-active={mode === 'existing'} onClick={switchToExisting}>Use Existing Case</button>
-      </div>
+      {!wpScoutCreateOnly ? (
+        <div className="caseHistoryModeSwitch" role="group" aria-label="Case link mode">
+          <button type="button" className="btn" data-active={mode === 'create'} onClick={enterCreateMode}>Create New Case</button>
+          <button type="button" className="btn" data-active={mode === 'link'} onClick={enterLinkMode}>Link Existing Case</button>
+        </div>
+      ) : null}
 
-      {mode === 'new' ? (
-        <div className="evidenceList compact">
+      <div className="evidenceList compact">
+        {mode === 'create' ? (
           <label>
             <b>New Case Title</b>
             <input
               value={caseTitle}
-              onFocus={switchToNew}
-              onChange={(event) => handleNewTitleChange(event.target.value)}
+              onFocus={enterCreateMode}
+              onChange={(event) => handleTitleChange(event.target.value)}
               placeholder={titlePlaceholder}
             />
-            <small>Create mode is isolated from existing cases. Save is disabled until the new case is created and linked.</small>
+            <small>Create a new incident case first. Save is enabled only after a case is linked.</small>
           </label>
-        </div>
-      ) : (
-        <div className="evidenceList compact">
+        ) : (
           <label>
-            <b>Existing Case</b>
-            <select value={linkedCaseId} onChange={(event) => handleExistingCaseChange(event.target.value)}>
-              <option value="">Not linked</option>
-              {selectableCases.map((item) => {
+            <b>Link Existing Case</b>
+            <select value={caseId || ''} onChange={(event) => handleCaseSelect(event.target.value)}>
+              <option value="">Choose case explicitly…</option>
+              {visibleCases.map((item) => {
                 const id = caseItemId(item)
-                const status = String(item?.status || '').toUpperCase()
-                const suffix = status === 'ARCHIVED' ? ' [ARCHIVED]' : ''
-                return <option key={id || item.title} value={id}>{(item.case_no || id)} · {item.title || 'Untitled'}{suffix}</option>
+                return <option key={id || item.title} value={id}>{caseLabel(item)}</option>
               })}
             </select>
-            <small>Select an existing case only when you want to append this parsed evidence to that case.</small>
+            <small>Use this only when this evidence belongs to the same incident/RCA case.</small>
           </label>
+        )}
+
+        <div>
+          <b>Linked Case</b>
+          <span>{linkedCaseText}</span>
         </div>
-      )}
+      </div>
 
       <div className="caseHistoryActions">
         <button className="btn" type="button" onClick={handleCreateCase} disabled={!canCreate}>
-          {savingCase && mode === 'new' ? 'Creating…' : createLabel}
+          {savingCase && mode === 'create' ? 'Creating…' : createLabel}
         </button>
-        <button className="btn primary" type="button" onClick={handleSaveCurrent} disabled={!canSave}>
-          {savingCase && mode === 'existing' ? 'Saving…' : saveLabel}
+        <button className="btn primary" type="button" onClick={handleSave} disabled={!canSave}>
+          {savingCase && caseId ? 'Saving…' : saveLabel}
         </button>
       </div>
 
-      {mode === 'new' ? <small>Flow: enter title → Create Case → Use Existing Case mode auto-links the new case → Save.</small> : null}
+      <small>
+        {mode === 'create'
+          ? 'Flow: enter title → Create Case → Save to Case History.'
+          : 'Flow: choose case explicitly → Save to Case History.'}
+      </small>
       {saveStatus && <small>{saveStatus}</small>}
     </section>
   )
