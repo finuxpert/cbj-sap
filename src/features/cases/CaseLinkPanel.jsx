@@ -93,7 +93,7 @@ export default function CaseLinkPanel({
     if (caseTitle) onCaseTitleChange('')
   }, [caseTitle, onCaseTitleChange])
 
-  const canCreate = mode === 'create' && hasTitle && Boolean(hasAnalysis) && !savingCase
+  const canCreate = mode === 'create' && hasTitle && !savingCase
   const canUseSelectedCase = mode === 'link' && Boolean(selectedExistingCase) && !savingCase
   const canSave = Boolean(caseId) && Boolean(hasAnalysis) && !savingCase && !hasTitle
 
@@ -116,15 +116,15 @@ export default function CaseLinkPanel({
     onSaveCurrent({ explicitSaveIntent: true })
   }, [canSave, onSaveCurrent])
 
-  let guidance = 'Upload and analyze evidence first.'
+  let guidance = 'Enter a case title first.'
   if (creatingCase) {
     guidance = 'Creating case in PostgreSQL…'
   } else if (savingCase && caseId) {
     guidance = 'Saving parsed summary and evidence metadata…'
-  } else if (!hasAnalysis) {
-    guidance = 'Upload and analyze evidence first.'
   } else if (mode === 'create' && !hasTitle && !caseId) {
     guidance = 'Enter a case title first.'
+  } else if (mode === 'create' && hasTitle && !caseId && !hasAnalysis) {
+    guidance = 'Click Create Case to link a new DB case now. Upload and analyze evidence before saving.'
   } else if (mode === 'create' && hasTitle && !caseId) {
     guidance = 'Click Create Case to link this analysis to a new DB case.'
   } else if (mode === 'link' && !visibleCases.length) {
@@ -133,6 +133,8 @@ export default function CaseLinkPanel({
     guidance = 'Choose an existing DB case first.'
   } else if (mode === 'link' && selectedExistingCase && !caseId) {
     guidance = 'Selected case is ready. Click Use Selected Case.'
+  } else if (caseId && !hasAnalysis) {
+    guidance = 'Case is linked. Upload and analyze evidence before saving.'
   } else if (caseId && canSave) {
     guidance = 'Selected case is ready. Click Save to Case History.'
   }
