@@ -18,21 +18,37 @@ export default function CaseLinkPanel({
   saveLabel = 'Save to Case History',
   titlePlaceholder = 'Contoh: SAP RCA investigation case',
 }) {
+  const [newCaseMode, setNewCaseMode] = React.useState(false)
+  const effectiveCaseId = newCaseMode || caseTitle.trim() ? '' : (caseId || '')
+
+  React.useEffect(() => {
+    if (caseId && !caseTitle.trim()) setNewCaseMode(false)
+  }, [caseId, caseTitle])
+
   const selectableCases = recentCases.filter((item) => {
     const id = caseItemId(item)
     const status = String(item?.status || '').toUpperCase()
-    return status !== 'ARCHIVED' || id === caseId
+    return status !== 'ARCHIVED' || id === effectiveCaseId
   })
 
   const startNewCase = React.useCallback((nextTitle = caseTitle) => {
+    setNewCaseMode(true)
     if (caseId) onCaseIdChange('')
     onCaseTitleChange(nextTitle)
   }, [caseId, caseTitle, onCaseIdChange, onCaseTitleChange])
 
   const handleExistingCaseChange = React.useCallback((nextCaseId) => {
+    setNewCaseMode(false)
     onCaseIdChange(nextCaseId)
     if (nextCaseId && caseTitle) onCaseTitleChange('')
   }, [caseTitle, onCaseIdChange, onCaseTitleChange])
+
+  const handleCreateCase = React.useCallback(() => {
+    setNewCaseMode(false)
+    onCreateCase()
+  }, [onCreateCase])
+
+  const blockSave = savingCase || !effectiveCaseId || !hasAnalysis || newCaseMode || Boolean(caseTitle.trim())
 
   return (
     <section className="evidencePanel caseHistoryLinkPanel">
@@ -41,7 +57,7 @@ export default function CaseLinkPanel({
       <div className="evidenceList compact">
         <label>
           <b>Existing Case</b>
-          <select value={caseId} onChange={(event) => handleExistingCaseChange(event.target.value)}>
+          <select value={effectiveCaseId} onChange={(event) => handleExistingCaseChange(event.target.value)}>
             <option value="">Not linked</option>
             {selectableCases.map((item) => {
               const id = caseItemId(item)
@@ -59,14 +75,14 @@ export default function CaseLinkPanel({
             onChange={(event) => startNewCase(event.target.value)}
             placeholder={titlePlaceholder}
           />
-          {caseId ? <small>Typing a new title will unlink the selected case first.</small> : null}
+          {(newCaseMode || caseTitle.trim()) ? <small>New case mode active. Click Create Case first; Save is disabled until a new case is linked.</small> : null}
         </label>
       </div>
       <div className="caseHistoryActions">
-        <button className="btn" type="button" onClick={onCreateCase} disabled={savingCase}>
+        <button className="btn" type="button" onClick={handleCreateCase} disabled={savingCase}>
           {savingCase ? 'Creating…' : createLabel}
         </button>
-        <button className="btn primary" type="button" onClick={onSaveCurrent} disabled={savingCase || !caseId || !hasAnalysis}>
+        <button className="btn primary" type="button" onClick={onSaveCurrent} disabled={blockSave}>
           {savingCase ? 'Saving…' : saveLabel}
         </button>
       </div>
