@@ -70,44 +70,46 @@
 .cmpCleanEmptyChart { height: 100%; display: grid; place-items: center; padding: 20px; }
 .cmpCleanError { margin-top: 12px; border: 1px solid rgba(255,100,124,.30); border-radius: 14px; background: rgba(255,100,124,.10); padding: 12px 14px; color: #ffe3e8; font-size: 13px; }
 
-.caseHistoryLinkPanel, .evidenceHistory { border: 1px solid rgba(156,255,225,.12); border-radius: 20px; background: var(--cmp-clean-surface); padding: 16px; }
+.caseLinkCard, .evidenceHistory { border: 1px solid rgba(156,255,225,.12); border-radius: 20px; background: var(--cmp-clean-surface); padding: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.20); }
 .caseHistoryPanelHead h2, .evidenceHistoryHead h3 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
-.caseHistoryPanelHead .mutedText { margin-top: 6px; color: var(--cmp-clean-muted); line-height: 1.45; }
-.caseHistorySection { display: grid; gap: 8px; margin-top: 14px; }
-.caseHistorySection:first-of-type { margin-top: 0; }
-.caseHistorySectionLabel { color: rgba(221,255,247,.72); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.caseHistoryPanelHead .mutedText { margin-top: 6px; color: var(--cmp-clean-muted); line-height: 1.55; font-size: 13px; }
+.caseLinkStep { display: grid; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(156,255,225,.10); }
+.caseLinkStep:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+.caseLinkStepHead { display: flex; align-items: center; gap: 10px; }
+.caseLinkStepHead h3 { margin: 0; font-size: 14px; letter-spacing: -.01em; }
+.caseLinkStepNumber { display: inline-flex; align-items: center; justify-content: center; min-width: 62px; min-height: 24px; border-radius: 999px; background: rgba(40,216,189,.12); color: #d9fff4; padding: 0 10px; font-size: 10px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
 .caseHistoryModeSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.caseHistoryModeSwitch .btn, .caseHistoryActions .btn, .evidenceHistoryHead .btn { min-height: 40px; border-radius: 12px; }
+.caseHistoryModeSwitch .btn, .caseLinkActions .btn, .evidenceHistoryHead .btn { min-height: 42px; border-radius: 12px; }
 .caseHistoryModeSwitch .btn[data-active="true"] { border-color: rgba(40,216,189,.35); background: rgba(40,216,189,.12); }
-.caseHistoryField { display: grid; gap: 8px; }
-.caseHistoryField b { font-size: 13px; }
-.caseHistoryField input, .caseHistoryField select { min-height: 42px; width: 100%; border: 1px solid rgba(156,255,225,.16); border-radius: 12px; background: rgba(255,255,255,.04); color: var(--cmp-clean-text); padding: 0 12px; outline: none; }
-.caseHistoryField input:focus, .caseHistoryField select:focus { border-color: rgba(40,216,189,.42); box-shadow: 0 0 0 3px rgba(40,216,189,.08); }
-.caseHistoryField small { color: var(--cmp-clean-muted); line-height: 1.45; }
-.caseHistoryFieldProminent input { min-height: 46px; font-weight: 850; }
-.caseHistoryLinkedCard { display: grid; gap: 8px; border: 1px solid rgba(156,255,225,.12); border-radius: 16px; background: rgba(255,255,255,.03); padding: 12px 14px; }
-.caseHistoryBadge { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 28px; border-radius: 999px; padding: 0 10px; font-size: 11px; font-weight: 950; }
-.caseHistoryBadge.neutral { background: rgba(255,255,255,.08); color: rgba(243,255,251,.88); }
-.caseHistoryBadge.success { background: rgba(40,216,189,.16); color: #d9fff4; }
-.caseHistoryLinkedValue { color: rgba(243,255,251,.92); line-height: 1.45; word-break: break-word; }
-.caseHistoryActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.caseHistoryMessages { gap: 10px; }
-.caseHistoryHelperMessage, .caseHistoryStatusMessage { border-radius: 14px; padding: 12px 14px; font-size: 12px; line-height: 1.5; }
-.caseHistoryHelperMessage { border: 1px solid rgba(156,255,225,.10); background: rgba(255,255,255,.03); color: rgba(233,255,249,.78); }
-.caseHistoryStatusMessage { border: 1px solid rgba(156,255,225,.16); background: rgba(255,255,255,.05); }
-.caseHistoryStatusMessage.success { border-color: rgba(40,216,189,.24); color: #d9fff4; }
-.caseHistoryStatusMessage.error { border-color: rgba(255,100,124,.24); color: #ffe3e8; }
-.caseHistoryStatusMessage.info { color: rgba(233,255,249,.86); }
+.caseLinkField { display: grid; gap: 8px; }
+.caseLinkField label { color: rgba(233,255,249,.92); font-size: 13px; font-weight: 850; }
+.caseLinkField input, .caseLinkField select { min-height: 44px; width: 100%; border: 1px solid rgba(156,255,225,.16); border-radius: 12px; background: rgba(255,255,255,.04); color: var(--cmp-clean-text); padding: 0 12px; outline: none; }
+.caseLinkField input:focus, .caseLinkField select:focus { border-color: rgba(40,216,189,.42); box-shadow: 0 0 0 3px rgba(40,216,189,.08); }
+.caseLinkField select option { color: #07110f; }
+.caseLinkField small { color: var(--cmp-clean-muted); line-height: 1.5; font-size: 12px; }
+.caseLinkStatusRow { display: grid; gap: 10px; border: 1px solid rgba(156,255,225,.12); border-radius: 16px; background: rgba(255,255,255,.03); padding: 12px 14px; }
+.caseLinkBadge { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 28px; border-radius: 999px; padding: 0 10px; font-size: 11px; font-weight: 950; }
+.caseLinkBadge.neutral { background: rgba(255,255,255,.08); color: rgba(243,255,251,.88); }
+.caseLinkBadge.success { background: rgba(40,216,189,.16); color: #d9fff4; }
+.caseLinkLinkedValue { color: rgba(243,255,251,.92); line-height: 1.5; word-break: break-word; font-size: 13px; }
+.caseLinkActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.caseLinkStatusBox { border: 1px solid rgba(156,255,225,.14); border-radius: 14px; background: rgba(255,255,255,.04); padding: 12px 14px; }
+.caseLinkStatusBox.success { border-color: rgba(40,216,189,.24); background: rgba(40,216,189,.08); }
+.caseLinkStatusBox.error { border-color: rgba(255,100,124,.24); background: rgba(255,100,124,.08); }
+.caseLinkGuidance { color: rgba(233,255,249,.88); font-size: 12px; line-height: 1.55; }
+.caseLinkStatusBox.error .caseLinkGuidance { color: #ffe3e8; }
+.caseLinkStatusBox.success .caseLinkGuidance { color: #d9fff4; }
 .evidenceHistoryHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .evidenceHistoryHead .sectionKicker { color: rgba(221,255,247,.72); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .evidenceHistoryHead h3 { margin-top: 6px; }
+.evidenceError { margin-bottom: 10px; border: 1px solid rgba(255,100,124,.24); border-radius: 14px; background: rgba(255,100,124,.08); padding: 12px 14px; color: #ffe3e8; font-size: 12px; line-height: 1.5; }
 .evidenceHistoryList { display: grid; gap: 10px; }
 .evidenceHistoryRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid rgba(156,255,225,.10); border-radius: 14px; background: rgba(255,255,255,.03); padding: 10px; }
 .evidenceHistorySelect { min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; padding: 0; cursor: pointer; }
 .evidenceHistorySelect strong { display: block; }
-.evidenceHistorySelect span { display: block; margin-top: 4px; color: var(--cmp-clean-muted); font-size: 12px; }
+.evidenceHistorySelect span { display: block; margin-top: 4px; color: var(--cmp-clean-muted); font-size: 12px; line-height: 1.45; }
 .evidenceHistoryDownload { display: inline-flex; align-items: center; min-height: 36px; border: 1px solid rgba(156,255,225,.16); border-radius: 12px; color: var(--cmp-clean-text); padding: 0 12px; text-decoration: none; }
-.evidenceHistoryEmpty { border: 1px dashed rgba(156,255,225,.14); border-radius: 14px; padding: 16px; }
+.evidenceHistoryEmpty { border: 1px dashed rgba(156,255,225,.14); border-radius: 14px; padding: 16px; line-height: 1.5; }
 
 .cmpResourceTrendPanel { background: linear-gradient(180deg, rgba(12, 27, 45, .92), rgba(8, 17, 31, .88)); border-color: rgba(120, 160, 255, .22); }
 .cmpTrendTitleBlock { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
@@ -140,4 +142,4 @@
 .cmpResourceTrendChart .recharts-legend-item:nth-child(3)::after { content: ' = Swap'; color: #ff5d73; margin-left: 4px; font-size: 11px; font-weight: 900; }
 .cmpTrendSwapDot { fill: #ff5d73; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
 @media (max-width: 1200px) { .cmpCleanStats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cmpCleanGrid, .cmpCleanTopRow { grid-template-columns: 1fr; } .cmpCleanPanel.span2 { grid-row: auto; } }
-@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock, .evidenceHistoryHead { align-items: stretch; flex-direction: column; } .cmpCleanStats, .cmpCleanIntakeMeta, .caseHistoryActions, .caseHistoryModeSwitch, .cmpCleanFlowList { grid-template-columns: 1fr; } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .evidenceHistoryRow { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock, .evidenceHistoryHead, .caseLinkStepHead { align-items: stretch; flex-direction: column; } .cmpCleanStats, .cmpCleanIntakeMeta, .caseHistoryModeSwitch, .caseLinkActions, .cmpCleanFlowList { grid-template-columns: 1fr; } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .evidenceHistoryRow { grid-template-columns: 1fr; } }
