@@ -345,7 +345,7 @@ def _cbj_dbfirst_fetch_parsed_results_history(case_id="", tool="", limit=100):
     return result
 
 
-def _cbj_dbfirst_fetch_evidence_history(limit=300):
+def _cbj_dbfirst_fetch_evidence_history(case_id="", tool="", limit=300):
     import psycopg
     from psycopg.rows import dict_row
 
@@ -364,17 +364,35 @@ def _cbj_dbfirst_fetch_evidence_history(limit=300):
             if not columns:
                 return []
 
+            where = []
+            params = []
+
+            case_col = _cbj_pick_existing_column(columns, ["case_id", "case_key", "case_ref", "case_uuid"])
+            tool_col = _cbj_pick_existing_column(columns, ["tool", "tool_name", "source_tool"])
             order_col = _cbj_pick_existing_column(
                 columns,
                 ["updated_at", "created_at", "timestamp", "id"]
             )
 
+            if case_id and case_col:
+                where.append(f'"{case_col}"::text = %s')
+                params.append(str(case_id))
+
+            if tool and tool_col:
+                where.append(
+                    f'(POSITION(LOWER(%s) IN LOWER("{tool_col}"::text)) > 0 OR POSITION(LOWER("{tool_col}"::text) IN LOWER(%s)) > 0)'
+                )
+                params.extend([str(tool), str(tool)])
+
             sql = "SELECT * FROM evidence"
+            if where:
+                sql += " WHERE " + " AND ".join(where)
             if order_col:
                 sql += f' ORDER BY "{order_col}" DESC NULLS LAST'
             sql += " LIMIT %s"
+            params.append(limit)
 
-            cur.execute(sql, (limit,))
+            cur.execute(sql, tuple(params))
             rows = cur.fetchall()
 
     result = []
