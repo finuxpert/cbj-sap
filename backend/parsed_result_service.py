@@ -256,6 +256,13 @@ def _auto_case_stage(case_data: dict, result: dict) -> str:
     return "ANALYZING"
 
 
+def _build_generated_title(case_data: dict, result: dict) -> str:
+    if not result.get("top_suspect") or not result.get("summary"):
+        return ""
+    sid = str(case_data.get("sid") or "SAP")
+    return f"{sid} - {result['top_suspect']} - SAP RCA"
+
+
 def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[str, Any]:
     """Save one parsed result into a case and preserve the existing route contract."""
     case_data = read_case(case_id)
@@ -298,9 +305,9 @@ def add_case_parsed_result(case_id: str, payload: ParsedResultCreate) -> dict[st
     if result["top_suspect"]:
         case_data["top_suspect"] = result["top_suspect"]
 
-    if result["top_suspect"] and result["summary"]:
-        sid = str(case_data.get("sid") or "SAP")
-        case_data["title"] = f"{sid} - {result['top_suspect']} - SAP RCA"
+    generated_title = _build_generated_title(case_data, result)
+    if generated_title:
+        case_data["generated_title"] = generated_title
 
     append_parsed_result_timeline_event(case_data, result)
     case_data["updated_at"] = now_iso()
