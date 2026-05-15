@@ -72,6 +72,83 @@ def _cbj_pick_existing_column(columns, candidates):
     return None
 
 
+def _cbj_apply_normalized_rca_aliases(item: dict) -> dict:
+    """Promote normalized RCA data stored inside result_json into top-level read fields.
+
+    This keeps the DB schema stable while making Grafana/API/UI reads immediately useful
+    for SID, environment, host, taxonomy, and RCA model filtering.
+    """
+    result_json = item.get("result_json") if isinstance(item.get("result_json"), dict) else {}
+    normalized = result_json.get("normalized_rca") if isinstance(result_json.get("normalized_rca"), dict) else {}
+    if not normalized:
+        return item
+
+    for key in (
+        "sid",
+        "environment",
+        "client",
+        "hosts",
+        "affected_hosts",
+        "instances",
+        "workprocesses",
+        "jobs",
+        "programs",
+        "transactions",
+        "users",
+        "error_signatures",
+        "log_families",
+        "correlation_keys",
+        "evidence_ids",
+        "rca_model_version",
+    ):
+        value = normalized.get(key)
+        if value not in (None, "", [], {}) and item.get(key) in (None, "", [], {}):
+            item[key] = value
+
+    if result_json.get("original_top_suspect") and not item.get("original_top_suspect"):
+        item["original_top_suspect"] = result_json.get("original_top_suspect")
+    if result_json.get("rca_model_version") and not item.get("rca_model_version"):
+        item["rca_model_version"] = result_json.get("rca_model_version")
+    return item
+
+
+def _cbj_enrich_case_from_related(case_obj: dict, parsed_rows: list[dict], evidence_rows: list[dict]) -> dict:
+    """Fill case-level SID/env/host hints from related rows when case table is sparse."""
+    if not parsed_rows and not evidence_rows:
+        return case_obj
+
+    for row in parsed_rows:
+        _cbj_apply_normalized_rca_aliases(row)
+
+    for field in ("sid", "environment"):
+        if case_obj.get(field):
+            continue
+        for row in [*parsed_rows, *evidence_rows]:
+            value = row.get(field)
+            if value not in (None, "", [], {}):
+                case_obj[field] = value
+                break
+
+    if not case_obj.get("hosts"):
+        hosts = []
+        for row in parsed_rows:
+            for key in ("hosts", "affected_hosts"):
+                value = row.get(key)
+                if isinstance(value, list):
+                    hosts.extend(value)
+                elif value:
+                    hosts.append(value)
+        case_obj["hosts"] = sorted({str(host).lower() for host in hosts if str(host).strip()})[:20]
+
+    if case_obj.get("case_stage") in (None, "", "INTAKE"):
+        if parsed_rows:
+            case_obj["case_stage"] = "CLASSIFIED"
+        elif evidence_rows:
+            case_obj["case_stage"] = "WAITING_EVIDENCE"
+
+    return case_obj
+
+
 def _cbj_dbfirst_fetch_cases(limit=300):
     import psycopg
     from psycopg.rows import dict_row
@@ -189,14 +266,14 @@ def _cbj_dbfirst_fetch_case_detail(case_key):
                         f'SELECT * FROM parsed_results WHERE "{parsed_case_col}"::text = %s ORDER BY 1 DESC LIMIT 200',
                         (str(case_key),),
                     )
-                    parsed_rows = [_cbj_json_safe(dict(r)) for r in cur.fetchall()]
+                    parsed_rows = [_cbj_apply_normalized_rca_aliases(_cbj_json_safe(dict(r))) for r in cur.fetchall()]
             except Exception as exc:
                 case_obj["parsed_results_read_warning"] = str(exc)
 
     # Keep compatible but additive.
     case_obj.setdefault("evidence", evidence_rows)
     case_obj.setdefault("parsed_results", parsed_rows)
-    return case_obj
+    return _cbj_enrich_case_from_related(case_obj, parsed_rows, evidence_rows)
 
 
 def _cbj_dbfirst_fetch_parsed_results_history(case_id="", tool="", limit=100):
@@ -246,7 +323,7 @@ def _cbj_dbfirst_fetch_parsed_results_history(case_id="", tool="", limit=100):
 
     result = []
     for row in rows:
-        item = _cbj_json_safe(dict(row))
+        item = _cbj_apply_normalized_rca_aliases(_cbj_json_safe(dict(row)))
         item.setdefault("read_source", "postgres")
         result.append(item)
     return result
