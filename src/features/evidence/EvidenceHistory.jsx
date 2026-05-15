@@ -61,9 +61,9 @@ export default function EvidenceHistory({ tool = '', limit = 20, onSelect }) {
       </div>
 
       {error ? <div className="evidenceError">{error}</div> : null}
-      {!loading && !items.length ? <div className="muted">No DB evidence found yet.</div> : null}
+      {!loading && !items.length ? <div className="muted evidenceHistoryEmpty">No DB evidence found yet.</div> : null}
 
-      <div className="evidenceList">
+      <div className="evidenceList evidenceHistoryList">
         {items.map((item, index) => {
           const id = item.id || item.evidence_id || item.name || `${index}`
           const name = item.title || item.filename || item.original_filename || item.name || `Evidence ${index + 1}`
