@@ -9,18 +9,19 @@ async function toJson(response) {
     payload = { raw: text }
   }
 
+  const body = payload && typeof payload === 'object' ? payload : { raw: text || String(payload ?? '') }
+
   if (!response.ok) {
     return {
-      ...payload,
+      ...body,
       ok: false,
       status: response.status,
       statusText: response.statusText,
-      raw: payload?.raw ?? text,
+      raw: body.raw ?? text,
     }
   }
 
-  if (payload && typeof payload === 'object') return payload
-  return { ok: false, status: response.status, raw: text }
+  return body
 }
 
 function buildSearch(params = {}) {
@@ -152,7 +153,7 @@ export async function getCaseReplay(caseId) {
       session,
       replay_ready: Boolean(session.replay?.replay_ready),
       count: Number(session.replay?.count || 0),
-      events: Array.isArray(session.replay?.events) ? session.replay?.events : [],
+      events: Array.isArray(session.replay?.events) ? session.replay.events : [],
     }
   }
 
