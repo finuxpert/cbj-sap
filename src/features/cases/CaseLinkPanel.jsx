@@ -71,9 +71,13 @@ export default function CaseLinkPanel({
     if (caseTitle) onCaseTitleChange('')
   }, [caseTitle, onCaseIdChange, onCaseTitleChange])
 
-  const handleCreateCase = React.useCallback(() => {
+  const handleCreateCase = React.useCallback(async () => {
     if (!canCreate) return
-    onCreateCase()
+    try {
+      await onCreateCase()
+    } catch (error) {
+      console.error('[CaseLinkPanel] create case failed:', error)
+    }
   }, [canCreate, onCreateCase])
 
   const handleSave = React.useCallback(() => {
