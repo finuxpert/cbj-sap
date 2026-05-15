@@ -112,6 +112,21 @@ def _infer_environment(explicit: str | None, blob: str) -> str:
     return ""
 
 
+def _require_db_write_ok(db_write: dict, action: str) -> None:
+    """Fail mutations when DB runtime is enabled but PostgreSQL did not persist.
+
+    Full-DB mode makes PostgreSQL the source of truth for UI and Grafana. File
+    writes are still used as local compatibility artifacts, but they must not be
+    reported as successful Case History writes when DB persistence failed.
+    """
+    if not isinstance(db_write, dict) or not db_write.get("enabled"):
+        return
+    if db_write.get("written") is True and db_write.get("status") == "ok":
+        return
+    detail = db_write.get("error") or db_write.get("status") or "unknown database write failure"
+    raise HTTPException(status_code=503, detail=f"Database write failed during {action}: {detail}")
+
+
 def create_case_item(payload: CaseCreate) -> dict[str, Any]:
     ensure_dirs()
     case_no = make_case_no()
@@ -139,6 +154,7 @@ def create_case_item(payload: CaseCreate) -> dict[str, Any]:
     }
     write_case(data)
     db_write = upsert_case_best_effort(data)
+    _require_db_write_ok(db_write, "create case")
     return {"ok": True, "case": data, "db_write": db_write}
 
 
@@ -201,6 +217,7 @@ def update_case_item(case_id: str, patch: CaseUpdate) -> dict[str, Any]:
     case_data["updated_at"] = now_iso()
     write_case(case_data)
     db_write = upsert_case_best_effort(case_data)
+    _require_db_write_ok(db_write, "update case")
     return {"ok": True, "case": case_data, "db_write": db_write, "ignored_immutable_fields": ignored_fields}
 
 
