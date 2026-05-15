@@ -4,19 +4,171 @@
   z-index: 5;
 }
 
+.rcaFocusHeadBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.rcaSeverityBadge,
+.rcaConfidenceBadge,
+.rcaChip,
+.rcaLinkButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  border-radius: 999px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .04em;
+}
+
+.rcaSeverityBadge {
+  border: 1px solid rgba(220,245,244,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(250,252,247,.94);
+}
+
+.rcaSeverityBadge.iscrit,
+.rcaSeverityBadge.iserror {
+  border-color: rgba(239,95,111,.26);
+  background: rgba(239,95,111,.16);
+  color: #ffe5ea;
+}
+
+.rcaSeverityBadge.iswarn {
+  border-color: rgba(245,185,66,.26);
+  background: rgba(245,185,66,.16);
+  color: #ffefd4;
+}
+
+.rcaSeverityBadge.isinfo {
+  border-color: rgba(45,212,191,.24);
+  background: rgba(45,212,191,.12);
+  color: #bffbf1;
+}
+
+.rcaConfidenceBadge {
+  border: 1px solid rgba(45,212,191,.24);
+  background: rgba(45,212,191,.10);
+  color: #bffbf1;
+}
+
 .rcaFocusBlock {
   margin-bottom: 12px;
 }
 
 .rcaFocusPrimarySuspect {
   margin: 0;
-  font-size: clamp(16px, 2vw, 18px);
+  font-size: clamp(20px, 2.2vw, 24px);
   font-weight: 850;
-  line-height: 1.35;
+  line-height: 1.32;
 }
 
 .rcaFocusSteps {
   margin-bottom: 12px;
+}
+
+.rcaFieldLabel {
+  display: block;
+  color: rgba(220,238,238,.56);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.rcaMetaGrid,
+.rcaCorrelationDetailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.rcaMetaCard {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  border: 1px solid rgba(220,245,244,.10);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(0,0,0,.14);
+}
+
+.rcaMetaCard strong {
+  color: rgba(249,251,247,.94);
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.rcaRecommendationBox,
+.rcaRootCauseCard,
+.rcaRecommendationPanel {
+  display: grid;
+  gap: 10px;
+}
+
+.rcaRecommendationBox {
+  border: 1px solid rgba(45,212,191,.16);
+  border-radius: 18px;
+  padding: 16px;
+  background: rgba(45,212,191,.07);
+}
+
+.rcaRecommendationBox p,
+.rcaRootCauseCard small {
+  margin: 0;
+  color: rgba(220,238,238,.76);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.rcaRootCauseText {
+  margin: 0;
+  color: rgba(249,251,247,.96);
+  font-size: 21px;
+  font-weight: 900;
+  line-height: 1.28;
+  letter-spacing: -.02em;
+}
+
+.rcaKpiRow {
+  margin-bottom: 16px;
+}
+
+.rcaCorrelationGrid {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.rcaChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rcaChip {
+  border: 1px solid rgba(220,245,244,.10);
+  background: rgba(255,255,255,.04);
+  color: rgba(249,251,247,.88);
+  white-space: nowrap;
+}
+
+.rcaChip.isMuted {
+  color: var(--muted2);
+}
+
+.rcaLinkButton {
+  width: fit-content;
+  border: 1px solid rgba(45,212,191,.18);
+  background: rgba(45,212,191,.08);
+  color: #bffbf1;
+  cursor: pointer;
 }
 
 .replayTimeline {
@@ -153,6 +305,15 @@
 @media (max-width: 760px) {
   .rcaFocusPanel {
     position: static;
+  }
+
+  .rcaFocusHeadBadges {
+    justify-content: flex-start;
+  }
+
+  .rcaMetaGrid,
+  .rcaCorrelationDetailGrid {
+    grid-template-columns: 1fr;
   }
 
   .replayTimeline {

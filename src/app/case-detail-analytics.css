@@ -64,7 +64,7 @@
 
 .caseAnalyticsQuickSummary {
   display: grid;
-  grid-template-columns: 1.35fr repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
@@ -74,11 +74,13 @@
   display: grid;
   gap: 5px;
   min-width: 0;
+  min-height: 86px;
   border: 1px solid rgba(214, 242, 240, 0.11);
   border-radius: 18px;
   padding: 12px 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)), rgba(10, 19, 23, 0.84);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  align-content: space-between;
 }
 
 .caseAnalyticsQuickSummary span,
@@ -96,10 +98,8 @@
 .caseAnalyticsInsight strong {
   color: rgba(249, 251, 247, 0.95);
   font-size: 18px;
-  line-height: 1.1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .caseAnalyticsInsight small {
@@ -258,6 +258,18 @@
   font-size: 12px;
   letter-spacing: 0.01em;
   text-transform: none;
+}
+
+@media (max-width: 1080px) {
+  .caseAnalyticsQuickSummary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .caseAnalyticsQuickSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .caseAnalyticsChartNote b {

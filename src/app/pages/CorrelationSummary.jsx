@@ -1,6 +1,14 @@
 import React from 'react'
+import {
+  clampText,
+  normalizeCorrelationSources,
+  sanitizeCorrelationHosts,
+  sanitizeWorkprocesses,
+} from './rca-panel-utils.js'
 
 export default function CorrelationSummary({ correlation, loading }) {
+  const [showAllHosts, setShowAllHosts] = React.useState(false)
+
   if (loading) {
     return (
       <article className="caseDetailPanel caseDetailAnalyticsPanel">
@@ -14,21 +22,23 @@ export default function CorrelationSummary({ correlation, loading }) {
   const severity = String(correlation?.severity || 'INFO').toUpperCase()
   const confidence = Number(correlation?.confidence || 0)
   const topRootCause = correlation?.top_root_cause || 'No dominant root-cause detected yet.'
-  const hosts = Array.isArray(correlation?.affected_hosts) ? correlation.affected_hosts : []
-  const workprocesses = Array.isArray(correlation?.related_workprocesses) ? correlation.related_workprocesses : []
-  const tools = Array.isArray(correlation?.tools) ? correlation.tools : []
+  const hostState = sanitizeCorrelationHosts(correlation?.affected_hosts, showAllHosts ? 32 : 5)
+  const workprocessState = sanitizeWorkprocesses(correlation?.related_workprocesses, 6)
+  const sourceState = normalizeCorrelationSources(correlation?.correlation_sources || correlation?.tools, 8)
+  const tools = sourceState.all
   const actions = Array.isArray(correlation?.recommended_actions)
     ? correlation.recommended_actions.slice(0, 3)
     : []
+  const nextCheck = actions[0] || correlation?.next_check || 'Collect more cross-tool evidence before final RCA.'
 
   return (
     <article className="caseDetailPanel caseDetailAnalyticsPanel caseCorrelationSummary" data-rca-correlation="true">
       <div className="intelHead">
         <span>RCA Correlation Summary</span>
-        <strong data-correlation-severity>{severity}</strong>
+        <strong className={`rcaSeverityBadge is${severity.toLowerCase()}`} data-correlation-severity>{severity}</strong>
       </div>
 
-      <div className="opsStrip" style={{ marginBottom: 16 }}>
+      <div className="opsStrip rcaKpiRow">
         <div className="opsMetric">
           <span className="opsLabel">Confidence</span>
           <strong className="opsValue" data-correlation-confidence>{confidence}%</strong>
@@ -39,35 +49,69 @@ export default function CorrelationSummary({ correlation, loading }) {
         </div>
         <div className="opsMetric">
           <span className="opsLabel">Affected Hosts</span>
-          <strong className="opsValue">{hosts.length}</strong>
+          <strong className="opsValue">{hostState.all.length}</strong>
         </div>
       </div>
 
-      <div className="intelPanel" style={{ marginBottom: 16 }}>
-        <div className="intelHead">
-          <span>Top Root Cause</span>
-          <strong>{severity}</strong>
-        </div>
-        <p data-correlation-root-cause>{topRootCause}</p>
+      <div className="intelPanel rcaRootCauseCard">
+        <span className="rcaFieldLabel">Top Root Cause</span>
+        <p className="rcaRootCauseText" data-correlation-root-cause>{topRootCause}</p>
+        <small>{clampText(correlation?.summary || correlation?.root_cause || nextCheck, 180)}</small>
       </div>
 
-      <div className="intelSteps" style={{ marginBottom: 16 }}>
-        <div>
-          <span>Hosts</span>
-          <strong>{hosts.length ? hosts.join(', ') : 'No affected host detected'}</strong>
-        </div>
-        <div>
-          <span>Workprocesses</span>
-          <strong>{workprocesses.length ? workprocesses.join(', ') : 'No related WP detected'}</strong>
-        </div>
-        <div>
-          <span>Correlation Sources</span>
-          <strong>{tools.length ? tools.join(', ') : 'No source correlation yet'}</strong>
+      <div className="rcaCorrelationGrid">
+        <div className="intelPanel intelPanel--compact">
+          <div className="intelHead">
+            <span>Evidence Correlation</span>
+            <strong>{tools.length || 0} Sources</strong>
+          </div>
+          <div className="rcaCorrelationDetailGrid">
+            <div className="rcaMetaCard">
+              <span className="rcaFieldLabel">Sources</span>
+              <div className="rcaChipRow">
+                {sourceState.items.length
+                  ? sourceState.items.map((item) => <span key={item} className="rcaChip">{item}</span>)
+                  : <span className="rcaChip isMuted">No source correlation yet</span>}
+              </div>
+            </div>
+
+            <div className="rcaMetaCard">
+              <span className="rcaFieldLabel">Workprocess</span>
+              <div className="rcaChipRow">
+                {workprocessState.items.length
+                  ? workprocessState.items.map((item) => <span key={item} className="rcaChip">{item}</span>)
+                  : <span className="rcaChip isMuted">No related WP detected</span>}
+              </div>
+            </div>
+
+            <div className="rcaMetaCard">
+              <span className="rcaFieldLabel">Hosts</span>
+              {hostState.items.length ? (
+                <>
+                  <div className="rcaChipRow">
+                    {hostState.items.map((item) => <span key={item} className="rcaChip">{item}</span>)}
+                  </div>
+                  {hostState.hiddenCount > 0 ? (
+                    <button className="rcaLinkButton" type="button" onClick={() => setShowAllHosts((value) => !value)}>
+                      {showAllHosts ? 'Show fewer hosts' : `Show more (${hostState.hiddenCount})`}
+                    </button>
+                  ) : null}
+                </>
+              ) : (
+                <strong>{hostState.needsReview ? 'Host extraction needs review' : 'No affected host detected'}</strong>
+              )}
+            </div>
+
+            <div className="rcaMetaCard">
+              <span className="rcaFieldLabel">Next Check</span>
+              <strong>{clampText(nextCheck, 140)}</strong>
+            </div>
+          </div>
         </div>
       </div>
 
       {actions.length > 0 && (
-        <div className="intelPanel intelPanel--compact">
+        <div className="intelPanel intelPanel--compact rcaRecommendationPanel">
           <div className="intelHead">
             <span>Recommended Actions</span>
             <strong>{actions.length} Actions</strong>

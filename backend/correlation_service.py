@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from typing import Any
+import re
 
 SEVERITY_WEIGHT = {
     "INFO": 10,
@@ -25,6 +26,55 @@ TOOL_ALIASES = {
     "log_evidence": "log_triage",
     "logs": "log_triage",
 }
+
+HOST_STOPWORDS = {
+    "abap",
+    "about",
+    "around",
+    "basis",
+    "case",
+    "check",
+    "comparator",
+    "confidence",
+    "conversion",
+    "critical",
+    "daily",
+    "data",
+    "detected",
+    "evidence",
+    "failed",
+    "format",
+    "host",
+    "impact",
+    "issue",
+    "linked",
+    "log",
+    "memory",
+    "next",
+    "parsed",
+    "priority",
+    "problem",
+    "response",
+    "result",
+    "root",
+    "save",
+    "scout",
+    "severity",
+    "source",
+    "summary",
+    "suspect",
+    "system",
+    "tool",
+    "uploaded",
+    "user",
+    "validation",
+    "window",
+    "workprocess",
+    "workprocesses",
+    "wp",
+}
+
+HOST_LIKE_RE = re.compile(r"^(?=.{3,63}$)(?!\d+$)(?:[a-z0-9]+(?:-[a-z0-9]+)*)(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)*$")
 
 
 def _as_text(value: Any) -> str:
@@ -96,6 +146,19 @@ def _dedupe_text(values: list[Any]) -> list[str]:
     return normalized
 
 
+def _looks_like_host(value: Any) -> bool:
+    text = _as_text(value).lower()
+    if not text or text in HOST_STOPWORDS:
+        return False
+    if text.endswith((".log", ".txt", ".csv", ".json", ".zip")):
+        return False
+    if "/" in text or "\\" in text or ":" in text:
+        return False
+    if text.split(".") and all(part in HOST_STOPWORDS for part in text.split(".")):
+        return False
+    return bool(HOST_LIKE_RE.fullmatch(text))
+
+
 def _collect_terms(result: dict[str, Any]) -> list[str]:
     normalized = _extract_normalized_rca(result)
     payload = _extract_result_json(result)
@@ -133,7 +196,8 @@ def _collect_hosts(result: dict[str, Any]) -> list[str]:
         _get_first(result, "instances"),
         _get_first(result, "host", "hostname", "server", "instance"),
     ]
-    return _dedupe_text(candidates)
+    hosts = [item.lower() for item in _dedupe_text(candidates) if _looks_like_host(item)]
+    return hosts[:20]
 
 
 def _collect_workprocesses(result: dict[str, Any]) -> list[str]:
@@ -312,7 +376,7 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
 
     severity_rank = max(normalized, key=lambda item: item.get("severity_score", 0))
     tools = sorted({item["tool"] for item in normalized if item.get("tool")})
-    hosts = sorted({host for item in normalized for host in item.get("hosts", [])})
+    hosts = sorted({host for item in normalized for host in item.get("hosts", []) if _looks_like_host(host)})
     workprocesses = sorted({wp for item in normalized for wp in item.get("workprocesses", [])})
     jobs = sorted({job for item in normalized for job in item.get("jobs", [])})
     programs = sorted({program for item in normalized for program in item.get("programs", [])})
@@ -364,6 +428,7 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
         "weighted_score": weighted_score,
         "severity": severity_rank.get("severity", "INFO"),
         "tools": tools,
+        "correlation_sources": tools,
         "affected_hosts": hosts,
         "related_workprocesses": workprocesses,
         "related_jobs": jobs,
@@ -371,6 +436,8 @@ def correlate_parsed_results(parsed_results: list[dict[str, Any]]) -> dict[str, 
         "error_signatures": error_signatures,
         "correlation_keys": correlation_keys,
         "timeline_correlation": timeline_correlation,
+        "root_cause": top_root_cause,
+        "next_check": recommended_actions[0] if recommended_actions else "",
         "recommended_actions": recommended_actions,
         "signals": normalized,
     }
