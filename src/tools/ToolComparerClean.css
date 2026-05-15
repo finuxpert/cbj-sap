@@ -18,11 +18,17 @@
 .cmpCleanActions { display: flex; gap: 10px; }
 .cmpCleanPrimary, .cmpCleanFilters input, .cmpCleanFilters select { border: 1px solid var(--cmp-clean-border); border-radius: 999px; background: rgba(255,255,255,.055); color: var(--cmp-clean-text); }
 .cmpCleanPrimary { min-height: 42px; padding: 0 18px; background: linear-gradient(135deg, rgba(40,216,189,.28), rgba(70,130,255,.16)); font-weight: 950; cursor: pointer; }
-.cmpCleanTopRow { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, .8fr); gap: 14px; margin-top: 14px; }
-.cmpCleanDrop { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 116px; border: 1px dashed rgba(40,216,189,.36); border-radius: 20px; background: radial-gradient(circle at 16% 12%, rgba(40,216,189,.12), transparent 34%), rgba(10,30,25,.52); padding: 18px; cursor: pointer; }
-.cmpCleanDrop:hover { border-color: rgba(40,216,189,.66); background: rgba(40,216,189,.08); }
-.cmpCleanDrop strong { font-size: 16px; font-weight: 950; }
-.cmpCleanDrop span { color: var(--cmp-clean-muted); font-size: 13px; }
+.cmpCleanTopRow { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(340px, .92fr); gap: 14px; margin-top: 14px; align-items: start; }
+.cmpCleanSideRail { display: grid; gap: 14px; align-content: start; }
+.cmpCleanIntakeCard { border: 1px solid rgba(40,216,189,.24); border-radius: 20px; background: radial-gradient(circle at 16% 12%, rgba(40,216,189,.10), transparent 34%), rgba(10,30,25,.52); padding: 18px; }
+.cmpCleanIntakeHead h2 { margin: 6px 0 6px; font-size: 22px; letter-spacing: -.03em; }
+.cmpCleanIntakeHead p { margin: 0; color: var(--cmp-clean-muted); font-size: 13px; line-height: 1.5; }
+.cmpCleanIntakeMeta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.cmpCleanIntakeStat { border: 1px solid rgba(156,255,225,.12); border-radius: 16px; background: rgba(255,255,255,.03); padding: 12px; }
+.cmpCleanIntakeStat strong { display: block; font-size: 20px; letter-spacing: -.03em; }
+.cmpCleanIntakeStat span { display: block; margin-top: 4px; color: var(--cmp-clean-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
+.cmpCleanFlowList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin: 16px 0 0; padding-left: 18px; color: rgba(233,255,249,.84); font-size: 13px; line-height: 1.5; }
+.cmpCleanIntakeStatus { margin-top: 14px; border-top: 1px solid rgba(156,255,225,.10); padding-top: 12px; color: rgba(221,255,247,.78); font-size: 12px; font-weight: 850; }
 .cmpCleanStats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 14px 0; }
 .cmpCleanStat { border: 1px solid var(--cmp-clean-border); border-radius: 16px; background: var(--cmp-clean-surface); padding: 14px; }
 .cmpCleanStat span { display: block; color: var(--cmp-clean-muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .06em; }
@@ -63,6 +69,46 @@
 .cmpCleanChart { height: 280px; margin-top: 12px; border: 1px solid rgba(156,255,225,.10); border-radius: 16px; background: radial-gradient(circle at 30% 20%, rgba(40,216,189,.08), transparent 38%), rgba(0,0,0,.14); overflow: hidden; }
 .cmpCleanEmptyChart { height: 100%; display: grid; place-items: center; padding: 20px; }
 .cmpCleanError { margin-top: 12px; border: 1px solid rgba(255,100,124,.30); border-radius: 14px; background: rgba(255,100,124,.10); padding: 12px 14px; color: #ffe3e8; font-size: 13px; }
+
+.caseHistoryLinkPanel, .evidenceHistory { border: 1px solid rgba(156,255,225,.12); border-radius: 20px; background: var(--cmp-clean-surface); padding: 16px; }
+.caseHistoryPanelHead h2, .evidenceHistoryHead h3 { margin: 0; font-size: 16px; letter-spacing: -.02em; }
+.caseHistoryPanelHead .mutedText { margin-top: 6px; color: var(--cmp-clean-muted); line-height: 1.45; }
+.caseHistorySection { display: grid; gap: 8px; margin-top: 14px; }
+.caseHistorySection:first-of-type { margin-top: 0; }
+.caseHistorySectionLabel { color: rgba(221,255,247,.72); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.caseHistoryModeSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.caseHistoryModeSwitch .btn, .caseHistoryActions .btn, .evidenceHistoryHead .btn { min-height: 40px; border-radius: 12px; }
+.caseHistoryModeSwitch .btn[data-active="true"] { border-color: rgba(40,216,189,.35); background: rgba(40,216,189,.12); }
+.caseHistoryField { display: grid; gap: 8px; }
+.caseHistoryField b { font-size: 13px; }
+.caseHistoryField input, .caseHistoryField select { min-height: 42px; width: 100%; border: 1px solid rgba(156,255,225,.16); border-radius: 12px; background: rgba(255,255,255,.04); color: var(--cmp-clean-text); padding: 0 12px; outline: none; }
+.caseHistoryField input:focus, .caseHistoryField select:focus { border-color: rgba(40,216,189,.42); box-shadow: 0 0 0 3px rgba(40,216,189,.08); }
+.caseHistoryField small { color: var(--cmp-clean-muted); line-height: 1.45; }
+.caseHistoryFieldProminent input { min-height: 46px; font-weight: 850; }
+.caseHistoryLinkedCard { display: grid; gap: 8px; border: 1px solid rgba(156,255,225,.12); border-radius: 16px; background: rgba(255,255,255,.03); padding: 12px 14px; }
+.caseHistoryBadge { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 28px; border-radius: 999px; padding: 0 10px; font-size: 11px; font-weight: 950; }
+.caseHistoryBadge.neutral { background: rgba(255,255,255,.08); color: rgba(243,255,251,.88); }
+.caseHistoryBadge.success { background: rgba(40,216,189,.16); color: #d9fff4; }
+.caseHistoryLinkedValue { color: rgba(243,255,251,.92); line-height: 1.45; word-break: break-word; }
+.caseHistoryActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.caseHistoryMessages { gap: 10px; }
+.caseHistoryHelperMessage, .caseHistoryStatusMessage { border-radius: 14px; padding: 12px 14px; font-size: 12px; line-height: 1.5; }
+.caseHistoryHelperMessage { border: 1px solid rgba(156,255,225,.10); background: rgba(255,255,255,.03); color: rgba(233,255,249,.78); }
+.caseHistoryStatusMessage { border: 1px solid rgba(156,255,225,.16); background: rgba(255,255,255,.05); }
+.caseHistoryStatusMessage.success { border-color: rgba(40,216,189,.24); color: #d9fff4; }
+.caseHistoryStatusMessage.error { border-color: rgba(255,100,124,.24); color: #ffe3e8; }
+.caseHistoryStatusMessage.info { color: rgba(233,255,249,.86); }
+.evidenceHistoryHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.evidenceHistoryHead .sectionKicker { color: rgba(221,255,247,.72); font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.evidenceHistoryHead h3 { margin-top: 6px; }
+.evidenceHistoryList { display: grid; gap: 10px; }
+.evidenceHistoryRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid rgba(156,255,225,.10); border-radius: 14px; background: rgba(255,255,255,.03); padding: 10px; }
+.evidenceHistorySelect { min-width: 0; border: 0; background: transparent; color: inherit; text-align: left; padding: 0; cursor: pointer; }
+.evidenceHistorySelect strong { display: block; }
+.evidenceHistorySelect span { display: block; margin-top: 4px; color: var(--cmp-clean-muted); font-size: 12px; }
+.evidenceHistoryDownload { display: inline-flex; align-items: center; min-height: 36px; border: 1px solid rgba(156,255,225,.16); border-radius: 12px; color: var(--cmp-clean-text); padding: 0 12px; text-decoration: none; }
+.evidenceHistoryEmpty { border: 1px dashed rgba(156,255,225,.14); border-radius: 14px; padding: 16px; }
+
 .cmpResourceTrendPanel { background: linear-gradient(180deg, rgba(12, 27, 45, .92), rgba(8, 17, 31, .88)); border-color: rgba(120, 160, 255, .22); }
 .cmpTrendTitleBlock { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .cmpTrendBadges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
@@ -94,4 +140,4 @@
 .cmpResourceTrendChart .recharts-legend-item:nth-child(3)::after { content: ' = Swap'; color: #ff5d73; margin-left: 4px; font-size: 11px; font-weight: 900; }
 .cmpTrendSwapDot { fill: #ff5d73; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
 @media (max-width: 1200px) { .cmpCleanStats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cmpCleanGrid, .cmpCleanTopRow { grid-template-columns: 1fr; } .cmpCleanPanel.span2 { grid-row: auto; } }
-@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock { align-items: stretch; flex-direction: column; } .cmpCleanStats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } }
+@media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock, .evidenceHistoryHead { align-items: stretch; flex-direction: column; } .cmpCleanStats, .cmpCleanIntakeMeta, .caseHistoryActions, .caseHistoryModeSwitch, .cmpCleanFlowList { grid-template-columns: 1fr; } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .evidenceHistoryRow { grid-template-columns: 1fr; } }
