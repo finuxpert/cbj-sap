@@ -19,7 +19,7 @@ export default function EvidenceHistory({ tool = '', limit = 20, onSelect }) {
     setLoading(true)
     setError('')
     try {
-      const data = await listEvidenceHistory({ limit })
+      const data = await listEvidenceHistory({ tool, limit })
       const rawItems = Array.isArray(data?.evidence)
         ? data.evidence
         : Array.isArray(data?.items)
