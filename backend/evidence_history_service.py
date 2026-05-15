@@ -62,7 +62,7 @@ def get_evidence_item(evidence_id: str) -> dict[str, Any]:
     return {"ok": True, "evidence": read_meta(evidence_id)}
 
 
-def list_evidence_history_dbfirst() -> dict[str, Any]:
+def list_evidence_history_dbfirst(*, case_id: str = "", tool: str = "", limit: int = 100) -> dict[str, Any]:
     """Return DB-only evidence history for Case History/Grafana consistency."""
     mode = _db_mode()
 
@@ -77,7 +77,11 @@ def list_evidence_history_dbfirst() -> dict[str, Any]:
         }
 
     try:
-        rows = _cbj_dbfirst_fetch_evidence_history()
+        rows = _cbj_dbfirst_fetch_evidence_history(
+            case_id=case_id,
+            tool=tool,
+            limit=limit,
+        )
         return {
             "ok": True,
             "read_source": "postgres",
