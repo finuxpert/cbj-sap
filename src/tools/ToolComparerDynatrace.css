@@ -268,3 +268,280 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Compact density pass: reduce oversized cards and remove dead space on large evidence sets. */
+.cmpCleanShell {
+  padding: 10px 14px 14px !important;
+}
+
+.cmpCleanHeader {
+  padding: 14px 16px !important;
+  border-radius: 18px !important;
+  min-height: unset !important;
+}
+
+.cmpCleanHeader h1 {
+  margin: 4px 0 3px !important;
+  font-size: clamp(26px, 2.35vw, 34px) !important;
+  line-height: 1.02 !important;
+}
+
+.cmpCleanLoadState {
+  margin-top: 6px !important;
+  font-size: 11px !important;
+}
+
+.cmpCleanEvidenceIntake {
+  margin-top: 10px !important;
+  padding: 12px 14px !important;
+  border-radius: 16px !important;
+}
+
+.cmpCleanEvidenceIntakeHead {
+  align-items: center !important;
+}
+
+.cmpCleanEvidenceIntakeHead h2 {
+  margin: 5px 0 4px !important;
+  font-size: 17px !important;
+}
+
+.cmpCleanEvidenceIntakeBody {
+  margin-top: 10px !important;
+  gap: 8px !important;
+}
+
+.cmpCleanEvidenceStatus {
+  padding: 10px 12px !important;
+  border-radius: 12px !important;
+  gap: 3px !important;
+}
+
+.cmpCleanTopRow {
+  grid-template-columns: minmax(380px, .98fr) minmax(440px, .9fr) !important;
+  gap: 10px !important;
+  margin-top: 10px !important;
+}
+
+.cmpCleanSideRail {
+  gap: 10px !important;
+}
+
+.cmpCleanIntakeCard,
+.caseLinkCard,
+.evidenceHistory,
+.cmpCleanPanel,
+.cmpCleanFinding,
+.cmpCleanActionsPanel,
+.cmpCleanStat {
+  border-radius: 16px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.16) !important;
+}
+
+.cmpCleanIntakeHead h2 {
+  margin: 4px 0 !important;
+  font-size: 18px !important;
+}
+
+.cmpCleanIntakeMeta {
+  gap: 8px !important;
+  margin-top: 10px !important;
+}
+
+.cmpCleanIntakeStat {
+  padding: 9px 10px !important;
+  border-radius: 12px !important;
+}
+
+.cmpCleanIntakeStat strong,
+.cmpCleanStat strong {
+  font-size: 18px !important;
+  margin-top: 4px !important;
+}
+
+.cmpCleanFlowList {
+  margin-top: 10px !important;
+  gap: 4px 14px !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.cmpCleanIntakeStatus {
+  margin-top: 9px !important;
+  padding-top: 8px !important;
+  font-size: 11px !important;
+}
+
+.caseLinkStep {
+  margin-top: 9px !important;
+  padding-top: 9px !important;
+  gap: 7px !important;
+}
+
+.caseLinkStepHead h3,
+.caseLinkField label {
+  font-size: 12px !important;
+}
+
+.caseLinkStepNumber {
+  min-width: 50px !important;
+  min-height: 20px !important;
+  padding: 0 8px !important;
+  font-size: 9px !important;
+}
+
+.caseLinkField input,
+.caseLinkField select {
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+}
+
+.caseLinkField small,
+.caseLinkGuidance,
+.caseLinkLinkedValue,
+.cmpCleanHeader p,
+.cmpCleanPanel p,
+.cmpCleanEvidenceIntakeHead p,
+.cmpCleanIntakeHead p,
+.caseHistoryPanelHead .mutedText {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.caseLinkStatusRow,
+.caseLinkStatusBox {
+  padding: 9px 11px !important;
+  border-radius: 12px !important;
+}
+
+.cmpCleanStats {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin: 8px 0 10px !important;
+}
+
+.cmpCleanFinding,
+.cmpCleanActionsPanel {
+  margin-bottom: 10px !important;
+}
+
+.cmpCleanFinding strong {
+  margin-top: 3px !important;
+  font-size: 17px !important;
+}
+
+.cmpCleanFinding p,
+.cmpCleanActionsPanel ol {
+  margin-top: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.36 !important;
+}
+
+.cmpCleanGrid {
+  grid-template-columns: minmax(640px, 1.35fr) minmax(390px, .78fr) !important;
+  gap: 10px !important;
+  align-items: start !important;
+}
+
+.cmpCleanPanelHead {
+  margin-bottom: 9px !important;
+  gap: 10px !important;
+}
+
+.cmpCleanFilters {
+  gap: 6px !important;
+}
+
+.cmpCleanFilters input,
+.cmpCleanFilters select {
+  min-height: 32px !important;
+  border-radius: 10px !important;
+  font-size: 11px !important;
+}
+
+.cmpCleanSeg {
+  padding: 2px !important;
+}
+
+.cmpCleanSeg button {
+  min-height: 26px !important;
+  padding: 0 9px !important;
+  font-size: 10px !important;
+}
+
+.cmpCleanTableWrap {
+  min-height: 420px !important;
+  max-height: calc(100vh - 345px) !important;
+  border-radius: 12px !important;
+}
+
+.cmpCleanTable {
+  font-size: 11px !important;
+}
+
+.cmpCleanTable th {
+  padding: 8px 9px !important;
+  font-size: 9px !important;
+}
+
+.cmpCleanTable td {
+  padding: 7px 9px !important;
+}
+
+.cmpCleanBadge {
+  padding: 3px 7px !important;
+  font-size: 9px !important;
+}
+
+.cmpCleanChart {
+  height: 228px !important;
+  min-height: 228px !important;
+  margin-top: 8px !important;
+  border-radius: 13px !important;
+}
+
+.cmpResourceTrendChart {
+  height: 245px !important;
+  min-height: 245px !important;
+}
+
+.cmpTrendBadges span {
+  min-height: 20px !important;
+  padding: 0 7px !important;
+  font-size: 9px !important;
+}
+
+.cmpCleanGrid > .rcaReadableChartPanel:not(.span2) {
+  padding: 11px 12px !important;
+}
+
+.cmpCleanGrid > .rcaReadableChartPanel:not(.span2) .chartTitleBlock h2 {
+  font-size: 14px !important;
+}
+
+.cmpCleanGrid > .rcaReadableChartPanel:not(.span2) .chartTitleBlock p {
+  font-size: 11px !important;
+}
+
+@media (max-width: 1280px) {
+  .cmpCleanTopRow,
+  .cmpCleanGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cmpCleanPanel.span2 {
+    grid-row: auto !important;
+  }
+
+  .cmpCleanTableWrap {
+    max-height: 520px !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .cmpCleanStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
