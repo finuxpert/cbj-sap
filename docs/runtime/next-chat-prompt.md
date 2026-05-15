@@ -2,10 +2,10 @@
 
 Use this file to continue the project in a new chat without re-explaining the current state.
 
-## Continuation Prompt — DB-first RCA Ingestion + Real SAP Sample Quality
+## Continuation Prompt — Case Flow Stabilization GREEN → DB-first RCA Ingestion
 
 ```text
-Lanjut SAP Intelligent RCA Workspace — fokus DB-first RCA ingestion dan real SAP sample quality.
+Lanjut SAP Intelligent RCA Workspace — case flow stabilization sudah GREEN di repo, lanjut DB-first RCA ingestion + real SAP sample quality.
 
 Repo:
 - finuxpert/cbj-sap
@@ -20,7 +20,7 @@ Mode:
 - jangan sentuh PROD/nginx kecuali diminta eksplisit
 - jangan reintroduce MutationObserver/runtime injector
 - jangan rewrite besar
-- fokus real SAP ingestion quality, RCA normalization, PostgreSQL persistence, dan Case History stability
+- fokus real SAP ingestion quality, RCA normalization, PostgreSQL persistence, Case History stability
 - pertahankan API contract
 - pertahankan hybrid PostgreSQL/file fallback selama transisi
 
@@ -34,88 +34,82 @@ Current infra:
 - Storage root: /var/www/svr01-dev/sap-data
 - Legacy case JSON path: /var/www/svr01-dev/sap-data/cases
 
-Current status:
-- DB clean-state sudah berhasil divalidasi beberapa kali.
-- Legacy JSON leakage sudah ditutup dengan strict DB-first reads.
-- File-based dummy/QA cases sudah dibersihkan/diarsipkan.
-- QA auto pollution dari workflow sudah dihentikan.
-- Case delete cascade sudah bekerja end-to-end.
-- SID/environment inference sudah berhasil dites via API.
-- Real lifecycle sudah valid: create case -> upload evidence -> save parsed result -> delete cascade.
+Validated baseline:
+- DB clean-state already validated.
+- Strict DB-first reads active.
+- Legacy JSON leakage closed for /cases and /mobile/cases.
+- QA auto-seeding disabled by default.
+- Case delete cascade works end-to-end.
+- SID/environment inference works during case creation and parsed-result normalization.
+- Official SAPDEV workflow cleans previous Vite dist before build to avoid old EACCES asset unlink issue.
 
-Latest validated manual API result:
-- Created case title: H1P PRD CONVT_NO_NUMBER test
-- Result: sid=H1P, environment=PRD, severity=CRIT, db_write.status=ok
+Recent case-flow stabilization commits:
+- 673af3c15571c43733672532dd64b085666e3887 — Clean SAPDEV build output before Vite build.
+- fbafce5 — Align SAPDEV QA marker with case history save label.
+- f88b327 — Harden API JSON parsing for deploy build.
+- 81a0ec5 — Await create case action in panel.
+- df4b2b1 — Harden create case link flow.
+- 22ae144 — Improve API error response handling.
+- dd98004 — Stop WP-SCOUT upload from saving case history.
+- e365baf — Create identity-only RCA cases.
+- 300a34f97cbb3b724b2436c5a0e6f75f272ec2c5 — Pass explicit save intent through case link panel.
+- 79cf161890dfddaed8ed7353be3db7df2afe4bc1 — Use direct explicit save flag for case history writes.
+- 0fd0106081c861c4e3a30129385aa4daa1ffb219 — Forward explicit save intent from Log Evidence panel.
+- 47325ee593f7e9dacdd14dcdb074031e396639ec — Keep case identity fields stable after parsed result save.
+- 6233234d72bd9f77e62ad16d2b0f8396007b0902 — Add case flow regression QA contract.
+- e2397a18dca52f5a9124e918826e4b003ddac6af — Run case flow regression QA in SAPDEV deploy.
+- 56cce3e614a5117296d29f195f3892571089811f — Keep case flow QA isolated from DEV database.
 
-Important recent commits:
-- 6df968118042182a82ff3b6eccac561a498a8d5d — Make DB-first case reads strict for clean state
-- c11166a83b622c744bf0e48a1787d3a3ed6cb9fb — Make mobile case flow DB-first
-- 0deee3bff57f17b96cce4fc42711a8083fbc8cda — Stop SAPDEV deploy from seeding QA cases
-- 9c5ee17a7ad003e66a6a5baf3b505c90567f47c9 — Normalize RCA parsed result persistence
-- bd8a68100b4d49ec0ee38d4825769ffc1ccf70b8 — Add DB cascade delete for case maintenance
-- c0e1cc6db9965b165607581eba12913b5406c278 — Wire case delete endpoint to DB cascade
-- b6e72f83c7cd1d44c36bd78c19e50e3989cba2eb — Surface normalized RCA fields from DB reads
-- 7c023881d530bf848f9fdecc42410080e08d3131 — Add SID and environment inference for cases
+Case flow contract now expected:
+1. Upload & Analyze:
+   - analyzes only
+   - must not save parsed_results automatically
+   - must not upload evidence to Case History automatically
 
-What is now fixed:
-1. /cases DB-first strict mode:
-   - Empty PostgreSQL returns empty response, not legacy JSON fallback.
-   - Response keeps both `cases` and `items` for frontend compatibility.
+2. Create Case:
+   - identity-only case
+   - status OPEN
+   - case_stage INTAKE
+   - severity INFO for frontend identity flow
+   - summary/top_anomaly/top_suspect empty
+   - SID/environment may be explicit from UI or inferred by backend
 
-2. /mobile/cases DB-first:
-   - Mobile/history panels no longer leak legacy JSON cases in clean state.
+3. Save to Case History:
+   - requires explicit UI save intent
+   - writes parsed_results
+   - uploads linked evidence files
+   - may classify case_stage and severity
+   - must not overwrite case title, summary, top_anomaly, or top_suspect
+   - RCA findings remain inside parsed_results / normalized_rca
 
-3. QA workflow no longer pollutes DB:
-   - Deploy workflow no longer runs mutating QA automatically.
-   - Mutating QA requires explicit manual opt-in.
+Regression QA added:
+- scripts/qa-case-flow-contracts.sh
+- Runs from .github/workflows/dev-deploy.yml after scripts/qa-backend-syntax.sh
+- Uses temp SAP_EVIDENCE_ROOT
+- Forces DB_MODE=file and DATABASE_URL="" so it is non-mutating and does not touch PostgreSQL DEV
+- Asserts DB is disabled during QA
+- Asserts parsed result does not overwrite identity fields
 
-4. RCA parsed result normalization:
-   - backend/parsed_result_service.py normalizes SID, environment, hosts, severity, top_suspect taxonomy, and case stage.
-   - Initial taxonomy includes ABAP conversion/data format, ABAP runtime dump, background job failure, WP saturation, DB response time, enqueue contention, RFC communication, and memory pressure.
+Important QA notes:
+- Do not use old contaminated cases like CASE-20260515-001.
+- Use fresh cases such as ISSUE-5 / ISSUE-6 / CASE generated after latest deploy.
+- Before Save to Case History: parsed-results-history?case_id=CASE_ID should return 0.
+- After Save to Case History: parsed result count should be > 0 and evidence_count > 0 if files were uploaded.
 
-5. DB read enrichment:
-   - backend/dbfirst_read_helpers.py promotes result_json.normalized_rca into top-level API fields.
-   - Parsed results can expose sid, environment, hosts, affected_hosts, instances, workprocesses, jobs, programs, transactions, users, error_signatures, log_families, correlation_keys, evidence_ids, and rca_model_version.
+Known operational note:
+- GitHub connector commits update branch dev, but may not expose workflow_dispatch in available tools.
+- If workflow_runs are empty for connector commits, the repo patch is still applied but SAPDEV may not be redeployed until the official workflow is triggered by GitHub Actions.
 
-6. Case delete cascade:
-   - DELETE /cases/{id} now removes case, parsed_results, evidence, reports, audit_logs, analytics_cache, and legacy JSON file if present.
-   - Validated by deleting CASE-20260515-001 and CASE-20260515-002, then count returned to 0.
+Recommended next focus:
+1. Confirm OFFICIAL - SAPDEV Deploy runs against latest dev commit and passes qa-case-flow-contracts.sh.
+2. QA real UI Create Case from WP-SCOUT/Log Evidence V2 using a new case.
+3. Validate Upload & Analyze does not save automatically.
+4. Validate explicit Save to Case History writes parsed result/evidence and keeps identity stable.
+5. After stable, continue DB-first persistence depth: real SAP sample normalization, evidence quality, ST03N structured persistence, and Case History DB read consistency.
 
-7. SID/environment inference during case creation:
-   - backend/case_service.py infers SID/env from title, summary, anomaly, and suspect.
-   - Validated with title `H1P PRD CONVT_NO_NUMBER test`.
-
-Known issues / gaps:
-1. Frontend Log Evidence V2 still has old UX for case metadata; backend now handles inference but UI does not expose explicit SID/env inputs yet.
-2. ToolLogEvidenceV2.jsx stores selected case id in localStorage. After DB cleanup, browser can keep stale case id and cause 404 when saving parsed result.
-3. Upload can happen before current case exists if stale case id is selected or user saves in wrong order.
-4. Need frontend guard to clear stale CASE_KEY when selected case no longer exists.
-5. Need manual SID/env fields in CaseLinkPanel for Log Evidence V2.
-6. Need stronger evidence upload ordering: create/select case first, then save parsed result + upload evidence.
-7. Current DB schema stores normalized RCA mostly in result_json.normalized_rca; read helper promotes it to top-level API fields.
-8. Case stage may still need stronger DB persistence/model migration later.
-9. Grafana panels may need refresh/update to use enriched fields.
-10. ST03N structured persistence still needs deeper model.
-
-Recommended next patch:
-- Patch src/tools/ToolLogEvidenceV2.jsx incrementally:
-  1. Add SID input and Environment select in CaseLinkPanel.
-  2. Store metadata state: sid/environment.
-  3. Send sid/environment in createCase payload.
-  4. Send sid/environment in saveParsedResult payload.
-  5. Send sid in uploadEvidence metadata.
-  6. Validate selected case id before save; if 404, clear CASE_KEY and show message.
-  7. Clarify UX text: Create/select case first, then save parsed summary and evidence.
-
-After that:
-- Upload one real SAP sample from Log Evidence V2.
-- Validate cases count, parsed_results count, evidence count.
-- Confirm case_stage becomes CLASSIFIED after parsed result.
-- Confirm top_suspect canonical if taxonomy matches.
-- Confirm sid/environment populated either from UI or inference.
-- Confirm delete cascade returns all counts to 0.
-
-Primary files for next patch:
+Primary files:
+- src/features/cases/CaseLinkPanel.jsx
+- src/features/cases/useCaseHistoryLink.js
 - src/tools/ToolLogEvidenceV2.jsx
 - src/evidence-api-client.js
 - backend/case_service.py
@@ -123,6 +117,8 @@ Primary files for next patch:
 - backend/dbfirst_read_helpers.py
 - backend/db/repositories.py
 - backend/evidence_upload_service.py
+- scripts/qa-case-flow-contracts.sh
+- .github/workflows/dev-deploy.yml
 
 Guardrails:
 - Incremental only.
@@ -138,18 +134,19 @@ Guardrails:
 | Area | Score |
 |---|---:|
 | DB-first read architecture | 94 |
-| Case lifecycle maintenance | 95 |
+| Case lifecycle maintenance | 96 |
 | Delete cascade safety | 96 |
-| QA pollution control | 96 |
+| QA pollution control | 98 |
+| Case flow stability | 94 |
 | Real SAP ingestion foundation | 88 |
-| RCA normalization engine | 86 |
-| Frontend ingestion UX | 74 |
+| RCA normalization engine | 87 |
+| Frontend ingestion UX | 82 |
 | ST03N structured persistence | 72 |
 | Grafana RCA aggregation | 80 |
-| Overall RCA workspace maturity | 88 |
+| Overall RCA workspace maturity | 90 |
 
 ## Best Next First Patch
 
 ```text
-Patch ToolLogEvidenceV2.jsx incrementally to add SID/environment metadata controls, pass them through createCase/saveParsedResult/uploadEvidence, and clear stale localStorage case id when backend returns 404. Keep backend unchanged unless required by build.
+After SAPDEV deploy is confirmed green, start real SAP sample quality pass: strengthen parsed_result_service normalization for WP-SCOUT/SM21/ST22/dev_w evidence and add non-mutating fixtures or contract tests that verify SID/env/host/program/job/error taxonomy extraction without touching DEV database.
 ```
