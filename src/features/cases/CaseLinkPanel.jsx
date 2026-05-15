@@ -15,11 +15,6 @@ function findCase(items = [], id = '') {
   return items.find((item) => caseItemId(item) === id) || null
 }
 
-function markExplicitSaveIntent() {
-  if (typeof window === 'undefined') return
-  window.__SAP_RCA_EXPLICIT_CASE_SAVE_TS__ = Date.now()
-}
-
 export default function CaseLinkPanel({
   title = 'Case History Link',
   description = 'Upload analyzes only. Create or select a case, then click Save to Case History.',
@@ -82,8 +77,7 @@ export default function CaseLinkPanel({
 
   const handleSave = React.useCallback(() => {
     if (!canSave) return
-    markExplicitSaveIntent()
-    onSaveCurrent()
+    onSaveCurrent({ explicitSaveIntent: true })
   }, [canSave, onSaveCurrent])
 
   return (
