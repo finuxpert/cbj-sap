@@ -9,7 +9,7 @@
 
 .appShell.isTool .cmpCleanShell .cmpCleanStats {
   position: sticky;
-  top: 0;
+  top: 12px;
   z-index: 11;
   padding: 10px;
   border: 1px solid rgba(45, 212, 191, .20);
@@ -78,24 +78,12 @@
   backdrop-filter: blur(10px);
 }
 
-.appShell.isTool .cmpCleanTable tbody tr {
-  transition: background .18s ease;
-}
-
 .appShell.isTool .cmpCleanTable tbody tr:hover {
   background: rgba(45, 212, 191, .055);
 }
 
 .appShell.isTool .cmpCleanTable td:first-child {
   border-left: 3px solid transparent;
-}
-
-.appShell.isTool .cmpCleanTable tr:has(.cmpCleanBadge.crit) td:first-child {
-  border-left-color: rgba(248, 113, 113, .86);
-}
-
-.appShell.isTool .cmpCleanTable tr:has(.cmpCleanBadge.warn) td:first-child {
-  border-left-color: rgba(250, 204, 21, .78);
 }
 
 .appShell.isTool .rcaReadableChartPanel .cmpCleanChart,
@@ -109,79 +97,36 @@
   box-shadow: 0 14px 40px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.04) inset;
 }
 
-/* Phase 2: make the parsed dashboard behave like a cockpit, not an upload wizard. */
-.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake,
-.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard,
-.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail {
-  position: relative;
+/* safer fallback state */
+.appShell.isTool .cmpCleanEvidenceIntake,
+.appShell.isTool .cmpCleanIntakeCard,
+.appShell.isTool .cmpCleanSideRail {
+  transition: max-height .22s ease, opacity .22s ease;
 }
 
-.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
-.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
-.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
-  content: "Compact after parse · focus on RCA below";
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  padding: 5px 8px;
-  border: 1px solid rgba(45,212,191,.20);
-  border-radius: 999px;
-  background: rgba(2,12,16,.70);
-  color: rgba(153,246,228,.88);
-  font-size: 10px;
-  font-weight: 850;
-  letter-spacing: .03em;
-  pointer-events: none;
-}
+@supports(selector(:has(*))) {
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail {
+    position: relative;
+  }
 
-.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(3),
-.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(4) {
-  position: relative;
-}
-
-.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(3)::after,
-.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(4)::after {
-  content: "RCA SIGNAL";
-  position: absolute;
-  top: 7px;
-  right: 8px;
-  padding: 3px 6px;
-  border-radius: 999px;
-  background: rgba(248,113,113,.12);
-  color: rgba(254,202,202,.92);
-  font-size: 8px;
-  font-weight: 950;
-  letter-spacing: .08em;
-}
-
-.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(4)::after {
-  background: rgba(250,204,21,.10);
-  color: rgba(253,230,138,.92);
-}
-
-.appShell.isTool .cmpCleanShell .cmpCleanPanel:has(.cmpCleanTable)::before {
-  content: "Tap / scroll horizontally on mobile to inspect PID, RSS, job, and score";
-  display: block;
-  margin: 0 0 8px;
-  padding: 7px 10px;
-  border: 1px solid rgba(56,189,248,.14);
-  border-radius: 12px;
-  background: rgba(56,189,248,.055);
-  color: rgba(186,230,253,.82);
-  font-size: 11px;
-}
-
-.appShell.isTool .cmpCleanShell .cmpCleanBadge.crit,
-.appShell.isTool .cmpCleanShell .cmpCleanBadge.warn {
-  box-shadow: 0 0 16px rgba(248,113,113,.16);
-}
-
-.appShell.isTool .cmpCleanShell .cmpCleanBadge.warn {
-  box-shadow: 0 0 16px rgba(250,204,21,.12);
-}
-
-.appShell.isTool .cmpCleanShell .cmpCleanPanel:has(.cmpCleanBadge.crit) {
-  border-color: rgba(248,113,113,.22);
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
+    content: "Compact after parse · focus on RCA below";
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    padding: 5px 8px;
+    border: 1px solid rgba(45,212,191,.20);
+    border-radius: 999px;
+    background: rgba(2,12,16,.70);
+    color: rgba(153,246,228,.88);
+    font-size: 10px;
+    font-weight: 850;
+    pointer-events: none;
+  }
 }
 
 .appShell.isTool .cmpCleanShell .chartTitleBlock::after,
@@ -196,107 +141,30 @@
   color: rgba(153,246,228,.90);
   font-size: 9px;
   font-weight: 950;
-  letter-spacing: .08em;
   white-space: nowrap;
 }
 
-.appShell.isTool .cmpCleanShell .chartTitleBlock,
-.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.appShell.isTool .cmpCleanShell .chartTitleBlock > div,
-.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock > div {
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
 @media (max-width: 760px) {
-  .appShell.isTool main {
-    padding-bottom: 96px;
-  }
-
   .appShell.isTool .cmpCleanShell {
     padding-inline: 8px;
   }
 
-  .appShell.isTool .cmpCleanShell .cmpCleanHeader {
-    margin-bottom: 8px;
-    padding: 13px 14px;
-    border-radius: 17px;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanHeader h1 {
-    font-size: 24px;
-    line-height: 1.04;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanEvidenceIntake,
-  .appShell.isTool .cmpCleanShell .cmpCleanIntakeCard,
-  .appShell.isTool .cmpCleanShell .cmpCleanSideRail {
-    max-height: 136px;
-    overflow: hidden;
-    border-radius: 16px;
-    opacity: .90;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanEvidenceIntakeHead h2,
-  .appShell.isTool .cmpCleanShell .cmpCleanIntakeHead h2 {
-    margin-bottom: 2px;
-    font-size: 16px;
-  }
-
   .appShell.isTool .cmpCleanShell .cmpCleanStats {
-    top: 0;
+    top: 8px;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
-    margin: 9px 0 10px;
-    padding: 9px;
-    border-radius: 16px;
   }
 
-  .appShell.isTool .cmpCleanShell .cmpCleanStats::before {
-    grid-column: 1 / -1;
-    margin-bottom: 0;
-    font-size: 9px;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanStats > div {
-    min-height: 54px;
-    padding: 8px !important;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanStats span,
-  .appShell.isTool .cmpCleanShell .cmpCleanStats small,
-  .appShell.isTool .cmpCleanShell .cmpCleanStats label {
-    font-size: 8px !important;
-    letter-spacing: .08em;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanStats strong,
-  .appShell.isTool .cmpCleanShell .cmpCleanStats b {
-    font-size: 16px !important;
-    line-height: 1.1;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanFilters {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 7px;
-    margin-top: 10px;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanFilters input {
-    grid-column: 1 / -1;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanSeg {
-    grid-column: 1 / -1;
-    min-width: 0;
-    overflow-x: auto;
+  @supports(selector(:has(*))) {
+    .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake,
+    .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard,
+    .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail {
+      max-height: 136px;
+      overflow: hidden;
+      opacity: .90;
+      border-radius: 16px;
+    }
   }
 
   .appShell.isTool .cmpCleanTableWrap {
@@ -322,88 +190,9 @@
     display: none;
   }
 
-  .appShell.isTool .cmpCleanTable th:nth-child(7),
-  .appShell.isTool .cmpCleanTable td:nth-child(7) {
-    max-width: 178px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .appShell.isTool .rcaReadableChartPanel .cmpCleanChart,
   .appShell.isTool .cmpResourceTrendPanel .cmpResourceTrendChart {
     min-height: 252px;
     height: 252px;
-    padding: 4px 2px;
-  }
-
-  .appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text {
-    font-size: 8px;
-  }
-
-  .appShell.isTool .rcaReadableChartPanel .recharts-legend-wrapper {
-    transform: scale(.78);
-    transform-origin: top left;
-  }
-
-  .appShell.isTool .sapPdfDock {
-    right: 10px;
-    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
-    transform: scale(.78);
-    transform-origin: bottom right;
-  }
-
-  .appShell.isTool .cmpCleanShell .chartTitleBlock,
-  .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-  }
-
-  .appShell.isTool .cmpCleanShell .chartTitleBlock::after,
-  .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after {
-    font-size: 8px;
-    padding: 4px 6px;
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanPanel:has(.cmpCleanTable)::before {
-    font-size: 10px;
-    line-height: 1.3;
-  }
-
-  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
-  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
-  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
-    content: "Compact mode";
-    right: 9px;
-    bottom: 8px;
-    font-size: 9px;
-  }
-}
-
-@media (max-width: 420px) {
-  .appShell.isTool .cmpCleanShell .cmpCleanStats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .appShell.isTool .cmpCleanShell .cmpCleanEvidenceIntake,
-  .appShell.isTool .cmpCleanShell .cmpCleanIntakeCard,
-  .appShell.isTool .cmpCleanShell .cmpCleanSideRail {
-    max-height: 118px;
-  }
-
-  .appShell.isTool .cmpCleanTable {
-    min-width: 560px;
-  }
-
-  .appShell.isTool .cmpCleanTable th,
-  .appShell.isTool .cmpCleanTable td {
-    padding: 6px;
-    font-size: 9px;
-  }
-
-  .appShell.isTool .rcaReadableChartPanel .cmpCleanChart,
-  .appShell.isTool .cmpResourceTrendPanel .cmpResourceTrendChart {
-    min-height: 230px;
-    height: 230px;
   }
 }
