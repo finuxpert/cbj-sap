@@ -109,6 +109,110 @@
   box-shadow: 0 14px 40px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.04) inset;
 }
 
+/* Phase 2: make the parsed dashboard behave like a cockpit, not an upload wizard. */
+.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake,
+.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard,
+.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail {
+  position: relative;
+}
+
+.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
+.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
+.appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
+  content: "Compact after parse · focus on RCA below";
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  padding: 5px 8px;
+  border: 1px solid rgba(45,212,191,.20);
+  border-radius: 999px;
+  background: rgba(2,12,16,.70);
+  color: rgba(153,246,228,.88);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .03em;
+  pointer-events: none;
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(3),
+.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(4) {
+  position: relative;
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(3)::after,
+.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(4)::after {
+  content: "RCA SIGNAL";
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(248,113,113,.12);
+  color: rgba(254,202,202,.92);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanStats > div:nth-child(4)::after {
+  background: rgba(250,204,21,.10);
+  color: rgba(253,230,138,.92);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanPanel:has(.cmpCleanTable)::before {
+  content: "Tap / scroll horizontally on mobile to inspect PID, RSS, job, and score";
+  display: block;
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  border: 1px solid rgba(56,189,248,.14);
+  border-radius: 12px;
+  background: rgba(56,189,248,.055);
+  color: rgba(186,230,253,.82);
+  font-size: 11px;
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanBadge.crit,
+.appShell.isTool .cmpCleanShell .cmpCleanBadge.warn {
+  box-shadow: 0 0 16px rgba(248,113,113,.16);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanBadge.warn {
+  box-shadow: 0 0 16px rgba(250,204,21,.12);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanPanel:has(.cmpCleanBadge.crit) {
+  border-color: rgba(248,113,113,.22);
+}
+
+.appShell.isTool .cmpCleanShell .chartTitleBlock::after,
+.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after {
+  content: "LIVE RCA SIGNAL";
+  align-self: flex-start;
+  margin-left: auto;
+  padding: 5px 8px;
+  border: 1px solid rgba(45,212,191,.20);
+  border-radius: 999px;
+  background: rgba(45,212,191,.08);
+  color: rgba(153,246,228,.90);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.appShell.isTool .cmpCleanShell .chartTitleBlock,
+.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.appShell.isTool .cmpCleanShell .chartTitleBlock > div,
+.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock > div {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 @media (max-width: 760px) {
   .appShell.isTool main {
     padding-bottom: 96px;
@@ -246,6 +350,33 @@
     bottom: calc(14px + env(safe-area-inset-bottom, 0px));
     transform: scale(.78);
     transform-origin: bottom right;
+  }
+
+  .appShell.isTool .cmpCleanShell .chartTitleBlock,
+  .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .appShell.isTool .cmpCleanShell .chartTitleBlock::after,
+  .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after {
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+
+  .appShell.isTool .cmpCleanShell .cmpCleanPanel:has(.cmpCleanTable)::before {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
+    content: "Compact mode";
+    right: 9px;
+    bottom: 8px;
+    font-size: 9px;
   }
 }
 
