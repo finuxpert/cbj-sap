@@ -160,5 +160,3 @@
 .cmpTrendSwapDot { fill: #ff5d73; stroke: rgba(255,255,255,.9); stroke-width: 1.5; filter: drop-shadow(0 0 5px rgba(255,100,124,.8)); }
 @media (max-width: 1200px) { .cmpCleanStats { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cmpCleanGrid, .cmpCleanTopRow { grid-template-columns: 1fr; } .cmpCleanPanel.span2 { grid-row: auto; } }
 @media (max-width: 720px) { .cmpCleanShell { padding: 12px; } .cmpCleanHeader, .cmpCleanPanelHead, .cmpTrendTitleBlock, .evidenceHistoryHead, .caseLinkStepHead, .cmpCleanEvidenceIntakeHead { align-items: stretch; flex-direction: column; } .cmpCleanStats, .cmpCleanIntakeMeta, .caseHistoryModeSwitch, .caseLinkActions, .cmpCleanFlowList { grid-template-columns: 1fr; } .cmpCleanFilters { justify-content: stretch; } .cmpCleanFilters input, .cmpCleanFilters select { min-width: 0; width: 100%; max-width: none; } .cmpCleanSeg { width: 100%; overflow: auto; } .cmpTrendBadges { justify-content: flex-start; } .evidenceHistoryRow, .cmpCleanEvidenceIntakeActions { grid-template-columns: 1fr; } .cmpCleanEvidenceIntakeActions { display: grid; } }
-
-@import './ToolComparerCleanCompact.css';
