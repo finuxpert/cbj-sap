@@ -2,6 +2,20 @@
 
 Use this file to continue the project in a new chat without re-explaining the current state.
 
+## Ultra-short user prompt for next chat
+
+```text
+cek repo
+```
+
+When the user only says `cek repo`, interpret it as:
+- Read this runtime prompt first.
+- Continue SAP Intelligent RCA Workspace from branch `dev`.
+- Use GitHub connector only.
+- Do a safe repository audit for kode sampah / technical debt.
+- Start by creating or updating `docs/runtime/code-cleanup-audit.md` with findings.
+- Do not delete files or change behavior until usage is proven.
+
 ## Continuation Prompt — SAP RCA Code Audit / Kode Sampah Cleanup
 
 ```text
@@ -16,6 +30,7 @@ Branch:
 Mode:
 - GitHub connector only
 - incremental audit + patch only
+- kalau user cuma bilang "cek repo", baca docs/runtime/next-chat-prompt.md dan mulai audit repo dari sini
 - jangan pakai local CLI kecuali saya izinkan
 - jangan sentuh PROD/nginx/workflow/deploy kecuali diminta eksplisit
 - jangan reintroduce MutationObserver/runtime injector
@@ -92,8 +107,11 @@ Recent important commits:
 - 61e8b4ccefaa2e797664cb4aad658aff4331110b — Add WP-SCOUT chart readability override.
 - 9cfefb6ffa8bbc98a3c1e3b312d804fae0f01266 — Load WP-SCOUT chart readability layer.
 - b69b7f2eca45f5d2b6434f2031dec984d19d7eb2 — Harden WP-SCOUT chart visual cleanup.
+- 4580fcb38cfb4c95f156fa47be3ceaadab6f4ac6 — Update runtime prompt for code cleanup audit.
 
 Current key files:
+- docs/runtime/next-chat-prompt.md
+- docs/runtime/code-cleanup-audit.md (target file to create/update during audit)
 - src/main.jsx
 - src/app/wp-scout-rca-cockpit-polish.css
 - src/app/wp-scout-chart-readability.css
