@@ -14,9 +14,21 @@
 /* The previous LIVE RCA SIGNAL pseudo badge could render twice and overlap plot labels.
    Keep status context in the panel title/badges; do not inject overlay badges into charts. */
 .appShell.isTool .cmpCleanShell .chartTitleBlock::after,
-.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after {
-  content: none !important;
+.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after,
+body .appShell.isTool .cmpCleanShell .chartTitleBlock::after,
+body .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after,
+body .cmpCleanShell .chartTitleBlock::after,
+body .cmpCleanShell .cmpTrendTitleBlock::after {
+  content: "" !important;
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  pointer-events: none !important;
 }
 
 .appShell.isTool .cmpCleanShell .rcaReadableChartPanel {
@@ -27,34 +39,52 @@
 .appShell.isTool .cmpCleanShell .cmpResourceTrendPanel .cmpResourceTrendChart {
   box-sizing: border-box;
   overflow: hidden;
-  padding: 10px 14px 12px 4px;
+  padding: 10px 18px 12px 8px;
   border-color: rgba(45, 212, 191, .18);
+  outline: 0 !important;
+  box-shadow: inset 0 0 0 1px rgba(45, 212, 191, .08);
   background:
     radial-gradient(circle at 12% 0%, rgba(45, 212, 191, .11), transparent 34%),
     linear-gradient(180deg, rgba(3, 14, 18, .92), rgba(2, 10, 13, .96));
 }
 
 .appShell.isTool .cmpCleanShell .cmpResourceTrendPanel .cmpResourceTrendChart {
-  padding-right: 18px;
-  padding-left: 8px;
+  padding-right: 22px;
+  padding-left: 12px;
 }
 
 .appShell.isTool .cmpCleanShell .cmpCleanChartBars,
 .appShell.isTool .cmpCleanShell .cmpCleanChartLine {
-  min-height: 300px;
+  min-height: 315px;
 }
 
 .appShell.isTool .cmpCleanShell .cmpResourceTrendChart {
-  min-height: 320px;
+  min-height: 325px;
 }
 
-.appShell.isTool .rcaReadableChartPanel .recharts-surface {
+.appShell.isTool .rcaReadableChartPanel .recharts-wrapper,
+.appShell.isTool .rcaReadableChartPanel .recharts-surface,
+.appShell.isTool .rcaReadableChartPanel svg {
   overflow: visible;
+  outline: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-wrapper:focus,
+.appShell.isTool .rcaReadableChartPanel .recharts-wrapper:focus-visible,
+.appShell.isTool .rcaReadableChartPanel .recharts-surface:focus,
+.appShell.isTool .rcaReadableChartPanel .recharts-surface:focus-visible,
+.appShell.isTool .rcaReadableChartPanel svg:focus,
+.appShell.isTool .rcaReadableChartPanel svg:focus-visible {
+  outline: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text,
 .appShell.isTool .rcaReadableChartPanel .recharts-text {
-  fill: rgba(226, 245, 245, .78);
+  fill: rgba(226, 245, 245, .80);
   font-size: 11px;
   font-weight: 800;
 }
@@ -64,27 +94,37 @@
   font-size: 11px;
   font-weight: 950;
   paint-order: stroke;
-  stroke: rgba(0,0,0,.72);
+  stroke: rgba(0,0,0,.76);
   stroke-width: 3px;
 }
 
-/* Put bar value labels slightly inside the chart area so large RSS/score values do not crash into the right edge. */
+/* Put bar value labels inside the bar/plot area so large RSS/score values do not crash into the right edge. */
 .appShell.isTool .cmpCleanChartBars .recharts-label-list text,
 .appShell.isTool .cmpCleanChartLine .recharts-label-list text {
-  text-anchor: end;
-  transform: translateX(-10px);
+  text-anchor: end !important;
+  transform: translateX(-14px);
 }
 
 .appShell.isTool .cmpCleanChartBars .recharts-yAxis .recharts-cartesian-axis-tick text,
 .appShell.isTool .cmpCleanChartLine .recharts-yAxis .recharts-cartesian-axis-tick text {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 850;
+  transform: translateX(-4px);
+}
+
+.appShell.isTool .cmpCleanChartBars .recharts-cartesian-axis-tick-line,
+.appShell.isTool .cmpCleanChartLine .recharts-cartesian-axis-tick-line,
+.appShell.isTool .cmpResourceTrendChart .recharts-cartesian-axis-tick-line,
+.appShell.isTool .cmpCleanChartBars .recharts-cartesian-axis-line,
+.appShell.isTool .cmpCleanChartLine .recharts-cartesian-axis-line,
+.appShell.isTool .cmpResourceTrendChart .recharts-cartesian-axis-line {
+  stroke: rgba(148, 163, 184, .18);
 }
 
 .appShell.isTool .cmpCleanChartBars .recharts-cartesian-grid line,
 .appShell.isTool .cmpCleanChartLine .recharts-cartesian-grid line,
 .appShell.isTool .cmpResourceTrendChart .recharts-cartesian-grid line {
-  stroke: rgba(148, 163, 184, .14);
+  stroke: rgba(148, 163, 184, .13);
 }
 
 .appShell.isTool .cmpCleanChartBars .recharts-bar-rectangle path,
@@ -108,19 +148,20 @@
   .appShell.isTool .cmpCleanShell .cmpCleanChartBars,
   .appShell.isTool .cmpCleanShell .cmpCleanChartLine,
   .appShell.isTool .cmpCleanShell .cmpResourceTrendChart {
-    min-height: 270px;
-    height: 270px;
-    padding-right: 10px;
+    min-height: 285px;
+    height: 285px;
+    padding-right: 12px;
   }
 
   .appShell.isTool .cmpCleanChartBars .recharts-label-list text,
   .appShell.isTool .cmpCleanChartLine .recharts-label-list text {
     font-size: 9px;
-    transform: translateX(-6px);
+    transform: translateX(-9px);
   }
 
   .appShell.isTool .cmpCleanChartBars .recharts-yAxis .recharts-cartesian-axis-tick text,
   .appShell.isTool .cmpCleanChartLine .recharts-yAxis .recharts-cartesian-axis-tick text {
     font-size: 9px;
+    transform: translateX(-2px);
   }
 }
