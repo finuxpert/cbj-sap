@@ -78,18 +78,46 @@
   backdrop-filter: blur(10px);
 }
 
+.appShell.isTool .cmpCleanTable tbody tr {
+  border-bottom: 1px solid rgba(148, 163, 184, .08);
+}
+
+.appShell.isTool .cmpCleanTable tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, .015);
+}
+
 .appShell.isTool .cmpCleanTable tbody tr:hover {
-  background: rgba(45, 212, 191, .055);
+  background: rgba(45, 212, 191, .075);
+  box-shadow: inset 3px 0 0 rgba(45, 212, 191, .75);
 }
 
 .appShell.isTool .cmpCleanTable td:first-child {
   border-left: 3px solid transparent;
 }
 
+.appShell.isTool .cmpCleanTable tr:has(.cmpCleanBadge.crit) td:first-child {
+  border-left-color: rgba(248,113,113,.86);
+}
+
+.appShell.isTool .cmpCleanTable tr:has(.cmpCleanBadge.warn) td:first-child {
+  border-left-color: rgba(250,204,21,.78);
+}
+
 .appShell.isTool .rcaReadableChartPanel .cmpCleanChart,
 .appShell.isTool .rcaReadableChartPanel .cmpResourceTrendChart {
   border-radius: 16px;
   background: radial-gradient(circle at 12% 0%, rgba(45, 212, 191, .10), transparent 34%), rgba(2, 12, 16, .58);
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text,
+.appShell.isTool .rcaReadableChartPanel .recharts-text {
+  fill: rgba(226, 245, 245, .78);
+  font-weight: 650;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-label-list text {
+  fill: rgba(235,255,250,.90);
+  font-weight: 800;
 }
 
 .appShell.isTool .sapPdfDock {
@@ -126,6 +154,23 @@
     font-size: 10px;
     font-weight: 850;
     pointer-events: none;
+  }
+
+  .appShell.isTool .cmpCleanGrid:has(.span2)::after {
+    content: "RCA WORKBENCH\A• Validate top CRIT PID in SM50/SM66\A• Correlate job owner in SM37\A• Check ST22/SM21 during same window\A• Attach PDF + raw evidence to incident record";
+    white-space: pre-line;
+    min-height: 168px;
+    padding: 18px;
+    border: 1px solid rgba(45,212,191,.16);
+    border-left: 4px solid rgba(45,212,191,.70);
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at top left, rgba(45,212,191,.13), transparent 36%),
+      linear-gradient(135deg, rgba(9,22,25,.96), rgba(3,12,16,.94));
+    color: rgba(226,245,245,.84);
+    font-size: 13px;
+    line-height: 1.65;
+    box-shadow: 0 18px 42px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.045);
   }
 }
 
@@ -164,6 +209,13 @@
       overflow: hidden;
       opacity: .90;
       border-radius: 16px;
+    }
+
+    .appShell.isTool .cmpCleanGrid:has(.span2)::after {
+      min-height: auto;
+      padding: 12px;
+      font-size: 11px;
+      line-height: 1.5;
     }
   }
 
