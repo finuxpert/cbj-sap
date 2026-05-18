@@ -470,6 +470,54 @@ function MiniStat({ label, value, tone = '' }) {
   )
 }
 
+function ExecutiveIncidentRibbon({ stats, topRow }) {
+  const hasData = Boolean(stats?.total)
+  const tone = stats?.crit ? 'crit' : stats?.warn ? 'warn' : ''
+  const headline = !hasData
+    ? 'NO RCA EVIDENCE LOADED'
+    : stats.crit > 0
+      ? 'CRITICAL MEMORY PRESSURE'
+      : stats.warn > 0
+        ? 'WARNING THRESHOLD REACHED'
+        : 'NO CRITICAL OFFENDER'
+  const targetLine = topRow
+    ? `${topRow.host || '-'} / PID ${topRow.pid || '-'} / ${topRow.type || '-'} / ${topRow.job || '-'}`
+    : 'Upload WP-SCOUT ZIP/TXT evidence to calculate primary suspect.'
+  const action = topRow
+    ? `Validate PID ${topRow.pid || '-'} in SM50/SM66, confirm job owner in SM37, then correlate ST22/SM21 around the same timestamp.`
+    : 'Start from Evidence Intake, then review Offender Queue before saving to Case History.'
+
+  return (
+    <section className={`cmpCleanExecutiveRibbon ${tone}`}>
+      <div className="cmpExecutiveRibbonMain">
+        <span className="cmpExecutiveEyebrow">Executive incident ribbon</span>
+        <strong>{headline}</strong>
+        <p>{hasData ? `${stats.crit} critical · ${stats.warn} warning · ${stats.hosts} host(s) affected.` : 'Dashboard is waiting for parsed WP-SCOUT evidence.'}</p>
+        <div className="cmpExecutivePills">
+          <span>Unique {stats?.total || 0}</span>
+          <span>Raw {stats?.raw || 0}</span>
+          <span>Max RSS {Number(stats?.maxRss || 0).toFixed(1)} GB</span>
+        </div>
+      </div>
+      <div className="cmpExecutiveRibbonTarget">
+        <span className="cmpExecutiveLabel">Primary suspect</span>
+        <div className="cmpExecutiveTargetLine">{targetLine}</div>
+        <div className="cmpExecutiveTargetMeta">
+          <span>Severity {topRow?.severity || 'INFO'}</span>
+          <span>Score {topRow?.score || 0}</span>
+          <span>Hits {topRow?.hits || 0}</span>
+          <span>Age {topRow?.ageRaw || '-'}</span>
+        </div>
+      </div>
+      <div className="cmpExecutiveRibbonAction">
+        <span className="cmpExecutiveLabel">Next Basis action</span>
+        <strong>{topRow ? 'Confirm process, owner, and timestamp correlation' : 'Upload evidence and parse first'}</strong>
+        <p>{action}</p>
+      </div>
+    </section>
+  )
+}
+
 function FindingCard({ stats, topRow }) {
   let title = 'No RCA evidence loaded'
   let desc = 'Upload WP-SCOUT log untuk membaca work process, RSS, age, host pressure, dan offender queue.'
@@ -913,6 +961,7 @@ export default function ToolComparerClean() {
         <MiniStat label="Max RSS" value={`${stats.maxRss.toFixed(1)} GB`} />
       </div>
 
+      <ExecutiveIncidentRibbon stats={stats} topRow={topRow} />
       <FindingCard stats={stats} topRow={topRow} />
       <ActionNotes topRow={topRow} hasData={Boolean(rows.length)} />
 
