@@ -111,12 +111,26 @@
 
 .appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text,
 .appShell.isTool .rcaReadableChartPanel .recharts-text {
-  fill: rgba(226, 245, 245, .78);
-  font-weight: 650;
+  fill: rgba(226, 245, 245, .82);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .appShell.isTool .rcaReadableChartPanel .recharts-label-list text {
-  fill: rgba(235,255,250,.90);
+  fill: rgba(235,255,250,.96);
+  font-size: 12px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(0,0,0,.55);
+  stroke-width: 2px;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-legend-wrapper {
+  color: rgba(226,245,245,.92) !important;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-default-legend {
+  font-size: 13px !important;
   font-weight: 800;
 }
 
@@ -157,20 +171,21 @@
   }
 
   .appShell.isTool .cmpCleanGrid:has(.span2)::after {
-    content: "RCA WORKBENCH\A• Validate top CRIT PID in SM50/SM66\A• Correlate job owner in SM37\A• Check ST22/SM21 during same window\A• Attach PDF + raw evidence to incident record";
+    content: "RCA INSIGHT PANEL\A\AImmediate Focus\A• Validate top CRIT PID in SM50/SM66\A• Confirm job owner/schedule in SM37\A\ACorrelation Checks\A• Check ST22 and SM21 in same timestamp window\A• Compare host memory pressure with RSS spike\A\ANext Action\A• Attach PDF + raw evidence to incident record";
     white-space: pre-line;
-    min-height: 168px;
-    padding: 18px;
-    border: 1px solid rgba(45,212,191,.16);
-    border-left: 4px solid rgba(45,212,191,.70);
-    border-radius: 18px;
+    min-height: 260px;
+    padding: 20px 22px;
+    border: 1px solid rgba(45,212,191,.18);
+    border-left: 4px solid rgba(45,212,191,.80);
+    border-radius: 20px;
     background:
-      radial-gradient(circle at top left, rgba(45,212,191,.13), transparent 36%),
-      linear-gradient(135deg, rgba(9,22,25,.96), rgba(3,12,16,.94));
-    color: rgba(226,245,245,.84);
-    font-size: 13px;
-    line-height: 1.65;
-    box-shadow: 0 18px 42px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.045);
+      radial-gradient(circle at top left, rgba(45,212,191,.16), transparent 36%),
+      radial-gradient(circle at bottom right, rgba(56,189,248,.10), transparent 34%),
+      linear-gradient(135deg, rgba(9,22,25,.98), rgba(3,12,16,.96));
+    color: rgba(226,245,245,.88);
+    font-size: 14px;
+    line-height: 1.72;
+    box-shadow: 0 18px 42px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.045);
   }
 }
 
@@ -187,6 +202,18 @@
   font-size: 9px;
   font-weight: 950;
   white-space: nowrap;
+}
+
+@media (min-width: 1200px) {
+  .appShell.isTool .cmpCleanShell .cmpCleanGrid {
+    align-items: stretch;
+  }
+
+  .appShell.isTool .cmpCleanShell .rcaReadableChartPanel .cmpCleanChart,
+  .appShell.isTool .cmpCleanShell .cmpResourceTrendPanel .cmpResourceTrendChart {
+    min-height: 275px;
+    height: 275px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -246,5 +273,11 @@
   .appShell.isTool .cmpResourceTrendPanel .cmpResourceTrendChart {
     min-height: 252px;
     height: 252px;
+  }
+
+  .appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text,
+  .appShell.isTool .rcaReadableChartPanel .recharts-text,
+  .appShell.isTool .rcaReadableChartPanel .recharts-label-list text {
+    font-size: 9px;
   }
 }
