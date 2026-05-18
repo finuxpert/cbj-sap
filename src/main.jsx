@@ -4,6 +4,7 @@ import App from './App.jsx'
 import './index.css'
 import './app/enterprise-theme.css'
 import './app/wp-scout-rca-cockpit-polish.css'
+import './app/wp-scout-chart-readability.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
