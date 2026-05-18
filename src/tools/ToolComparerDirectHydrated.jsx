@@ -1,4 +1,5 @@
 import React from 'react'
+import RcaInsightPanel from './RcaInsightPanel.jsx'
 
 const DIRECT_UPLOAD_CACHE_KEY = 'sap_rca_wpscout_direct_upload_payload_v1'
 
@@ -77,5 +78,10 @@ export default function ToolComparerDirectHydrated() {
     )
   }
 
-  return <ToolComparerClean />
+  return (
+    <>
+      <ToolComparerClean />
+      <RcaInsightPanel />
+    </>
+  )
 }
