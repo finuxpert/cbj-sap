@@ -1,5 +1,8 @@
 import React from 'react'
 import RcaInsightPanel from './RcaInsightPanel.jsx'
+
+// Keep WP-SCOUT-specific visual layers with the comparer route wrapper,
+// not src/main.jsx, so global app pages do not load cockpit/chart overrides.
 import '../app/wp-scout-rca-cockpit-polish.css'
 import '../app/wp-scout-chart-readability.css'
 
