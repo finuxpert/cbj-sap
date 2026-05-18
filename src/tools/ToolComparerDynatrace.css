@@ -83,22 +83,6 @@
     0 12px 34px rgba(0, 0, 0, 0.28) !important;
 }
 
-.cmpCleanChart::before {
-  content: 'LIVE RCA SIGNAL';
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  z-index: 2;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid rgba(124, 227, 139, 0.28);
-  color: rgba(210, 255, 220, 0.86);
-  background: rgba(124, 227, 139, 0.08);
-  font-size: 9px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-}
-
 .cmpCleanChart::after {
   content: '';
   position: absolute;
