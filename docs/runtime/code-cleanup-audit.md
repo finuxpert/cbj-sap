@@ -17,9 +17,16 @@ Scope: technical debt / kode sampah audit only.
 
 ## Summary
 
-This audit found that the current WP-SCOUT comparator path is still intentionally routed through a hydrated wrapper before loading `ToolComparerClean.jsx`. Therefore, `ToolComparerClean.jsx` and its CSS imports must not be deleted during the first cleanup pass.
+This audit found that the current WP-SCOUT comparator path is intentionally routed through a hydrated wrapper before loading `ToolComparerClean.jsx`. Therefore, `ToolComparerClean.jsx` and its CSS imports must not be deleted during early cleanup.
 
-The main technical debt is currently CSS layering around WP-SCOUT chart/cockpit visual polish. Some UI text is still injected through CSS pseudo-content instead of React components, which makes layout behavior harder to control and can overlap charts or critical controls.
+The main technical debt is CSS layering around WP-SCOUT chart/cockpit visual polish. Some UI text is still injected through CSS pseudo-content instead of React components, which makes layout behavior harder to control and can overlap charts or critical controls.
+
+Recent cleanup progress:
+
+- `RCA INSIGHT PANEL` was converted from CSS pseudo-content into `src/tools/RcaInsightPanel.jsx`.
+- WP-SCOUT-specific CSS imports were moved out of `src/main.jsx` and into `src/tools/ToolComparerDirectHydrated.jsx`.
+- `src/main.jsx` now loads only app-global CSS: `index.css` and `enterprise-theme.css`.
+- `ToolComparerDirectHydrated.jsx` owns WP-SCOUT route CSS and includes a short ownership comment to prevent future global leakage.
 
 ## Audit Evidence
 
@@ -31,7 +38,7 @@ Current tool registry:
 comparer: () => import('./ToolComparerDirectHydrated.jsx')
 ```
 
-`ToolComparerDirectHydrated.jsx` dynamically imports `ToolComparerClean.jsx`, so the clean comparer is active through the hydrated wrapper.
+`ToolComparerDirectHydrated.jsx` dynamically imports `ToolComparerClean.jsx`, so the clean comparer remains active through the hydrated wrapper.
 
 ```js
 import('./ToolComparerClean.jsx').then((module) => {
@@ -39,18 +46,23 @@ import('./ToolComparerClean.jsx').then((module) => {
 })
 ```
 
-### Main CSS import order
+### Main CSS import status
 
-`src/main.jsx` imports global visual polish in this order:
+`src/main.jsx` now imports only global app CSS:
 
 ```js
 import './index.css'
 import './app/enterprise-theme.css'
-import './app/wp-scout-rca-cockpit-polish.css'
-import './app/wp-scout-chart-readability.css'
 ```
 
-This means `wp-scout-chart-readability.css` is intentionally loaded after the cockpit polish layer, so it can override chart badge/spacing rules.
+WP-SCOUT-specific CSS now belongs to the comparer wrapper:
+
+```js
+import '../app/wp-scout-rca-cockpit-polish.css'
+import '../app/wp-scout-chart-readability.css'
+```
+
+This is structurally cleaner because homepage, case pages, and non-comparer tools no longer load WP-SCOUT cockpit/chart overrides from the app entrypoint.
 
 ### Tool-level CSS import stack
 
@@ -63,13 +75,156 @@ import './ToolComparerDynatrace.css'
 import './ToolComparerCleanCompact.css'
 ```
 
-These should be treated as active until selector overlap and UI impact are verified.
+Important duplication note: `ToolComparerClean.css` also contains:
+
+```css
+@import './ToolComparerCleanCompact.css';
+```
+
+Because `ToolComparerCleanCompact.css` is also imported directly from JSX, the compact layer can be bundled/applied twice depending on bundler handling. Do not remove it yet without build verification, but this is the safest future CSS cleanup candidate.
+
+## WP-SCOUT CSS Layer Map
+
+### 1. `src/tools/ToolComparerClean.css`
+
+Role: base WP-SCOUT component-local stylesheet.
+
+Owns foundational selectors and layout:
+
+- `.cmpCleanShell`
+- `.cmpCleanHeader`
+- `.cmpCleanEvidenceIntake`
+- `.cmpCleanTopRow`
+- `.cmpCleanStats`
+- `.cmpCleanGrid`
+- `.cmpCleanPanel`
+- `.cmpCleanTableWrap`
+- `.cmpCleanTable`
+- `.cmpCleanChart`
+- `.cmpResourceTrendPanel`
+- `.cmpResourceTrendChart`
+
+Risk: HIGH if changed broadly because it defines base dimensions, grid layout, table behavior, and chart container height.
+
+Cleanup note: remove duplicated compact import only after confirming direct JSX import remains and build/deploy stays green.
+
+### 2. `src/tools/ToolComparerCleanVisual.css`
+
+Role: visual polish layer for clean WP-SCOUT comparator.
+
+Overlaps heavily with base styling for:
+
+- `.cmpCleanShell`
+- `.cmpCleanHeader`
+- `.cmpCleanStat`
+- `.cmpCleanFinding`
+- `.cmpCleanActionsPanel`
+- `.cmpCleanPanel`
+- `.cmpCleanChart`
+- `.cmpCleanTableWrap`
+- `.cmpCleanTable`
+
+Risk: MEDIUM. Mostly visual polish, but hover transforms, animations, pseudo-elements, and backdrop filters can affect perceived layout/performance.
+
+Cleanup note: if consolidating, move non-structural animation/glow rules here or into a clearly named optional polish file.
+
+### 3. `src/tools/ToolComparerDynatrace.css`
+
+Role: Dynatrace-inspired monitoring/chart density layer.
+
+Overlaps strongly with base and visual CSS:
+
+- `.cmpCleanShell`
+- `.cmpCleanGrid`
+- `.cmpCleanHeader`
+- `.cmpCleanPanel`
+- `.cmpCleanStat`
+- `.cmpCleanChart`
+- `.cmpCleanTableWrap`
+- `.cmpCleanTable`
+- Recharts internals under `.cmpCleanChart`
+
+Risk: HIGH. It uses `!important` in many places and still defines `.cmpCleanChart::before` with `LIVE RCA SIGNAL`, which can create chart overlay noise. Current chart readability layer suppresses some badge variants, but this source should be treated as a future cleanup target.
+
+Cleanup note: first safe code cleanup candidate after documentation is removing/suppressing `LIVE RCA SIGNAL` at source from this file, not by late override.
+
+### 4. `src/tools/ToolComparerCleanCompact.css`
+
+Role: compact layout/density override.
+
+Overlaps with most base layout selectors:
+
+- `.cmpCleanShell`
+- `.cmpCleanHeader`
+- `.cmpCleanEvidenceIntake`
+- `.cmpCleanTopRow`
+- `.cmpCleanStats`
+- `.cmpCleanGrid`
+- `.cmpCleanPanel`
+- `.cmpCleanTableWrap`
+- `.cmpCleanTable`
+- `.cmpCleanChart`
+- `.cmpResourceTrendChart`
+
+Risk: MEDIUM-HIGH. It changes grid columns, chart heights, table max-height, and responsive behavior.
+
+Cleanup note: this file is active and should remain, but duplicate import path should be resolved later.
+
+### 5. `src/app/wp-scout-rca-cockpit-polish.css`
+
+Role: route-wrapper visual cockpit layer, now loaded only by `ToolComparerDirectHydrated.jsx`.
+
+Owns route-scoped selectors under `.appShell.isTool`, including:
+
+- `.appShell.isTool .cmpCleanShell`
+- `.appShell.isTool .cmpCleanStats`
+- `.appShell.isTool .cmpCleanPanel`
+- `.appShell.isTool .rcaReadableChartPanel`
+- `.appShell.isTool .cmpCleanTable`
+- `.appShell.isTool .cmpRcaInsightPanel`
+- `.appShell.isTool .cmpCleanExecutiveRibbon`
+
+Risk: MEDIUM. Scope is now better because it is no longer imported globally from `main.jsx`, but it still includes pseudo-content for compact state labels and `:has()` selectors.
+
+Cleanup note: keep this file for route-level cockpit UI, but avoid adding more component-local styles here.
+
+### 6. `src/app/wp-scout-chart-readability.css`
+
+Role: final chart readability override layer, now loaded only by `ToolComparerDirectHydrated.jsx` after cockpit polish.
+
+Owns focused chart selectors:
+
+- `.chartTitleBlock`
+- `.cmpTrendTitleBlock`
+- `.rcaReadableChartPanel`
+- `.cmpCleanChart`
+- `.cmpCleanChartBars`
+- `.cmpCleanChartLine`
+- `.cmpResourceTrendChart`
+- Recharts labels, axes, grids, legend, and SVG overflow
+
+Risk: MEDIUM. It is intentionally late in the cascade and uses `!important` to prevent chart label clipping. Keep it focused and do not expand it into general layout styling.
+
+Cleanup note: if source badge rules are removed from local CSS, remove the redundant suppressor block here afterward.
+
+## Selector Overlap Matrix
+
+| Selector | Active in | Risk | Notes |
+|---|---|---:|---|
+| `.cmpCleanShell` | base, visual, Dynatrace, compact, cockpit | HIGH | Background, variables, padding, isolation, and app-scoped variables are split across many layers. |
+| `.cmpCleanGrid` | base, Dynatrace, compact | HIGH | Grid column logic differs by file. Must be consolidated carefully because it controls table + chart layout. |
+| `.cmpCleanPanel` | base, visual, Dynatrace, compact, cockpit | HIGH | Card sizing, glow, hover, background, and title decoration overlap. |
+| `.cmpCleanChart` | base, visual, Dynatrace, compact, cockpit, readability | HIGH | Most fragile area. Chart height, background, overflow, Recharts internals, and pseudo badges overlap. |
+| `.rcaReadableChartPanel` | cockpit, readability, compact selectors | MEDIUM | Should remain the boundary for chart-specific override behavior. |
+| `.chartTitleBlock` / `.cmpTrendTitleBlock` | base trend styles, cockpit, readability, compact | MEDIUM | Title layout and pseudo badges have caused overlap before. Prefer JSX badges over CSS pseudo-content. |
+| `.cmpCleanStats` | base, visual, compact, cockpit | MEDIUM | Sticky stats and pseudo title live here. Future React title would reduce pseudo-content usage. |
+| `.cmpCleanTable` | base, visual, Dynatrace, compact, cockpit | MEDIUM-HIGH | Table density, sticky header, hover, and row indicators overlap. Avoid broad changes without visual verification. |
 
 ## Findings
 
 ### 1. Runtime injector leftovers
 
-Search terms checked:
+Search terms checked earlier:
 
 - `MutationObserver`
 - `runtime enhancer`
@@ -88,43 +243,35 @@ Recommended action:
 
 ### 2. WP-SCOUT CSS layer duplication
 
-Active layers reviewed:
+Confirmed overlap exists around layout, chart readability, table density, and chart panel styling.
 
-- `src/app/wp-scout-rca-cockpit-polish.css`
-- `src/app/wp-scout-chart-readability.css`
-- `src/tools/ToolComparerClean.css`
-- `src/tools/ToolComparerCleanVisual.css`
-- `src/tools/ToolComparerDynatrace.css`
-- `src/tools/ToolComparerCleanCompact.css`
-
-Confirmed overlap exists around Recharts label readability and chart panel styling. The global chart readability layer is intentionally imported after cockpit polish and currently suppresses the older pseudo badge source using strong selectors and `!important`.
-
-Risk level: MEDIUM.
+Risk level: MEDIUM-HIGH.
 
 Recommended action:
 
 - Do not remove CSS files yet.
-- Next safe patch should remove or replace the source pseudo badge rule in `wp-scout-rca-cockpit-polish.css` instead of relying on later override suppression.
-- Keep chart readability rules focused only on Recharts spacing, labels, and overflow.
+- First safe cleanup target: resolve duplicated compact import path.
+- Second safe cleanup target: remove `LIVE RCA SIGNAL` pseudo badge source from `ToolComparerDynatrace.css` if visual testing confirms no need for it.
+- Keep `wp-scout-chart-readability.css` focused only on Recharts spacing, labels, overflow, and legend readability.
 
 ### 3. CSS pseudo-content used as real UI
 
-Confirmed pseudo-content UI in `wp-scout-rca-cockpit-polish.css`:
+Already improved:
 
-- `EXECUTIVE RCA COCKPIT` label on `.cmpCleanStats::before`
-- `Compact after parse · focus on RCA below` label on intake/sidebar blocks
-- `RCA INSIGHT PANEL` long text block on `.cmpCleanGrid:has(.span2)::after`
-- `LIVE RCA SIGNAL` badge on chart title blocks
+- `RCA INSIGHT PANEL` is now a real React component: `src/tools/RcaInsightPanel.jsx`.
 
-The Executive Incident Ribbon already exists as a real React component, so the remaining pseudo-content should be reduced gradually.
+Remaining pseudo-content UI:
 
-Risk level: HIGH for layout/readability, LOW for data/API.
+- `EXECUTIVE RCA COCKPIT` label on `.cmpCleanStats::before`.
+- `Compact after parse · focus on RCA below` label on intake/sidebar blocks.
+- `LIVE RCA SIGNAL` badge source still exists in `ToolComparerDynatrace.css` as `.cmpCleanChart::before`.
+
+Risk level: MEDIUM for layout/readability, LOW for data/API.
 
 Recommended action:
 
-- First safe UI cleanup: remove the `LIVE RCA SIGNAL` pseudo badge source because it already has a documented overlap issue and is currently being suppressed by `wp-scout-chart-readability.css`.
-- Next React cleanup: convert `RCA INSIGHT PANEL` from CSS pseudo-content into a real component inside the WP-SCOUT cockpit layout.
-- Avoid aggressive `:has()` layout controls around Case History save controls.
+- Prefer real React components or JSX text for durable UI labels.
+- Avoid adding more `::before` / `::after` UI text except purely decorative dots/lines.
 
 ### 4. Comparer component cleanup status
 
@@ -137,8 +284,8 @@ Risk level: HIGH if deleted incorrectly.
 Recommended action:
 
 - Do not delete `ToolComparerDirectHydrated.jsx` or `ToolComparerClean.jsx`.
-- Do not delete the four local comparer CSS files until usage is mapped selector-by-selector.
-- If cleanup is needed, split `ToolComparerClean.jsx` into small internal components later, not now.
+- Do not delete local comparer CSS files yet.
+- If cleanup is needed, split `ToolComparerClean.jsx` into smaller internal components later, not now.
 
 ### 5. DB-first / Case History safety
 
@@ -157,19 +304,26 @@ Risk level: LOW for this audit patch because no runtime code changed.
 
 Smallest safe patch after this document:
 
-1. Edit only `src/app/wp-scout-rca-cockpit-polish.css` and `src/app/wp-scout-chart-readability.css`.
-2. Remove the source `LIVE RCA SIGNAL` pseudo badge rule from cockpit polish.
-3. Remove the now-unnecessary override block that suppresses the same badge in chart readability CSS.
+1. Edit only `src/tools/ToolComparerClean.css`.
+2. Remove the bottom `@import './ToolComparerCleanCompact.css';` because `ToolComparerCleanCompact.css` is already imported directly in `ToolComparerClean.jsx`.
+3. Do not change any selector content.
 4. Do not touch parser, backend, DB, Case History, PDF export, or workflows.
 5. Validate with build/deploy workflow only when requested.
 
+If the build remains green and visual state is unchanged, the next CSS cleanup candidate is:
+
+1. Edit only `src/tools/ToolComparerDynatrace.css` and `src/app/wp-scout-chart-readability.css`.
+2. Remove the source `.cmpCleanChart::before { content: 'LIVE RCA SIGNAL'; ... }` block.
+3. Remove the redundant suppressor block in `wp-scout-chart-readability.css` only after source badge rules are gone.
+
 ## Deferred Cleanup
 
-- Convert `RCA INSIGHT PANEL` pseudo-content to a real React component.
+- Convert remaining pseudo labels to React/JSX where they represent real UI text.
 - Review `:has()` usage and replace layout-sensitive pseudo UI with explicit JSX state where practical.
-- Map duplicate selectors across all comparer CSS layers before consolidation.
+- Consolidate `.cmpCleanGrid`, `.cmpCleanPanel`, `.cmpCleanChart`, and `.cmpCleanTable` rules only after visual screenshots are verified.
 - Consider splitting `ToolComparerClean.jsx` into smaller components only after visual and case-flow stability are verified.
+- Move PDF export away from DOM scraping in a later phase; do not mix that with CSS cleanup.
 
 ## Current Decision
 
-No code deletion is approved from this audit alone. The only immediate approved follow-up is a tiny CSS cleanup around the redundant `LIVE RCA SIGNAL` pseudo badge if the user asks to continue patching.
+No CSS deletion is approved from this audit alone. The only immediate approved follow-up is removing the duplicate compact import path from `ToolComparerClean.css` if the user asks to continue patching.
