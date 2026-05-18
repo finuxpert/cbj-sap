@@ -2,10 +2,10 @@
 
 Use this file to continue the project in a new chat without re-explaining the current state.
 
-## Continuation Prompt — SAP RCA Cockpit UI + DB-first Case History
+## Continuation Prompt — SAP RCA Code Audit / Kode Sampah Cleanup
 
 ```text
-Lanjut SAP Intelligent RCA Workspace.
+Lanjut SAP Intelligent RCA Workspace — fokus audit kode sampah / technical debt cleanup.
 
 Repo:
 - finuxpert/cbj-sap
@@ -15,14 +15,15 @@ Branch:
 
 Mode:
 - GitHub connector only
-- incremental patch only
+- incremental audit + patch only
 - jangan pakai local CLI kecuali saya izinkan
-- jangan sentuh PROD/nginx/workflow kecuali diminta eksplisit
+- jangan sentuh PROD/nginx/workflow/deploy kecuali diminta eksplisit
 - jangan reintroduce MutationObserver/runtime injector
 - jangan rewrite besar
-- pertahankan API contract
-- pertahankan DB-first Case History sebagai source of truth
-- fokus lanjut UI/UX cockpit, real SAP RCA readability, RCA insight panel, chart readability, offender drilldown, dan PDF/report polish
+- jangan ubah API contract
+- jangan ganggu DB-first Case History
+- jangan hapus file sebelum ada bukti jelas file itu orphan/dead/duplicate
+- audit dulu, baru patch kecil dan aman
 
 Current infra:
 - DEV URL: https://sapdev.cbj-kontruksi.com
@@ -74,31 +75,34 @@ Case flow contract:
 
 Current UI/UX cockpit status:
 - SAPDEV screenshot validated after UI polish.
-- WP-SCOUT dashboard now has strong dark observability cockpit feel.
-- Offender Queue is now the main anchor.
+- WP-SCOUT dashboard has dark observability cockpit feel.
+- Offender Queue is the main anchor.
 - Right-side chart stack contains:
   - Trend – CPU / Mem / Swap
   - Top RSS offender ranking
   - Host pressure ranking
-- RCA Insight Panel fills the previous empty left-lower space with operational guidance.
-- Chart readability improved: brighter labels, larger chart height on desktop, stronger axis/legend contrast.
-- Offender table improved with zebra rows, sticky header, severity left strip, and hover emphasis.
-- PDF export dock is cleaner and remains floating bottom-right.
+- Executive Incident Ribbon now exists as a real React component, not only CSS label.
+- Chart readability has been improved with dedicated CSS override layer, but final screenshot still needs verification after deploy/build.
+- PDF export dock remains floating bottom-right.
 - Mobile polish exists but still needs deeper card/drawer interaction.
 
-Recent UI cockpit commits:
-- e751ce8ab8d5ade78c2a0dec36c9386eb2a5dd3a — Add WP-SCOUT RCA cockpit UI polish layer import.
-- 69b41ec9d37670491c19509fa14ae9b4490e1a5c — Fix missing WP-SCOUT RCA cockpit polish stylesheet.
-- d48f36dc7df20b3c628b82a7bbd73aad90cba89e — Polish WP-SCOUT RCA mobile cockpit phase 2.
-- 92b8ff531b13e421e22d1974a73f658d11cf3ae9 — Harden RCA cockpit mobile UX and fallback states.
-- 031bbd4205e59cc608bb03938c1d0b4acb297c32 — Refine WP-SCOUT RCA cockpit visual balance.
-- 3797052299fc88ac5ad60a86902cf5475c09cacc — Improve RCA insight panel and chart readability.
+Recent important commits:
+- 674a34e78907dc3fcc40ffba1c5c7ed29e026410 — Add WP-SCOUT executive incident ribbon component.
+- b9700b2cdbc1440f6f7c6c0b1cdaebc9442a3de8 — Style WP-SCOUT executive incident ribbon.
+- 61e8b4ccefaa2e797664cb4aad658aff4331110b — Add WP-SCOUT chart readability override.
+- 9cfefb6ffa8bbc98a3c1e3b312d804fae0f01266 — Load WP-SCOUT chart readability layer.
+- b69b7f2eca45f5d2b6434f2031dec984d19d7eb2 — Harden WP-SCOUT chart visual cleanup.
 
 Current key files:
 - src/main.jsx
 - src/app/wp-scout-rca-cockpit-polish.css
+- src/app/wp-scout-chart-readability.css
 - src/app/mobile-operational-polish.css
 - src/tools/ToolComparerClean.jsx
+- src/tools/ToolComparerClean.css
+- src/tools/ToolComparerCleanVisual.css
+- src/tools/ToolComparerDynatrace.css
+- src/tools/ToolComparerCleanCompact.css
 - src/tools/ToolComparerDirectHydrated.jsx
 - src/features/pdf/ToolExportDock.jsx
 - src/features/pdf/structuredPdf.js
@@ -113,62 +117,74 @@ Current key files:
 - scripts/qa-case-flow-contracts.sh
 - .github/workflows/dev-deploy.yml
 
-Current visual audit score:
-- Enterprise feel: 88
-- Observability cockpit: 89
-- RCA readability: 84
-- Executive readability: 72
-- SAP Basis usability: 87
-- Mobile readiness: 78
-- Product polish: 83
+Audit target — kode sampah / technical debt:
+1. Audit duplicate CSS layers:
+   - ToolComparerClean.css
+   - ToolComparerCleanVisual.css
+   - ToolComparerDynatrace.css
+   - ToolComparerCleanCompact.css
+   - wp-scout-rca-cockpit-polish.css
+   - wp-scout-chart-readability.css
+   - mobile-operational-polish.css
+   Goal: identify overlap, pseudo-content hacks, duplicated selectors, aggressive :has(), and chart overrides that should be merged or removed.
 
-Known UI gaps:
-1. Top area still feels form-heavy because Evidence Intake / Workflow / Case History consume too much space.
-2. Need real Executive Incident Ribbon component, not only CSS labels.
-3. Offender Queue still needs click row detail drawer.
-4. Charts improved but still need anomaly windows, better chart grouping, and no-overlap badges.
-5. Case History flow should become compact tab / slide-over after parsed state.
-6. Need AI/RCA narrative panel from actual data, not CSS pseudo-content.
+2. Audit React monolith / dead components:
+   - ToolComparerClean.jsx is still large.
+   - Check if old/unused comparer components, hydrated variants, or helper tools are still imported.
+   - Do not delete unless search proves no imports/usages.
+
+3. Audit old runtime enhancer / injector leftovers:
+   - Never reintroduce MutationObserver.
+   - Search for MutationObserver, runtime enhancer, dashboard enhancer, delayed DOM patching, recursive DOM patch, setTimeout UI hacks.
+   - If only dead comments/docs exist, document first before removal.
+
+4. Audit CSS pseudo-content used as real UI:
+   - RCA Insight Panel currently may still be pseudo-content in CSS.
+   - LIVE RCA SIGNAL pseudo badge caused chart overlap.
+   - Prefer real React components over CSS pseudo UI.
+
+5. Audit chart readability implementation:
+   - Verify if wp-scout-chart-readability.css is actually imported after competing component CSS.
+   - If override layer cannot win, move focused cleanup into component CSS or remove source pseudo rules.
+   - Do not touch chart data/parser logic unless necessary.
+
+6. Audit Case History / DB-first safety:
+   - Ensure no cleanup breaks explicit save intent.
+   - Ensure no cleanup hides CaseLinkPanel critical controls.
+   - Preserve useCaseHistoryLink contract.
+
+7. Audit bundle/performance:
+   - Look for large unused imports, duplicated CSS imports, old dashboard/helper modules still bundled.
+   - Keep patch incremental.
+
+Known UI gaps after latest chart patches:
+1. Need visual verification after deploy/build for chart cleanup.
+2. Top RSS / Host pressure chart labels may still need JSX margin tuning if CSS cannot fully fix it.
+3. Host/PID labels in bar charts may need shorter labels.
+4. Offender Queue still needs click row detail drawer.
+5. RCA Insight Panel should become real React panel, not CSS pseudo-content.
+6. Case History flow should become compact tab/slide-over after parsed state.
 7. Mobile should eventually switch offender table to card rows.
 
-Recommended next implementation order:
-1. Add real Executive Incident Ribbon component in ToolComparerClean.jsx using topRow/stats:
-   - CRITICAL MEMORY PRESSURE
-   - host, PID, WP type, RSS, score, job, action
-   - place between stats/FindingCard or above Offender Queue
-   - keep incremental and build-safe
-
-2. Add Offender Detail Drawer:
-   - selected row state
-   - click offender row to show details
-   - raw evidence, host, PID, job, RSS, age, score, recommended SAP checks
-   - desktop side panel, mobile bottom sheet if possible
-
-3. Replace CSS pseudo RCA Insight Panel with real React panel:
-   - immediate focus
-   - correlation checks
-   - next actions
-   - content derived from topRow/stats/resourceTrend
-
-4. Improve chart readability further:
-   - move LIVE RCA SIGNAL badge so it does not overlap chart labels
-   - add anomaly window marker for swap spike / RSS spike
-   - increase chart panel min-height only where needed
-
-5. Collapse or tab Workflow/Case History after parsed state:
-   - avoid hiding required save flow completely
-   - make save flow accessible but not dominant
-
-6. Continue DB/Grafana work only after UI state remains stable:
-   - PostgreSQL views/panels from cases, parsed_results, evidence
-   - real SAP sample normalization for WP-SCOUT/SM21/ST22/dev_w
+Recommended next audit order:
+1. Search repo for MutationObserver/runtime/dashboard enhancer leftovers.
+2. Search imports/usages for old comparer/helper files.
+3. Map CSS import order and duplicate selectors around WP-SCOUT cockpit/chart.
+4. Produce a small audit report in docs/runtime/code-cleanup-audit.md.
+5. Apply only safe cleanup patch:
+   - remove confirmed orphan CSS/imports
+   - remove pseudo-content chart badge source if safe
+   - consolidate chart readability override if safe
+   - no API/backend behavior changes
 
 Guardrails:
 - Incremental only.
 - Do not touch PROD.
 - Do not touch nginx unless explicitly requested.
+- Do not touch GitHub workflow/deploy unless explicitly requested.
 - Do not reintroduce runtime injectors/MutationObserver.
 - Do not rewrite large frontend modules.
+- Prefer audit documentation before deletion.
 - Prefer build-safe React/CSS patches.
 - Avoid aggressive CSS that clips critical Case History save controls.
 ```
@@ -176,5 +192,5 @@ Guardrails:
 ## Best Next First Patch
 
 ```text
-Add a real Executive Incident Ribbon in ToolComparerClean.jsx using topRow and stats, then add CSS in wp-scout-rca-cockpit-polish.css. Keep it incremental, no API/backend changes, and no runtime injector.
+Start with code cleanup audit only. Search for MutationObserver/runtime enhancer leftovers, duplicate WP-SCOUT CSS layers, and orphan comparer/helper files. Create docs/runtime/code-cleanup-audit.md with findings and recommended safe patches. Do not delete code until usage is proven.
 ```
