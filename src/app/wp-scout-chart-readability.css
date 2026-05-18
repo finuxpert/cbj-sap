@@ -1,5 +1,5 @@
 /* WP-SCOUT chart readability override
-   Small visual-only layer for chart spacing, badge overlap, and label clarity. */
+   Small visual-only layer for chart spacing and label clarity. */
 
 .appShell.isTool .cmpCleanShell .chartTitleBlock,
 .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock {
@@ -9,26 +9,6 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-/* The previous LIVE RCA SIGNAL pseudo badge could render twice and overlap plot labels.
-   Keep status context in the panel title/badges; do not inject overlay badges into charts. */
-.appShell.isTool .cmpCleanShell .chartTitleBlock::after,
-.appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after,
-body .appShell.isTool .cmpCleanShell .chartTitleBlock::after,
-body .appShell.isTool .cmpCleanShell .cmpTrendTitleBlock::after,
-body .cmpCleanShell .chartTitleBlock::after,
-body .cmpCleanShell .cmpTrendTitleBlock::after {
-  content: "" !important;
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  width: 0 !important;
-  height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  pointer-events: none !important;
 }
 
 .appShell.isTool .cmpCleanShell .rcaReadableChartPanel {
