@@ -1,5 +1,7 @@
 import React from 'react'
 import RcaInsightPanel from './RcaInsightPanel.jsx'
+import '../app/wp-scout-rca-cockpit-polish.css'
+import '../app/wp-scout-chart-readability.css'
 
 const DIRECT_UPLOAD_CACHE_KEY = 'sap_rca_wpscout_direct_upload_payload_v1'
 
