@@ -1,0 +1,357 @@
+/* Final SAP RCA UI polish. UI-only overrides for ST03N and Log workspace. */
+
+:root {
+  --rca-final-bg: #071012;
+  --rca-final-panel: rgba(14, 24, 28, 0.92);
+  --rca-final-panel-2: rgba(18, 31, 36, 0.88);
+  --rca-final-border: rgba(190, 218, 224, 0.14);
+  --rca-final-border-strong: rgba(56, 189, 248, 0.28);
+  --rca-final-text: rgba(248, 250, 252, 0.96);
+  --rca-final-muted: rgba(203, 213, 225, 0.72);
+  --rca-final-soft: rgba(148, 163, 184, 0.12);
+  --rca-final-accent: #38bdf8;
+  --rca-final-accent-2: #2dd4bf;
+  --rca-final-ok: #22c55e;
+  --rca-final-warn: #f59e0b;
+  --rca-final-radius: 18px;
+}
+
+.finalNav.rcaNav {
+  border-bottom-color: rgba(190, 218, 224, 0.12) !important;
+  background: rgba(5, 13, 16, 0.92) !important;
+}
+
+.finalNav .rcaNavInner {
+  min-height: 62px !important;
+}
+
+.finalNav .brandBadge {
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(45, 212, 191, 0.14)) !important;
+  border-color: rgba(56, 189, 248, 0.26) !important;
+  box-shadow: none !important;
+}
+
+.finalNav .brandTitle {
+  color: var(--rca-final-text) !important;
+}
+
+.finalNav .brandSub {
+  color: rgba(203, 213, 225, 0.62) !important;
+  letter-spacing: 0 !important;
+}
+
+.finalNav .rcaToolTabs {
+  justify-content: flex-end !important;
+}
+
+.finalNav .rcaToolTabs a {
+  min-width: 92px !important;
+  justify-content: center !important;
+  border-radius: 10px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(190, 218, 224, 0.12) !important;
+  color: rgba(226, 232, 240, 0.86) !important;
+  letter-spacing: 0.01em !important;
+}
+
+.finalNav .rcaToolTabs a:hover,
+.finalNav .rcaToolTabs a[data-active="true"] {
+  background: rgba(56, 189, 248, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+.finalMobilePanel .btn[data-active="true"] {
+  border-color: rgba(56, 189, 248, 0.42);
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.finalRcaTool.evidenceToolShell {
+  padding: clamp(16px, 2vw, 26px);
+  background:
+    radial-gradient(circle at 16% 0%, rgba(56, 189, 248, 0.09), transparent 30rem),
+    radial-gradient(circle at 84% 4%, rgba(45, 212, 191, 0.06), transparent 34rem),
+    linear-gradient(180deg, #071012 0%, #081114 52%, #05090b 100%);
+}
+
+.finalRcaTool .evidenceHero,
+.finalRcaTool .sessionBanner,
+.finalRcaTool .evidencePanel,
+.finalRcaTool .decisionCard {
+  border-color: var(--rca-final-border);
+  border-radius: var(--rca-final-radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    var(--rca-final-panel);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(12px);
+}
+
+.finalRcaTool .finalHero {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 330px);
+  gap: clamp(16px, 2.4vw, 28px);
+  padding: clamp(18px, 2.4vw, 28px);
+  margin-bottom: 14px;
+}
+
+.finalRcaTool .heroCopyBlock {
+  min-width: 0;
+}
+
+.finalRcaTool .evidenceHero span,
+.finalRcaTool .evidencePanel h2,
+.finalRcaTool .panelTitleRow span {
+  color: rgba(125, 211, 252, 0.92);
+}
+
+.finalRcaTool .evidenceHero h1 {
+  margin: 8px 0 10px;
+  max-width: 880px;
+  font-size: clamp(30px, 3.4vw, 48px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  background: none;
+  -webkit-background-clip: initial;
+  background-clip: initial;
+  color: var(--rca-final-text);
+}
+
+.finalRcaTool .evidenceHero p,
+.finalRcaTool .evidencePanel p,
+.finalRcaTool .sessionBanner span,
+.finalRcaTool .sessionBanner small,
+.finalRcaTool .evidenceList span,
+.finalRcaTool .evidenceList small,
+.finalRcaTool .statusList span,
+.finalRcaTool .confidenceRows span,
+.finalRcaTool .decisionCard small,
+.finalRcaTool .decisionCard span {
+  color: var(--rca-final-muted);
+}
+
+.finalUpload.evidenceUpload {
+  display: flex;
+  min-height: 128px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 16px;
+  border-color: rgba(56, 189, 248, 0.32);
+  background:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.12), rgba(45, 212, 191, 0.08)),
+    rgba(255, 255, 255, 0.035);
+  color: var(--rca-final-text);
+  box-shadow: none;
+  padding: 18px;
+}
+
+.finalUpload.evidenceUpload:hover {
+  border-color: rgba(56, 189, 248, 0.52);
+  background:
+    linear-gradient(180deg, rgba(56, 189, 248, 0.16), rgba(45, 212, 191, 0.10)),
+    rgba(255, 255, 255, 0.04);
+}
+
+.finalUpload strong {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.finalUpload small {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.acceptedTypes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.acceptedTypes span {
+  border: 1px solid rgba(190, 218, 224, 0.15);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: rgba(226, 232, 240, 0.86) !important;
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.finalDecisionBoard.decisionBoard {
+  gap: 12px;
+}
+
+.finalRcaTool .decisionCard {
+  min-height: 124px;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.finalRcaTool .decisionCard.good {
+  border-color: rgba(34, 197, 94, 0.28);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.10), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    var(--rca-final-panel);
+}
+
+.finalRcaTool .decisionCard.blue {
+  border-color: rgba(56, 189, 248, 0.28);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.11), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018)),
+    var(--rca-final-panel);
+}
+
+.finalRcaTool .decisionCard b {
+  font-size: clamp(18px, 1.7vw, 25px);
+  letter-spacing: -0.035em;
+}
+
+.panelTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panelTitleRow h2 {
+  margin: 0 !important;
+}
+
+.panelTitleRow span {
+  border: 1px solid rgba(190, 218, 224, 0.12);
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 10px !important;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.finalStatusList.statusList {
+  gap: 8px;
+}
+
+.finalStatusList.statusList div,
+.finalEvidenceList.evidenceList div,
+.finalMetricRows.confidenceRows span {
+  border-radius: 12px;
+  border-color: rgba(190, 218, 224, 0.12);
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.finalStatusList.statusList div.ok {
+  border-color: rgba(34, 197, 94, 0.28);
+}
+
+.finalStatusList.statusList div.ok::before,
+.finalStatusList.statusList div.missing::before {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+}
+
+.finalStatusList.statusList div.ok::before {
+  content: 'READY';
+  color: rgba(187, 247, 208, 0.96);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.finalStatusList.statusList div.missing {
+  border-color: rgba(245, 158, 11, 0.32);
+}
+
+.finalStatusList.statusList div.missing::before {
+  content: 'MISSING';
+  color: rgba(253, 230, 138, 0.96);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.finalRcaTool .evidenceList {
+  scrollbar-width: thin;
+}
+
+.finalRcaTool .evidenceList div b,
+.finalRcaTool .statusList div b {
+  line-height: 1.25;
+}
+
+.finalRcaTool .evidenceList div span,
+.finalRcaTool .statusList div span,
+.finalRcaTool .evidenceList div small {
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+
+.finalRcaTool .chartPanel {
+  min-height: 390px;
+}
+
+.finalRcaTool .emptyState {
+  margin-bottom: 14px;
+}
+
+.finalRcaTool .emptyState ol {
+  color: rgba(203, 213, 225, 0.74);
+  line-height: 1.7;
+}
+
+.finalRcaTool .evidenceToolbar button {
+  border-radius: 10px;
+  min-height: 34px;
+}
+
+.finalRcaTool .evidenceToolbar button:hover:not(:disabled) {
+  border-color: rgba(56, 189, 248, 0.34);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.finalRcaTool .recharts-default-legend {
+  font-size: 12px;
+}
+
+.finalRcaTool .recharts-wrapper {
+  margin-top: 4px;
+}
+
+@media (max-width: 1120px) {
+  .finalRcaTool .finalHero {
+    grid-template-columns: 1fr;
+  }
+
+  .finalUpload.evidenceUpload {
+    min-height: 112px;
+  }
+}
+
+@media (max-width: 760px) {
+  .finalRcaTool.evidenceToolShell {
+    padding: 12px;
+  }
+
+  .finalRcaTool .evidenceHero h1 {
+    font-size: 32px;
+  }
+
+  .panelTitleRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .finalNav .brandSub {
+    display: none !important;
+  }
+}
