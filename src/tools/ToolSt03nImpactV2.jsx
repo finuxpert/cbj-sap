@@ -1,5 +1,4 @@
 import React from 'react'
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from 'recharts'
 import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from './evidence-utils.js'
 import {
   DecisionCard,
@@ -20,13 +19,6 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
-const CHART_COLORS = {
-  score: '#38bdf8',
-  response: '#60a5fa',
-  db: '#a78bfa',
-  wait: '#fbbf24',
-  steps: '#2dd4bf',
-}
 
 const dashboardGridStyle = {
   display: 'grid',
@@ -38,13 +30,13 @@ const dashboardGridStyle = {
 
 const span = (cols) => ({ gridColumn: `span ${cols}` })
 
-function compactLabel(value = '', max = 16) {
+function compactLabel(value = '', max = 18) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
   return label.length > max ? `${label.slice(0, Math.max(8, max - 1))}…` : label
 }
 
-function valueLabel(value, unit = '') {
-  return `${fmt(value, 0)}${unit}`
+function metricMax(rows = [], metric) {
+  return Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
 }
 
 function buildReportText(analysis) {
@@ -173,84 +165,67 @@ function KpiStrip({ topRows }) {
   )
 }
 
-function ChartList({ rows = [], metric, unit = '' }) {
+function MetricRows({ rows = [], metric, unit = '', maxRows = 5 }) {
+  const max = metricMax(rows, metric)
   return (
-    <div className="st03nChartList">
-      {rows.slice(0, 4).map((row) => (
-        <div key={`${row.name}-${metric}`}>
-          <b>{row.name}</b>
-          <span>{valueLabel(row[metric], unit)}</span>
-        </div>
-      ))}
+    <div className="st03nMetricRows">
+      {rows.slice(0, maxRows).map((row, index) => {
+        const value = Number(row[metric] || 0)
+        const pct = Math.max(4, Math.min(100, (value / max) * 100))
+        return (
+          <div key={`${row.name}-${metric}-${index}`} className="st03nMetricRow">
+            <div>
+              <b>{row.name}</b>
+              <span>{fmt(value, 0)}{unit}</span>
+            </div>
+            <i style={{ width: `${pct}%` }} />
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-function HorizontalMetricChart({ title, tag, data = [], metric, color, unit = '' }) {
+function MetricPanel({ title, tag, rows = [], metric, unit = '', maxRows = 5 }) {
   return (
-    <section className="evidencePanel miniChartPanel st03nMetricPanel">
+    <section className="evidencePanel st03nMetricPanel">
       <div className="panelTitleRow">
         <h2>{title}</h2>
         <span>{tag}</span>
       </div>
-      <ResponsiveContainer width="100%" height={158}>
-        <BarChart layout="vertical" data={data} margin={{ top: 2, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tickFormatter={(value) => `${fmt(value, 0)}${unit}`} tick={{ fontSize: 10 }} />
-          <YAxis type="category" dataKey="name" width={112} tick={{ fontSize: 10 }} />
-          <Tooltip formatter={(value) => [`${fmt(value, 0)}${unit}`, metric]} />
-          <Bar dataKey={metric} name={metric} fill={color} radius={[0, 8, 8, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-      <ChartList rows={data} metric={metric} unit={unit} />
+      <MetricRows rows={rows} metric={metric} unit={unit} maxRows={maxRows} />
     </section>
   )
 }
 
-function BreakdownChart({ data = [] }) {
+function BreakdownPanel({ rows = [] }) {
   return (
-    <section className="evidencePanel chartPanel st03nChartPanel">
+    <section className="evidencePanel st03nBreakdownPanel">
       <div className="panelTitleRow">
         <h2>Response / DB / Wait Breakdown</h2>
         <span>Top workload split</span>
       </div>
-      <ResponsiveContainer width="100%" height={184}>
-        <BarChart layout="vertical" data={data} margin={{ top: 2, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tickFormatter={(value) => `${fmt(value, 0)}ms`} tick={{ fontSize: 10 }} />
-          <YAxis type="category" dataKey="name" width={118} tick={{ fontSize: 10 }} />
-          <Tooltip formatter={(value) => [`${fmt(value, 0)}ms`, '']} />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="response" name="Response ms" stackId="workload" fill={CHART_COLORS.response} />
-          <Bar dataKey="db" name="DB ms" stackId="workload" fill={CHART_COLORS.db} />
-          <Bar dataKey="wait" name="Wait ms" stackId="workload" fill={CHART_COLORS.wait} radius={[0, 8, 8, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-      <ChartList rows={data} metric="response" unit="ms" />
-    </section>
-  )
-}
-
-function TrendChart({ data = [] }) {
-  return (
-    <section className="evidencePanel miniChartPanel st03nChartPanel">
-      <div className="panelTitleRow">
-        <h2>Workload Trend by Rank</h2>
-        <span>Score / response / DB</span>
+      <div className="st03nBreakdownRows">
+        {rows.slice(0, 5).map((row, index) => {
+          const total = Math.max(1, row.response + row.db + row.wait)
+          const respPct = Math.max(3, (row.response / total) * 100)
+          const dbPct = Math.max(3, (row.db / total) * 100)
+          const waitPct = Math.max(3, (row.wait / total) * 100)
+          return (
+            <div key={`${row.name}-breakdown-${index}`} className="st03nBreakdownRow">
+              <div>
+                <b>{row.name}</b>
+                <span>Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</span>
+              </div>
+              <p>
+                <i className="resp" style={{ width: `${respPct}%` }} />
+                <i className="db" style={{ width: `${dbPct}%` }} />
+                <i className="wait" style={{ width: `${waitPct}%` }} />
+              </p>
+            </div>
+          )
+        })}
       </div>
-      <ResponsiveContainer width="100%" height={184}>
-        <LineChart data={data} margin={{ top: 4, right: 14, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="rank" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} />
-          <Tooltip />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Line dataKey="score" name="Score" stroke={CHART_COLORS.score} strokeWidth={3} dot={false} />
-          <Line dataKey="responseK" name="Response sec" stroke={CHART_COLORS.response} strokeWidth={3} dot={false} />
-          <Line dataKey="dbK" name="DB sec" stroke={CHART_COLORS.db} strokeWidth={3} dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
-      <ChartList rows={data} metric="score" />
     </section>
   )
 }
@@ -263,14 +238,7 @@ function ComponentMix({ analysis, topRows }) {
         <h2>Component Mix</h2>
         <span>Classified rows</span>
       </div>
-      <div className="st03nComponentRows">
-        {rows.map((row) => (
-          <div key={row.name}>
-            <b>{row.name}</b>
-            <span>{row.value} hits</span>
-          </div>
-        ))}
-      </div>
+      <MetricRows rows={rows.map((row) => ({ name: row.name, hits: row.value }))} metric="hits" unit=" hits" maxRows={4} />
       <div className="evidenceList compact finalEvidenceList st03nCompactList">
         {topRows.slice(0, 3).map((row) => (
           <div key={`${row.kind}-${row.fileName}-${row.label}`}>
@@ -284,27 +252,6 @@ function ComponentMix({ analysis, topRows }) {
   )
 }
 
-function TopEvidenceChart({ chartRows }) {
-  return (
-    <section className="evidencePanel chartPanel st03nChartPanel">
-      <div className="panelTitleRow">
-        <h2>Top ST03N Evidence</h2>
-        <span>Horizontal ranking</span>
-      </div>
-      <ResponsiveContainer width="100%" height={190}>
-        <BarChart layout="vertical" data={chartRows} margin={{ top: 2, right: 10, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
-          <YAxis type="category" dataKey="name" width={118} tick={{ fontSize: 10 }} />
-          <Tooltip />
-          <Bar dataKey="score" name="Score" fill={CHART_COLORS.score} radius={[0, 8, 8, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-      <ChartList rows={chartRows} metric="score" />
-    </section>
-  )
-}
-
 function OffenderRanking({ topRows }) {
   return (
     <section className="evidencePanel st03nOffenderPanel">
@@ -313,7 +260,7 @@ function OffenderRanking({ topRows }) {
         <span>Basis review list</span>
       </div>
       <div className="evidenceList finalEvidenceList st03nCompactList">
-        {topRows.slice(0, 6).map((row) => (
+        {topRows.slice(0, 8).map((row) => (
           <div key={`${row.kind}-${row.fileName}-${row.label}-ranking`}>
             <b>{row.label}</b>
             <span>{row.kind} · {row.component} · score {row.score}/100</span>
@@ -327,15 +274,13 @@ function OffenderRanking({ topRows }) {
 
 function EvidenceCharts({ analysis, topRows }) {
   const chartRows = topRows.slice(0, 8).map((row, index) => ({
-    name: compactLabel(row.label, 16),
+    name: compactLabel(row.label, 18),
     rank: `#${index + 1}`,
     score: row.score || 0,
     response: Math.round(row.responseMs || 0),
     db: Math.round(row.dbMs || 0),
     wait: Math.round(row.waitMs || 0),
     steps: Math.round(row.steps || 0),
-    responseK: Number(((row.responseMs || 0) / 1000).toFixed(1)),
-    dbK: Number(((row.dbMs || 0) / 1000).toFixed(1)),
   }))
   const topResponseRows = [...chartRows].sort((a, b) => b.response - a.response).slice(0, 5)
   const topDbRows = [...chartRows].sort((a, b) => b.db - a.db).slice(0, 5)
@@ -345,13 +290,12 @@ function EvidenceCharts({ analysis, topRows }) {
     <>
       <KpiStrip topRows={topRows} />
       <div className="st03nDashboardBoard" style={dashboardGridStyle}>
-        <div style={span(7)}><TopEvidenceChart chartRows={chartRows} /></div>
+        <div style={span(7)}><MetricPanel title="Top ST03N Evidence" tag="Ranking" rows={chartRows} metric="score" maxRows={6} /></div>
         <div style={span(5)}><ComponentMix analysis={analysis} topRows={topRows} /></div>
-        <div style={span(6)}><BreakdownChart data={chartRows.slice(0, 5)} /></div>
-        <div style={span(6)}><TrendChart data={chartRows} /></div>
-        <div style={span(4)}><HorizontalMetricChart title="Top Response Time" tag="Dialog impact" data={topResponseRows} metric="response" color={CHART_COLORS.response} unit="ms" /></div>
-        <div style={span(4)}><HorizontalMetricChart title="Top DB Time" tag="Database pressure" data={topDbRows} metric="db" color={CHART_COLORS.db} unit="ms" /></div>
-        <div style={span(4)}><HorizontalMetricChart title="Steps Volume" tag="Execution volume" data={topStepRows} metric="steps" color={CHART_COLORS.steps} /></div>
+        <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
+        <div style={span(4)}><MetricPanel title="Top Response Time" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" /></div>
+        <div style={span(4)}><MetricPanel title="Top DB Time" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" /></div>
+        <div style={span(4)}><MetricPanel title="Steps Volume" tag="Execution volume" rows={topStepRows} metric="steps" /></div>
         <div style={span(12)}><OffenderRanking topRows={topRows} /></div>
       </div>
     </>
