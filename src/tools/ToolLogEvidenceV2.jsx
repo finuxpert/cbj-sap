@@ -22,6 +22,7 @@ import {
 import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
+const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
 const KNOWN_ERRORS = [
   'CONVT_NO_NUMBER',
   'DBSQL_DUPLICATE_KEY_ER',
@@ -211,8 +212,139 @@ function buildAnalysis(files, rows, evidenceServer) {
   }
 }
 
+function AcceptedTypes({ items }) {
+  return <div className="acceptedTypes">{items.map((item) => <span key={item}>{item}</span>)}</div>
+}
+
+function ToolHero({ busy, onFiles }) {
+  return (
+    <header className="evidenceHero compactEvidenceHero finalHero">
+      <div className="heroCopyBlock">
+        <span>Log Evidence Console</span>
+        <h1>Error pattern drilldown.</h1>
+        <p>Classify SAP log signals from WP-SCOUT, SM21, ST22, dev_w, and job logs without changing the parser rules.</p>
+      </div>
+      <label className="evidenceUpload finalUpload">
+        <input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />
+        <strong>{busy ? 'Parsing…' : 'Upload Log Evidence'}</strong>
+        <small>Accepted files</small>
+        <AcceptedTypes items={ACCEPTED_TYPES} />
+      </label>
+    </header>
+  )
+}
+
 function Group({ title, rows = [] }) {
-  return <section className="evidencePanel"><h2>{title}</h2><div className="evidenceList compact">{rows.slice(0, 8).map((item) => <div key={item.name}><b>{item.name}</b><span>hits {item.hits} · CRIT {item.critHits}</span><small>{item.family || ''} {item.examples?.join(' · ')}</small></div>)}</div></section>
+  return (
+    <section className="evidencePanel">
+      <div className="panelTitleRow">
+        <h2>{title}</h2>
+        <span>Top 8</span>
+      </div>
+      <div className="evidenceList compact finalEvidenceList">
+        {rows.slice(0, 8).map((item) => (
+          <div key={item.name}>
+            <b>{item.name}</b>
+            <span>hits {item.hits} · CRIT {item.critHits}</span>
+            <small>{item.family || ''} {item.examples?.join(' · ')}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PrimaryExplanation({ primary, status }) {
+  return (
+    <section className="evidencePanel interpretationPanel">
+      <div className="panelTitleRow">
+        <h2>Primary Error Explanation</h2>
+        <span>Classified signal</span>
+      </div>
+      {primary ? (
+        <>
+          <p><b>{primary.name}</b> points to <b>{primary.family}</b>.</p>
+          <p>{primary.meaning}</p>
+          <div className="confidenceRows finalMetricRows">
+            <span>Hits<b>{primary.hits}</b></span>
+            <span>CRIT<b>{primary.critHits}</b></span>
+            <span>Files<b>{primary.files?.length || 0}</b></span>
+          </div>
+        </>
+      ) : <p>{status}</p>}
+    </section>
+  )
+}
+
+function MappingPanel({ primary }) {
+  return (
+    <section className="evidencePanel">
+      <div className="panelTitleRow">
+        <h2>Error → Job / Program Mapping</h2>
+        <span>Extracted context</span>
+      </div>
+      {primary ? (
+        <div className="evidenceList compact finalEvidenceList">
+          <div><b>Jobs</b><span>{primary.jobs?.join(' · ') || 'No job extracted'}</span></div>
+          <div><b>Programs</b><span>{primary.programs?.join(' · ') || 'No program extracted'}</span></div>
+          <div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div>
+        </div>
+      ) : <p>Upload logs to map errors to jobs and programs.</p>}
+    </section>
+  )
+}
+
+function EvidenceCharts({ analysis, chartData }) {
+  return (
+    <div className="evidenceGrid wide">
+      <section className="evidencePanel chartPanel">
+        <div className="panelTitleRow">
+          <h2>Top ErrorCode</h2>
+          <span>Hits and CRIT</span>
+        </div>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="hits" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="crit" radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        {analysis.timeline?.length ? (
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart data={analysis.timeline}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="time" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line dataKey="hits" strokeWidth={3} />
+              <Line dataKey="crit" strokeWidth={3} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : null}
+      </section>
+
+      <section className="evidencePanel">
+        <div className="panelTitleRow">
+          <h2>Error Evidence Ranking</h2>
+          <span>Highest confidence first</span>
+        </div>
+        <div className="evidenceList finalEvidenceList">
+          {analysis.errorGroups.slice(0, 12).map((item) => (
+            <div key={item.name}>
+              <b>{item.name}</b>
+              <span>{item.family} · owner {item.owner}</span>
+              <small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
 }
 
 function buildReportText(analysis) {
@@ -284,5 +416,55 @@ export default function ToolLogEvidenceV2() {
   const primary = analysis?.primary
   const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: item.name.slice(0, 16), hits: item.hits, crit: item.critHits })) || []
 
-  return <section className="evidenceToolShell refinedTool"><header className="evidenceHero compactEvidenceHero"><div><span>Log Evidence Analyzer V2</span><h1>Error pattern drilldown.</h1><p>Decision-first log analysis: primary error, family, owner direction, job/program mapping, and occurrence timeline.</p></div><label className="evidenceUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />{busy ? 'Parsing…' : 'Upload Log Evidence'}</label></header><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><section className="decisionBoard"><DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} /><DecisionCard label="Error Family" value={primary?.family || 'Unknown'} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" /><DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={analysis?.nextAction || 'Based only on uploaded evidence pattern'} /><DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} /></section><div className="evidenceGrid"><section className="evidencePanel"><h2>Primary Error Explanation</h2>{primary ? <><p><b>{primary.name}</b> points to <b>{primary.family}</b>.</p><p>{primary.meaning}</p><div className="confidenceRows"><span>Hits<b>{primary.hits}</b></span><span>CRIT<b>{primary.critHits}</b></span><span>Files<b>{primary.files?.length || 0}</b></span></div></> : <p>{status}</p>}</section><section className="evidencePanel"><h2>Error → Job / Program Mapping</h2>{primary ? <div className="evidenceList compact"><div><b>Jobs</b><span>{primary.jobs?.join(' · ') || 'No job extracted'}</span></div><div><b>Programs</b><span>{primary.programs?.join(' · ') || 'No program extracted'}</span></div><div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div></div> : <p>Upload logs to map errors to jobs and programs.</p>}</section></div>{analysis ? <div className="evidenceGrid wide"><section className="evidencePanel chartPanel"><h2>Top ErrorCode</h2><ResponsiveContainer width="100%" height={300}><BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis /><Tooltip /><Legend /><Bar dataKey="hits" radius={[8, 8, 0, 0]} /><Bar dataKey="crit" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer>{analysis.timeline?.length ? <ResponsiveContainer width="100%" height={180}><LineChart data={analysis.timeline}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="time" /><YAxis /><Tooltip /><Legend /><Line dataKey="hits" strokeWidth={3} /><Line dataKey="crit" strokeWidth={3} /></LineChart></ResponsiveContainer> : null}</section><section className="evidencePanel"><h2>Error Evidence Ranking</h2><div className="evidenceList">{analysis.errorGroups.slice(0, 12).map((item) => <div key={item.name}><b>{item.name}</b><span>{item.family} · owner {item.owner}</span><small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small></div>)}</div></section></div> : <EmptyState title="How to use this analyzer"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, or a ZIP containing logs.</p><ol><li>Find strongest ErrorCode.</li><li>Map error to job/program.</li><li>Use owner direction to route action.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: `Focus ${item.owner}`, examples: [buildOwnerAction(item)] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={files} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
+  return (
+    <section className="evidenceToolShell refinedTool finalRcaTool">
+      <ToolHero busy={busy} onFiles={onFiles} />
+      <SessionBanner session={session} />
+      <EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-log-evidence-v2" />
+
+      <section className="decisionBoard finalDecisionBoard">
+        <DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} />
+        <DecisionCard label="Error Family" value={primary?.family || 'Unknown'} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" />
+        <DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={analysis?.nextAction || 'Based only on uploaded evidence pattern'} />
+        <DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} />
+      </section>
+
+      <div className="evidenceGrid">
+        <PrimaryExplanation primary={primary} status={status} />
+        <MappingPanel primary={primary} />
+      </div>
+
+      {analysis ? (
+        <EvidenceCharts analysis={analysis} chartData={chartData} />
+      ) : (
+        <EmptyState title="Upload log evidence">
+          <p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs.</p>
+          <ol>
+            <li>Find the strongest ErrorCode pattern.</li>
+            <li>Map the error to job/program context.</li>
+            <li>Use owner direction to route action to Basis, ABAP, functional, or DB team.</li>
+          </ol>
+        </EmptyState>
+      )}
+
+      {analysis && (
+        <div className="evidenceGrid triple">
+          <Group title="Top JobName" rows={analysis.jobGroups} />
+          <Group title="Top Program" rows={analysis.programGroups} />
+          <Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({
+            name: item.name,
+            hits: item.hits,
+            critHits: item.critHits,
+            family: `Focus ${item.owner}`,
+            examples: [buildOwnerAction(item)],
+          }))} />
+        </div>
+      )}
+
+      <div className="evidenceGrid">
+        <UploadedFilesPanel files={files} />
+        <EvidenceServerPanel serverInfo={serverInfo} />
+      </div>
+    </section>
+  )
 }
