@@ -23,6 +23,15 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
+const CHART_COLORS = {
+  hits: '#38bdf8',
+  crit: '#fb7185',
+  warn: '#fbbf24',
+  ok: '#34d399',
+  cpu: '#a78bfa',
+  rss: '#2dd4bf',
+  host: '#60a5fa',
+}
 const KNOWN_ERRORS = [
   'CONVT_NO_NUMBER',
   'DBSQL_DUPLICATE_KEY_ER',
@@ -244,6 +253,45 @@ function aggregateGroups(groups = [], key, labelFn = (value) => value) {
   return Array.from(map.values()).sort((a, b) => b.crit - a.crit || b.hits - a.hits).slice(0, 6)
 }
 
+function buildInfraTimeline(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const time = row.timeLabel || 'unknown'
+    const current = map.get(time) || { time, samples: 0, cpuTotal: 0, avgCpu: 0, maxCpu: 0, maxRssGb: 0, crit: 0, warn: 0 }
+    current.samples += 1
+    current.cpuTotal += Number(row.cpu) || 0
+    current.maxCpu = Math.max(current.maxCpu, Number(row.cpu) || 0)
+    current.maxRssGb = Math.max(current.maxRssGb, Number(row.rssGb) || 0)
+    current.crit += row.className === 'CRIT' ? 1 : 0
+    current.warn += row.className === 'WARN' ? 1 : 0
+    current.avgCpu = Number((current.cpuTotal / current.samples).toFixed(2))
+    map.set(time, current)
+  })
+  return Array.from(map.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+}
+
+function buildSeverityMix(rows = []) {
+  const counts = { CRIT: 0, WARN: 0, OK: 0 }
+  rows.forEach((row) => { counts[row.className] = (counts[row.className] || 0) + 1 })
+  return [
+    { name: 'CRIT', hits: counts.CRIT, crit: counts.CRIT },
+    { name: 'WARN', hits: counts.WARN, crit: 0 },
+    { name: 'OK', hits: counts.OK, crit: 0 },
+  ].filter((item) => item.hits > 0)
+}
+
+function buildHostMix(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const name = row.host || 'UNKNOWN'
+    const current = map.get(name) || { name, hits: 0, crit: 0 }
+    current.hits += 1
+    current.crit += row.className === 'CRIT' ? 1 : 0
+    map.set(name, current)
+  })
+  return Array.from(map.values()).sort((a, b) => b.crit - a.crit || b.hits - a.hits).slice(0, 6)
+}
+
 function AcceptedTypes({ items }) {
   return <div className="acceptedTypes">{items.map((item) => <span key={item}>{item}</span>)}</div>
 }
@@ -340,9 +388,32 @@ function MiniChartPanel({ title, tag, data = [] }) {
           <YAxis type="category" dataKey="name" width={128} tick={{ fontSize: 11 }} />
           <Tooltip />
           <Legend />
-          <Bar dataKey="hits" radius={[0, 8, 8, 0]} />
-          <Bar dataKey="crit" radius={[0, 8, 8, 0]} />
+          <Bar dataKey="hits" fill={CHART_COLORS.hits} radius={[0, 8, 8, 0]} />
+          <Bar dataKey="crit" fill={CHART_COLORS.crit} radius={[0, 8, 8, 0]} />
         </BarChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function InfraTrendPanel({ data = [] }) {
+  return (
+    <section className="evidencePanel miniChartPanel infraTrendPanel">
+      <div className="panelTitleRow">
+        <h2>Infra CPU / Memory Trend</h2>
+        <span>CPU and RSS</span>
+      </div>
+      <ResponsiveContainer width="100%" height={240}>
+        <LineChart data={data} margin={{ top: 4, right: 18, left: 0, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="time" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Line dataKey="avgCpu" name="avg CPU %" stroke={CHART_COLORS.cpu} strokeWidth={3} dot={false} />
+          <Line dataKey="maxCpu" name="max CPU %" stroke={CHART_COLORS.crit} strokeWidth={3} dot={false} />
+          <Line dataKey="maxRssGb" name="max RSS GB" stroke={CHART_COLORS.rss} strokeWidth={3} dot={false} />
+        </LineChart>
       </ResponsiveContainer>
     </section>
   )
@@ -356,6 +427,9 @@ function EvidenceCharts({ analysis, chartData }) {
     hits: item.hits || 0,
     crit: item.critHits || 0,
   }))
+  const infraTimeline = buildInfraTimeline(analysis.rows || [])
+  const severityChart = buildSeverityMix(analysis.rows || [])
+  const hostChart = buildHostMix(analysis.rows || [])
 
   return (
     <>
@@ -372,8 +446,8 @@ function EvidenceCharts({ analysis, chartData }) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="hits" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="crit" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="hits" fill={CHART_COLORS.hits} radius={[8, 8, 0, 0]} />
+              <Bar dataKey="crit" fill={CHART_COLORS.crit} radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           {analysis.timeline?.length ? (
@@ -384,8 +458,8 @@ function EvidenceCharts({ analysis, chartData }) {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line dataKey="hits" strokeWidth={3} />
-                <Line dataKey="crit" strokeWidth={3} />
+                <Line dataKey="hits" stroke={CHART_COLORS.hits} strokeWidth={3} />
+                <Line dataKey="crit" stroke={CHART_COLORS.crit} strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           ) : null}
@@ -412,6 +486,12 @@ function EvidenceCharts({ analysis, chartData }) {
         <MiniChartPanel title="Error Family Mix" tag="By hits / CRIT" data={familyChart} />
         <MiniChartPanel title="Owner Direction Mix" tag="By owner" data={ownerChart} />
         <MiniChartPanel title="Top Program Volume" tag="By program" data={programChart} />
+      </div>
+
+      <div className="evidenceGrid triple chartMiniGrid infraChartGrid">
+        <InfraTrendPanel data={infraTimeline} />
+        <MiniChartPanel title="Infra Severity Mix" tag="CRIT / WARN / OK" data={severityChart} />
+        <MiniChartPanel title="Host Impact Mix" tag="By host" data={hostChart} />
       </div>
     </>
   )
