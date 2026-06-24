@@ -7,7 +7,7 @@ body:has(.logEvidenceShell),
 
 .logEvidenceShell {
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
   box-sizing: border-box;
   padding-bottom: 28px;
 }
@@ -37,7 +37,6 @@ body:has(.logEvidenceShell),
 .logEvidenceShell .infraWideGrid,
 .logEvidenceShell .chartMiniGrid,
 .logEvidenceShell .infraChartGrid {
-  overflow: clip;
   gap: 14px !important;
   align-items: start !important;
 }
@@ -67,20 +66,16 @@ body:has(.logEvidenceShell),
   padding: 14px;
 }
 
-.logEvidenceShell .chartPanel .recharts-responsive-container:first-of-type {
-  height: 220px !important;
+.logEvidenceShell .chartPanel {
+  min-height: 420px !important;
 }
 
-.logEvidenceShell .chartPanel .recharts-responsive-container:nth-of-type(2) {
-  height: 120px !important;
+.logEvidenceShell .miniChartPanel {
+  min-height: 288px !important;
 }
 
-.logEvidenceShell .miniChartPanel .recharts-responsive-container {
-  height: 178px !important;
-}
-
-.logEvidenceShell .infraTrendPanel .recharts-responsive-container {
-  height: 206px !important;
+.logEvidenceShell .infraTrendPanel {
+  min-height: 308px !important;
 }
 
 .logEvidenceShell .evidenceList.finalEvidenceList,
@@ -125,8 +120,17 @@ body:has(.logEvidenceShell),
   white-space: nowrap;
 }
 
+.logEvidenceShell .recharts-responsive-container {
+  overflow: visible !important;
+}
+
 .logEvidenceShell .recharts-surface {
   max-width: 100%;
+  overflow: visible;
+}
+
+.logEvidenceShell .recharts-wrapper {
+  overflow: visible !important;
 }
 
 .logEvidenceShell .recharts-cartesian-axis-tick-value {
