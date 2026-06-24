@@ -1,11 +1,33 @@
 .st03nImpactShell {
-  overflow-x: hidden;
+  max-width: 100%;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+.st03nImpactShell *,
+.st03nImpactShell *::before,
+.st03nImpactShell *::after {
+  box-sizing: border-box;
 }
 
 .st03nImpactShell .st03nDashboardBoard,
-.st03nImpactShell .st03nDashboardBoard > * {
+.st03nImpactShell .st03nDashboardBoard > *,
+.st03nImpactShell .st03nSummaryGrid,
+.st03nImpactShell .st03nFooterGrid,
+.st03nImpactShell .evidencePanel,
+.st03nImpactShell .recharts-responsive-container,
+.st03nImpactShell .recharts-wrapper {
   max-width: 100%;
   min-width: 0;
+}
+
+.st03nImpactShell .st03nDashboardBoard {
+  width: 100%;
+  overflow: hidden;
+}
+
+.st03nImpactShell .recharts-surface {
+  max-width: 100%;
 }
 
 .st03nImpactShell .statusList .detected {
@@ -50,4 +72,39 @@
 .st03nImpactShell .statusList .missing em {
   background: rgba(251, 191, 36, 0.18);
   color: rgba(253, 224, 71, 0.96);
+}
+
+.st03nImpactShell .finalStatusList.statusList div.ok::before,
+.st03nImpactShell .finalStatusList.statusList div.missing::before {
+  display: none;
+}
+
+.st03nImpactShell .st03nFooterGrid .evidencePanel {
+  padding: 14px;
+}
+
+.st03nImpactShell .st03nFooterGrid .evidenceList {
+  max-height: 180px;
+  overflow: auto;
+}
+
+@media (max-width: 1180px) {
+  .st03nImpactShell .st03nDashboardBoard {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+
+  .st03nImpactShell .st03nDashboardBoard > * {
+    grid-column: span 6 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .st03nImpactShell {
+    overflow-x: hidden;
+  }
+
+  .st03nImpactShell .st03nDashboardBoard {
+    display: flex !important;
+    flex-direction: column;
+  }
 }
