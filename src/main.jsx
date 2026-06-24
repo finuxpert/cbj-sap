@@ -6,6 +6,7 @@ import './app/rca-workspace.css'
 import './app/rca-final-ui.css'
 import './app/rca-log-ui.css'
 import './app/st03n-status-ui.css'
+import './app/log-polish-ui.css'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
