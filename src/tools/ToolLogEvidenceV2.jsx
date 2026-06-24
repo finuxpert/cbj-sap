@@ -1,5 +1,4 @@
 import React from 'react'
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, LineChart, Line } from 'recharts'
 import {
   buildOwnerAction,
   classifySapError,
@@ -23,21 +22,11 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
-const CHART_COLORS = {
-  hits: '#38bdf8',
-  crit: '#f97316',
-  warn: '#fbbf24',
-  ok: '#22c55e',
-  cpu: '#a78bfa',
-  rss: '#2dd4bf',
-  host: '#60a5fa',
-}
 const KNOWN_ERRORS = [
   'CONVT_OVERFLOW',
   'CONVT_NO_NUMBER',
   'DBSQL_DUPLICATE_KEY_ER',
   'DBSQL_SQL_DEADLOCK_DET',
-  'DBSQL_DUPLICATE_KEY_ER',
   'ITAB_DUPLICATE_KEY',
   'LOAD_PROGRAM_TABLE_MIS',
   'SYSTEM_ABAP_ACCESS_DEN',
@@ -124,6 +113,14 @@ function displayLabel(value = '', max = 28) {
   const label = safe(value)
   const normalized = !label || label === '?' || label.toUpperCase() === 'UNKNOWN' ? 'Unknown' : label
   return normalized.length > max ? `${normalized.slice(0, Math.max(8, max - 1))}…` : normalized
+}
+
+function compactFamilyLabel(family = '') {
+  return safe(family)
+    .replace('SAP runtime/log pattern', 'Runtime Pattern')
+    .replace('RFC / communication function error', 'RFC / Communication')
+    .replace('ABAP program load/runtime issue', 'ABAP Runtime')
+    .replace('Database/application data consistency issue', 'Data Consistency') || 'Unknown'
 }
 
 function group(rows, key) {
@@ -232,14 +229,6 @@ function buildAnalysis(files, rows, evidenceServer) {
   }
 }
 
-function compactFamilyLabel(family = '') {
-  return safe(family)
-    .replace('SAP runtime/log pattern', 'Runtime Pattern')
-    .replace('RFC / communication function error', 'RFC / Communication')
-    .replace('ABAP program load/runtime issue', 'ABAP Runtime')
-    .replace('Database/application data consistency issue', 'Data Consistency') || 'Unknown'
-}
-
 function cleanActionText(text = '') {
   return safe(text).replace(/^(Focus [^:]+)\s+\1:?\s*/i, '$1: ')
 }
@@ -325,8 +314,8 @@ function wpStateLabel(value = '') {
 function buildProgramCpuPressure(groups = []) {
   return groups.slice(0, 6).map((item) => ({
     name: displayLabel(item.name, 24),
-    hits: item.critHits || 0,
-    crit: item.maxCpu || 0,
+    hits: item.maxCpu || 0,
+    crit: item.critHits || 0,
   }))
 }
 
@@ -366,6 +355,70 @@ function ToolHero({ busy, onFiles }) {
         <AcceptedTypes items={ACCEPTED_TYPES} />
       </label>
     </header>
+  )
+}
+
+function MetricRows({ rows = [], metric = 'hits', secondMetric = 'crit', unit = '', maxRows = 6 }) {
+  const max = Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
+  return (
+    <div className="logMetricRows">
+      {rows.slice(0, maxRows).map((row, index) => {
+        const value = Number(row[metric] || 0)
+        const pct = Math.max(4, Math.min(100, (value / max) * 100))
+        return (
+          <div key={`${row.name}-${metric}-${index}`} className="logMetricRow">
+            <div>
+              <b>{displayLabel(row.name, 36)}</b>
+              <span>{fmt(value, 0)}{unit}{secondMetric ? ` · CRIT ${fmt(row[secondMetric] || 0, 0)}` : ''}</span>
+            </div>
+            <i style={{ width: `${pct}%` }} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function MetricPanel({ title, tag, rows = [], metric = 'hits', secondMetric = 'crit', unit = '', maxRows = 6 }) {
+  return (
+    <section className="evidencePanel logMetricPanel">
+      <div className="panelTitleRow">
+        <h2>{title}</h2>
+        <span>{tag}</span>
+      </div>
+      <MetricRows rows={rows} metric={metric} secondMetric={secondMetric} unit={unit} maxRows={maxRows} />
+    </section>
+  )
+}
+
+function TimelinePanel({ data = [] }) {
+  return (
+    <section className="evidencePanel logMetricPanel">
+      <div className="panelTitleRow">
+        <h2>Error Timeline</h2>
+        <span>By time window</span>
+      </div>
+      <MetricRows rows={data.map((item) => ({ name: item.time, hits: item.hits, crit: item.crit }))} metric="hits" secondMetric="crit" maxRows={10} />
+    </section>
+  )
+}
+
+function InfraTrendPanel({ data = [] }) {
+  return (
+    <section className="evidencePanel logMetricPanel">
+      <div className="panelTitleRow">
+        <h2>CPU and Memory Timeline</h2>
+        <span>Avg / max pressure</span>
+      </div>
+      <div className="logTimelineRows">
+        {data.slice(0, 12).map((item) => (
+          <div key={item.time}>
+            <b>{item.time}</b>
+            <span>Avg CPU {fmt(item.avgCpu)}% · Max CPU {fmt(item.maxCpu)}% · RSS {fmt(item.maxRssGb)} GB</span>
+          </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -451,51 +504,6 @@ function InfraSummaryCards({ summary }) {
   )
 }
 
-function MiniChartPanel({ title, tag, data = [], mode = 'dual', yWidth = 128 }) {
-  return (
-    <section className="evidencePanel miniChartPanel logChartPanel">
-      <div className="panelTitleRow">
-        <h2>{title}</h2>
-        <span>{tag}</span>
-      </div>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart layout="vertical" data={data} margin={{ top: 4, right: 18, left: 8, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 10 }} />
-          <YAxis type="category" dataKey="name" width={yWidth} tick={{ fontSize: 11 }} />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="hits" name={mode === 'cpu' ? 'Avg CPU %' : 'Hits'} fill={mode === 'state' ? CHART_COLORS.ok : CHART_COLORS.hits} radius={[0, 8, 8, 0]} />
-          <Bar dataKey="crit" name={mode === 'cpu' ? 'Max CPU %' : 'CRIT'} fill={CHART_COLORS.crit} radius={[0, 8, 8, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
-    </section>
-  )
-}
-
-function InfraTrendPanel({ data = [] }) {
-  return (
-    <section className="evidencePanel miniChartPanel infraTrendPanel logChartPanel">
-      <div className="panelTitleRow">
-        <h2>CPU and Memory Timeline</h2>
-        <span>Avg and max pressure</span>
-      </div>
-      <ResponsiveContainer width="100%" height={240}>
-        <LineChart data={data} margin={{ top: 4, right: 18, left: 0, bottom: 4 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-          <YAxis tick={{ fontSize: 10 }} />
-          <Tooltip />
-          <Legend />
-          <Line dataKey="avgCpu" name="Avg CPU %" stroke={CHART_COLORS.cpu} strokeWidth={3} dot={false} />
-          <Line dataKey="maxCpu" name="Max CPU %" stroke={CHART_COLORS.crit} strokeWidth={3} dot={false} />
-          <Line dataKey="maxRssGb" name="Max RSS GB" stroke={CHART_COLORS.rss} strokeWidth={3} dot={false} />
-        </LineChart>
-      </ResponsiveContainer>
-    </section>
-  )
-}
-
 function EvidenceCharts({ analysis, chartData }) {
   const familyChart = aggregateGroups(analysis.errorGroups, 'family', compactFamilyLabel)
   const ownerChart = aggregateGroups(analysis.errorGroups, 'owner')
@@ -515,37 +523,7 @@ function EvidenceCharts({ analysis, chartData }) {
   return (
     <>
       <div className="evidenceGrid wide logTopGrid">
-        <section className="evidencePanel chartPanel logChartPanel">
-          <div className="panelTitleRow">
-            <h2>Top ErrorCode</h2>
-            <span>Hits and CRIT</span>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData} margin={{ top: 8, right: 20, left: 0, bottom: 6 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="hits" name="Hits" fill={CHART_COLORS.hits} radius={[8, 8, 0, 0]} />
-              <Bar dataKey="crit" name="CRIT" fill={CHART_COLORS.crit} radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-          {analysis.timeline?.length ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart data={analysis.timeline} margin={{ top: 4, right: 18, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="time" tick={{ fontSize: 10 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend />
-                <Line dataKey="hits" name="Hits" stroke={CHART_COLORS.hits} strokeWidth={3} />
-                <Line dataKey="crit" name="CRIT" stroke={CHART_COLORS.crit} strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : null}
-        </section>
-
+        <MetricPanel title="Top ErrorCode" tag="Hits and CRIT" rows={chartData} maxRows={8} />
         <section className="evidencePanel">
           <div className="panelTitleRow">
             <h2>Error Evidence Ranking</h2>
@@ -564,9 +542,14 @@ function EvidenceCharts({ analysis, chartData }) {
       </div>
 
       <div className="evidenceGrid triple chartMiniGrid logCompactGrid">
-        <MiniChartPanel title="Error Family Mix" tag="By hits / CRIT" data={familyChart} />
-        <MiniChartPanel title="Owner Direction Mix" tag="By owner" data={ownerChart} />
-        <MiniChartPanel title="Top Program Volume" tag="By program" data={programChart} />
+        <MetricPanel title="Error Family Mix" tag="By hits / CRIT" rows={familyChart} />
+        <MetricPanel title="Owner Direction Mix" tag="By owner" rows={ownerChart} />
+        <MetricPanel title="Top Program Volume" tag="By program" rows={programChart} />
+      </div>
+
+      <div className="evidenceGrid wide logCompactGrid">
+        <TimelinePanel data={analysis.timeline || []} />
+        <MetricPanel title="Host Infra Signal" tag="By host" rows={hostChart} />
       </div>
 
       <section className="evidencePanel infraSectionTitle">
@@ -577,20 +560,15 @@ function EvidenceCharts({ analysis, chartData }) {
         <InfraSummaryCards summary={infraSummary} />
       </section>
 
-      <div className="evidenceGrid infraWideGrid chartMiniGrid infraChartGrid">
+      <div className="evidenceGrid wide chartMiniGrid infraChartGrid">
         <InfraTrendPanel data={infraTimeline} />
-        <MiniChartPanel title="Host Infra Signal" tag="By host" data={hostChart} yWidth={150} />
+        <MetricPanel title="Program CPU Pressure" tag="Top max CPU" rows={programCpuChart} metric="hits" secondMetric="crit" unit="%" />
       </div>
 
       <div className="evidenceGrid triple chartMiniGrid infraChartGrid">
-        <MiniChartPanel title="Log Severity Distribution" tag="CRIT / WARN / OK" data={severityChart} />
-        <MiniChartPanel title="WP Type Distribution" tag="DIA / BTC / UPD" data={wpTypeChart} mode="state" />
-        <MiniChartPanel title="WP State Mix" tag="Running / waiting" data={wpStateChart} mode="state" />
-      </div>
-
-      <div className="evidenceGrid wide chartMiniGrid infraChartGrid">
-        <MiniChartPanel title="Program CPU Pressure" tag="Top max CPU" data={programCpuChart} mode="cpu" yWidth={170} />
-        <MiniChartPanel title="Host Impact Mix" tag="Hits / CRIT by host" data={hostChart} yWidth={150} />
+        <MetricPanel title="Log Severity Distribution" tag="CRIT / WARN / OK" rows={severityChart} />
+        <MetricPanel title="WP Type Distribution" tag="DIA / BTC / UPD" rows={wpTypeChart} />
+        <MetricPanel title="WP State Mix" tag="Running / waiting" rows={wpStateChart} />
       </div>
     </>
   )
@@ -663,7 +641,7 @@ export default function ToolLogEvidenceV2() {
   }
 
   const primary = analysis?.primary
-  const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: displayLabel(item.name, 16), hits: item.hits, crit: item.critHits })) || []
+  const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: displayLabel(item.name, 22), hits: item.hits, crit: item.critHits })) || []
   const familyValue = primary ? compactFamilyLabel(primary.family) : 'Unknown'
   const displayedFiles = files.length ? files : (analysis?.files || [])
 
