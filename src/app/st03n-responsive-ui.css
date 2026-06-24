@@ -3,7 +3,7 @@
 
 .st03nImpactShell {
   max-width: 100%;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 .st03nImpactShell .finalHero {
@@ -130,12 +130,36 @@
   min-height: 0 !important;
   height: auto !important;
   padding: 14px !important;
+  overflow: visible !important;
+}
+
+.st03nImpactShell .st03nChartPanel .recharts-responsive-container,
+.st03nImpactShell .st03nMetricPanel .recharts-responsive-container,
+.st03nImpactShell .st03nComponentPanel .recharts-responsive-container {
+  min-width: 260px !important;
+  width: 100% !important;
 }
 
 .st03nImpactShell .st03nChartPanel .recharts-wrapper,
 .st03nImpactShell .st03nMetricPanel .recharts-wrapper,
 .st03nImpactShell .st03nComponentPanel .recharts-wrapper {
   max-width: 100% !important;
+  min-width: 260px !important;
+  overflow: visible !important;
+}
+
+.st03nImpactShell .st03nChartPanel .recharts-surface,
+.st03nImpactShell .st03nMetricPanel .recharts-surface,
+.st03nImpactShell .st03nComponentPanel .recharts-surface {
+  overflow: visible !important;
+}
+
+.st03nImpactShell .recharts-layer,
+.st03nImpactShell .recharts-cartesian-grid,
+.st03nImpactShell .recharts-bar,
+.st03nImpactShell .recharts-line,
+.st03nImpactShell .recharts-pie {
+  pointer-events: auto;
 }
 
 .st03nImpactShell .panelTitleRow {
