@@ -39,6 +39,22 @@ function metricMax(rows = [], metric) {
   return Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
 }
 
+function severityClass(pct = 0) {
+  if (pct >= 85) return 'critical'
+  if (pct >= 60) return 'major'
+  if (pct >= 30) return 'medium'
+  return 'low'
+}
+
+function dominantKind(row = {}) {
+  const entries = [
+    ['response', Number(row.response || row.responseMs || 0)],
+    ['db', Number(row.db || row.dbMs || 0)],
+    ['wait', Number(row.wait || row.waitMs || 0)],
+  ]
+  return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || 'response'
+}
+
 function buildReportText(analysis) {
   if (!analysis) return ''
   const top = analysis.top
@@ -165,7 +181,7 @@ function KpiStrip({ topRows }) {
   )
 }
 
-function MetricRows({ rows = [], metric, unit = '', maxRows = 5 }) {
+function MetricRows({ rows = [], metric, unit = '', maxRows = 5, tone = 'score' }) {
   const max = metricMax(rows, metric)
   return (
     <div className="st03nMetricRows">
@@ -173,7 +189,7 @@ function MetricRows({ rows = [], metric, unit = '', maxRows = 5 }) {
         const value = Number(row[metric] || 0)
         const pct = Math.max(4, Math.min(100, (value / max) * 100))
         return (
-          <div key={`${row.name}-${metric}-${index}`} className="st03nMetricRow">
+          <div key={`${row.name}-${metric}-${index}`} className={`st03nMetricRow ${tone} ${severityClass(pct)}`}>
             <div>
               <b>{row.name}</b>
               <span>{fmt(value, 0)}{unit}</span>
@@ -186,35 +202,72 @@ function MetricRows({ rows = [], metric, unit = '', maxRows = 5 }) {
   )
 }
 
-function MetricPanel({ title, tag, rows = [], metric, unit = '', maxRows = 5 }) {
+function MetricPanel({ title, tag, rows = [], metric, unit = '', maxRows = 5, tone = 'score' }) {
   return (
     <section className="evidencePanel st03nMetricPanel">
       <div className="panelTitleRow">
         <h2>{title}</h2>
         <span>{tag}</span>
       </div>
-      <MetricRows rows={rows} metric={metric} unit={unit} maxRows={maxRows} />
+      <MetricRows rows={rows} metric={metric} unit={unit} maxRows={maxRows} tone={tone} />
+    </section>
+  )
+}
+
+function ImpactMatrixPanel({ rows = [] }) {
+  return (
+    <section className="evidencePanel st03nImpactMatrixPanel">
+      <div className="panelTitleRow">
+        <h2>Top ST03N Evidence</h2>
+        <span>Impact heatmap</span>
+      </div>
+      <div className="st03nImpactCards">
+        {rows.slice(0, 6).map((row, index) => {
+          const kind = dominantKind(row)
+          return (
+            <div key={`${row.name}-${index}`} className={`st03nImpactCard ${kind}`}>
+              <div>
+                <b>{row.name}</b>
+                <em>{kind.toUpperCase()} dominant</em>
+              </div>
+              <p>
+                <span>Score <strong>{row.score}</strong></span>
+                <span>Resp <strong>{fmt(row.response, 0)}ms</strong></span>
+                <span>DB <strong>{fmt(row.db, 0)}ms</strong></span>
+                <span>Wait <strong>{fmt(row.wait, 0)}ms</strong></span>
+              </p>
+            </div>
+          )
+        })}
+      </div>
     </section>
   )
 }
 
 function BreakdownPanel({ rows = [] }) {
   return (
-    <section className="evidencePanel st03nBreakdownPanel">
+    <section className="evidencePanel st03nBreakdownPanel visual">
       <div className="panelTitleRow">
         <h2>Response / DB / Wait Breakdown</h2>
         <span>Top workload split</span>
       </div>
+      <div className="st03nBreakdownLegend">
+        <span className="resp">Response</span>
+        <span className="db">DB</span>
+        <span className="wait">Wait</span>
+      </div>
       <div className="st03nBreakdownRows">
-        {rows.slice(0, 5).map((row, index) => {
+        {rows.slice(0, 6).map((row, index) => {
           const total = Math.max(1, row.response + row.db + row.wait)
           const respPct = Math.max(3, (row.response / total) * 100)
           const dbPct = Math.max(3, (row.db / total) * 100)
           const waitPct = Math.max(3, (row.wait / total) * 100)
+          const kind = dominantKind(row)
           return (
-            <div key={`${row.name}-breakdown-${index}`} className="st03nBreakdownRow">
+            <div key={`${row.name}-breakdown-${index}`} className={`st03nBreakdownRow ${kind}`}>
               <div>
                 <b>{row.name}</b>
+                <em>{kind.toUpperCase()}</em>
                 <span>Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</span>
               </div>
               <p>
@@ -238,7 +291,7 @@ function ComponentMix({ analysis, topRows }) {
         <h2>Component Mix</h2>
         <span>Classified rows</span>
       </div>
-      <MetricRows rows={rows.map((row) => ({ name: row.name, hits: row.value }))} metric="hits" unit=" hits" maxRows={4} />
+      <MetricRows rows={rows.map((row) => ({ name: row.name, hits: row.value }))} metric="hits" unit=" hits" maxRows={4} tone="component" />
       <div className="evidenceList compact finalEvidenceList st03nCompactList">
         {topRows.slice(0, 3).map((row) => (
           <div key={`${row.kind}-${row.fileName}-${row.label}`}>
@@ -290,12 +343,12 @@ function EvidenceCharts({ analysis, topRows }) {
     <>
       <KpiStrip topRows={topRows} />
       <div className="st03nDashboardBoard" style={dashboardGridStyle}>
-        <div style={span(7)}><MetricPanel title="Top ST03N Evidence" tag="Ranking" rows={chartRows} metric="score" maxRows={6} /></div>
+        <div style={span(7)}><ImpactMatrixPanel rows={chartRows} /></div>
         <div style={span(5)}><ComponentMix analysis={analysis} topRows={topRows} /></div>
         <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
-        <div style={span(4)}><MetricPanel title="Top Response Time" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" /></div>
-        <div style={span(4)}><MetricPanel title="Top DB Time" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" /></div>
-        <div style={span(4)}><MetricPanel title="Steps Volume" tag="Execution volume" rows={topStepRows} metric="steps" /></div>
+        <div style={span(4)}><MetricPanel title="Top Response Time" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" tone="response" /></div>
+        <div style={span(4)}><MetricPanel title="Top DB Time" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" tone="db" /></div>
+        <div style={span(4)}><MetricPanel title="Steps Volume" tag="Execution volume" rows={topStepRows} metric="steps" tone="steps" /></div>
         <div style={span(12)}><OffenderRanking topRows={topRows} /></div>
       </div>
     </>
