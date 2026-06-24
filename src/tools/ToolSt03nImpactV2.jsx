@@ -32,6 +32,16 @@ const CHART_COLORS = {
 }
 const PIE_COLORS = ['#38bdf8', '#a78bfa', '#fbbf24', '#2dd4bf', '#22c55e', '#f97316']
 
+const dashboardGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(12, minmax(0, 1fr))',
+  gap: 14,
+  alignItems: 'start',
+  marginTop: 14,
+}
+
+const span = (cols) => ({ gridColumn: `span ${cols}` })
+
 function compactLabel(value = '', max = 18) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
   return label.length > max ? `${label.slice(0, Math.max(8, max - 1))}…` : label
@@ -126,11 +136,11 @@ function HorizontalMetricChart({ title, tag, data = [], metric, color, unit = ''
         <h2>{title}</h2>
         <span>{tag}</span>
       </div>
-      <ResponsiveContainer width="100%" height={210}>
-        <BarChart layout="vertical" data={data} margin={{ top: 4, right: 16, left: 2, bottom: 2 }}>
+      <ResponsiveContainer width="100%" height={190}>
+        <BarChart layout="vertical" data={data} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
           <XAxis type="number" domain={xDomain} tickFormatter={(value) => `${fmt(value, 0)}${unit}`} tick={{ fontSize: 10 }} />
-          <YAxis type="category" dataKey="name" width={132} tick={{ fontSize: 10 }} />
+          <YAxis type="category" dataKey="name" width={126} tick={{ fontSize: 10 }} />
           <Tooltip formatter={(value) => [`${fmt(value, 0)}${unit}`, metric]} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           <Bar dataKey={metric} name={metric} fill={color} radius={[0, 8, 8, 0]} />
@@ -147,11 +157,11 @@ function BreakdownChart({ data = [] }) {
         <h2>Response / DB / Wait Breakdown</h2>
         <span>Top workload split</span>
       </div>
-      <ResponsiveContainer width="100%" height={245}>
-        <BarChart layout="vertical" data={data} margin={{ top: 4, right: 18, left: 2, bottom: 2 }}>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart layout="vertical" data={data} margin={{ top: 4, right: 18, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
           <XAxis type="number" tickFormatter={(value) => `${fmt(value, 0)}ms`} tick={{ fontSize: 10 }} />
-          <YAxis type="category" dataKey="name" width={145} tick={{ fontSize: 10 }} />
+          <YAxis type="category" dataKey="name" width={138} tick={{ fontSize: 10 }} />
           <Tooltip formatter={(value) => [`${fmt(value, 0)}ms`, '']} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           <Bar dataKey="response" name="Response ms" stackId="workload" fill={CHART_COLORS.response} radius={[0, 0, 0, 0]} />
@@ -170,8 +180,8 @@ function TrendChart({ data = [] }) {
         <h2>Workload Trend by Rank</h2>
         <span>Score / response / DB</span>
       </div>
-      <ResponsiveContainer width="100%" height={245}>
-        <LineChart data={data} margin={{ top: 4, right: 18, left: 0, bottom: 2 }}>
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={data} margin={{ top: 4, right: 18, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="rank" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 10 }} />
@@ -199,9 +209,9 @@ function ComponentPie({ analysis, topRows }) {
         <h2>Component Mix</h2>
         <span>Response / DB / wait</span>
       </div>
-      <ResponsiveContainer width="100%" height={190}>
+      <ResponsiveContainer width="100%" height={164}>
         <PieChart>
-          <Pie data={componentRows} dataKey="value" nameKey="name" outerRadius={70} label>
+          <Pie data={componentRows} dataKey="value" nameKey="name" outerRadius={64} label>
             {componentRows.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
           </Pie>
           <Tooltip formatter={(value) => fmt(value, 0)} />
@@ -209,11 +219,11 @@ function ComponentPie({ analysis, topRows }) {
         </PieChart>
       </ResponsiveContainer>
       <div className="evidenceList compact finalEvidenceList st03nCompactList">
-        {topRows.slice(0, 5).map((row) => (
+        {topRows.slice(0, 3).map((row) => (
           <div key={`${row.kind}-${row.fileName}-${row.label}`}>
             <b>{row.label}</b>
             <span>{row.kind} · {row.component} · score {row.score}/100</span>
-            <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
+            <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms</small>
           </div>
         ))}
       </div>
@@ -228,9 +238,9 @@ function BottleneckMixChart({ data = [] }) {
         <h2>Bottleneck Mix</h2>
         <span>Classified component</span>
       </div>
-      <ResponsiveContainer width="100%" height={210}>
+      <ResponsiveContainer width="100%" height={190}>
         <PieChart>
-          <Pie data={data} dataKey="hits" nameKey="name" outerRadius={76} label>
+          <Pie data={data} dataKey="hits" nameKey="name" outerRadius={70} label>
             {data.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
           </Pie>
           <Tooltip />
@@ -241,9 +251,50 @@ function BottleneckMixChart({ data = [] }) {
   )
 }
 
+function TopEvidenceChart({ chartRows }) {
+  return (
+    <section className="evidencePanel chartPanel st03nChartPanel">
+      <div className="panelTitleRow">
+        <h2>Top ST03N Evidence</h2>
+        <span>Horizontal ranking</span>
+      </div>
+      <ResponsiveContainer width="100%" height={238}>
+        <BarChart layout="vertical" data={chartRows} margin={{ top: 4, right: 18, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
+          <YAxis type="category" dataKey="name" width={138} tick={{ fontSize: 10 }} />
+          <Tooltip />
+          <Legend wrapperStyle={{ fontSize: 11 }} />
+          <Bar dataKey="score" name="Score" fill={CHART_COLORS.score} radius={[0, 8, 8, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function OffenderRanking({ topRows }) {
+  return (
+    <section className="evidencePanel st03nOffenderPanel">
+      <div className="panelTitleRow">
+        <h2>ST03N Offender Ranking</h2>
+        <span>Basis review list</span>
+      </div>
+      <div className="evidenceList finalEvidenceList st03nCompactList">
+        {topRows.slice(0, 6).map((row) => (
+          <div key={`${row.kind}-${row.fileName}-${row.label}-ranking`}>
+            <b>{row.label}</b>
+            <span>{row.kind} · {row.component} · score {row.score}/100</span>
+            <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function EvidenceCharts({ analysis, topRows }) {
-  const chartRows = topRows.slice(0, 10).map((row, index) => ({
-    name: compactLabel(row.label, 20),
+  const chartRows = topRows.slice(0, 8).map((row, index) => ({
+    name: compactLabel(row.label, 18),
     rank: `#${index + 1}`,
     score: row.score || 0,
     response: Math.round(row.responseMs || 0),
@@ -253,9 +304,9 @@ function EvidenceCharts({ analysis, topRows }) {
     responseK: Number(((row.responseMs || 0) / 1000).toFixed(1)),
     dbK: Number(((row.dbMs || 0) / 1000).toFixed(1)),
   }))
-  const topResponseRows = [...chartRows].sort((a, b) => b.response - a.response).slice(0, 6)
-  const topDbRows = [...chartRows].sort((a, b) => b.db - a.db).slice(0, 6)
-  const topStepRows = [...chartRows].sort((a, b) => b.steps - a.steps).slice(0, 6)
+  const topResponseRows = [...chartRows].sort((a, b) => b.response - a.response).slice(0, 5)
+  const topDbRows = [...chartRows].sort((a, b) => b.db - a.db).slice(0, 5)
+  const topStepRows = [...chartRows].sort((a, b) => b.steps - a.steps).slice(0, 5)
   const bottleneckRows = Array.from(
     topRows.reduce((map, row) => {
       const name = row.component || 'Unknown'
@@ -267,58 +318,17 @@ function EvidenceCharts({ analysis, topRows }) {
   ).sort((a, b) => b.hits - a.hits)
 
   return (
-    <>
-      <div className="evidenceGrid wide st03nTopGrid">
-        <section className="evidencePanel chartPanel st03nChartPanel">
-          <div className="panelTitleRow">
-            <h2>Top ST03N Evidence</h2>
-            <span>Horizontal ranking</span>
-          </div>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart layout="vertical" data={chartRows} margin={{ top: 4, right: 18, left: 2, bottom: 2 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" width={145} tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="score" name="Score" fill={CHART_COLORS.score} radius={[0, 8, 8, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </section>
-
-        <ComponentPie analysis={analysis} topRows={topRows} />
-      </div>
-
-      <div className="evidenceGrid wide chartMiniGrid st03nCompactGrid">
-        <BreakdownChart data={chartRows.slice(0, 6)} />
-        <TrendChart data={chartRows} />
-      </div>
-
-      <div className="evidenceGrid triple chartMiniGrid st03nCompactGrid">
-        <HorizontalMetricChart title="Top Response Time" tag="Highest dialog impact" data={topResponseRows} metric="response" color={CHART_COLORS.response} unit="ms" />
-        <HorizontalMetricChart title="Top DB Time" tag="Database pressure" data={topDbRows} metric="db" color={CHART_COLORS.db} unit="ms" />
-        <HorizontalMetricChart title="Steps Volume" tag="Execution volume" data={topStepRows} metric="steps" color={CHART_COLORS.steps} />
-      </div>
-
-      <div className="evidenceGrid wide chartMiniGrid st03nCompactGrid">
-        <BottleneckMixChart data={bottleneckRows} />
-        <section className="evidencePanel st03nOffenderPanel">
-          <div className="panelTitleRow">
-            <h2>ST03N Offender Ranking</h2>
-            <span>Basis review list</span>
-          </div>
-          <div className="evidenceList finalEvidenceList st03nCompactList">
-            {topRows.slice(0, 8).map((row) => (
-              <div key={`${row.kind}-${row.fileName}-${row.label}-ranking`}>
-                <b>{row.label}</b>
-                <span>{row.kind} · {row.component} · score {row.score}/100</span>
-                <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </>
+    <div className="st03nDashboardBoard" style={dashboardGridStyle}>
+      <div style={span(7)}><TopEvidenceChart chartRows={chartRows} /></div>
+      <div style={span(5)}><ComponentPie analysis={analysis} topRows={topRows} /></div>
+      <div style={span(6)}><BreakdownChart data={chartRows.slice(0, 5)} /></div>
+      <div style={span(6)}><TrendChart data={chartRows} /></div>
+      <div style={span(4)}><HorizontalMetricChart title="Top Response Time" tag="Dialog impact" data={topResponseRows} metric="response" color={CHART_COLORS.response} unit="ms" /></div>
+      <div style={span(4)}><HorizontalMetricChart title="Top DB Time" tag="Database pressure" data={topDbRows} metric="db" color={CHART_COLORS.db} unit="ms" /></div>
+      <div style={span(4)}><HorizontalMetricChart title="Steps Volume" tag="Execution volume" data={topStepRows} metric="steps" color={CHART_COLORS.steps} /></div>
+      <div style={span(4)}><BottleneckMixChart data={bottleneckRows} /></div>
+      <div style={span(8)}><OffenderRanking topRows={topRows} /></div>
+    </div>
   )
 }
 
