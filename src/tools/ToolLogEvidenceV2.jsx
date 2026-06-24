@@ -25,9 +25,9 @@ const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
 const CHART_COLORS = {
   hits: '#38bdf8',
-  crit: '#fb7185',
+  crit: '#f97316',
   warn: '#fbbf24',
-  ok: '#34d399',
+  ok: '#22c55e',
   cpu: '#a78bfa',
   rss: '#2dd4bf',
   host: '#60a5fa',
@@ -113,6 +113,12 @@ function parseGenericErrors(text = '', fileName = '') {
     })
   })
   return rows
+}
+
+function displayLabel(value = '', max = 28) {
+  const label = safe(value)
+  const normalized = !label || label === '?' || label.toUpperCase() === 'UNKNOWN' ? 'Unknown' : label
+  return normalized.length > max ? `${normalized.slice(0, Math.max(8, max - 1))}…` : normalized
 }
 
 function group(rows, key) {
@@ -283,13 +289,57 @@ function buildSeverityMix(rows = []) {
 function buildHostMix(rows = []) {
   const map = new Map()
   rows.forEach((row) => {
-    const name = row.host || 'UNKNOWN'
+    const name = displayLabel(row.host || 'Unknown', 24)
     const current = map.get(name) || { name, hits: 0, crit: 0 }
     current.hits += 1
     current.crit += row.className === 'CRIT' ? 1 : 0
     map.set(name, current)
   })
   return Array.from(map.values()).sort((a, b) => b.crit - a.crit || b.hits - a.hits).slice(0, 6)
+}
+
+function buildSimpleRowChart(rows = [], key, labelFn = (value) => displayLabel(value)) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const name = labelFn(row[key])
+    const current = map.get(name) || { name, hits: 0, crit: 0 }
+    current.hits += 1
+    current.crit += row.className === 'CRIT' ? 1 : 0
+    map.set(name, current)
+  })
+  return Array.from(map.values()).sort((a, b) => b.crit - a.crit || b.hits - a.hits).slice(0, 6)
+}
+
+function wpStateLabel(value = '') {
+  const state = safe(value)
+  if (state === 'R') return 'R - Running'
+  if (state === 'S') return 'S - Wait/Stopped'
+  return displayLabel(state || 'Unknown', 20)
+}
+
+function buildProgramCpuPressure(groups = []) {
+  return groups.slice(0, 6).map((item) => ({
+    name: displayLabel(item.name, 24),
+    hits: item.critHits || 0,
+    crit: item.maxCpu || 0,
+  }))
+}
+
+function buildInfraSummary(rows = []) {
+  const peakCpuRow = rows.reduce((best, row) => ((row.cpu || 0) > (best?.cpu || 0) ? row : best), null)
+  const maxRssRow = rows.reduce((best, row) => ((row.rssGb || 0) > (best?.rssGb || 0) ? row : best), null)
+  const hostChart = buildHostMix(rows)
+  const critCount = rows.filter((row) => row.className === 'CRIT').length
+  return {
+    peakCpu: peakCpuRow?.cpu || 0,
+    peakCpuTime: peakCpuRow?.timeLabel || '-',
+    peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34),
+    maxRssGb: maxRssRow?.rssGb || 0,
+    maxRssTime: maxRssRow?.timeLabel || '-',
+    impactedHost: hostChart[0]?.name || 'Unknown',
+    hostHits: hostChart[0]?.hits || 0,
+    critCount,
+  }
 }
 
 function AcceptedTypes({ items }) {
@@ -324,7 +374,7 @@ function Group({ title, rows = [] }) {
       <div className="evidenceList compact finalEvidenceList">
         {rows.slice(0, 5).map((item) => (
           <div key={item.name}>
-            <b>{item.name}</b>
+            <b>{displayLabel(item.name, 40)}</b>
             <span>hits {item.hits} · CRIT {item.critHits}</span>
             <small>{compactFamilyLabel(item.family || '')} {item.examples?.join(' · ')}</small>
           </div>
@@ -374,7 +424,29 @@ function MappingPanel({ primary }) {
   )
 }
 
-function MiniChartPanel({ title, tag, data = [] }) {
+function InfraSummaryCards({ summary }) {
+  return (
+    <section className="infraSummaryBoard">
+      <div className="infraSummaryCard">
+        <span>Peak CPU</span>
+        <b>{fmt(summary.peakCpu)}%</b>
+        <small>{summary.peakCpuProgram} · {summary.peakCpuTime}</small>
+      </div>
+      <div className="infraSummaryCard">
+        <span>Max RSS</span>
+        <b>{fmt(summary.maxRssGb)} GB</b>
+        <small>Highest memory footprint · {summary.maxRssTime}</small>
+      </div>
+      <div className="infraSummaryCard">
+        <span>Most Impacted Host</span>
+        <b>{summary.impactedHost}</b>
+        <small>{summary.hostHits} hits · {summary.critCount} CRIT rows</small>
+      </div>
+    </section>
+  )
+}
+
+function MiniChartPanel({ title, tag, data = [], mode = 'dual', yWidth = 128 }) {
   return (
     <section className="evidencePanel miniChartPanel">
       <div className="panelTitleRow">
@@ -385,11 +457,11 @@ function MiniChartPanel({ title, tag, data = [] }) {
         <BarChart layout="vertical" data={data} margin={{ top: 4, right: 18, left: 8, bottom: 4 }}>
           <CartesianGrid strokeDasharray="3 3" horizontal={false} />
           <XAxis type="number" />
-          <YAxis type="category" dataKey="name" width={128} tick={{ fontSize: 11 }} />
+          <YAxis type="category" dataKey="name" width={yWidth} tick={{ fontSize: 11 }} />
           <Tooltip />
           <Legend />
-          <Bar dataKey="hits" fill={CHART_COLORS.hits} radius={[0, 8, 8, 0]} />
-          <Bar dataKey="crit" fill={CHART_COLORS.crit} radius={[0, 8, 8, 0]} />
+          <Bar dataKey="hits" name={mode === 'cpu' ? 'Avg CPU %' : 'Hits'} fill={mode === 'state' ? CHART_COLORS.ok : CHART_COLORS.hits} radius={[0, 8, 8, 0]} />
+          <Bar dataKey="crit" name={mode === 'cpu' ? 'Max CPU %' : 'CRIT'} fill={CHART_COLORS.crit} radius={[0, 8, 8, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </section>
@@ -400,8 +472,8 @@ function InfraTrendPanel({ data = [] }) {
   return (
     <section className="evidencePanel miniChartPanel infraTrendPanel">
       <div className="panelTitleRow">
-        <h2>Infra CPU / Memory Trend</h2>
-        <span>CPU and RSS</span>
+        <h2>CPU and Memory Timeline</h2>
+        <span>Avg and max pressure</span>
       </div>
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={data} margin={{ top: 4, right: 18, left: 0, bottom: 4 }}>
@@ -410,9 +482,9 @@ function InfraTrendPanel({ data = [] }) {
           <YAxis />
           <Tooltip />
           <Legend />
-          <Line dataKey="avgCpu" name="avg CPU %" stroke={CHART_COLORS.cpu} strokeWidth={3} dot={false} />
-          <Line dataKey="maxCpu" name="max CPU %" stroke={CHART_COLORS.crit} strokeWidth={3} dot={false} />
-          <Line dataKey="maxRssGb" name="max RSS GB" stroke={CHART_COLORS.rss} strokeWidth={3} dot={false} />
+          <Line dataKey="avgCpu" name="Avg CPU %" stroke={CHART_COLORS.cpu} strokeWidth={3} dot={false} />
+          <Line dataKey="maxCpu" name="Max CPU %" stroke={CHART_COLORS.crit} strokeWidth={3} dot={false} />
+          <Line dataKey="maxRssGb" name="Max RSS GB" stroke={CHART_COLORS.rss} strokeWidth={3} dot={false} />
         </LineChart>
       </ResponsiveContainer>
     </section>
@@ -423,13 +495,17 @@ function EvidenceCharts({ analysis, chartData }) {
   const familyChart = aggregateGroups(analysis.errorGroups, 'family', compactFamilyLabel)
   const ownerChart = aggregateGroups(analysis.errorGroups, 'owner')
   const programChart = (analysis.programGroups || []).slice(0, 6).map((item) => ({
-    name: safe(item.name).slice(0, 28),
+    name: displayLabel(item.name, 24),
     hits: item.hits || 0,
     crit: item.critHits || 0,
   }))
   const infraTimeline = buildInfraTimeline(analysis.rows || [])
   const severityChart = buildSeverityMix(analysis.rows || [])
   const hostChart = buildHostMix(analysis.rows || [])
+  const wpTypeChart = buildSimpleRowChart(analysis.rows || [], 'type', (value) => displayLabel(value || 'Unknown', 18))
+  const wpStateChart = buildSimpleRowChart(analysis.rows || [], 'state', wpStateLabel)
+  const programCpuChart = buildProgramCpuPressure(analysis.programGroups || [])
+  const infraSummary = buildInfraSummary(analysis.rows || [])
 
   return (
     <>
@@ -446,8 +522,8 @@ function EvidenceCharts({ analysis, chartData }) {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="hits" fill={CHART_COLORS.hits} radius={[8, 8, 0, 0]} />
-              <Bar dataKey="crit" fill={CHART_COLORS.crit} radius={[8, 8, 0, 0]} />
+              <Bar dataKey="hits" name="Hits" fill={CHART_COLORS.hits} radius={[8, 8, 0, 0]} />
+              <Bar dataKey="crit" name="CRIT" fill={CHART_COLORS.crit} radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
           {analysis.timeline?.length ? (
@@ -458,8 +534,8 @@ function EvidenceCharts({ analysis, chartData }) {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Line dataKey="hits" stroke={CHART_COLORS.hits} strokeWidth={3} />
-                <Line dataKey="crit" stroke={CHART_COLORS.crit} strokeWidth={3} />
+                <Line dataKey="hits" name="Hits" stroke={CHART_COLORS.hits} strokeWidth={3} />
+                <Line dataKey="crit" name="CRIT" stroke={CHART_COLORS.crit} strokeWidth={3} />
               </LineChart>
             </ResponsiveContainer>
           ) : null}
@@ -488,10 +564,28 @@ function EvidenceCharts({ analysis, chartData }) {
         <MiniChartPanel title="Top Program Volume" tag="By program" data={programChart} />
       </div>
 
-      <div className="evidenceGrid triple chartMiniGrid infraChartGrid">
+      <section className="evidencePanel infraSectionTitle">
+        <div className="panelTitleRow">
+          <h2>Infra Pressure View</h2>
+          <span>CPU / memory / WP state</span>
+        </div>
+        <InfraSummaryCards summary={infraSummary} />
+      </section>
+
+      <div className="evidenceGrid infraWideGrid chartMiniGrid infraChartGrid">
         <InfraTrendPanel data={infraTimeline} />
-        <MiniChartPanel title="Infra Severity Mix" tag="CRIT / WARN / OK" data={severityChart} />
-        <MiniChartPanel title="Host Impact Mix" tag="By host" data={hostChart} />
+        <MiniChartPanel title="Host Infra Signal" tag="By host" data={hostChart} yWidth={150} />
+      </div>
+
+      <div className="evidenceGrid triple chartMiniGrid infraChartGrid">
+        <MiniChartPanel title="Log Severity Distribution" tag="CRIT / WARN / OK" data={severityChart} />
+        <MiniChartPanel title="WP Type Distribution" tag="DIA / BTC / UPD" data={wpTypeChart} mode="state" />
+        <MiniChartPanel title="WP State Mix" tag="Running / waiting" data={wpStateChart} mode="state" />
+      </div>
+
+      <div className="evidenceGrid wide chartMiniGrid infraChartGrid">
+        <MiniChartPanel title="Program CPU Pressure" tag="Top max CPU" data={programCpuChart} mode="cpu" yWidth={170} />
+        <MiniChartPanel title="Host Impact Mix" tag="Hits / CRIT by host" data={hostChart} yWidth={150} />
       </div>
     </>
   )
@@ -564,7 +658,7 @@ export default function ToolLogEvidenceV2() {
   }
 
   const primary = analysis?.primary
-  const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: item.name.slice(0, 16), hits: item.hits, crit: item.critHits })) || []
+  const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: displayLabel(item.name, 16), hits: item.hits, crit: item.critHits })) || []
   const familyValue = primary ? compactFamilyLabel(primary.family) : 'Unknown'
 
   return (
