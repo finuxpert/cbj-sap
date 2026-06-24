@@ -24,9 +24,7 @@ body:has(.logEvidenceShell),
 .logEvidenceShell .infraWideGrid,
 .logEvidenceShell .chartMiniGrid,
 .logEvidenceShell .infraChartGrid,
-.logEvidenceShell .evidencePanel,
-.logEvidenceShell .recharts-responsive-container,
-.logEvidenceShell .recharts-wrapper {
+.logEvidenceShell .evidencePanel {
   max-width: 100%;
   min-width: 0;
 }
@@ -59,23 +57,65 @@ body:has(.logEvidenceShell),
   font-size: clamp(17px, 1.35vw, 22px);
 }
 
-.logEvidenceShell .chartPanel,
-.logEvidenceShell .miniChartPanel,
-.logEvidenceShell .infraTrendPanel {
+.logEvidenceShell .logTopGrid,
+.logEvidenceShell .logCompactGrid,
+.logEvidenceShell .infraChartGrid {
+  margin-top: 14px;
+}
+
+.logEvidenceShell .logMetricPanel,
+.logEvidenceShell .infraSectionTitle {
   min-height: 0 !important;
-  padding: 14px;
+  padding: 14px 16px;
 }
 
-.logEvidenceShell .chartPanel {
-  min-height: 420px !important;
+.logEvidenceShell .logMetricRows,
+.logEvidenceShell .logTimelineRows {
+  display: grid;
+  gap: 8px;
 }
 
-.logEvidenceShell .miniChartPanel {
-  min-height: 288px !important;
+.logEvidenceShell .logMetricRow,
+.logEvidenceShell .logTimelineRows div {
+  min-width: 0;
+  border: 1px solid rgba(190, 218, 224, 0.10);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
 }
 
-.logEvidenceShell .infraTrendPanel {
-  min-height: 308px !important;
+.logEvidenceShell .logMetricRow div,
+.logEvidenceShell .logTimelineRows div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.logEvidenceShell .logMetricRow b,
+.logEvidenceShell .logTimelineRows b {
+  overflow: hidden;
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logEvidenceShell .logMetricRow span,
+.logEvidenceShell .logTimelineRows span {
+  flex: 0 0 auto;
+  color: rgba(203, 213, 225, 0.78);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.logEvidenceShell .logMetricRow i {
+  display: block;
+  max-width: 100%;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.92), rgba(45, 212, 191, 0.72));
 }
 
 .logEvidenceShell .evidenceList.finalEvidenceList,
@@ -98,11 +138,6 @@ body:has(.logEvidenceShell),
   overflow-wrap: anywhere;
 }
 
-.logEvidenceShell .infraSectionTitle {
-  min-height: 0 !important;
-  padding: 14px 16px;
-}
-
 .logEvidenceShell .infraSummaryBoard {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
@@ -120,23 +155,6 @@ body:has(.logEvidenceShell),
   white-space: nowrap;
 }
 
-.logEvidenceShell .recharts-responsive-container {
-  overflow: visible !important;
-}
-
-.logEvidenceShell .recharts-surface {
-  max-width: 100%;
-  overflow: visible;
-}
-
-.logEvidenceShell .recharts-wrapper {
-  overflow: visible !important;
-}
-
-.logEvidenceShell .recharts-cartesian-axis-tick-value {
-  font-size: 10px;
-}
-
 .logEvidenceShell > .evidenceGrid:last-child .evidencePanel {
   min-height: 136px !important;
   padding: 16px;
@@ -149,5 +167,11 @@ body:has(.logEvidenceShell),
   .logEvidenceShell .infraWideGrid,
   .logEvidenceShell .infraSummaryBoard {
     grid-template-columns: 1fr !important;
+  }
+
+  .logEvidenceShell .logMetricRow div,
+  .logEvidenceShell .logTimelineRows div {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
