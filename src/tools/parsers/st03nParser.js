@@ -30,13 +30,21 @@ export const REQUIRED_ST03N = [
       'top_response_time',
       'top response time',
       'topresponsetime',
+      'top-respon-time',
+      'top_respon_time',
+      'top respon time',
+      'toprespontime',
       'top-respond',
       'top-response',
       'top respond',
       'top response',
+      'top respon',
       'response-time',
       'response_time',
       'response time',
+      'respon time',
+      'respon-time',
+      'respon_time',
       'responsetime',
       'resp-time',
       'resp_time',
@@ -62,7 +70,16 @@ function nameHasPattern(normalizedName, pattern) {
 
 export function classifySt03nFile(name = '') {
   const normalized = normalizeSt03nName(name)
-  const strongTopResponse = ['top response', 'top respond', 'response time', 'responsetime', 'resp time', 'resptime']
+  const strongTopResponse = [
+    'top response',
+    'top respond',
+    'top respon',
+    'response time',
+    'respon time',
+    'responsetime',
+    'resp time',
+    'resptime',
+  ]
   if (strongTopResponse.some((pattern) => nameHasPattern(normalized, pattern))) return 'topResponse'
 
   const strongTransaction = ['transaction standard', 'transaction profile', 'transaction', 'transactions', 'tcode', 'tcodes', 'txstd']
@@ -101,7 +118,7 @@ export function findSt03nHeaderIndex(rows = []) {
     const line = lower((row || []).join(' | '))
     let score = 0
     if (/transaction|report|program|time interval|task type|tcode|dialog|user|name/.test(line)) score += 4
-    if (/response|database|db time|dialog steps|cpu|wait|average|total|elapsed|duration|calls|steps/.test(line)) score += 5
+    if (/response|respon|database|db time|dialog steps|cpu|wait|average|total|elapsed|duration|calls|steps/.test(line)) score += 5
     if (/client|object|count|load|workload/.test(line)) score += 1
     if (score > bestScore) {
       bestIndex = index
@@ -144,7 +161,7 @@ function labelFromRow(row, nameColumn, fileName, index) {
 export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
   const keys = Object.keys(objects[0] || {})
   const cName = pickColumn(keys, [/transaction/, /report/, /program/, /task type/, /time interval/, /tcode/, /name/, /user/])
-  const cResp = pickColumn(keys, [/response.*ms/, /average.*response/, /dialog step response/, /response time/, /resp/, /elapsed/])
+  const cResp = pickColumn(keys, [/response.*ms/, /respon.*ms/, /average.*response/, /average.*respon/, /dialog step response/, /dialog step respon/, /response time/, /respon time/, /resp/, /elapsed/])
   const cDb = pickColumn(keys, [/database.*ms/, /db time/, /sequential reads time/, /direct reads time/, /^db$/, /database/])
   const cWait = pickColumn(keys, [/wait.*ms/, /roll wait/, /^wait$/])
   const cSteps = pickColumn(keys, [/dialog steps/, /^steps$/, /number.*step/, /count/, /calls/])
