@@ -1,147 +1,125 @@
-/* Log Evidence Console refinements. UI-only polish for analysis mode. */
+/* Log Evidence Console refinements.
+   Safe CSS-only polish that applies to the current ST03N/Log shell without parser changes. */
 
-.logEvidenceShell .finalHero.hasAnalysis {
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-  padding-block: 18px;
+/* Make the analysis workspace denser after data is loaded. */
+.finalRcaTool .finalHero {
+  min-height: 124px;
 }
 
-.logEvidenceShell .finalHero.hasAnalysis h1 {
-  font-size: clamp(28px, 2.8vw, 42px);
+.finalRcaTool .finalHero h1 {
+  font-size: clamp(28px, 3vw, 44px);
 }
 
-.logEvidenceShell .heroSummaryLine {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+.finalRcaTool .finalHero p {
+  max-width: 820px;
 }
 
-.logEvidenceShell .heroSummaryLine span {
-  border: 1px solid rgba(125, 211, 252, 0.16);
-  border-radius: 999px;
-  padding: 5px 9px;
-  color: rgba(226, 232, 240, 0.86) !important;
-  background: rgba(255, 255, 255, 0.035);
-  font-size: 11px !important;
-  letter-spacing: 0 !important;
-  text-transform: none !important;
+.finalRcaTool .finalUpload {
+  max-width: 310px;
 }
 
-.logEvidenceShell .finalUpload.compactUpload {
-  min-height: 106px;
-  padding: 15px;
+/* Improve decision card readability for long SAP labels. */
+.finalRcaTool .decisionCard {
+  overflow: hidden;
 }
 
-.logEvidenceShell .decisionCard.compactDecision {
-  min-height: 112px;
-}
-
-.logEvidenceShell .decisionCard.compactDecision b {
-  font-size: clamp(17px, 1.45vw, 22px);
-}
-
-.logEvidenceShell .ownerHintShort {
-  display: block;
-  line-height: 1.45;
-}
-
-.errorCodeRanking {
-  display: grid;
-  gap: 10px;
-}
-
-.errorRankRow {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.95fr) minmax(240px, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid rgba(190, 218, 224, 0.12);
-  border-radius: 13px;
-  padding: 11px;
-  background: rgba(255, 255, 255, 0.026);
-}
-
-.errorRankMain {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.errorRankMain b {
-  color: rgba(248, 250, 252, 0.96);
+.finalRcaTool .decisionCard b {
+  line-height: 1.12;
   overflow-wrap: anywhere;
 }
 
-.errorRankMain span,
-.errorRankNumbers span {
-  color: rgba(203, 213, 225, 0.72);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.errorRankBar {
-  position: relative;
-  height: 10px;
-  border-radius: 999px;
+.finalRcaTool .decisionCard small {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  background: rgba(148, 163, 184, 0.12);
 }
 
-.errorRankBar::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--bar-width, 0%);
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(56, 189, 248, 0.75), rgba(45, 212, 191, 0.72));
+.finalRcaTool .decisionCard:nth-child(2) b,
+.finalRcaTool .decisionCard:nth-child(3) b {
+  font-size: clamp(17px, 1.35vw, 22px);
 }
 
-.errorRankNumbers {
-  display: grid;
-  min-width: 94px;
-  gap: 2px;
-  text-align: right;
+/* Reduce nested-scroll pressure and make lower RCA groups more scannable. */
+.finalRcaTool .evidenceGrid.triple {
+  align-items: start;
 }
 
-.timelinePanel {
-  margin-top: 14px;
-  border-top: 1px solid rgba(190, 218, 224, 0.10);
-  padding-top: 14px;
+.finalRcaTool .evidenceGrid.triple .evidencePanel {
+  min-height: 0;
 }
 
-.actionList div {
-  gap: 7px;
+.finalRcaTool .evidenceGrid.triple .evidenceList.compact {
+  max-height: 330px;
 }
 
-.actionMeta {
-  display: grid;
-  gap: 5px;
-  margin-top: 2px;
-}
-
-.actionMeta span {
-  color: rgba(203, 213, 225, 0.74) !important;
-  font-size: 12px;
-}
-
-.actionMeta strong {
-  color: rgba(248, 250, 252, 0.92);
-}
-
-.logEvidenceShell .evidenceGrid.triple .evidenceList.compact {
-  max-height: 360px;
-}
-
-.logEvidenceShell .evidenceList.finalEvidenceList {
+.finalRcaTool .evidenceList.finalEvidenceList {
   max-height: 380px;
 }
 
+.finalRcaTool .evidenceList div {
+  transition: border-color .12s ease, background .12s ease;
+}
+
+.finalRcaTool .evidenceList div:hover {
+  border-color: rgba(56, 189, 248, 0.24);
+  background: rgba(56, 189, 248, 0.045);
+}
+
+.finalRcaTool .evidenceList div small {
+  color: rgba(203, 213, 225, 0.68);
+}
+
+/* Make long job/program/action text easier to read. */
+.finalRcaTool .evidenceGrid.triple .evidenceList div b {
+  font-size: 14px;
+}
+
+.finalRcaTool .evidenceGrid.triple .evidenceList div span {
+  font-size: 13px;
+}
+
+.finalRcaTool .evidenceGrid.triple .evidenceList div small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+/* Chart readability: avoid tiny axis text and give the timeline breathing room. */
+.finalRcaTool .chartPanel {
+  min-height: 430px;
+}
+
+.finalRcaTool .chartPanel .recharts-wrapper + .recharts-wrapper {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(190, 218, 224, 0.10);
+}
+
+.finalRcaTool .recharts-cartesian-axis-tick-value {
+  font-size: 11px;
+}
+
+.finalRcaTool .recharts-legend-item-text {
+  color: rgba(226, 232, 240, 0.78) !important;
+}
+
+/* Evidence server and uploaded files should not dominate the page. */
+.finalRcaTool > .evidenceGrid:last-child .evidencePanel {
+  min-height: 210px;
+}
+
+.finalRcaTool > .evidenceGrid:last-child .evidenceList.compact {
+  max-height: 260px;
+}
+
+/* Mobile/tablet refinements. */
 @media (max-width: 1120px) {
-  .errorRankRow {
-    grid-template-columns: 1fr;
+  .finalRcaTool .finalUpload {
+    max-width: none;
   }
 
-  .errorRankNumbers {
-    text-align: left;
+  .finalRcaTool .decisionCard small {
+    -webkit-line-clamp: 4;
   }
 }
