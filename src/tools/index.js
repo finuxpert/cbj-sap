@@ -1,21 +1,13 @@
 import React from 'react'
 
-/**
- * SAP RCA Workspace core tools only.
- * Main investigation stays on Dashboard/Home.
- * Tool routes are specialist evidence drilldowns.
- */
-
 const importers = {
-  comparer: () => import('./ToolComparerClean.jsx'),
-  analyzer: () => import('./ToolSt03nImpactV2.jsx'),
-  logs: () => import('./ToolLogEvidenceV2.jsx'),
+  st03n: () => import('./ToolSt03nImpactV2.jsx'),
+  log: () => import('./ToolLogEvidenceV2.jsx'),
 }
 
 const meta = [
-  { slug: 'comparer', title: 'WP-SCOUT Process', short: 'Process-level suspect detector: PID, WP, job, program, error, recurrence', icon: '🟢' },
-  { slug: 'analyzer', title: 'ST03N Impact V2', short: 'Decision-first workload impact validation: response, DB, wait, completeness', icon: '📊' },
-  { slug: 'logs', title: 'Log Evidence V2', short: 'Decision-first error evidence: family, owner direction, job/program mapping', icon: '🧾' },
+  { slug: 'st03n', title: 'ST03N', short: 'Analyze ST03N Excel, CSV, or ZIP evidence.', icon: '📊' },
+  { slug: 'log', title: 'Log', short: 'Analyze SAP, process, and OS log evidence.', icon: '🧾' },
 ]
 
 const lazyCache = new Map()
@@ -29,9 +21,9 @@ function lazyComponent(slug) {
   return C
 }
 
-export const tools = meta.map((t) => ({
-  ...t,
-  Component: lazyComponent(t.slug),
+export const tools = meta.map((tool) => ({
+  ...tool,
+  Component: lazyComponent(tool.slug),
 }))
 
 export function preloadTool(slug) {
