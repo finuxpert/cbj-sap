@@ -1,3 +1,10 @@
+html:has(.st03nImpactShell),
+body:has(.st03nImpactShell),
+#root:has(.st03nImpactShell) {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 .st03nImpactShell {
   max-width: 100%;
   overflow-x: clip;
@@ -14,20 +21,14 @@
 .st03nImpactShell .st03nDashboardBoard > *,
 .st03nImpactShell .st03nSummaryGrid,
 .st03nImpactShell .st03nFooterGrid,
-.st03nImpactShell .evidencePanel,
-.st03nImpactShell .recharts-responsive-container,
-.st03nImpactShell .recharts-wrapper {
+.st03nImpactShell .evidencePanel {
   max-width: 100%;
   min-width: 0;
 }
 
 .st03nImpactShell .st03nDashboardBoard {
   width: 100%;
-  overflow: hidden;
-}
-
-.st03nImpactShell .recharts-surface {
-  max-width: 100%;
+  overflow: clip;
 }
 
 .st03nImpactShell .st03nKpiStrip {
@@ -75,36 +76,40 @@
   white-space: nowrap;
 }
 
-.st03nImpactShell .st03nChartPanel,
 .st03nImpactShell .st03nMetricPanel,
+.st03nImpactShell .st03nBreakdownPanel,
 .st03nImpactShell .st03nComponentPanel,
 .st03nImpactShell .st03nOffenderPanel {
   min-height: 0 !important;
   padding: 14px;
 }
 
-.st03nImpactShell .st03nChartList,
-.st03nImpactShell .st03nComponentRows {
+.st03nImpactShell .st03nMetricRows,
+.st03nImpactShell .st03nBreakdownRows {
   display: grid;
-  gap: 7px;
-  margin-top: 10px;
+  gap: 8px;
 }
 
-.st03nImpactShell .st03nChartList div,
-.st03nImpactShell .st03nComponentRows div {
+.st03nImpactShell .st03nMetricRow,
+.st03nImpactShell .st03nBreakdownRow {
+  min-width: 0;
+  border: 1px solid rgba(190, 218, 224, 0.10);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.st03nImpactShell .st03nMetricRow div,
+.st03nImpactShell .st03nBreakdownRow div {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   min-width: 0;
-  border: 1px solid rgba(190, 218, 224, 0.10);
-  border-radius: 10px;
-  padding: 7px 9px;
-  background: rgba(255, 255, 255, 0.025);
 }
 
-.st03nImpactShell .st03nChartList b,
-.st03nImpactShell .st03nComponentRows b {
+.st03nImpactShell .st03nMetricRow b,
+.st03nImpactShell .st03nBreakdownRow b {
   overflow: hidden;
   color: rgba(248, 250, 252, 0.92);
   font-size: 12px;
@@ -112,16 +117,60 @@
   white-space: nowrap;
 }
 
-.st03nImpactShell .st03nChartList span,
-.st03nImpactShell .st03nComponentRows span {
+.st03nImpactShell .st03nMetricRow span,
+.st03nImpactShell .st03nBreakdownRow span {
   flex: 0 0 auto;
-  color: rgba(203, 213, 225, 0.74);
+  color: rgba(203, 213, 225, 0.78);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 850;
+}
+
+.st03nImpactShell .st03nMetricRow i,
+.st03nImpactShell .st03nBreakdownRow p {
+  display: block;
+  height: 5px;
+  margin-top: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.st03nImpactShell .st03nMetricRow i {
+  max-width: 100%;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.92), rgba(45, 212, 191, 0.72));
+}
+
+.st03nImpactShell .st03nBreakdownRow p {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.st03nImpactShell .st03nBreakdownRow p i {
+  display: block;
+  height: 100%;
+}
+
+.st03nImpactShell .st03nBreakdownRow .resp {
+  background: rgba(96, 165, 250, 0.90);
+}
+
+.st03nImpactShell .st03nBreakdownRow .db {
+  background: rgba(167, 139, 250, 0.90);
+}
+
+.st03nImpactShell .st03nBreakdownRow .wait {
+  background: rgba(251, 191, 36, 0.90);
+}
+
+.st03nImpactShell .st03nComponentPanel .st03nCompactList {
+  margin-top: 10px;
+  max-height: 150px;
+  overflow: auto;
 }
 
 .st03nImpactShell .st03nOffenderPanel .evidenceList {
-  max-height: 300px;
+  max-height: 280px;
   overflow: auto;
 }
 
