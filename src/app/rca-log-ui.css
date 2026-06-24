@@ -1,0 +1,147 @@
+/* Log Evidence Console refinements. UI-only polish for analysis mode. */
+
+.logEvidenceShell .finalHero.hasAnalysis {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  padding-block: 18px;
+}
+
+.logEvidenceShell .finalHero.hasAnalysis h1 {
+  font-size: clamp(28px, 2.8vw, 42px);
+}
+
+.logEvidenceShell .heroSummaryLine {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.logEvidenceShell .heroSummaryLine span {
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: rgba(226, 232, 240, 0.86) !important;
+  background: rgba(255, 255, 255, 0.035);
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+.logEvidenceShell .finalUpload.compactUpload {
+  min-height: 106px;
+  padding: 15px;
+}
+
+.logEvidenceShell .decisionCard.compactDecision {
+  min-height: 112px;
+}
+
+.logEvidenceShell .decisionCard.compactDecision b {
+  font-size: clamp(17px, 1.45vw, 22px);
+}
+
+.logEvidenceShell .ownerHintShort {
+  display: block;
+  line-height: 1.45;
+}
+
+.errorCodeRanking {
+  display: grid;
+  gap: 10px;
+}
+
+.errorRankRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.95fr) minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid rgba(190, 218, 224, 0.12);
+  border-radius: 13px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.026);
+}
+
+.errorRankMain {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.errorRankMain b {
+  color: rgba(248, 250, 252, 0.96);
+  overflow-wrap: anywhere;
+}
+
+.errorRankMain span,
+.errorRankNumbers span {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.errorRankBar {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.errorRankBar::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--bar-width, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.75), rgba(45, 212, 191, 0.72));
+}
+
+.errorRankNumbers {
+  display: grid;
+  min-width: 94px;
+  gap: 2px;
+  text-align: right;
+}
+
+.timelinePanel {
+  margin-top: 14px;
+  border-top: 1px solid rgba(190, 218, 224, 0.10);
+  padding-top: 14px;
+}
+
+.actionList div {
+  gap: 7px;
+}
+
+.actionMeta {
+  display: grid;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.actionMeta span {
+  color: rgba(203, 213, 225, 0.74) !important;
+  font-size: 12px;
+}
+
+.actionMeta strong {
+  color: rgba(248, 250, 252, 0.92);
+}
+
+.logEvidenceShell .evidenceGrid.triple .evidenceList.compact {
+  max-height: 360px;
+}
+
+.logEvidenceShell .evidenceList.finalEvidenceList {
+  max-height: 380px;
+}
+
+@media (max-width: 1120px) {
+  .errorRankRow {
+    grid-template-columns: 1fr;
+  }
+
+  .errorRankNumbers {
+    text-align: left;
+  }
+}
