@@ -231,6 +231,19 @@ function ownerHint(primary, analysis) {
   return `Review ${target} around ${firstTime}. ${analysis?.rows?.length || 0} parsed rows.`
 }
 
+function aggregateGroups(groups = [], key, labelFn = (value) => value) {
+  const map = new Map()
+  groups.forEach((item) => {
+    const rawName = safe(item[key]) || 'Unknown'
+    const name = labelFn(rawName)
+    const current = map.get(name) || { name, hits: 0, crit: 0 }
+    current.hits += item.hits || 0
+    current.crit += item.critHits || 0
+    map.set(name, current)
+  })
+  return Array.from(map.values()).sort((a, b) => b.crit - a.crit || b.hits - a.hits).slice(0, 6)
+}
+
 function AcceptedTypes({ items }) {
   return <div className="acceptedTypes">{items.map((item) => <span key={item}>{item}</span>)}</div>
 }
@@ -313,56 +326,94 @@ function MappingPanel({ primary }) {
   )
 }
 
-function EvidenceCharts({ analysis, chartData }) {
+function MiniChartPanel({ title, tag, data = [] }) {
   return (
-    <div className="evidenceGrid wide">
-      <section className="evidencePanel chartPanel">
-        <div className="panelTitleRow">
-          <h2>Top ErrorCode</h2>
-          <span>Hits and CRIT</span>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="hits" radius={[8, 8, 0, 0]} />
-            <Bar dataKey="crit" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-        {analysis.timeline?.length ? (
-          <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={analysis.timeline}>
+    <section className="evidencePanel miniChartPanel">
+      <div className="panelTitleRow">
+        <h2>{title}</h2>
+        <span>{tag}</span>
+      </div>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart layout="vertical" data={data} margin={{ top: 4, right: 18, left: 8, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" />
+          <YAxis type="category" dataKey="name" width={128} tick={{ fontSize: 11 }} />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="hits" radius={[0, 8, 8, 0]} />
+          <Bar dataKey="crit" radius={[0, 8, 8, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function EvidenceCharts({ analysis, chartData }) {
+  const familyChart = aggregateGroups(analysis.errorGroups, 'family', compactFamilyLabel)
+  const ownerChart = aggregateGroups(analysis.errorGroups, 'owner')
+  const programChart = (analysis.programGroups || []).slice(0, 6).map((item) => ({
+    name: safe(item.name).slice(0, 28),
+    hits: item.hits || 0,
+    crit: item.critHits || 0,
+  }))
+
+  return (
+    <>
+      <div className="evidenceGrid wide">
+        <section className="evidencePanel chartPanel">
+          <div className="panelTitleRow">
+            <h2>Top ErrorCode</h2>
+            <span>Hits and CRIT</span>
+          </div>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="time" />
+              <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line dataKey="hits" strokeWidth={3} />
-              <Line dataKey="crit" strokeWidth={3} />
-            </LineChart>
+              <Bar dataKey="hits" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="crit" radius={[8, 8, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
-        ) : null}
-      </section>
+          {analysis.timeline?.length ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <LineChart data={analysis.timeline}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="time" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line dataKey="hits" strokeWidth={3} />
+                <Line dataKey="crit" strokeWidth={3} />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : null}
+        </section>
 
-      <section className="evidencePanel">
-        <div className="panelTitleRow">
-          <h2>Error Evidence Ranking</h2>
-          <span>Highest confidence first</span>
-        </div>
-        <div className="evidenceList finalEvidenceList">
-          {analysis.errorGroups.slice(0, 10).map((item) => (
-            <div key={item.name}>
-              <b>{item.name}</b>
-              <span>{compactFamilyLabel(item.family)} · owner {item.owner}</span>
-              <small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
+        <section className="evidencePanel">
+          <div className="panelTitleRow">
+            <h2>Error Evidence Ranking</h2>
+            <span>Highest confidence first</span>
+          </div>
+          <div className="evidenceList finalEvidenceList">
+            {analysis.errorGroups.slice(0, 10).map((item) => (
+              <div key={item.name}>
+                <b>{item.name}</b>
+                <span>{compactFamilyLabel(item.family)} · owner {item.owner}</span>
+                <small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="evidenceGrid triple chartMiniGrid">
+        <MiniChartPanel title="Error Family Mix" tag="By hits / CRIT" data={familyChart} />
+        <MiniChartPanel title="Owner Direction Mix" tag="By owner" data={ownerChart} />
+        <MiniChartPanel title="Top Program Volume" tag="By program" data={programChart} />
+      </div>
+    </>
   )
 }
 
