@@ -86,6 +86,8 @@ function ToolHero({ busy, onFiles }) {
 }
 
 function ParseStatusPanel({ analysis, detected }) {
+  const cachedFiles = analysis?.files || []
+
   return (
     <section className="evidencePanel parsePanel">
       <div className="panelTitleRow">
@@ -95,11 +97,27 @@ function ParseStatusPanel({ analysis, detected }) {
       <div className="statusList finalStatusList">
         {REQUIRED_ST03N.map((required) => {
           const parsed = analysis?.parseStatus?.filter((item) => item.key === required.key) || []
-          const hasFile = detected[required.key]?.length || parsed.some((item) => item.ok)
+          const okStatus = parsed.find((item) => item.ok)
+          const parsedFileStatus = parsed.find((item) => item.fileName)
+          const cachedFile = cachedFiles.find((file) => classifySt03nFile(file.name) === required.key)
+          const currentFile = detected[required.key]?.[0]
+          const hasRecognizedFile = Boolean(currentFile || cachedFile || parsedFileStatus)
+          const statusClass = okStatus ? 'ok' : hasRecognizedFile ? 'detected' : 'missing'
+          const badge = okStatus ? 'Ready' : hasRecognizedFile ? 'Detected' : 'Missing'
+          const message = currentFile?.name
+            || parsedFileStatus?.fileName
+            || cachedFile?.name
+            || parsed[0]?.message
+            || 'missing'
+          const subMessage = !okStatus && hasRecognizedFile && parsed[0]?.message && parsed[0]?.message !== 'missing'
+            ? parsed[0].message
+            : message
+
           return (
-            <div key={required.key} className={hasFile ? 'ok' : 'missing'}>
+            <div key={required.key} className={statusClass}>
+              <em>{badge}</em>
               <b>{required.label}</b>
-              <span>{detected[required.key]?.[0]?.name || parsed[0]?.message || 'missing'}</span>
+              <span>{subMessage}</span>
             </div>
           )
         })}
