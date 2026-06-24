@@ -2,16 +2,73 @@ import * as XLSX from 'xlsx'
 import { expandZipAwareFiles, fileExt, lower, safe, toNumber } from '../evidence-utils.js'
 
 export const REQUIRED_ST03N = [
-  { key: 'timeProfile', label: 'Time Profile', patterns: ['time-profile', 'time_profile', 'time profile'] },
-  { key: 'workload', label: 'Workload Overview', patterns: ['workload'] },
-  { key: 'transactionStandard', label: 'Transaction Standard', patterns: ['transaction-standard', 'transaction_standard', 'transaction standard', 'txstd'] },
-  { key: 'topResponse', label: 'Top Response Time', patterns: ['top-respond', 'top-response', 'top respond', 'top response'] },
-  { key: 'topDb', label: 'Top DB Access', patterns: ['top-db', 'top db', 'db-access', 'db access'] },
+  { key: 'timeProfile', label: 'Time Profile', patterns: ['time-profile', 'time_profile', 'time profile', 'timeprofile'] },
+  { key: 'workload', label: 'Workload Overview', patterns: ['workload', 'workload-overview', 'workload_overview', 'workload overview'] },
+  {
+    key: 'transactionStandard',
+    label: 'Transaction Standard',
+    patterns: [
+      'transaction-standard',
+      'transaction_standard',
+      'transaction standard',
+      'transactionstandard',
+      'transaction profile',
+      'transaction-profile',
+      'transaction_profile',
+      'transactions',
+      'transaction',
+      'txstd',
+      'tcode',
+      'tcodes',
+    ],
+  },
+  {
+    key: 'topResponse',
+    label: 'Top Response Time',
+    patterns: [
+      'top-response-time',
+      'top_response_time',
+      'top response time',
+      'topresponsetime',
+      'top-respond',
+      'top-response',
+      'top respond',
+      'top response',
+      'response-time',
+      'response_time',
+      'response time',
+      'responsetime',
+      'resp-time',
+      'resp_time',
+      'resptime',
+    ],
+  },
+  { key: 'topDb', label: 'Top DB Access', patterns: ['top-db-access', 'top_db_access', 'top db access', 'top-db', 'top db', 'db-access', 'db_access', 'db access'] },
 ]
 
+function normalizeSt03nName(name = '') {
+  return lower(name)
+    .replace(/\.[^.]+$/, '')
+    .replace(/[_()\[\]{}]+/g, ' ')
+    .replace(/[\-.]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function nameHasPattern(normalizedName, pattern) {
+  const normalizedPattern = normalizeSt03nName(pattern)
+  return normalizedName.includes(normalizedPattern)
+}
+
 export function classifySt03nFile(name = '') {
-  const normalized = lower(name).replace(/[_()\[\]]/g, '-')
-  return REQUIRED_ST03N.find((item) => item.patterns.some((pattern) => normalized.includes(pattern)))?.key || ''
+  const normalized = normalizeSt03nName(name)
+  const strongTopResponse = ['top response', 'top respond', 'response time', 'responsetime', 'resp time', 'resptime']
+  if (strongTopResponse.some((pattern) => nameHasPattern(normalized, pattern))) return 'topResponse'
+
+  const strongTransaction = ['transaction standard', 'transaction profile', 'transaction', 'transactions', 'tcode', 'tcodes', 'txstd']
+  if (strongTransaction.some((pattern) => nameHasPattern(normalized, pattern))) return 'transactionStandard'
+
+  return REQUIRED_ST03N.find((item) => item.patterns.some((pattern) => nameHasPattern(normalized, pattern)))?.key || ''
 }
 
 export function isSt03nWorkbook(name = '') {
