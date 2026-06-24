@@ -195,6 +195,115 @@
   color: rgba(248, 250, 252, 0.9) !important;
 }
 
+/* ST03N dashboard layout: compact monitoring-style view */
+.st03nImpactShell .finalHero {
+  min-height: 108px;
+}
+
+.st03nImpactShell .finalDecisionBoard {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.st03nImpactShell .decisionCard {
+  padding: 16px;
+  min-height: 96px;
+}
+
+.st03nImpactShell .st03nSummaryGrid {
+  grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr) !important;
+  gap: 14px !important;
+  align-items: start !important;
+}
+
+.st03nImpactShell .st03nSummaryGrid .parsePanel,
+.st03nImpactShell .st03nSummaryGrid .interpretationPanel {
+  padding: 16px;
+  min-height: 0 !important;
+}
+
+.st03nImpactShell .st03nSummaryGrid .finalStatusList {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.st03nImpactShell .st03nSummaryGrid .finalStatusList div {
+  min-height: 74px;
+  padding: 10px 12px;
+}
+
+.st03nImpactShell .st03nSummaryGrid .finalStatusList div b {
+  font-size: 13px;
+}
+
+.st03nImpactShell .st03nSummaryGrid .finalStatusList div span {
+  font-size: 12px;
+}
+
+.st03nImpactShell .st03nSummaryGrid .interpretationPanel p {
+  margin-bottom: 12px;
+}
+
+.st03nImpactShell .st03nSummaryGrid .finalMetricRows {
+  gap: 8px;
+}
+
+.st03nImpactShell .st03nSummaryGrid .finalMetricRows span {
+  min-height: 66px;
+  padding: 10px 12px;
+}
+
+.st03nImpactShell .st03nTopGrid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(420px, 1fr) !important;
+}
+
+.st03nImpactShell .st03nTopGrid .st03nChartPanel,
+.st03nImpactShell .st03nTopGrid .st03nComponentPanel {
+  min-height: 320px !important;
+}
+
+.st03nImpactShell .st03nTopGrid .st03nComponentPanel .st03nCompactList {
+  max-height: 132px !important;
+}
+
+.st03nImpactShell .st03nCompactGrid.wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.st03nImpactShell .st03nCompactGrid.triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.st03nImpactShell .st03nMetricPanel {
+  min-height: 260px !important;
+}
+
+.st03nImpactShell .st03nCompactGrid:last-of-type {
+  grid-template-columns: minmax(0, 0.9fr) minmax(420px, 1.1fr) !important;
+}
+
+.st03nImpactShell .st03nOffenderPanel {
+  min-height: 314px !important;
+}
+
+.st03nImpactShell .st03nOffenderPanel .st03nCompactList {
+  max-height: 238px !important;
+}
+
+.st03nImpactShell .st03nFooterGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 0.8fr) !important;
+  gap: 14px !important;
+  align-items: start !important;
+}
+
+.st03nImpactShell .st03nFooterGrid .evidencePanel {
+  min-height: 136px !important;
+  padding: 16px;
+}
+
 .infraOnlyShell {
   padding-top: 0 !important;
   margin-top: -8px;
@@ -322,7 +431,16 @@
   }
 
   .infraSummaryBoard,
-  .infraWideGrid {
-    grid-template-columns: 1fr;
+  .infraWideGrid,
+  .st03nImpactShell .st03nSummaryGrid,
+  .st03nImpactShell .st03nTopGrid,
+  .st03nImpactShell .st03nCompactGrid.wide,
+  .st03nImpactShell .st03nCompactGrid.triple,
+  .st03nImpactShell .st03nFooterGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .st03nImpactShell .st03nSummaryGrid .finalStatusList {
+    grid-template-columns: 1fr !important;
   }
 }
