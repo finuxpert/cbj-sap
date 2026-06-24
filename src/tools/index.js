@@ -2,7 +2,7 @@ import React from 'react'
 
 const importers = {
   st03n: () => import('./ToolSt03nImpactV2.jsx'),
-  log: () => import('./ToolLogEvidenceInfraWrapper.jsx'),
+  log: () => import('./ToolLogEvidenceV2.jsx'),
 }
 
 const meta = [
