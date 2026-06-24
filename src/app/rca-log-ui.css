@@ -121,7 +121,8 @@
   gap: 14px;
 }
 
-.infraBlockTitle {
+.infraBlockTitle,
+.infraSectionTitle {
   margin-bottom: 0;
   border: 1px solid rgba(190, 218, 224, 0.12);
   border-radius: 16px;
@@ -131,24 +132,81 @@
     rgba(255, 255, 255, 0.026);
 }
 
-.infraBlockTitle h2 {
+.infraBlockTitle h2,
+.infraSectionTitle h2 {
   color: rgba(248, 250, 252, 0.96) !important;
   font-size: 15px !important;
 }
 
-.infraChartPanel {
+.infraSummaryBoard {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.infraSummaryCard {
+  display: grid;
+  gap: 7px;
+  min-height: 106px;
+  border: 1px solid rgba(190, 218, 224, 0.12);
+  border-radius: 14px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.08), transparent 46%),
+    rgba(255, 255, 255, 0.028);
+}
+
+.infraSummaryCard span {
+  color: rgba(125, 211, 252, 0.9);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.infraSummaryCard b {
+  color: rgba(248, 250, 252, 0.96);
+  font-size: clamp(20px, 1.8vw, 28px);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.infraSummaryCard small {
+  color: rgba(203, 213, 225, 0.7);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.infraChartGrid {
+  margin-top: 14px;
+}
+
+.infraWideGrid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(360px, 1fr);
+}
+
+.infraChartPanel,
+.miniChartPanel {
   min-height: 296px;
 }
 
-.infraChartPanel .panelTitleRow h2 {
+.infraTrendPanel {
+  min-height: 316px;
+}
+
+.infraChartPanel .panelTitleRow h2,
+.miniChartPanel .panelTitleRow h2 {
   color: rgba(186, 230, 253, 0.96) !important;
 }
 
-.infraChartPanel .recharts-tooltip-wrapper {
+.infraChartPanel .recharts-tooltip-wrapper,
+.miniChartPanel .recharts-tooltip-wrapper {
   outline: none;
 }
 
-.infraChartPanel .recharts-default-tooltip {
+.infraChartPanel .recharts-default-tooltip,
+.miniChartPanel .recharts-default-tooltip {
   border-color: rgba(56, 189, 248, 0.28) !important;
   border-radius: 12px !important;
   background: rgba(7, 16, 18, 0.96) !important;
@@ -156,7 +214,9 @@
 }
 
 .infraChartPanel .recharts-tooltip-label,
-.infraChartPanel .recharts-tooltip-item {
+.infraChartPanel .recharts-tooltip-item,
+.miniChartPanel .recharts-tooltip-label,
+.miniChartPanel .recharts-tooltip-item {
   color: rgba(248, 250, 252, 0.9) !important;
 }
 
@@ -171,5 +231,10 @@
 
   .finalRcaTool .decisionCard small {
     -webkit-line-clamp: 4;
+  }
+
+  .infraSummaryBoard,
+  .infraWideGrid {
+    grid-template-columns: 1fr;
   }
 }
