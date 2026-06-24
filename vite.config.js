@@ -10,9 +10,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
-        // Split heavy libs so initial load is lighter and caching is better
+        // Keep the heavy charting library cacheable without forcing an empty React vendor chunk.
         manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
           recharts: ['recharts'],
         },
       },
