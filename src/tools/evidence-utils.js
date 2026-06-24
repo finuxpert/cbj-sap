@@ -107,7 +107,7 @@ export function copyText(text) {
 }
 
 export const ERROR_FAMILY = [
-  { pattern: /CONVT_NO_NUMBER/i, family: 'ABAP conversion / data format issue', owner: 'ABAP / Functional data owner', meaning: 'Numeric conversion failed. Focus on input values, formatting, and job data source.' },
+  { pattern: /CONVT_(?:NO_NUMBER|OVERFLOW)|CONVERSION/i, family: 'ABAP conversion / data format issue', owner: 'ABAP / Functional data owner', meaning: 'Conversion or numeric overflow failed. Focus on input values, field length, formatting, and job data source.' },
   { pattern: /DBSQL|DUPLICATE_KEY|SQL/i, family: 'Database/application data consistency issue', owner: 'ABAP / Functional / Data owner', meaning: 'Duplicate key or SQL issue. Focus on data consistency and insert/update logic.' },
   { pattern: /TIME_OUT/i, family: 'Timeout / long-running processing', owner: 'ABAP / Basis', meaning: 'Processing exceeded runtime threshold. Focus on runtime, loops, SQL, or batch size.' },
   { pattern: /CALL_FUNCTION|RFC|SEND_ERR/i, family: 'RFC / communication function error', owner: 'Basis / Integration', meaning: 'Remote/function call failed. Focus on destination, network, target system, or payload.' },
