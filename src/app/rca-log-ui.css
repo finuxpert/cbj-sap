@@ -107,6 +107,94 @@
   max-height: 260px;
 }
 
+.st03nImpactShell {
+  padding-bottom: 28px;
+}
+
+.st03nImpactShell .evidenceGrid,
+.st03nImpactShell .evidenceGrid.wide,
+.st03nImpactShell .chartMiniGrid {
+  align-items: start !important;
+  gap: 14px !important;
+}
+
+.st03nImpactShell .st03nTopGrid,
+.st03nImpactShell .st03nCompactGrid,
+.st03nImpactShell .st03nFooterGrid {
+  margin-top: 14px;
+}
+
+.st03nImpactShell .evidencePanel {
+  min-height: 0;
+}
+
+.st03nImpactShell .chartPanel,
+.st03nImpactShell .miniChartPanel,
+.st03nImpactShell .st03nChartPanel,
+.st03nImpactShell .st03nMetricPanel {
+  min-height: 0 !important;
+}
+
+.st03nImpactShell .st03nChartPanel,
+.st03nImpactShell .st03nMetricPanel,
+.st03nImpactShell .st03nComponentPanel,
+.st03nImpactShell .st03nOffenderPanel {
+  padding: 16px;
+  overflow: hidden;
+}
+
+.st03nImpactShell .st03nComponentPanel .recharts-wrapper,
+.st03nImpactShell .st03nChartPanel .recharts-wrapper,
+.st03nImpactShell .st03nMetricPanel .recharts-wrapper {
+  margin-bottom: 0 !important;
+}
+
+.st03nImpactShell .st03nCompactList {
+  max-height: 270px !important;
+}
+
+.st03nImpactShell .st03nComponentPanel .st03nCompactList {
+  max-height: 242px !important;
+}
+
+.st03nImpactShell .st03nOffenderPanel .st03nCompactList {
+  max-height: 292px !important;
+}
+
+.st03nImpactShell .st03nCompactList div {
+  padding: 11px 12px;
+}
+
+.st03nImpactShell .st03nCompactList div b {
+  font-size: 14px;
+  line-height: 1.12;
+}
+
+.st03nImpactShell .st03nCompactList div span,
+.st03nImpactShell .st03nCompactList div small {
+  font-size: 12px;
+}
+
+.st03nImpactShell .panelTitleRow {
+  margin-bottom: 8px;
+}
+
+.st03nImpactShell .panelTitleRow h2 {
+  color: rgba(125, 211, 252, 0.96) !important;
+}
+
+.st03nImpactShell .recharts-default-tooltip {
+  border-color: rgba(56, 189, 248, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(7, 16, 18, 0.96) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34) !important;
+}
+
+.st03nImpactShell .recharts-tooltip-label,
+.st03nImpactShell .recharts-tooltip-item {
+  color: rgba(248, 250, 252, 0.9) !important;
+}
+
 .infraOnlyShell {
   padding-top: 0 !important;
   margin-top: -8px;
