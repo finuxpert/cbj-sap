@@ -1,23 +1,27 @@
 import React from 'react'
 
-function parseRoute() {
-  const hash = window.location.hash.slice(1) || '/'
-  const parts = hash.split('/').filter(Boolean)
+const ROUTES = new Set(['st03n', 'log'])
 
-  if (parts.length === 0) return { name: 'home' }
-  if (parts[0] === 'tool' && parts[1]) return { name: 'tool', slug: parts[1] }
-  if (parts[0] === 'about') return { name: 'about' }
-  if (parts[0] === 'contact') return { name: 'contact' }
+function normalizeRoute() {
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  const slug = hash.split('/').filter(Boolean)[0]
 
-  return { name: 'notfound' }
+  if (ROUTES.has(slug)) return { name: slug }
+
+  if (typeof window !== 'undefined' && window.location.hash !== '#/st03n') {
+    window.location.hash = '#/st03n'
+  }
+
+  return { name: 'st03n' }
 }
 
 export default function useRoute() {
-  const [route, setRoute] = React.useState(parseRoute)
+  const [route, setRoute] = React.useState(normalizeRoute)
 
   React.useEffect(() => {
-    const onHash = () => setRoute(parseRoute())
+    const onHash = () => setRoute(normalizeRoute())
     window.addEventListener('hashchange', onHash)
+    onHash()
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
