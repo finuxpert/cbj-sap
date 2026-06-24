@@ -1,5 +1,5 @@
 import React from 'react'
-import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
 import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from './evidence-utils.js'
 import {
   DecisionCard,
@@ -20,6 +20,22 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
+const CHART_COLORS = {
+  score: '#38bdf8',
+  response: '#60a5fa',
+  db: '#a78bfa',
+  wait: '#fbbf24',
+  steps: '#2dd4bf',
+  workload: '#22c55e',
+  warn: '#f97316',
+  muted: '#64748b',
+}
+const PIE_COLORS = ['#38bdf8', '#a78bfa', '#fbbf24', '#2dd4bf', '#22c55e', '#f97316']
+
+function compactLabel(value = '', max = 18) {
+  const label = String(value || 'Unknown').trim() || 'Unknown'
+  return label.length > max ? `${label.slice(0, Math.max(8, max - 1))}…` : label
+}
 
 function buildReportText(analysis) {
   if (!analysis) return ''
@@ -103,58 +119,206 @@ function InterpretationPanel({ top, status }) {
   )
 }
 
-function EvidenceCharts({ analysis, topRows }) {
-  const barData = topRows.map((row) => ({
-    name: row.label.slice(0, 18),
-    score: row.score,
-    response: Math.round(row.responseMs),
-    db: Math.round(row.dbMs),
-    wait: Math.round(row.waitMs),
-  }))
+function HorizontalMetricChart({ title, tag, data = [], metric, color, unit = '', xDomain }) {
+  return (
+    <section className="evidencePanel miniChartPanel">
+      <div className="panelTitleRow">
+        <h2>{title}</h2>
+        <span>{tag}</span>
+      </div>
+      <ResponsiveContainer width="100%" height={250}>
+        <BarChart layout="vertical" data={data} margin={{ top: 6, right: 22, left: 6, bottom: 6 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" domain={xDomain} tickFormatter={(value) => `${fmt(value, 0)}${unit}`} />
+          <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 11 }} />
+          <Tooltip formatter={(value) => [`${fmt(value, 0)}${unit}`, metric]} />
+          <Legend />
+          <Bar dataKey={metric} name={metric} fill={color} radius={[0, 9, 9, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function BreakdownChart({ data = [] }) {
+  return (
+    <section className="evidencePanel chartPanel">
+      <div className="panelTitleRow">
+        <h2>Response / DB / Wait Breakdown</h2>
+        <span>Top workload split</span>
+      </div>
+      <ResponsiveContainer width="100%" height={330}>
+        <BarChart layout="vertical" data={data} margin={{ top: 6, right: 24, left: 8, bottom: 6 }}>
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+          <XAxis type="number" tickFormatter={(value) => `${fmt(value, 0)}ms`} />
+          <YAxis type="category" dataKey="name" width={165} tick={{ fontSize: 11 }} />
+          <Tooltip formatter={(value) => [`${fmt(value, 0)}ms`, '']} />
+          <Legend />
+          <Bar dataKey="response" name="Response ms" stackId="workload" fill={CHART_COLORS.response} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="db" name="DB ms" stackId="workload" fill={CHART_COLORS.db} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="wait" name="Wait ms" stackId="workload" fill={CHART_COLORS.wait} radius={[0, 9, 9, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function TrendChart({ data = [] }) {
+  return (
+    <section className="evidencePanel miniChartPanel">
+      <div className="panelTitleRow">
+        <h2>Workload Trend by Rank</h2>
+        <span>Score / response / DB</span>
+      </div>
+      <ResponsiveContainer width="100%" height={250}>
+        <LineChart data={data} margin={{ top: 6, right: 22, left: 0, bottom: 6 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="rank" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Line dataKey="score" name="Score" stroke={CHART_COLORS.score} strokeWidth={3} dot={false} />
+          <Line dataKey="responseK" name="Response sec" stroke={CHART_COLORS.response} strokeWidth={3} dot={false} />
+          <Line dataKey="dbK" name="DB sec" stroke={CHART_COLORS.db} strokeWidth={3} dot={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function ComponentPie({ analysis, topRows }) {
+  const componentRows = analysis.componentRows?.length ? analysis.componentRows : [
+    { name: 'Response', value: topRows.reduce((sum, row) => sum + (row.responseMs || 0), 0) },
+    { name: 'DB', value: topRows.reduce((sum, row) => sum + (row.dbMs || 0), 0) },
+    { name: 'Wait', value: topRows.reduce((sum, row) => sum + (row.waitMs || 0), 0) },
+  ].filter((item) => item.value > 0)
 
   return (
-    <div className="evidenceGrid wide">
-      <section className="evidencePanel chartPanel">
-        <div className="panelTitleRow">
-          <h2>Top ST03N Evidence</h2>
-          <span>Ranked by score</span>
-        </div>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={barData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="name" />
-            <YAxis domain={[0, 100]} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="score" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </section>
+    <section className="evidencePanel">
+      <div className="panelTitleRow">
+        <h2>Component Mix</h2>
+        <span>Response / DB / wait</span>
+      </div>
+      <ResponsiveContainer width="100%" height={230}>
+        <PieChart>
+          <Pie data={componentRows} dataKey="value" nameKey="name" outerRadius={82} label>
+            {componentRows.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+          </Pie>
+          <Tooltip formatter={(value) => fmt(value, 0)} />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="evidenceList compact finalEvidenceList">
+        {topRows.slice(0, 7).map((row) => (
+          <div key={`${row.kind}-${row.fileName}-${row.label}`}>
+            <b>{row.label}</b>
+            <span>{row.kind} · {row.component} · score {row.score}/100</span>
+            <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
 
-      <section className="evidencePanel">
-        <div className="panelTitleRow">
-          <h2>Component Mix</h2>
-          <span>Response / DB / wait</span>
-        </div>
-        <ResponsiveContainer width="100%" height={230}>
-          <PieChart>
-            <Pie data={analysis.componentRows || []} dataKey="value" nameKey="name" outerRadius={82} label>
-              {(analysis.componentRows || []).map((_, index) => <Cell key={index} />)}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="evidenceList compact finalEvidenceList">
-          {topRows.slice(0, 7).map((row) => (
-            <div key={`${row.kind}-${row.fileName}-${row.label}`}>
-              <b>{row.label}</b>
-              <span>{row.kind} · {row.component} · score {row.score}/100</span>
-              <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
+function BottleneckMixChart({ data = [] }) {
+  return (
+    <section className="evidencePanel miniChartPanel">
+      <div className="panelTitleRow">
+        <h2>Bottleneck Mix</h2>
+        <span>Classified component</span>
+      </div>
+      <ResponsiveContainer width="100%" height={250}>
+        <PieChart>
+          <Pie data={data} dataKey="hits" nameKey="name" outerRadius={86} label>
+            {data.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    </section>
+  )
+}
+
+function EvidenceCharts({ analysis, topRows }) {
+  const chartRows = topRows.slice(0, 10).map((row, index) => ({
+    name: compactLabel(row.label, 22),
+    rank: `#${index + 1}`,
+    score: row.score || 0,
+    response: Math.round(row.responseMs || 0),
+    db: Math.round(row.dbMs || 0),
+    wait: Math.round(row.waitMs || 0),
+    steps: Math.round(row.steps || 0),
+    responseK: Number(((row.responseMs || 0) / 1000).toFixed(1)),
+    dbK: Number(((row.dbMs || 0) / 1000).toFixed(1)),
+  }))
+  const topResponseRows = [...chartRows].sort((a, b) => b.response - a.response).slice(0, 7)
+  const topDbRows = [...chartRows].sort((a, b) => b.db - a.db).slice(0, 7)
+  const topStepRows = [...chartRows].sort((a, b) => b.steps - a.steps).slice(0, 7)
+  const bottleneckRows = Array.from(
+    topRows.reduce((map, row) => {
+      const name = row.component || 'Unknown'
+      const current = map.get(name) || { name, hits: 0 }
+      current.hits += 1
+      map.set(name, current)
+      return map
+    }, new Map()).values()
+  ).sort((a, b) => b.hits - a.hits)
+
+  return (
+    <>
+      <div className="evidenceGrid wide">
+        <section className="evidencePanel chartPanel">
+          <div className="panelTitleRow">
+            <h2>Top ST03N Evidence</h2>
+            <span>Horizontal ranking</span>
+          </div>
+          <ResponsiveContainer width="100%" height={330}>
+            <BarChart layout="vertical" data={chartRows} margin={{ top: 6, right: 22, left: 8, bottom: 6 }}>
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" domain={[0, 100]} />
+              <YAxis type="category" dataKey="name" width={165} tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="score" name="Score" fill={CHART_COLORS.score} radius={[0, 9, 9, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+
+        <ComponentPie analysis={analysis} topRows={topRows} />
+      </div>
+
+      <div className="evidenceGrid wide chartMiniGrid">
+        <BreakdownChart data={chartRows.slice(0, 7)} />
+        <TrendChart data={chartRows} />
+      </div>
+
+      <div className="evidenceGrid triple chartMiniGrid">
+        <HorizontalMetricChart title="Top Response Time" tag="Highest dialog impact" data={topResponseRows} metric="response" color={CHART_COLORS.response} unit="ms" />
+        <HorizontalMetricChart title="Top DB Time" tag="Database pressure" data={topDbRows} metric="db" color={CHART_COLORS.db} unit="ms" />
+        <HorizontalMetricChart title="Steps Volume" tag="Execution volume" data={topStepRows} metric="steps" color={CHART_COLORS.steps} />
+      </div>
+
+      <div className="evidenceGrid wide chartMiniGrid">
+        <BottleneckMixChart data={bottleneckRows} />
+        <section className="evidencePanel">
+          <div className="panelTitleRow">
+            <h2>ST03N Offender Ranking</h2>
+            <span>Basis review list</span>
+          </div>
+          <div className="evidenceList finalEvidenceList">
+            {topRows.slice(0, 10).map((row) => (
+              <div key={`${row.kind}-${row.fileName}-${row.label}-ranking`}>
+                <b>{row.label}</b>
+                <span>{row.kind} · {row.component} · score {row.score}/100</span>
+                <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    </>
   )
 }
 
