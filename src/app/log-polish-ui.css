@@ -1,0 +1,149 @@
+html:has(.logEvidenceShell),
+body:has(.logEvidenceShell),
+#root:has(.logEvidenceShell) {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.logEvidenceShell {
+  max-width: 100%;
+  overflow-x: clip;
+  box-sizing: border-box;
+  padding-bottom: 28px;
+}
+
+.logEvidenceShell *,
+.logEvidenceShell *::before,
+.logEvidenceShell *::after {
+  box-sizing: border-box;
+}
+
+.logEvidenceShell .evidenceGrid,
+.logEvidenceShell .evidenceGrid.wide,
+.logEvidenceShell .evidenceGrid.triple,
+.logEvidenceShell .infraWideGrid,
+.logEvidenceShell .chartMiniGrid,
+.logEvidenceShell .infraChartGrid,
+.logEvidenceShell .evidencePanel,
+.logEvidenceShell .recharts-responsive-container,
+.logEvidenceShell .recharts-wrapper {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.logEvidenceShell .evidenceGrid,
+.logEvidenceShell .evidenceGrid.wide,
+.logEvidenceShell .evidenceGrid.triple,
+.logEvidenceShell .infraWideGrid,
+.logEvidenceShell .chartMiniGrid,
+.logEvidenceShell .infraChartGrid {
+  overflow: clip;
+  gap: 14px !important;
+  align-items: start !important;
+}
+
+.logEvidenceShell .finalHero {
+  min-height: 108px;
+}
+
+.logEvidenceShell .finalDecisionBoard {
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.logEvidenceShell .decisionCard {
+  min-height: 96px;
+  padding: 16px;
+}
+
+.logEvidenceShell .decisionCard b {
+  font-size: clamp(17px, 1.35vw, 22px);
+}
+
+.logEvidenceShell .chartPanel,
+.logEvidenceShell .miniChartPanel,
+.logEvidenceShell .infraTrendPanel {
+  min-height: 0 !important;
+  padding: 14px;
+}
+
+.logEvidenceShell .chartPanel .recharts-responsive-container:first-of-type {
+  height: 220px !important;
+}
+
+.logEvidenceShell .chartPanel .recharts-responsive-container:nth-of-type(2) {
+  height: 120px !important;
+}
+
+.logEvidenceShell .miniChartPanel .recharts-responsive-container {
+  height: 178px !important;
+}
+
+.logEvidenceShell .infraTrendPanel .recharts-responsive-container {
+  height: 206px !important;
+}
+
+.logEvidenceShell .evidenceList.finalEvidenceList,
+.logEvidenceShell .evidenceList.compact.finalEvidenceList {
+  max-height: 300px;
+  overflow: auto;
+}
+
+.logEvidenceShell .evidenceGrid.triple .evidenceList.compact.finalEvidenceList {
+  max-height: 245px;
+}
+
+.logEvidenceShell .evidenceList div {
+  min-width: 0;
+}
+
+.logEvidenceShell .evidenceList div b,
+.logEvidenceShell .evidenceList div span,
+.logEvidenceShell .evidenceList div small {
+  overflow-wrap: anywhere;
+}
+
+.logEvidenceShell .infraSectionTitle {
+  min-height: 0 !important;
+  padding: 14px 16px;
+}
+
+.logEvidenceShell .infraSummaryBoard {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.logEvidenceShell .infraSummaryCard {
+  min-height: 92px;
+  padding: 12px;
+}
+
+.logEvidenceShell .infraSummaryCard b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logEvidenceShell .recharts-surface {
+  max-width: 100%;
+}
+
+.logEvidenceShell .recharts-cartesian-axis-tick-value {
+  font-size: 10px;
+}
+
+.logEvidenceShell > .evidenceGrid:last-child .evidencePanel {
+  min-height: 136px !important;
+  padding: 16px;
+}
+
+@media (max-width: 1180px) {
+  .logEvidenceShell .evidenceGrid,
+  .logEvidenceShell .evidenceGrid.wide,
+  .logEvidenceShell .evidenceGrid.triple,
+  .logEvidenceShell .infraWideGrid,
+  .logEvidenceShell .infraSummaryBoard {
+    grid-template-columns: 1fr !important;
+  }
+}
