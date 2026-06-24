@@ -375,6 +375,7 @@ export default function ToolSt03nImpactV2() {
 
   const topRows = analysis?.rows?.slice(0, 12) || []
   const top = analysis?.top
+  const displayedFiles = files.length ? files : (analysis?.files || [])
 
   return (
     <section className="evidenceToolShell refinedTool finalRcaTool st03nImpactShell">
@@ -408,7 +409,7 @@ export default function ToolSt03nImpactV2() {
       )}
 
       <div className="evidenceGrid st03nFooterGrid">
-        <UploadedFilesPanel files={files} />
+        <UploadedFilesPanel files={displayedFiles} />
         <EvidenceServerPanel serverInfo={serverInfo} />
       </div>
     </section>
