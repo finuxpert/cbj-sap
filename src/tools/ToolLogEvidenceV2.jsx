@@ -212,6 +212,25 @@ function buildAnalysis(files, rows, evidenceServer) {
   }
 }
 
+function compactFamilyLabel(family = '') {
+  return safe(family)
+    .replace('SAP runtime/log pattern', 'Runtime Pattern')
+    .replace('RFC / communication function error', 'RFC / Communication')
+    .replace('ABAP program load/runtime issue', 'ABAP Runtime')
+    .replace('Database/application data consistency issue', 'Data Consistency') || 'Unknown'
+}
+
+function cleanActionText(text = '') {
+  return safe(text).replace(/^(Focus [^:]+)\s+\1:?\s*/i, '$1: ')
+}
+
+function ownerHint(primary, analysis) {
+  if (!primary) return 'Based only on uploaded evidence pattern.'
+  const target = primary.jobs?.[0] || primary.programs?.[0] || primary.examples?.[0] || primary.name
+  const firstTime = primary.times?.[0] || 'peak time'
+  return `Review ${target} around ${firstTime}. ${analysis?.rows?.length || 0} parsed rows.`
+}
+
 function AcceptedTypes({ items }) {
   return <div className="acceptedTypes">{items.map((item) => <span key={item}>{item}</span>)}</div>
 }
@@ -239,14 +258,14 @@ function Group({ title, rows = [] }) {
     <section className="evidencePanel">
       <div className="panelTitleRow">
         <h2>{title}</h2>
-        <span>Top 8</span>
+        <span>Top 5</span>
       </div>
       <div className="evidenceList compact finalEvidenceList">
-        {rows.slice(0, 8).map((item) => (
+        {rows.slice(0, 5).map((item) => (
           <div key={item.name}>
             <b>{item.name}</b>
             <span>hits {item.hits} · CRIT {item.critHits}</span>
-            <small>{item.family || ''} {item.examples?.join(' · ')}</small>
+            <small>{compactFamilyLabel(item.family || '')} {item.examples?.join(' · ')}</small>
           </div>
         ))}
       </div>
@@ -263,7 +282,7 @@ function PrimaryExplanation({ primary, status }) {
       </div>
       {primary ? (
         <>
-          <p><b>{primary.name}</b> points to <b>{primary.family}</b>.</p>
+          <p><b>{primary.name}</b> points to <b>{compactFamilyLabel(primary.family)}</b>.</p>
           <p>{primary.meaning}</p>
           <div className="confidenceRows finalMetricRows">
             <span>Hits<b>{primary.hits}</b></span>
@@ -334,10 +353,10 @@ function EvidenceCharts({ analysis, chartData }) {
           <span>Highest confidence first</span>
         </div>
         <div className="evidenceList finalEvidenceList">
-          {analysis.errorGroups.slice(0, 12).map((item) => (
+          {analysis.errorGroups.slice(0, 10).map((item) => (
             <div key={item.name}>
               <b>{item.name}</b>
-              <span>{item.family} · owner {item.owner}</span>
+              <span>{compactFamilyLabel(item.family)} · owner {item.owner}</span>
               <small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small>
             </div>
           ))}
@@ -415,17 +434,18 @@ export default function ToolLogEvidenceV2() {
 
   const primary = analysis?.primary
   const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: item.name.slice(0, 16), hits: item.hits, crit: item.critHits })) || []
+  const familyValue = primary ? compactFamilyLabel(primary.family) : 'Unknown'
 
   return (
-    <section className="evidenceToolShell refinedTool finalRcaTool">
+    <section className="evidenceToolShell refinedTool finalRcaTool logEvidenceShell">
       <ToolHero busy={busy} onFiles={onFiles} />
       <SessionBanner session={session} />
       <EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-log-evidence-v2" />
 
       <section className="decisionBoard finalDecisionBoard">
         <DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} />
-        <DecisionCard label="Error Family" value={primary?.family || 'Unknown'} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" />
-        <DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={analysis?.nextAction || 'Based only on uploaded evidence pattern'} />
+        <DecisionCard label="Error Family" value={familyValue} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" />
+        <DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={ownerHint(primary, analysis)} />
         <DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} />
       </section>
 
@@ -451,12 +471,12 @@ export default function ToolLogEvidenceV2() {
         <div className="evidenceGrid triple">
           <Group title="Top JobName" rows={analysis.jobGroups} />
           <Group title="Top Program" rows={analysis.programGroups} />
-          <Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 8).map((item) => ({
+          <Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 5).map((item) => ({
             name: item.name,
             hits: item.hits,
             critHits: item.critHits,
-            family: `Focus ${item.owner}`,
-            examples: [buildOwnerAction(item)],
+            family: item.owner,
+            examples: [cleanActionText(buildOwnerAction(item))],
           }))} />
         </div>
       )}
