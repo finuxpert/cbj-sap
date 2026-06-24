@@ -23,13 +23,13 @@ export default function Navbar() {
   )
 
   return (
-    <header className="navbar rcaNav">
+    <header className="navbar rcaNav finalNav">
       <div className="navInner rcaNavInner">
-        <a className="brand rcaBrand" href="#/st03n">
+        <a className="brand rcaBrand" href="#/st03n" aria-label="SAP RCA Workspace home">
           <span className="brandBadge">RCA</span>
           <span className="brandText">
             <span className="brandTitle">SAP RCA Workspace</span>
-            <span className="brandSub">ST03N and log evidence console</span>
+            <span className="brandSub">ST03N &amp; Log Evidence Console</span>
           </span>
         </a>
 
@@ -39,9 +39,10 @@ export default function Navbar() {
               key={tool.slug}
               href={`#/${tool.slug}`}
               data-active={active(tool.slug)}
+              aria-current={active(tool.slug) === 'true' ? 'page' : undefined}
               onMouseEnter={() => preloadTool?.(tool.slug)}
             >
-              <span>{tool.icon}</span>{tool.title}
+              {tool.title}
             </a>
           ))}
         </nav>
@@ -52,11 +53,11 @@ export default function Navbar() {
 
         {mobileOpen && (
           <div className="mobileNavDock">
-            <div className="mobilePanel">
+            <div className="mobilePanel finalMobilePanel">
               <div className="mobilePanelTitle">SAP RCA Workspace</div>
               <div className="row wrap gap-10">
                 {tools.map((tool) => (
-                  <a className="btn" key={tool.slug} href={`#/${tool.slug}`}>{tool.title}</a>
+                  <a className="btn" data-active={active(tool.slug)} key={tool.slug} href={`#/${tool.slug}`}>{tool.title}</a>
                 ))}
               </div>
             </div>
