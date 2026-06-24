@@ -1,7 +1,6 @@
 /* Log Evidence Console refinements.
    Safe CSS-only polish that applies to the current ST03N/Log shell without parser changes. */
 
-/* Make the analysis workspace denser after data is loaded. */
 .finalRcaTool .finalHero {
   min-height: 124px;
 }
@@ -18,7 +17,6 @@
   max-width: 310px;
 }
 
-/* Improve decision card readability for long SAP labels. */
 .finalRcaTool .decisionCard {
   overflow: hidden;
 }
@@ -40,7 +38,6 @@
   font-size: clamp(17px, 1.35vw, 22px);
 }
 
-/* Reduce nested-scroll pressure and make lower RCA groups more scannable. */
 .finalRcaTool .evidenceGrid.triple {
   align-items: start;
 }
@@ -70,7 +67,6 @@
   color: rgba(203, 213, 225, 0.68);
 }
 
-/* Make long job/program/action text easier to read. */
 .finalRcaTool .evidenceGrid.triple .evidenceList div b {
   font-size: 14px;
 }
@@ -85,7 +81,6 @@
   font-size: 12px;
 }
 
-/* Chart readability: avoid tiny axis text and give the timeline breathing room. */
 .finalRcaTool .chartPanel {
   min-height: 430px;
 }
@@ -104,7 +99,6 @@
   color: rgba(226, 232, 240, 0.78) !important;
 }
 
-/* Evidence server and uploaded files should not dominate the page. */
 .finalRcaTool > .evidenceGrid:last-child .evidencePanel {
   min-height: 210px;
 }
@@ -113,7 +107,63 @@
   max-height: 260px;
 }
 
-/* Mobile/tablet refinements. */
+.infraOnlyShell {
+  padding-top: 0 !important;
+  margin-top: -8px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(167, 139, 250, 0.08), transparent 30rem),
+    radial-gradient(circle at 88% 8%, rgba(45, 212, 191, 0.07), transparent 34rem),
+    linear-gradient(180deg, #071012 0%, #081114 58%, #05090b 100%) !important;
+}
+
+.infraChartsBlock {
+  display: grid;
+  gap: 14px;
+}
+
+.infraBlockTitle {
+  margin-bottom: 0;
+  border: 1px solid rgba(190, 218, 224, 0.12);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(90deg, rgba(167, 139, 250, 0.12), rgba(45, 212, 191, 0.055)),
+    rgba(255, 255, 255, 0.026);
+}
+
+.infraBlockTitle h2 {
+  color: rgba(248, 250, 252, 0.96) !important;
+  font-size: 15px !important;
+}
+
+.infraChartPanel {
+  min-height: 296px;
+}
+
+.infraChartPanel .panelTitleRow h2 {
+  color: rgba(186, 230, 253, 0.96) !important;
+}
+
+.infraChartPanel .recharts-tooltip-wrapper {
+  outline: none;
+}
+
+.infraChartPanel .recharts-default-tooltip {
+  border-color: rgba(56, 189, 248, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(7, 16, 18, 0.96) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34) !important;
+}
+
+.infraChartPanel .recharts-tooltip-label,
+.infraChartPanel .recharts-tooltip-item {
+  color: rgba(248, 250, 252, 0.9) !important;
+}
+
+.infraTripleGrid .infraChartPanel {
+  min-height: 274px;
+}
+
 @media (max-width: 1120px) {
   .finalRcaTool .finalUpload {
     max-width: none;
