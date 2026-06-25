@@ -91,6 +91,11 @@ const tableStyle = {
   minWidth: 980,
 }
 
+const reportTableStyle = {
+  ...tableStyle,
+  minWidth: 720,
+}
+
 const thStyle = {
   position: 'sticky',
   top: 0,
@@ -129,7 +134,9 @@ const columns = [
   { key: 'dominant', label: 'Dominant' },
 ]
 
-export default function St03nOffenderTable({ rows = [] }) {
+const reportColumns = columns.filter((column) => !['cpu', 'steps'].includes(column.key))
+
+export default function St03nOffenderTable({ rows = [], reportMode = false }) {
   const [query, setQuery] = React.useState('')
   const [component, setComponent] = React.useState('all')
   const [sort, setSort] = React.useState({ key: 'score', direction: 'desc' })
@@ -141,15 +148,19 @@ export default function St03nOffenderTable({ rows = [] }) {
 
   const visibleRows = React.useMemo(() => {
     const filtered = normalizedRows
-      .filter((row) => component === 'all' || row.component === component)
-      .filter((row) => rowMatchesQuery(row, query))
+      .filter((row) => reportMode || component === 'all' || row.component === component)
+      .filter((row) => reportMode || rowMatchesQuery(row, query))
       .map((row) => ({ ...row, dominant: dominantKind(row) }))
 
-    return [...filtered].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       const result = compareRows(a, b, sort.key)
       return sort.direction === 'asc' ? result : -result
     })
-  }, [component, normalizedRows, query, sort])
+
+    return reportMode ? sorted.slice(0, 5) : sorted
+  }, [component, normalizedRows, query, reportMode, sort])
+
+  const activeColumns = reportMode ? reportColumns : columns
 
   const toggleSort = (key) => {
     setSort((current) => ({
@@ -164,7 +175,7 @@ export default function St03nOffenderTable({ rows = [] }) {
       return (
         <div>
           <b style={{ color: 'rgba(248,250,252,.96)' }}>{row.name}</b>
-          <div style={{ color: 'rgba(148,163,184,.78)', marginTop: 4 }}>{row.kind} · {row.fileName}</div>
+          {!reportMode ? <div style={{ color: 'rgba(148,163,184,.78)', marginTop: 4 }}>{row.kind} · {row.fileName}</div> : null}
         </div>
       )
     }
@@ -178,35 +189,39 @@ export default function St03nOffenderTable({ rows = [] }) {
     <section className="evidencePanel st03nBreakdownPanel visual">
       <div className="panelTitleRow">
         <h2>Offender Analysis Table</h2>
-        <span>Search / filter / sort</span>
+        <span>{reportMode ? 'Top 5 offenders' : 'Search / filter / sort'}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ flex: '1 1 320px' }}>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search TCode, program, file, component..."
-            style={inputStyle}
-          />
-        </div>
-        <select value={component} onChange={(event) => setComponent(event.target.value)} style={selectStyle}>
-          <option value="all">All components</option>
-          {components.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-      </div>
+      {!reportMode ? (
+        <>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ flex: '1 1 320px' }}>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search TCode, program, file, component..."
+                style={inputStyle}
+              />
+            </div>
+            <select value={component} onChange={(event) => setComponent(event.target.value)} style={selectStyle}>
+              <option value="all">All components</option>
+              {components.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </div>
 
-      <div style={{ color: 'rgba(148,163,184,.82)', fontSize: 12, marginBottom: 10 }}>
-        Showing <b style={{ color: 'rgba(248,250,252,.94)' }}>{visibleRows.length}</b> of <b style={{ color: 'rgba(248,250,252,.94)' }}>{normalizedRows.length}</b> parsed offenders. Click column headers to sort.
-      </div>
+          <div style={{ color: 'rgba(148,163,184,.82)', fontSize: 12, marginBottom: 10 }}>
+            Showing <b style={{ color: 'rgba(248,250,252,.94)' }}>{visibleRows.length}</b> of <b style={{ color: 'rgba(248,250,252,.94)' }}>{normalizedRows.length}</b> parsed offenders. Click column headers to sort.
+          </div>
+        </>
+      ) : null}
 
-      <div style={tableShellStyle}>
-        <table style={tableStyle}>
+      <div style={reportMode ? { ...tableShellStyle, maxHeight: 260 } : tableShellStyle}>
+        <table style={reportMode ? reportTableStyle : tableStyle}>
           <thead>
             <tr>
-              {columns.map((column) => (
+              {activeColumns.map((column) => (
                 <th key={column.key} style={thStyle} onClick={() => toggleSort(column.key)}>
-                  {column.label}{sort.key === column.key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                  {column.label}{sort.key === column.key && !reportMode ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
                 </th>
               ))}
             </tr>
@@ -214,14 +229,14 @@ export default function St03nOffenderTable({ rows = [] }) {
           <tbody>
             {visibleRows.map((row) => (
               <tr key={`${row.rank}-${row.name}-${row.fileName}`}>
-                {columns.map((column) => (
+                {activeColumns.map((column) => (
                   <td key={`${row.rank}-${column.key}`} style={tdStyle}>{renderCell(row, column.key)}</td>
                 ))}
               </tr>
             ))}
             {!visibleRows.length ? (
               <tr>
-                <td colSpan={columns.length} style={{ ...tdStyle, textAlign: 'center', padding: 26 }}>
+                <td colSpan={activeColumns.length} style={{ ...tdStyle, textAlign: 'center', padding: 26 }}>
                   No matching offender rows.
                 </td>
               </tr>
