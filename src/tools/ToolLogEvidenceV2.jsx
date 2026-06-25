@@ -329,20 +329,49 @@ function aggregateGroups(groups = [], key, labelFn = (value) => value) {
   return Array.from(map.values()).sort((a, b) => b.crit - a.crit || b.hits - a.hits).slice(0, 6)
 }
 
+function percentile(values = [], p = 95) {
+  const nums = values.map(Number).filter((value) => Number.isFinite(value)).sort((a, b) => a - b)
+  if (!nums.length) return 0
+  const idx = Math.min(nums.length - 1, Math.max(0, Math.ceil((p / 100) * nums.length) - 1))
+  return Number(nums[idx].toFixed(2))
+}
+
 function buildInfraTimeline(rows = []) {
   const map = new Map()
   rows.forEach((row) => {
     const time = row.timeLabel || 'unknown'
-    const current = map.get(time) || { time, samples: 0, cpuTotal: 0, avgCpu: 0, maxCpu: 0, maxRssGb: 0, physicalMemGb: 0, swapGb: 0, crit: 0, warn: 0 }
+    const current = map.get(time) || {
+      time,
+      samples: 0,
+      cpuTotal: 0,
+      avgCpu: 0,
+      maxCpu: 0,
+      rssValues: [],
+      maxRssGb: 0,
+      totalRssGb: 0,
+      p95RssGb: 0,
+      physicalMemGb: 0,
+      swapGb: 0,
+      crit: 0,
+      warn: 0,
+      badWp: 0,
+    }
+    const cpu = Number(row.cpu) || 0
+    const rss = Number(row.rssGb) || 0
     current.samples += 1
-    current.cpuTotal += Number(row.cpu) || 0
-    current.maxCpu = Math.max(current.maxCpu, Number(row.cpu) || 0)
-    current.maxRssGb = Math.max(current.maxRssGb, Number(row.rssGb) || 0)
+    current.cpuTotal += cpu
+    current.maxCpu = Math.max(current.maxCpu, cpu)
+    if (rss > 0) current.rssValues.push(rss)
+    current.maxRssGb = Math.max(current.maxRssGb, rss)
+    current.totalRssGb += rss
     current.physicalMemGb = Math.max(current.physicalMemGb, Number(row.physicalMemGb) || 0)
     current.swapGb = Math.max(current.swapGb, Number(row.swapGb) || 0)
     current.crit += row.className === 'CRIT' ? 1 : 0
     current.warn += row.className === 'WARN' ? 1 : 0
+    current.badWp = current.crit + current.warn
     current.avgCpu = Number((current.cpuTotal / current.samples).toFixed(2))
+    current.p95RssGb = percentile(current.rssValues, 95)
+    current.totalRssGb = Number(current.totalRssGb.toFixed(2))
     map.set(time, current)
   })
   return Array.from(map.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
@@ -392,11 +421,30 @@ function buildProgramCpuPressure(groups = []) {
 function buildInfraSummary(rows = []) {
   const peakCpuRow = rows.reduce((best, row) => ((row.cpu || 0) > (best?.cpu || 0) ? row : best), null)
   const maxRssRow = rows.reduce((best, row) => ((row.rssGb || 0) > (best?.rssGb || 0) ? row : best), null)
+  const rssValues = rows.map((row) => Number(row.rssGb) || 0).filter((value) => value > 0)
+  const totalRssGb = Number(rssValues.reduce((sum, value) => sum + value, 0).toFixed(2))
+  const p95RssGb = percentile(rssValues, 95)
   const physicalMemGb = Math.max(0, ...rows.map((row) => Number(row.physicalMemGb) || 0))
   const swapGb = Math.max(0, ...rows.map((row) => Number(row.swapGb) || 0))
   const hostChart = buildHostMix(rows)
   const critCount = rows.filter((row) => row.className === 'CRIT').length
-  return { peakCpu: peakCpuRow?.cpu || 0, peakCpuTime: peakCpuRow?.timeLabel || '-', peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34), maxRssGb: maxRssRow?.rssGb || 0, maxRssTime: maxRssRow?.timeLabel || '-', physicalMemGb, swapGb, impactedHost: hostChart[0]?.name || 'Unknown', hostHits: hostChart[0]?.hits || 0, critCount }
+  const warnCount = rows.filter((row) => row.className === 'WARN').length
+  return {
+    peakCpu: peakCpuRow?.cpu || 0,
+    peakCpuTime: peakCpuRow?.timeLabel || '-',
+    peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34),
+    maxRssGb: maxRssRow?.rssGb || 0,
+    maxRssTime: maxRssRow?.timeLabel || '-',
+    totalRssGb,
+    p95RssGb,
+    physicalMemGb,
+    swapGb,
+    impactedHost: hostChart[0]?.name || 'Unknown',
+    hostHits: hostChart[0]?.hits || 0,
+    critCount,
+    warnCount,
+    badWp: critCount + warnCount,
+  }
 }
 
 function AcceptedTypes({ items }) {
@@ -465,21 +513,27 @@ function TimelinePanel({ data = [] }) {
 
 function InfraTrendPanel({ data = [] }) {
   const items = data.slice(-14)
+  const hasPhysical = items.some((item) => Number(item.physicalMemGb) > 0)
+  const hasSwap = items.some((item) => Number(item.swapGb) > 0)
+  const series = [
+    { name: 'Avg CPU', type: 'line', smooth: true, data: items.map((item) => item.avgCpu), itemStyle: { color: LOG_COLORS.BASIS }, lineStyle: { color: LOG_COLORS.BASIS } },
+    { name: 'Max CPU', type: 'line', smooth: true, data: items.map((item) => item.maxCpu), itemStyle: { color: LOG_COLORS.CRIT }, lineStyle: { color: LOG_COLORS.CRIT } },
+    { name: 'Max RSS GB', type: 'bar', data: items.map((item) => ({ value: item.maxRssGb, itemStyle: { color: item.maxRssGb >= 5 ? LOG_COLORS.WARN : LOG_COLORS.DB } })), barWidth: 10 },
+    { name: 'P95 RSS GB', type: 'line', smooth: true, data: items.map((item) => item.p95RssGb || 0), itemStyle: { color: LOG_COLORS.ABAP }, lineStyle: { color: LOG_COLORS.ABAP, type: 'dashed' } },
+    { name: 'Total RSS GB', type: 'line', smooth: true, data: items.map((item) => item.totalRssGb || 0), itemStyle: { color: LOG_COLORS.OK }, lineStyle: { color: LOG_COLORS.OK, type: 'dashed' } },
+  ]
+  if (hasPhysical) series.push({ name: 'Physical GB', type: 'line', smooth: true, data: items.map((item) => item.physicalMemGb || 0), itemStyle: { color: LOG_COLORS.OK }, lineStyle: { color: LOG_COLORS.OK, type: 'dotted' } })
+  if (hasSwap) series.push({ name: 'Swap GB', type: 'line', smooth: true, data: items.map((item) => item.swapGb || 0), itemStyle: { color: LOG_COLORS.ABAP }, lineStyle: { color: LOG_COLORS.ABAP, type: 'dotted' } })
+
   const option = chartBase({
     tooltip: { ...chartBase().tooltip, trigger: 'axis' },
     grid: { left: 48, right: 18, top: 22, bottom: 38, containLabel: true },
     legend: { bottom: 0, textStyle: { color: 'rgba(226,232,240,.78)', fontSize: 10 } },
     xAxis: { type: 'category', data: items.map((item) => item.time), axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
-    series: [
-      { name: 'Avg CPU', type: 'line', smooth: true, data: items.map((item) => item.avgCpu), itemStyle: { color: LOG_COLORS.BASIS }, lineStyle: { color: LOG_COLORS.BASIS } },
-      { name: 'Max CPU', type: 'line', smooth: true, data: items.map((item) => item.maxCpu), itemStyle: { color: LOG_COLORS.CRIT }, lineStyle: { color: LOG_COLORS.CRIT } },
-      { name: 'RSS GB', type: 'bar', data: items.map((item) => ({ value: item.maxRssGb, itemStyle: { color: item.maxRssGb >= 5 ? LOG_COLORS.WARN : LOG_COLORS.DB } })), barWidth: 10 },
-      { name: 'Physical GB', type: 'line', smooth: true, data: items.map((item) => item.physicalMemGb || 0), itemStyle: { color: LOG_COLORS.OK }, lineStyle: { color: LOG_COLORS.OK, type: 'dashed' } },
-      { name: 'Swap GB', type: 'line', smooth: true, data: items.map((item) => item.swapGb || 0), itemStyle: { color: LOG_COLORS.ABAP }, lineStyle: { color: LOG_COLORS.ABAP, type: 'dashed' } },
-    ],
+    series,
   })
-  return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>CPU and Memory Timeline</h2><span>Avg / max pressure</span></div>{items.length ? <ReactECharts option={option} style={{ height: 250, width: '100%' }} notMerge lazyUpdate /> : <p>No infra trend data.</p>}</section>
+  return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>CPU and RSS Timeline</h2><span>Evidence derived only</span></div>{items.length ? <ReactECharts option={option} style={{ height: 270, width: '100%' }} notMerge lazyUpdate /> : <p>No infra trend data.</p>}</section>
 }
 
 function Group({ title, rows = [] }) {
@@ -495,11 +549,16 @@ function MappingPanel({ primary }) {
 }
 
 function InfraSummaryCards({ summary }) {
+  const physicalLabel = summary.physicalMemGb ? `${fmt(summary.physicalMemGb)} GB` : 'N/A'
+  const swapLabel = summary.swapGb ? `${fmt(summary.swapGb)} GB` : 'N/A'
   return <section className="infraSummaryBoard">
     <div className="infraSummaryCard"><span>Peak CPU</span><b>{fmt(summary.peakCpu)}%</b><small>{summary.peakCpuProgram} - {summary.peakCpuTime}</small></div>
     <div className="infraSummaryCard"><span>Max RSS</span><b>{fmt(summary.maxRssGb)} GB</b><small>Highest WP memory footprint - {summary.maxRssTime}</small></div>
-    <div className="infraSummaryCard"><span>Physical Memory</span><b>{summary.physicalMemGb ? `${fmt(summary.physicalMemGb)} GB` : '-'}</b><small>Total RAM detected from uploaded log</small></div>
-    <div className="infraSummaryCard"><span>Swap Total</span><b>{summary.swapGb ? `${fmt(summary.swapGb)} GB` : '-'}</b><small>Swap capacity detected from uploaded log</small></div>
+    <div className="infraSummaryCard"><span>P95 RSS</span><b>{fmt(summary.p95RssGb)} GB</b><small>95th percentile from parsed WP rows</small></div>
+    <div className="infraSummaryCard"><span>Total RSS</span><b>{fmt(summary.totalRssGb)} GB</b><small>Sum of RSS from parsed WP rows</small></div>
+    <div className="infraSummaryCard"><span>Bad WP</span><b>{fmt(summary.badWp, 0)}</b><small>CRIT + WARN rows from evidence</small></div>
+    <div className="infraSummaryCard"><span>Physical Memory</span><b>{physicalLabel}</b><small>Only shown if detected in raw log</small></div>
+    <div className="infraSummaryCard"><span>Swap Total</span><b>{swapLabel}</b><small>Only shown if detected in raw log</small></div>
     <div className="infraSummaryCard"><span>Most Impacted Host</span><b>{summary.impactedHost}</b><small>{summary.hostHits} hits - {summary.critCount} CRIT rows</small></div>
   </section>
 }
