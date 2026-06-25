@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactECharts from 'echarts-for-react'
 import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from './evidence-utils.js'
 import {
   DecisionCard,
@@ -31,17 +32,26 @@ const dashboardGridStyle = {
 
 const span = (cols) => ({ gridColumn: `span ${cols}` })
 
+const chartTextStyle = {
+  color: 'rgba(226,232,240,.82)',
+  fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+}
+
 function compactLabel(value = '', max = 18) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
   return label.length > max ? `${label.slice(0, Math.max(8, max - 1))}…` : label
 }
 
 function evidenceName(row = {}, fallback = 'ST03N item') {
-  return compactLabel(row.label || row.name || row.program || row.transaction || row.fileName || row.kind || fallback, 28)
+  return compactLabel(row?.label || row?.name || row?.program || row?.transaction || row?.fileName || row?.kind || fallback, 28)
 }
 
 function metricMax(rows = [], metric) {
-  return Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
+  return Math.max(1, ...rows.map((row) => Number(row?.[metric] || 0)))
+}
+
+function metricValue(row = {}, primary, fallback) {
+  return Math.round(Number(row?.[primary] ?? row?.[fallback] ?? 0))
 }
 
 function dominantKind(row = {}) {
@@ -49,6 +59,7 @@ function dominantKind(row = {}) {
     ['response', Number(row.response || row.responseMs || 0)],
     ['db', Number(row.db || row.dbMs || 0)],
     ['wait', Number(row.wait || row.waitMs || 0)],
+    ['cpu', Number(row.cpu || row.cpuMs || 0)],
   ]
   return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || 'response'
 }
@@ -58,11 +69,29 @@ function graphRows(rows = [], limit = 6) {
     ...row,
     name: evidenceName(row),
     color: GRAPH_COLORS[index % GRAPH_COLORS.length],
-    response: Math.round(row.response ?? row.responseMs ?? 0),
-    db: Math.round(row.db ?? row.dbMs ?? 0),
-    wait: Math.round(row.wait ?? row.waitMs ?? 0),
-    steps: Math.round(row.steps || 0),
+    response: metricValue(row, 'response', 'responseMs'),
+    db: metricValue(row, 'db', 'dbMs'),
+    wait: metricValue(row, 'wait', 'waitMs'),
+    cpu: metricValue(row, 'cpu', 'cpuMs'),
+    steps: Math.round(Number(row.steps || 0)),
   }))
+}
+
+function chartBaseOption(extra = {}) {
+  return {
+    backgroundColor: 'transparent',
+    color: GRAPH_COLORS,
+    textStyle: chartTextStyle,
+    animationDuration: 650,
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: 'rgba(15,23,42,.96)',
+      borderColor: 'rgba(148,163,184,.22)',
+      textStyle: { color: '#e5e7eb', fontSize: 12 },
+      extraCssText: 'box-shadow:0 16px 40px rgba(0,0,0,.32);border-radius:12px;',
+    },
+    ...extra,
+  }
 }
 
 function buildReportText(analysis) {
@@ -177,9 +206,9 @@ function KpiCard({ label, value, hint }) {
 
 function KpiStrip({ topRows }) {
   const topProgram = topRows[0]
-  const highResp = [...topRows].sort((a, b) => b.responseMs - a.responseMs)[0]
-  const highDb = [...topRows].sort((a, b) => b.dbMs - a.dbMs)[0]
-  const highSteps = [...topRows].sort((a, b) => b.steps - a.steps)[0]
+  const highResp = [...topRows].sort((a, b) => Number(b.responseMs || 0) - Number(a.responseMs || 0))[0]
+  const highDb = [...topRows].sort((a, b) => Number(b.dbMs || 0) - Number(a.dbMs || 0))[0]
+  const highSteps = [...topRows].sort((a, b) => Number(b.steps || 0) - Number(a.steps || 0))[0]
 
   return (
     <section className="st03nKpiStrip">
@@ -191,16 +220,40 @@ function KpiStrip({ topRows }) {
   )
 }
 
+function ChartEmptyState({ message = 'No parsed metric rows available.' }) {
+  return <div className="st03nKpiCard"><span>Chart unavailable</span><b>No data</b><small>{message}</small></div>
+}
+
 function TopOffenderSplitGraph({ topRows = [] }) {
   const top = graphRows(topRows, 1)[0]
   if (!top) return null
 
-  const total = Math.max(1, top.response + top.db + top.wait)
-  const items = [
-    { label: 'Response', value: top.response, color: '#60a5fa' },
-    { label: 'DB Time', value: top.db, color: '#a78bfa' },
-    { label: 'Wait', value: top.wait, color: '#facc15' },
-  ]
+  const data = [
+    { name: 'Response', value: top.response },
+    { name: 'DB Time', value: top.db },
+    { name: 'Wait', value: top.wait },
+  ].filter((item) => item.value > 0)
+
+  const option = chartBaseOption({
+    legend: { bottom: 0, textStyle: chartTextStyle, icon: 'circle' },
+    tooltip: {
+      ...chartBaseOption().tooltip,
+      formatter: ({ name, value, percent }) => `${name}<br/><b>${fmt(value, 0)}ms</b> · ${fmt(percent, 0)}%`,
+    },
+    series: [
+      {
+        name: 'Top offender split',
+        type: 'pie',
+        radius: ['48%', '72%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderRadius: 8, borderColor: 'rgba(15,23,42,.92)', borderWidth: 3 },
+        label: { color: 'rgba(248,250,252,.92)', fontWeight: 800, formatter: '{b}\n{d}%' },
+        labelLine: { lineStyle: { color: 'rgba(148,163,184,.45)' } },
+        data,
+      },
+    ],
+  })
 
   return (
     <section className="evidencePanel visual">
@@ -208,61 +261,88 @@ function TopOffenderSplitGraph({ topRows = [] }) {
         <h2>Top Offender Split</h2>
         <span>{top.name}</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-        {items.map((item) => {
-          const pct = Math.round((item.value / total) * 100)
-          return (
-            <div key={item.label} className="st03nKpiCard">
-              <svg viewBox="0 0 130 130" width="100%" height="128" role="img" aria-label={`${item.label} share`}>
-                <circle cx="65" cy="65" r="44" fill="transparent" stroke="rgba(148,163,184,.18)" strokeWidth="14" />
-                <circle cx="65" cy="65" r="44" fill="transparent" stroke={item.color} strokeWidth="14" strokeDasharray={`${pct} ${100 - pct}`} pathLength="100" strokeLinecap="round" transform="rotate(-90 65 65)" />
-                <text x="65" y="61" textAnchor="middle" fill="rgba(248,250,252,.96)" fontSize="23" fontWeight="950">{pct}%</text>
-                <text x="65" y="82" textAnchor="middle" fill="rgba(203,213,225,.72)" fontSize="11" fontWeight="800">{item.label}</text>
-              </svg>
-              <small>{fmt(item.value, 0)}ms</small>
-            </div>
-          )
-        })}
-      </div>
+      {data.length ? <ReactECharts option={option} style={{ height: 300, width: '100%' }} notMerge lazyUpdate /> : <ChartEmptyState />}
     </section>
   )
 }
 
 function BubbleImpactGraph({ rows = [] }) {
-  const data = graphRows(rows, 7)
-  const maxResp = metricMax(data, 'response')
-  const maxDb = metricMax(data, 'db')
+  const data = graphRows(rows, 8)
   const maxWait = metricMax(data, 'wait')
+  const maxSteps = metricMax(data, 'steps')
+
+  const option = chartBaseOption({
+    grid: { left: 60, right: 28, top: 34, bottom: 58, containLabel: true },
+    tooltip: {
+      ...chartBaseOption().tooltip,
+      formatter: ({ data: point }) => {
+        const row = point?.row || {}
+        return [
+          `<b>#${point.rank} ${row.name}</b>`,
+          `${row.kind || 'ST03N'} · ${row.component || 'Workload'}`,
+          `Response: <b>${fmt(row.response, 0)}ms</b>`,
+          `DB Time: <b>${fmt(row.db, 0)}ms</b>`,
+          `Wait: <b>${fmt(row.wait, 0)}ms</b>`,
+          `CPU: <b>${fmt(row.cpu, 0)}ms</b>`,
+          `Steps: <b>${fmt(row.steps, 0)}</b>`,
+        ].join('<br/>')
+      },
+    },
+    xAxis: {
+      name: 'DB Time (ms)',
+      nameLocation: 'middle',
+      nameGap: 36,
+      splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } },
+      axisLine: { lineStyle: { color: 'rgba(148,163,184,.36)' } },
+      axisLabel: { color: 'rgba(203,213,225,.74)' },
+      nameTextStyle: chartTextStyle,
+    },
+    yAxis: {
+      name: 'Response Time (ms)',
+      nameGap: 42,
+      splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } },
+      axisLine: { lineStyle: { color: 'rgba(148,163,184,.36)' } },
+      axisLabel: { color: 'rgba(203,213,225,.74)' },
+      nameTextStyle: chartTextStyle,
+    },
+    series: [
+      {
+        name: 'Response vs DB',
+        type: 'scatter',
+        data: data.map((row, index) => ({
+          value: [row.db, row.response, row.wait, row.steps],
+          rank: index + 1,
+          row,
+          itemStyle: { color: row.color, opacity: 0.78, borderColor: 'rgba(255,255,255,.76)', borderWidth: 1.2 },
+        })),
+        symbolSize: (value) => {
+          const waitFactor = Math.sqrt(Number(value?.[2] || 0) / maxWait)
+          const stepFactor = Math.sqrt(Number(value?.[3] || 0) / maxSteps)
+          return 18 + Math.max(waitFactor, stepFactor * 0.72) * 34
+        },
+        label: {
+          show: true,
+          formatter: ({ data: point }) => String(point.rank),
+          color: 'rgba(15,23,42,.98)',
+          fontWeight: 950,
+        },
+        emphasis: { focus: 'series', scale: true },
+        markArea: {
+          silent: true,
+          itemStyle: { color: 'rgba(248,113,113,.055)' },
+          data: [[{ xAxis: '50%', yAxis: '50%' }, { xAxis: 'max', yAxis: 'max' }]],
+        },
+      },
+    ],
+  })
 
   return (
     <section className="evidencePanel st03nBreakdownPanel visual">
       <div className="panelTitleRow">
         <h2>Response vs DB Impact Map</h2>
-        <span>Bubble size = Wait</span>
+        <span>Bubble size = Wait / Steps</span>
       </div>
-      <svg viewBox="0 0 760 330" width="100%" height="330" role="img" aria-label="ST03N response database wait bubble chart">
-        <rect x="0" y="0" width="760" height="330" rx="18" fill="rgba(15,23,42,.25)" />
-        <rect x="405" y="35" width="315" height="98" rx="14" fill="rgba(248,113,113,.055)" stroke="rgba(248,113,113,.18)" />
-        <text x="420" y="58" fill="rgba(252,165,165,.92)" fontSize="12" fontWeight="900">High response + high DB</text>
-        <text x="420" y="76" fill="rgba(203,213,225,.72)" fontSize="11">Basis focus area</text>
-        <line x1="70" y1="255" x2="720" y2="255" stroke="rgba(148,163,184,.35)" />
-        <line x1="70" y1="35" x2="70" y2="255" stroke="rgba(148,163,184,.35)" />
-        <line x1="395" y1="35" x2="395" y2="255" stroke="rgba(148,163,184,.16)" strokeDasharray="6 6" />
-        <line x1="70" y1="145" x2="720" y2="145" stroke="rgba(148,163,184,.16)" strokeDasharray="6 6" />
-        <text x="70" y="292" fill="rgba(203,213,225,.75)" fontSize="12">Response time →</text>
-        <text x="18" y="56" fill="rgba(203,213,225,.75)" fontSize="12" transform="rotate(-90 18,56)">DB time →</text>
-        {data.map((row, index) => {
-          const x = 90 + (row.response / maxResp) * 600
-          const y = 245 - (row.db / maxDb) * 190
-          const r = 10 + Math.sqrt(row.wait / maxWait) * 19
-          return (
-            <g key={`${row.name}-${index}`}>
-              <circle cx={x} cy={y} r={r} fill={row.color} opacity="0.64" stroke="rgba(255,255,255,.78)" strokeWidth="1.2" />
-              <text x={x} y={y + 4} textAnchor="middle" fill="rgba(15,23,42,.98)" fontSize="12" fontWeight="950">{index + 1}</text>
-            </g>
-          )
-        })}
-      </svg>
+      {data.length ? <ReactECharts option={option} style={{ height: 360, width: '100%' }} notMerge lazyUpdate /> : <ChartEmptyState />}
       <div className="evidenceList compact finalEvidenceList st03nCompactList">
         {data.slice(0, 5).map((row, index) => (
           <div key={`${row.name}-bubble-note`}>
@@ -276,48 +356,118 @@ function BubbleImpactGraph({ rows = [] }) {
 }
 
 function ComponentDonutGraph({ analysis }) {
-  const rows = (analysis.componentRows || []).slice(0, 5)
-  const total = Math.max(1, rows.reduce((sum, row) => sum + Number(row.value || 0), 0))
-  let offset = 25
+  const rows = (analysis?.componentRows || []).slice(0, 6).filter((row) => Number(row.value || 0) > 0)
+  const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0)
+
+  const option = chartBaseOption({
+    legend: { bottom: 0, textStyle: chartTextStyle, icon: 'circle' },
+    tooltip: {
+      ...chartBaseOption().tooltip,
+      formatter: ({ name, value, percent }) => `${name}<br/><b>${fmt(value, 0)} rows</b> · ${fmt(percent, 0)}%`,
+    },
+    series: [
+      {
+        name: 'Component mix',
+        type: 'pie',
+        radius: ['46%', '72%'],
+        center: ['50%', '43%'],
+        itemStyle: { borderRadius: 8, borderColor: 'rgba(15,23,42,.92)', borderWidth: 3 },
+        label: { color: 'rgba(248,250,252,.9)', fontWeight: 800, formatter: '{b}\n{d}%' },
+        data: rows.map((row) => ({ name: row.name, value: Number(row.value || 0) })),
+      },
+    ],
+    graphic: total ? [{
+      type: 'text',
+      left: 'center',
+      top: '37%',
+      style: { text: `${fmt(total, 0)}\nrows`, textAlign: 'center', fill: 'rgba(248,250,252,.94)', fontSize: 16, fontWeight: 900 },
+    }] : [],
+  })
 
   return (
     <section className="evidencePanel st03nComponentPanel visual">
       <div className="panelTitleRow">
         <h2>Component Mix</h2>
-        <span>Workload type split</span>
+        <span>Workload type distribution</span>
       </div>
-      <svg viewBox="0 0 320 240" width="100%" height="240" role="img" aria-label="ST03N component donut chart">
-        <circle cx="112" cy="112" r="70" fill="transparent" stroke="rgba(148,163,184,.16)" strokeWidth="26" />
-        {rows.map((row, index) => {
-          const pct = (Number(row.value || 0) / total) * 100
-          const current = offset
-          offset -= pct
-          return (
-            <circle
-              key={row.name}
-              cx="112"
-              cy="112"
-              r="70"
-              fill="transparent"
-              stroke={GRAPH_COLORS[index % GRAPH_COLORS.length]}
-              strokeWidth="26"
-              strokeDasharray={`${pct} ${100 - pct}`}
-              strokeDashoffset={current}
-              pathLength="100"
-              transform="rotate(-90 112 112)"
-            />
-          )
-        })}
-        <text x="112" y="106" textAnchor="middle" fill="rgba(248,250,252,.95)" fontSize="24" fontWeight="900">{fmt(total, 0)}</text>
-        <text x="112" y="128" textAnchor="middle" fill="rgba(203,213,225,.72)" fontSize="12" fontWeight="700">hits</text>
-        {rows.map((row, index) => (
-          <g key={`${row.name}-legend`}>
-            <rect x="210" y={54 + index * 30} width="10" height="10" rx="3" fill={GRAPH_COLORS[index % GRAPH_COLORS.length]} />
-            <text x="228" y={63 + index * 30} fill="rgba(248,250,252,.92)" fontSize="12" fontWeight="800">{row.name}</text>
-            <text x="228" y={78 + index * 30} fill="rgba(203,213,225,.72)" fontSize="11">{fmt(row.value, 0)} hits</text>
-          </g>
-        ))}
-      </svg>
+      {rows.length ? <ReactECharts option={option} style={{ height: 330, width: '100%' }} notMerge lazyUpdate /> : <ChartEmptyState />}
+    </section>
+  )
+}
+
+function OffenderRadarGraph({ rows = [] }) {
+  const data = graphRows(rows, 4)
+  const max = {
+    response: metricMax(data, 'response'),
+    db: metricMax(data, 'db'),
+    wait: metricMax(data, 'wait'),
+    cpu: metricMax(data, 'cpu'),
+    steps: metricMax(data, 'steps'),
+  }
+  const normalize = (value, metric) => Math.round((Number(value || 0) / max[metric]) * 100)
+
+  const option = chartBaseOption({
+    legend: { bottom: 0, textStyle: chartTextStyle, icon: 'circle' },
+    tooltip: {
+      ...chartBaseOption().tooltip,
+      formatter: ({ data: item }) => {
+        const row = item?.row || {}
+        return [
+          `<b>${row.name}</b>`,
+          `${row.kind || 'ST03N'} · ${row.component || 'Workload'}`,
+          `Response: <b>${fmt(row.response, 0)}ms</b>`,
+          `DB: <b>${fmt(row.db, 0)}ms</b>`,
+          `Wait: <b>${fmt(row.wait, 0)}ms</b>`,
+          `CPU: <b>${fmt(row.cpu, 0)}ms</b>`,
+          `Steps: <b>${fmt(row.steps, 0)}</b>`,
+        ].join('<br/>')
+      },
+    },
+    radar: {
+      center: ['50%', '45%'],
+      radius: '65%',
+      splitNumber: 4,
+      indicator: [
+        { name: 'Response', max: 100 },
+        { name: 'DB', max: 100 },
+        { name: 'Wait', max: 100 },
+        { name: 'CPU', max: 100 },
+        { name: 'Steps', max: 100 },
+      ],
+      axisName: { color: 'rgba(226,232,240,.82)', fontWeight: 800 },
+      splitLine: { lineStyle: { color: 'rgba(148,163,184,.18)' } },
+      splitArea: { areaStyle: { color: ['rgba(15,23,42,.18)', 'rgba(15,23,42,.32)'] } },
+      axisLine: { lineStyle: { color: 'rgba(148,163,184,.24)' } },
+    },
+    series: [
+      {
+        name: 'Offender profile',
+        type: 'radar',
+        symbolSize: 5,
+        areaStyle: { opacity: 0.12 },
+        lineStyle: { width: 2.4 },
+        data: data.map((row) => ({
+          name: row.name,
+          row,
+          value: [
+            normalize(row.response, 'response'),
+            normalize(row.db, 'db'),
+            normalize(row.wait, 'wait'),
+            normalize(row.cpu, 'cpu'),
+            normalize(row.steps, 'steps'),
+          ],
+        })),
+      },
+    ],
+  })
+
+  return (
+    <section className="evidencePanel visual">
+      <div className="panelTitleRow">
+        <h2>Offender Profile Radar</h2>
+        <span>Normalized metric intensity</span>
+      </div>
+      {data.length ? <ReactECharts option={option} style={{ height: 340, width: '100%' }} notMerge lazyUpdate /> : <ChartEmptyState />}
     </section>
   )
 }
@@ -337,7 +487,7 @@ function SparklinePanel({ title, tag, rows = [], metric, unit = '' }) {
         <h2>{title}</h2>
         <span>{tag}</span>
       </div>
-      <svg viewBox="0 0 360 170" width="100%" height="170" role="img" aria-label={`${title} sparkline`}>
+      <svg viewBox="0 0 360 170" width="100%" height="170" role="img" aria-label={`${title} distribution`}>
         <line x1="28" y1="140" x2="334" y2="140" stroke="rgba(148,163,184,.24)" />
         <line x1="28" y1="42" x2="28" y2="140" stroke="rgba(148,163,184,.24)" />
         <polyline points={points} fill="none" stroke="rgba(56,189,248,.95)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
@@ -438,10 +588,11 @@ function EvidenceCharts({ analysis, topRows }) {
         <div style={span(12)}><TopOffenderSplitGraph topRows={topRows} /></div>
         <div style={span(8)}><BubbleImpactGraph rows={chartRows} /></div>
         <div style={span(4)}><ComponentDonutGraph analysis={analysis} /></div>
+        <div style={span(12)}><OffenderRadarGraph rows={chartRows} /></div>
         <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
-        <div style={span(4)}><SparklinePanel title="Response Trend" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" /></div>
-        <div style={span(4)}><SparklinePanel title="DB Time Trend" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" /></div>
-        <div style={span(4)}><SparklinePanel title="Steps Trend" tag="Execution volume" rows={topStepRows} metric="steps" /></div>
+        <div style={span(4)}><SparklinePanel title="Response Distribution" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" /></div>
+        <div style={span(4)}><SparklinePanel title="DB Time Distribution" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" /></div>
+        <div style={span(4)}><SparklinePanel title="Steps Distribution" tag="Execution volume" rows={topStepRows} metric="steps" /></div>
         <div style={span(12)}><EvidenceFocusPanel rows={chartRows} /></div>
         <div style={span(12)}><OffenderRanking topRows={topRows} /></div>
       </div>
