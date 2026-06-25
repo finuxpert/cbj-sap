@@ -27,25 +27,25 @@
   min-height: 0;
 }
 
-.logEvidenceShell .memoryQualitySwapGrid > .swapEvidencePanel,
-.logEvidenceShell .memoryQualitySwapGrid > .memoryQualityPanel {
-  height: 100%;
+/* Hide redundant evidence panels when they do not add RCA value. */
+.logEvidenceShell .swapEvidencePanel,
+.logEvidenceShell .memoryEvidencePanel {
+  display: none !important;
 }
 
-.logEvidenceShell .swapEvidencePanel {
-  display: flex;
-  flex-direction: column;
+.logEvidenceShell .memoryQualitySwapGrid,
+.logEvidenceShell .memoryEvidenceGrid {
+  grid-template-columns: minmax(0, 1fr) !important;
 }
 
-.logEvidenceShell .swapEvidencePanel .memoryUnavailable {
-  flex: 1;
-  align-content: center;
-}
-
-.logEvidenceShell .memoryEvidencePanel,
+.logEvidenceShell .memoryQualityPanel,
 .logEvidenceShell .memoryEvidenceChart {
-  opacity: 1 !important;
+  grid-column: 1 / -1 !important;
+}
+
+.logEvidenceShell .memoryEvidenceChart {
   min-height: 0;
+  opacity: 1 !important;
 }
 
 .logEvidenceShell .memorySummaryBoard {
@@ -60,17 +60,14 @@
 }
 
 .logEvidenceShell .memoryQualityPanel,
-.logEvidenceShell .swapEvidencePanel,
-.logEvidenceShell .memoryEvidencePanel,
 .logEvidenceShell .memoryEvidenceChart,
 .logEvidenceShell .infraChartGrid > .evidencePanel {
   padding: 14px;
   border-radius: 18px;
 }
 
-.logEvidenceShell .memoryEvidencePanel .memoryKpiGrid,
 .logEvidenceShell .memoryQualityPanel .memoryQualityGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
 }
 
 .memoryBadge {
@@ -122,7 +119,7 @@
   display: block;
   margin-top: 5px;
   color: rgba(248, 250, 252, .96);
-  font-size: 19px;
+  font-size: 18px;
   overflow-wrap: anywhere;
   letter-spacing: -.03em;
 }
@@ -196,8 +193,7 @@
 }
 
 @media (min-width: 1280px) {
-  .logEvidenceShell .memoryEvidenceGrid > .memoryEvidencePanel { grid-column: span 1; }
-  .logEvidenceShell .memoryEvidenceGrid > .memoryEvidenceChart { grid-column: span 1; }
+  .logEvidenceShell .memoryEvidenceGrid > .memoryEvidenceChart { grid-column: 1 / -1 !important; }
   .logEvidenceShell .evidenceGrid.wide.infraChartGrid > .logMetricPanel { min-height: 300px; }
   .logEvidenceShell .evidenceGrid.triple.infraChartGrid > .logMetricPanel { min-height: 260px; }
 }
