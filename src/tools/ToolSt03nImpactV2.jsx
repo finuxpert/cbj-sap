@@ -16,6 +16,7 @@ import {
   parseSt03nFile,
   REQUIRED_ST03N,
 } from './parsers/st03nParser.js'
+import St03nOffenderTable from './St03nOffenderTable.jsx'
 import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
@@ -589,6 +590,7 @@ function EvidenceCharts({ analysis, topRows }) {
         <div style={span(8)}><BubbleImpactGraph rows={chartRows} /></div>
         <div style={span(4)}><ComponentDonutGraph analysis={analysis} /></div>
         <div style={span(12)}><OffenderRadarGraph rows={chartRows} /></div>
+        <div style={span(12)}><St03nOffenderTable rows={topRows} /></div>
         <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
         <div style={span(4)}><SparklinePanel title="Response Distribution" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" /></div>
         <div style={span(4)}><SparklinePanel title="DB Time Distribution" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" /></div>
