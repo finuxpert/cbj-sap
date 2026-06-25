@@ -23,7 +23,16 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
-const GRAPH_COLORS = ['#60a5fa', '#22d3ee', '#34d399', '#facc15', '#a78bfa', '#fb7185']
+const LOG_COLORS = {
+  CRIT: '#ef4444',
+  WARN: '#f59e0b',
+  OK: '#22c55e',
+  BASIS: '#38bdf8',
+  ABAP: '#a78bfa',
+  DB: '#14b8a6',
+  UNKNOWN: '#94a3b8',
+}
+const GRAPH_COLORS = [LOG_COLORS.BASIS, LOG_COLORS.DB, LOG_COLORS.OK, LOG_COLORS.WARN, LOG_COLORS.ABAP, LOG_COLORS.CRIT]
 const KNOWN_ERRORS = [
   'CONVT_OVERFLOW',
   'CONVT_NO_NUMBER',
@@ -123,6 +132,49 @@ function compactFamilyLabel(family = '') {
     .replace('RFC / communication function error', 'RFC / Communication')
     .replace('ABAP program load/runtime issue', 'ABAP Runtime')
     .replace('Database/application data consistency issue', 'Data Consistency') || 'Unknown'
+}
+
+
+function getSeverityColor(name = '') {
+  const label = safe(name).toUpperCase()
+  if (label.includes('CRIT') || label.includes('ERROR') || label.includes('TIME_OUT') || label.includes('TIMEOUT')) return LOG_COLORS.CRIT
+  if (label.includes('WARN')) return LOG_COLORS.WARN
+  if (label.includes('OK')) return LOG_COLORS.OK
+  return LOG_COLORS.UNKNOWN
+}
+
+function getOwnerColor(name = '') {
+  const label = safe(name).toUpperCase()
+  if (label.includes('ABAP') || label.includes('DEVELOPER')) return LOG_COLORS.ABAP
+  if (label.includes('BASIS') || label.includes('INFRA')) return LOG_COLORS.BASIS
+  if (label.includes('DB') || label.includes('DATABASE') || label.includes('SQL')) return LOG_COLORS.DB
+  return LOG_COLORS.UNKNOWN
+}
+
+function getFamilyColor(name = '') {
+  const label = safe(name).toUpperCase()
+  if (label.includes('TIME') || label.includes('DEADLOCK') || label.includes('ACCESS_DEN')) return LOG_COLORS.CRIT
+  if (label.includes('DATA') || label.includes('SQL') || label.includes('DB')) return LOG_COLORS.DB
+  if (label.includes('ABAP') || label.includes('RUNTIME') || label.includes('CONVERSION') || label.includes('PROGRAM')) return LOG_COLORS.ABAP
+  if (label.includes('RFC') || label.includes('COMMUNICATION')) return LOG_COLORS.BASIS
+  return LOG_COLORS.UNKNOWN
+}
+
+function getCpuColor(value = 0) {
+  const cpu = Number(value || 0)
+  if (cpu >= 30) return LOG_COLORS.CRIT
+  if (cpu >= 15) return LOG_COLORS.WARN
+  return LOG_COLORS.BASIS
+}
+
+function getLogColor(row = {}, title = '') {
+  const chart = String(title || '').toLowerCase()
+  if (chart.includes('severity')) return getSeverityColor(row.name)
+  if (chart.includes('owner')) return getOwnerColor(row.name)
+  if (chart.includes('family')) return getFamilyColor(row.name)
+  if (chart.includes('cpu')) return getCpuColor(row.hits)
+  if (row.crit > 0 || row.critHits > 0) return LOG_COLORS.CRIT
+  return getFamilyColor(row.family || row.name) !== LOG_COLORS.UNKNOWN ? getFamilyColor(row.family || row.name) : LOG_COLORS.BASIS
 }
 
 function group(rows, key) {
@@ -348,7 +400,7 @@ function MetricPanel({ title, tag, rows = [], metric = 'hits', secondMetric = 'c
     } },
     xAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
     yAxis: { type: 'category', data: data.map((row) => displayLabel(row.name, 20)), axisLabel: { color: 'rgba(226,232,240,.82)', fontSize: 10, fontWeight: 800 }, axisTick: { show: false }, axisLine: { show: false } },
-    series: [{ type: 'bar', data: data.map((row) => ({ value: Number(row[metric] || 0), row })), barWidth: 12, itemStyle: { borderRadius: [0, 8, 8, 0], color: GRAPH_COLORS[1] }, label: { show: true, position: 'right', color: 'rgba(226,232,240,.82)', fontSize: 10, formatter: ({ data: item }) => `${fmt(item.row?.[metric] || 0, 0)}${unit}${secondMetric ? ` / C${fmt(item.row?.[secondMetric] || 0, 0)}` : ''}` } }],
+    series: [{ type: 'bar', data: data.map((row) => ({ value: Number(row[metric] || 0), row, itemStyle: { color: getLogColor(row, title), borderRadius: [0, 8, 8, 0] } })), barWidth: 12, label: { show: true, position: 'right', color: 'rgba(226,232,240,.82)', fontSize: 10, formatter: ({ data: item }) => `${fmt(item.row?.[metric] || 0, 0)}${unit}${secondMetric ? ` / C${fmt(item.row?.[secondMetric] || 0, 0)}` : ''}` } }],
   })
   return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>{title}</h2><span>{tag}</span></div>{data.length ? <ReactECharts option={option} style={{ height: 230, width: '100%' }} notMerge lazyUpdate /> : <p>No chart data.</p>}</section>
 }
@@ -362,8 +414,8 @@ function TimelinePanel({ data = [] }) {
     xAxis: { type: 'category', data: items.map((item) => item.time), axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 }, axisLine: { lineStyle: { color: 'rgba(148,163,184,.24)' } } },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
     series: [
-      { name: 'Hits', type: 'line', smooth: true, symbolSize: 5, data: items.map((item) => item.hits), areaStyle: { opacity: 0.12 } },
-      { name: 'CRIT', type: 'line', smooth: true, symbolSize: 5, data: items.map((item) => item.crit) },
+      { name: 'Hits', type: 'line', smooth: true, symbolSize: 5, data: items.map((item) => item.hits), areaStyle: { opacity: 0.12 }, itemStyle: { color: LOG_COLORS.BASIS }, lineStyle: { color: LOG_COLORS.BASIS } },
+      { name: 'CRIT', type: 'line', smooth: true, symbolSize: 5, data: items.map((item) => item.crit), itemStyle: { color: LOG_COLORS.CRIT }, lineStyle: { color: LOG_COLORS.CRIT } },
     ],
   })
   return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>Error Timeline</h2><span>By time window</span></div>{items.length ? <ReactECharts option={option} style={{ height: 250, width: '100%' }} notMerge lazyUpdate /> : <p>No timeline data.</p>}</section>
@@ -378,9 +430,9 @@ function InfraTrendPanel({ data = [] }) {
     xAxis: { type: 'category', data: items.map((item) => item.time), axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
     yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
     series: [
-      { name: 'Avg CPU', type: 'line', smooth: true, data: items.map((item) => item.avgCpu) },
-      { name: 'Max CPU', type: 'line', smooth: true, data: items.map((item) => item.maxCpu) },
-      { name: 'RSS GB', type: 'bar', data: items.map((item) => item.maxRssGb), barWidth: 10 },
+      { name: 'Avg CPU', type: 'line', smooth: true, data: items.map((item) => item.avgCpu), itemStyle: { color: LOG_COLORS.BASIS }, lineStyle: { color: LOG_COLORS.BASIS } },
+      { name: 'Max CPU', type: 'line', smooth: true, data: items.map((item) => item.maxCpu), itemStyle: { color: LOG_COLORS.CRIT }, lineStyle: { color: LOG_COLORS.CRIT } },
+      { name: 'RSS GB', type: 'bar', data: items.map((item) => ({ value: item.maxRssGb, itemStyle: { color: item.maxRssGb >= 5 ? LOG_COLORS.WARN : LOG_COLORS.DB } })), barWidth: 10 },
     ],
   })
   return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>CPU and Memory Timeline</h2><span>Avg / max pressure</span></div>{items.length ? <ReactECharts option={option} style={{ height: 250, width: '100%' }} notMerge lazyUpdate /> : <p>No infra trend data.</p>}</section>
