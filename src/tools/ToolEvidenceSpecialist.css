@@ -328,6 +328,70 @@
   max-height: 260px;
 }
 
+/* ST03N report-first screen: keep the evidence, remove duplicated long views */
+.st03nImpactShell .st03nSummaryGrid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+}
+
+.st03nImpactShell .parsePanel .statusList {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.st03nImpactShell .parsePanel .statusList div {
+  min-height: 58px;
+}
+
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(4),
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(6),
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(7),
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(8),
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(9),
+.st03nImpactShell .st03nFooterGrid {
+  display: none !important;
+}
+
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(1) {
+  grid-column: span 4 !important;
+}
+
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(2) {
+  grid-column: span 8 !important;
+}
+
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(3) {
+  grid-column: span 4 !important;
+}
+
+.st03nImpactShell .st03nDashboardBoard > div:nth-child(5) {
+  grid-column: span 12 !important;
+}
+
+.st03nImpactShell .visual > div[style*="height: 360"] { height: 245px !important; }
+.st03nImpactShell .visual > div[style*="height: 330"] { height: 220px !important; }
+.st03nImpactShell .visual > div[style*="height: 300"] { height: 205px !important; }
+.st03nImpactShell .visual > div[style*="height: 340"] { height: 210px !important; }
+
+.st03nImpactShell section.visual div[style*="max-height: 520"] {
+  max-height: 255px !important;
+}
+
+.st03nImpactShell .evidenceList.compact,
+.st03nImpactShell .st03nCompactList {
+  max-height: 255px;
+}
+
+.st03nImpactShell .evidenceToolbar button,
+.st03nImpactShell .panelTitleRow span,
+.st03nImpactShell .statusList em {
+  font-size: 10px;
+}
+
+@media (min-width: 1280px) {
+  .st03nImpactShell .finalDecisionBoard {
+    grid-template-columns: 1.15fr 1.15fr 1fr 1fr;
+  }
+}
+
 @media (max-width: 1120px) {
   .evidenceHero,
   .evidenceGrid,
@@ -338,6 +402,10 @@
   }
 
   .confidenceRows {
+    grid-template-columns: 1fr;
+  }
+
+  .st03nImpactShell .parsePanel .statusList {
     grid-template-columns: 1fr;
   }
 }
