@@ -203,28 +203,33 @@ function BubbleImpactGraph({ rows = [] }) {
         <h2>Response vs DB Impact Map</h2>
         <span>Bubble size = Wait</span>
       </div>
-      <svg viewBox="0 0 760 300" width="100%" height="300" role="img" aria-label="ST03N response database wait bubble chart">
-        <rect x="0" y="0" width="760" height="300" rx="18" fill="rgba(15,23,42,.25)" />
-        <line x1="70" y1="235" x2="720" y2="235" stroke="rgba(148,163,184,.35)" />
-        <line x1="70" y1="35" x2="70" y2="235" stroke="rgba(148,163,184,.35)" />
-        <text x="70" y="270" fill="rgba(203,213,225,.75)" fontSize="12">Response time →</text>
-        <text x="18" y="48" fill="rgba(203,213,225,.75)" fontSize="12" transform="rotate(-90 18,48)">DB time →</text>
+      <svg viewBox="0 0 760 330" width="100%" height="330" role="img" aria-label="ST03N response database wait bubble chart">
+        <rect x="0" y="0" width="760" height="330" rx="18" fill="rgba(15,23,42,.25)" />
+        <rect x="405" y="35" width="315" height="98" rx="14" fill="rgba(248,113,113,.055)" stroke="rgba(248,113,113,.18)" />
+        <text x="420" y="58" fill="rgba(252,165,165,.92)" fontSize="12" fontWeight="900">High response + high DB</text>
+        <text x="420" y="76" fill="rgba(203,213,225,.72)" fontSize="11">Basis focus area</text>
+        <line x1="70" y1="255" x2="720" y2="255" stroke="rgba(148,163,184,.35)" />
+        <line x1="70" y1="35" x2="70" y2="255" stroke="rgba(148,163,184,.35)" />
+        <line x1="395" y1="35" x2="395" y2="255" stroke="rgba(148,163,184,.16)" strokeDasharray="6 6" />
+        <line x1="70" y1="145" x2="720" y2="145" stroke="rgba(148,163,184,.16)" strokeDasharray="6 6" />
+        <text x="70" y="292" fill="rgba(203,213,225,.75)" fontSize="12">Response time →</text>
+        <text x="18" y="56" fill="rgba(203,213,225,.75)" fontSize="12" transform="rotate(-90 18,56)">DB time →</text>
         {data.map((row, index) => {
-          const x = 80 + (row.response / maxResp) * 620
-          const y = 225 - (row.db / maxDb) * 175
-          const r = 9 + Math.sqrt(row.wait / maxWait) * 22
+          const x = 90 + (row.response / maxResp) * 600
+          const y = 245 - (row.db / maxDb) * 190
+          const r = 10 + Math.sqrt(row.wait / maxWait) * 19
           return (
             <g key={`${row.name}-${index}`}>
-              <circle cx={x} cy={y} r={r} fill={row.color} opacity="0.62" stroke="rgba(255,255,255,.72)" strokeWidth="1" />
-              <text x={Math.min(x + r + 6, 640)} y={y + 4} fill="rgba(248,250,252,.92)" fontSize="12" fontWeight="800">{row.name}</text>
+              <circle cx={x} cy={y} r={r} fill={row.color} opacity="0.64" stroke="rgba(255,255,255,.78)" strokeWidth="1.2" />
+              <text x={x} y={y + 4} textAnchor="middle" fill="rgba(15,23,42,.98)" fontSize="12" fontWeight="950">{index + 1}</text>
             </g>
           )
         })}
       </svg>
       <div className="evidenceList compact finalEvidenceList st03nCompactList">
-        {data.slice(0, 3).map((row) => (
+        {data.slice(0, 5).map((row, index) => (
           <div key={`${row.name}-bubble-note`}>
-            <b>{row.name}</b>
+            <b>#{index + 1} {row.name}</b>
             <span>{dominantKind(row).toUpperCase()} dominant · Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</span>
           </div>
         ))}
