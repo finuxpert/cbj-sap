@@ -1,39 +1,70 @@
 /* Log evidence memory layout polish */
-.memoryQualitySwapGrid,
-.memoryEvidenceGrid,
-.infraChartGrid {
+.logEvidenceShell .evidenceGrid,
+.logEvidenceShell .evidenceGrid.wide,
+.logEvidenceShell .evidenceGrid.triple {
+  gap: 12px;
+}
+
+.logEvidenceShell .memoryQualitySwapGrid,
+.logEvidenceShell .memoryEvidenceGrid,
+.logEvidenceShell .infraChartGrid {
+  display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-  align-items: stretch;
+  align-items: stretch !important;
 }
 
-.memoryQualitySwapGrid > .evidencePanel,
-.memoryEvidenceGrid > .evidencePanel,
-.infraChartGrid > .evidencePanel {
+.logEvidenceShell .memoryQualitySwapGrid > .evidencePanel,
+.logEvidenceShell .memoryEvidenceGrid > .evidencePanel,
+.logEvidenceShell .infraChartGrid > .evidencePanel {
+  width: 100%;
+  min-width: 0;
   min-height: 0;
 }
 
-.memoryEvidencePanel {
+.logEvidenceShell .memoryQualitySwapGrid > .swapEvidencePanel,
+.logEvidenceShell .memoryQualitySwapGrid > .memoryQualityPanel {
+  height: 100%;
+}
+
+.logEvidenceShell .swapEvidencePanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.logEvidenceShell .swapEvidencePanel .memoryUnavailable {
+  flex: 1;
+  align-content: center;
+}
+
+.logEvidenceShell .memoryEvidencePanel,
+.logEvidenceShell .memoryEvidenceChart {
   opacity: 1 !important;
-}
-
-.memoryEvidencePanel .memoryKpiGrid,
-.memoryQualityPanel .memoryQualityGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.swapEvidencePanel,
-.memoryQualityPanel,
-.memoryEvidencePanel,
-.memoryEvidenceChart {
   min-height: 0;
 }
 
-.memorySummaryBoard {
+.logEvidenceShell .memorySummaryBoard {
+  display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 10px !important;
 }
 
-.memorySummaryBoard .infraSummaryCard {
-  min-height: 96px;
+.logEvidenceShell .memorySummaryBoard .infraSummaryCard {
+  min-height: 88px;
+  padding: 12px;
+}
+
+.logEvidenceShell .memoryQualityPanel,
+.logEvidenceShell .swapEvidencePanel,
+.logEvidenceShell .memoryEvidencePanel,
+.logEvidenceShell .memoryEvidenceChart,
+.logEvidenceShell .infraChartGrid > .evidencePanel {
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.logEvidenceShell .memoryEvidencePanel .memoryKpiGrid,
+.logEvidenceShell .memoryQualityPanel .memoryQualityGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
 .memoryBadge {
@@ -50,6 +81,11 @@
   white-space: nowrap;
 }
 
+.memoryBadge.critical { border-color: rgba(239, 68, 68, .42); color: #fecaca; }
+.memoryBadge.warning { border-color: rgba(245, 158, 11, .36); color: #fde68a; }
+.memoryBadge.ok { border-color: rgba(34, 197, 94, .34); color: #bbf7d0; }
+.memoryBadge.missing { color: rgba(226, 232, 240, .82); }
+
 .memoryKpiGrid,
 .memoryQualityGrid {
   display: grid;
@@ -59,7 +95,7 @@
 
 .memoryKpiGrid > div,
 .memoryQualityGrid > div {
-  padding: 11px;
+  padding: 10px 11px;
   border: 1px solid rgba(148, 163, 184, .15);
   border-radius: 14px;
   background: rgba(255, 255, 255, .026);
@@ -68,7 +104,7 @@
 .memoryKpiGrid span,
 .memoryQualityGrid span {
   display: block;
-  color: rgba(203, 213, 225, .72);
+  color: rgba(125, 211, 252, .82);
   font-size: 10px;
   font-weight: 950;
   letter-spacing: .08em;
@@ -78,41 +114,45 @@
 .memoryKpiGrid b,
 .memoryQualityGrid b {
   display: block;
-  margin-top: 6px;
+  margin-top: 5px;
   color: rgba(248, 250, 252, .96);
-  font-size: 20px;
+  font-size: 19px;
   overflow-wrap: anywhere;
+  letter-spacing: -.03em;
 }
 
 .memoryQualityGrid small,
-.memoryFootnote {
+.memoryFootnote,
+.memoryUnavailable span {
   display: block;
-  margin-top: 6px;
+  margin-top: 5px;
   color: rgba(203, 213, 225, .68);
-  line-height: 1.45;
+  line-height: 1.4;
 }
 
 .memoryUnavailable {
   display: grid;
   gap: 8px;
-  margin: 10px 0;
+  margin: 10px 0 0;
   padding: 14px;
   border: 1px dashed rgba(245, 158, 11, .38);
   border-radius: 14px;
   background: rgba(245, 158, 11, .06);
 }
 
+.memoryUnavailable b { color: rgba(248, 250, 252, .96); }
+
 .memoryStatusStrip {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 9px;
   margin-top: 12px;
 }
 
 .memoryStatusStrip span {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   color: rgba(203, 213, 225, .76);
   font-size: 12px;
 }
@@ -139,14 +179,27 @@
 .logSkeleton span {
   min-height: 54px;
   border-radius: 16px;
-  background: rgba(148, 163, 184, .12);
+  background: linear-gradient(90deg, rgba(148,163,184,.08), rgba(255,255,255,.14), rgba(148,163,184,.08));
+  background-size: 220% 100%;
+  animation: logSkeletonShimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes logSkeletonShimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+@media (min-width: 1280px) {
+  .logEvidenceShell .memoryEvidenceGrid > .memoryEvidencePanel { grid-column: span 1; }
+  .logEvidenceShell .memoryEvidenceGrid > .memoryEvidenceChart { grid-column: span 1; }
+  .logEvidenceShell .infraChartGrid > .logMetricPanel { min-height: 300px; }
 }
 
 @media (max-width: 1120px) {
-  .memoryQualitySwapGrid,
-  .memoryEvidenceGrid,
-  .infraChartGrid,
-  .memorySummaryBoard,
+  .logEvidenceShell .memoryQualitySwapGrid,
+  .logEvidenceShell .memoryEvidenceGrid,
+  .logEvidenceShell .infraChartGrid,
+  .logEvidenceShell .memorySummaryBoard,
   .memoryKpiGrid,
   .memoryQualityGrid,
   .logSkeleton {
