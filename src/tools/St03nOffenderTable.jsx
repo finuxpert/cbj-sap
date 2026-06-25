@@ -1,5 +1,4 @@
 import React from 'react'
-import Fuse from 'fuse.js'
 import {
   flexRender,
   getCoreRowModel,
@@ -11,6 +10,25 @@ import { fmt } from './evidence-utils.js'
 function compactLabel(value = '', max = 42) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
   return label.length > max ? `${label.slice(0, Math.max(10, max - 1))}…` : label
+}
+
+function normalizeSearch(value = '') {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function rowMatchesQuery(row = {}, query = '') {
+  const normalizedQuery = normalizeSearch(query)
+  if (!normalizedQuery) return true
+  const haystack = normalizeSearch([
+    row.name,
+    row.component,
+    row.kind,
+    row.fileName,
+    row.label,
+    row.program,
+    row.transaction,
+  ].filter(Boolean).join(' '))
+  return normalizedQuery.split(/\s+/).every((token) => haystack.includes(token))
 }
 
 function normalizeRows(rows = []) {
@@ -108,19 +126,10 @@ export default function St03nOffenderTable({ rows = [] }) {
   ), [normalizedRows])
 
   const searchedRows = React.useMemo(() => {
-    const scoped = component === 'all'
-      ? normalizedRows
-      : normalizedRows.filter((row) => row.component === component)
-
-    if (!query.trim()) return scoped
-
-    const fuse = new Fuse(scoped, {
-      keys: ['name', 'component', 'kind', 'fileName'],
-      threshold: 0.32,
-      ignoreLocation: true,
+    return normalizedRows.filter((row) => {
+      const componentMatch = component === 'all' || row.component === component
+      return componentMatch && rowMatchesQuery(row, query)
     })
-
-    return fuse.search(query.trim()).map((item) => item.item)
   }, [component, normalizedRows, query])
 
   const columns = React.useMemo(() => [
