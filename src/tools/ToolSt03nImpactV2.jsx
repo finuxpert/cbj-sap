@@ -19,6 +19,7 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
+const GRAPH_COLORS = ['#60a5fa', '#a78bfa', '#facc15', '#34d399', '#38bdf8', '#fb7185']
 
 const dashboardGridStyle = {
   display: 'grid',
@@ -43,13 +44,6 @@ function metricMax(rows = [], metric) {
   return Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
 }
 
-function severityClass(pct = 0) {
-  if (pct >= 85) return 'critical'
-  if (pct >= 60) return 'major'
-  if (pct >= 30) return 'medium'
-  return 'low'
-}
-
 function dominantKind(row = {}) {
   const entries = [
     ['response', Number(row.response || row.responseMs || 0)],
@@ -57,6 +51,18 @@ function dominantKind(row = {}) {
     ['wait', Number(row.wait || row.waitMs || 0)],
   ]
   return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || 'response'
+}
+
+function graphRows(rows = [], limit = 6) {
+  return rows.slice(0, limit).map((row, index) => ({
+    ...row,
+    name: evidenceName(row),
+    color: GRAPH_COLORS[index % GRAPH_COLORS.length],
+    response: Math.round(row.response ?? row.responseMs ?? 0),
+    db: Math.round(row.db ?? row.dbMs ?? 0),
+    wait: Math.round(row.wait ?? row.waitMs ?? 0),
+    steps: Math.round(row.steps || 0),
+  }))
 }
 
 function buildReportText(analysis) {
@@ -185,35 +191,128 @@ function KpiStrip({ topRows }) {
   )
 }
 
-function MetricRows({ rows = [], metric, unit = '', maxRows = 5, tone = 'score' }) {
-  const max = metricMax(rows, metric)
+function BubbleImpactGraph({ rows = [] }) {
+  const data = graphRows(rows, 7)
+  const maxResp = metricMax(data, 'response')
+  const maxDb = metricMax(data, 'db')
+  const maxWait = metricMax(data, 'wait')
+
   return (
-    <div className="st03nMetricRows">
-      {rows.slice(0, maxRows).map((row, index) => {
-        const value = Number(row[metric] || 0)
-        const pct = Math.max(4, Math.min(100, (value / max) * 100))
-        return (
-          <div key={`${row.name}-${metric}-${index}`} className={`st03nMetricRow ${tone} ${severityClass(pct)}`}>
-            <div>
-              <b>{evidenceName(row)}</b>
-              <span>{fmt(value, 0)}{unit}</span>
-            </div>
-            <i style={{ width: `${pct}%` }} />
+    <section className="evidencePanel st03nBreakdownPanel visual">
+      <div className="panelTitleRow">
+        <h2>Response vs DB Impact Map</h2>
+        <span>Bubble size = Wait</span>
+      </div>
+      <svg viewBox="0 0 760 300" width="100%" height="300" role="img" aria-label="ST03N response database wait bubble chart">
+        <rect x="0" y="0" width="760" height="300" rx="18" fill="rgba(15,23,42,.25)" />
+        <line x1="70" y1="235" x2="720" y2="235" stroke="rgba(148,163,184,.35)" />
+        <line x1="70" y1="35" x2="70" y2="235" stroke="rgba(148,163,184,.35)" />
+        <text x="70" y="270" fill="rgba(203,213,225,.75)" fontSize="12">Response time →</text>
+        <text x="18" y="48" fill="rgba(203,213,225,.75)" fontSize="12" transform="rotate(-90 18,48)">DB time →</text>
+        {data.map((row, index) => {
+          const x = 80 + (row.response / maxResp) * 620
+          const y = 225 - (row.db / maxDb) * 175
+          const r = 9 + Math.sqrt(row.wait / maxWait) * 22
+          return (
+            <g key={`${row.name}-${index}`}>
+              <circle cx={x} cy={y} r={r} fill={row.color} opacity="0.62" stroke="rgba(255,255,255,.72)" strokeWidth="1" />
+              <text x={Math.min(x + r + 6, 640)} y={y + 4} fill="rgba(248,250,252,.92)" fontSize="12" fontWeight="800">{row.name}</text>
+            </g>
+          )
+        })}
+      </svg>
+      <div className="evidenceList compact finalEvidenceList st03nCompactList">
+        {data.slice(0, 3).map((row) => (
+          <div key={`${row.name}-bubble-note`}>
+            <b>{row.name}</b>
+            <span>{dominantKind(row).toUpperCase()} dominant · Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</span>
           </div>
-        )
-      })}
-    </div>
+        ))}
+      </div>
+    </section>
   )
 }
 
-function MetricPanel({ title, tag, rows = [], metric, unit = '', maxRows = 5, tone = 'score' }) {
+function ComponentDonutGraph({ analysis }) {
+  const rows = (analysis.componentRows || []).slice(0, 5)
+  const total = Math.max(1, rows.reduce((sum, row) => sum + Number(row.value || 0), 0))
+  let offset = 25
+
   return (
-    <section className="evidencePanel st03nMetricPanel">
+    <section className="evidencePanel st03nComponentPanel visual">
+      <div className="panelTitleRow">
+        <h2>Component Mix</h2>
+        <span>Workload type split</span>
+      </div>
+      <svg viewBox="0 0 320 240" width="100%" height="240" role="img" aria-label="ST03N component donut chart">
+        <circle cx="112" cy="112" r="70" fill="transparent" stroke="rgba(148,163,184,.16)" strokeWidth="26" />
+        {rows.map((row, index) => {
+          const pct = (Number(row.value || 0) / total) * 100
+          const current = offset
+          offset -= pct
+          return (
+            <circle
+              key={row.name}
+              cx="112"
+              cy="112"
+              r="70"
+              fill="transparent"
+              stroke={GRAPH_COLORS[index % GRAPH_COLORS.length]}
+              strokeWidth="26"
+              strokeDasharray={`${pct} ${100 - pct}`}
+              strokeDashoffset={current}
+              pathLength="100"
+              transform="rotate(-90 112 112)"
+            />
+          )
+        })}
+        <text x="112" y="106" textAnchor="middle" fill="rgba(248,250,252,.95)" fontSize="24" fontWeight="900">{fmt(total, 0)}</text>
+        <text x="112" y="128" textAnchor="middle" fill="rgba(203,213,225,.72)" fontSize="12" fontWeight="700">hits</text>
+        {rows.map((row, index) => (
+          <g key={`${row.name}-legend`}>
+            <rect x="210" y={54 + index * 30} width="10" height="10" rx="3" fill={GRAPH_COLORS[index % GRAPH_COLORS.length]} />
+            <text x="228" y={63 + index * 30} fill="rgba(248,250,252,.92)" fontSize="12" fontWeight="800">{row.name}</text>
+            <text x="228" y={78 + index * 30} fill="rgba(203,213,225,.72)" fontSize="11">{fmt(row.value, 0)} hits</text>
+          </g>
+        ))}
+      </svg>
+    </section>
+  )
+}
+
+function SparklinePanel({ title, tag, rows = [], metric, unit = '' }) {
+  const data = graphRows(rows, 6)
+  const maxValue = metricMax(data, metric)
+  const points = data.map((row, index) => {
+    const x = 28 + index * (300 / Math.max(1, data.length - 1))
+    const y = 138 - (Number(row[metric] || 0) / maxValue) * 95
+    return `${x},${y}`
+  }).join(' ')
+
+  return (
+    <section className="evidencePanel st03nMetricPanel visual">
       <div className="panelTitleRow">
         <h2>{title}</h2>
         <span>{tag}</span>
       </div>
-      <MetricRows rows={rows} metric={metric} unit={unit} maxRows={maxRows} tone={tone} />
+      <svg viewBox="0 0 360 170" width="100%" height="170" role="img" aria-label={`${title} sparkline`}>
+        <line x1="28" y1="140" x2="334" y2="140" stroke="rgba(148,163,184,.24)" />
+        <line x1="28" y1="42" x2="28" y2="140" stroke="rgba(148,163,184,.24)" />
+        <polyline points={points} fill="none" stroke="rgba(56,189,248,.95)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        {data.map((row, index) => {
+          const x = 28 + index * (300 / Math.max(1, data.length - 1))
+          const y = 138 - (Number(row[metric] || 0) / maxValue) * 95
+          return <circle key={`${row.name}-${metric}`} cx={x} cy={y} r="5" fill={GRAPH_COLORS[index % GRAPH_COLORS.length]} stroke="rgba(255,255,255,.72)" />
+        })}
+      </svg>
+      <div className="evidenceList compact finalEvidenceList st03nCompactList">
+        {data.slice(0, 3).map((row) => (
+          <div key={`${row.name}-${metric}-note`}>
+            <b>{row.name}</b>
+            <span>{fmt(row[metric], 0)}{unit}</span>
+          </div>
+        ))}
+      </div>
     </section>
   )
 }
@@ -264,26 +363,6 @@ function BreakdownPanel({ rows = [] }) {
   )
 }
 
-function ComponentMix({ analysis }) {
-  const rows = analysis.componentRows?.length ? analysis.componentRows : []
-  return (
-    <section className="evidencePanel st03nComponentPanel compactComponentPanel">
-      <div className="panelTitleRow">
-        <h2>Component Mix</h2>
-        <span>Classified rows</span>
-      </div>
-      <div className="evidenceList compact finalEvidenceList st03nCompactList">
-        {rows.slice(0, 4).map((row) => (
-          <div key={row.name}>
-            <b>{row.name}</b>
-            <span>{fmt(row.value, 0)} hits</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function OffenderRanking({ topRows }) {
   return (
     <section className="evidencePanel st03nOffenderPanel compactOffenderPanel">
@@ -305,29 +384,22 @@ function OffenderRanking({ topRows }) {
 }
 
 function EvidenceCharts({ analysis, topRows }) {
-  const chartRows = topRows.slice(0, 8).map((row, index) => ({
-    name: evidenceName(row),
-    rank: `#${index + 1}`,
-    score: row.score || 0,
-    response: Math.round(row.responseMs || 0),
-    db: Math.round(row.dbMs || 0),
-    wait: Math.round(row.waitMs || 0),
-    steps: Math.round(row.steps || 0),
-  }))
-  const topResponseRows = [...chartRows].sort((a, b) => b.response - a.response).slice(0, 5)
-  const topDbRows = [...chartRows].sort((a, b) => b.db - a.db).slice(0, 5)
-  const topStepRows = [...chartRows].sort((a, b) => b.steps - a.steps).slice(0, 5)
+  const chartRows = graphRows(topRows, 8)
+  const topResponseRows = [...chartRows].sort((a, b) => b.response - a.response).slice(0, 6)
+  const topDbRows = [...chartRows].sort((a, b) => b.db - a.db).slice(0, 6)
+  const topStepRows = [...chartRows].sort((a, b) => b.steps - a.steps).slice(0, 6)
 
   return (
     <>
       <KpiStrip topRows={topRows} />
       <div className="st03nDashboardBoard" style={dashboardGridStyle}>
-        <div style={span(8)}><BreakdownPanel rows={chartRows} /></div>
-        <div style={span(4)}><ComponentMix analysis={analysis} /></div>
+        <div style={span(8)}><BubbleImpactGraph rows={chartRows} /></div>
+        <div style={span(4)}><ComponentDonutGraph analysis={analysis} /></div>
+        <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
+        <div style={span(4)}><SparklinePanel title="Response Trend" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" /></div>
+        <div style={span(4)}><SparklinePanel title="DB Time Trend" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" /></div>
+        <div style={span(4)}><SparklinePanel title="Steps Trend" tag="Execution volume" rows={topStepRows} metric="steps" /></div>
         <div style={span(12)}><EvidenceFocusPanel rows={chartRows} /></div>
-        <div style={span(4)}><MetricPanel title="Top Response Time" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" tone="response" /></div>
-        <div style={span(4)}><MetricPanel title="Top DB Time" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" tone="db" /></div>
-        <div style={span(4)}><MetricPanel title="Steps Volume" tag="Execution volume" rows={topStepRows} metric="steps" tone="steps" /></div>
         <div style={span(12)}><OffenderRanking topRows={topRows} /></div>
       </div>
     </>
