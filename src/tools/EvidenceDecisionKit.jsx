@@ -2,6 +2,17 @@ import React from 'react'
 import { copyText, downloadJson, fileSizeLabel } from './evidence-utils.js'
 import './EvidenceDecisionKit.css'
 
+function useSt03nCompactGrid() {
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (document.getElementById('st03n-compact-runtime')) return
+    const style = document.createElement('style')
+    style.id = 'st03n-compact-runtime'
+    style.textContent = `.st03nImpactShell .st03nDashboardBoard{grid-template-columns:repeat(12,minmax(0,1fr))!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(1){grid-column:span 3!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(2){grid-column:span 6!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(3){grid-column:span 3!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(5){grid-column:span 12!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(4),.st03nImpactShell .st03nDashboardBoard>div:nth-child(n+6),.st03nImpactShell .st03nFooterGrid{display:none!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(2) .evidenceList{display:none!important}.st03nImpactShell .visual>div[style*='height: 360'],.st03nImpactShell .visual>div[style*='height: 330'],.st03nImpactShell .visual>div[style*='height: 300']{height:230px!important}`
+    document.head.appendChild(style)
+  }, [])
+}
+
 export function DecisionCard({ label, value, hint, tone = '' }) {
   return <div className={`decisionCard ${tone}`}><span>{label}</span><b>{value}</b><small>{hint}</small></div>
 }
@@ -74,6 +85,7 @@ async function exportEvidencePdf(filenamePrefix = 'sap-evidence-analysis') {
 }
 
 export function EvidenceToolbar({ analysis, cacheKey, reportText, filenamePrefix = 'sap-evidence-analysis' }) {
+  useSt03nCompactGrid()
   const [copied, setCopied] = React.useState(false)
   const [exportingPdf, setExportingPdf] = React.useState(false)
   const canExport = Boolean(analysis)
