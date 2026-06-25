@@ -191,6 +191,43 @@ function KpiStrip({ topRows }) {
   )
 }
 
+function TopOffenderSplitGraph({ topRows = [] }) {
+  const top = graphRows(topRows, 1)[0]
+  if (!top) return null
+
+  const total = Math.max(1, top.response + top.db + top.wait)
+  const items = [
+    { label: 'Response', value: top.response, color: '#60a5fa' },
+    { label: 'DB Time', value: top.db, color: '#a78bfa' },
+    { label: 'Wait', value: top.wait, color: '#facc15' },
+  ]
+
+  return (
+    <section className="evidencePanel visual">
+      <div className="panelTitleRow">
+        <h2>Top Offender Split</h2>
+        <span>{top.name}</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+        {items.map((item) => {
+          const pct = Math.round((item.value / total) * 100)
+          return (
+            <div key={item.label} className="st03nKpiCard">
+              <svg viewBox="0 0 130 130" width="100%" height="128" role="img" aria-label={`${item.label} share`}>
+                <circle cx="65" cy="65" r="44" fill="transparent" stroke="rgba(148,163,184,.18)" strokeWidth="14" />
+                <circle cx="65" cy="65" r="44" fill="transparent" stroke={item.color} strokeWidth="14" strokeDasharray={`${pct} ${100 - pct}`} pathLength="100" strokeLinecap="round" transform="rotate(-90 65 65)" />
+                <text x="65" y="61" textAnchor="middle" fill="rgba(248,250,252,.96)" fontSize="23" fontWeight="950">{pct}%</text>
+                <text x="65" y="82" textAnchor="middle" fill="rgba(203,213,225,.72)" fontSize="11" fontWeight="800">{item.label}</text>
+              </svg>
+              <small>{fmt(item.value, 0)}ms</small>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function BubbleImpactGraph({ rows = [] }) {
   const data = graphRows(rows, 7)
   const maxResp = metricMax(data, 'response')
@@ -398,6 +435,7 @@ function EvidenceCharts({ analysis, topRows }) {
     <>
       <KpiStrip topRows={topRows} />
       <div className="st03nDashboardBoard" style={dashboardGridStyle}>
+        <div style={span(12)}><TopOffenderSplitGraph topRows={topRows} /></div>
         <div style={span(8)}><BubbleImpactGraph rows={chartRows} /></div>
         <div style={span(4)}><ComponentDonutGraph analysis={analysis} /></div>
         <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
