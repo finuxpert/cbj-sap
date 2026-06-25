@@ -214,28 +214,23 @@ function MetricPanel({ title, tag, rows = [], metric, unit = '', maxRows = 5, to
   )
 }
 
-function ImpactMatrixPanel({ rows = [] }) {
+function EvidenceFocusPanel({ rows = [] }) {
   return (
     <section className="evidencePanel st03nImpactMatrixPanel">
       <div className="panelTitleRow">
         <h2>Top ST03N Evidence</h2>
-        <span>Impact heatmap</span>
+        <span>Basis review queue</span>
       </div>
-      <div className="st03nImpactCards">
-        {rows.slice(0, 6).map((row, index) => {
+      <div className="st03nImpactCards compactEvidenceCards">
+        {rows.slice(0, 3).map((row, index) => {
           const kind = dominantKind(row)
           return (
             <div key={`${row.name}-${index}`} className={`st03nImpactCard ${kind}`}>
               <div>
                 <b>{row.name}</b>
-                <em>{kind.toUpperCase()} dominant</em>
+                <em>{kind.toUpperCase()}</em>
               </div>
-              <p>
-                <span>Score <strong>{row.score}</strong></span>
-                <span>Resp <strong>{fmt(row.response, 0)}ms</strong></span>
-                <span>DB <strong>{fmt(row.db, 0)}ms</strong></span>
-                <span>Wait <strong>{fmt(row.wait, 0)}ms</strong></span>
-              </p>
+              <small>Score {row.score}/100 · Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</small>
             </div>
           )
         })}
@@ -249,7 +244,7 @@ function BreakdownPanel({ rows = [] }) {
     <section className="evidencePanel st03nBreakdownPanel visual">
       <div className="panelTitleRow">
         <h2>Response / DB / Wait Breakdown</h2>
-        <span>Top workload split</span>
+        <span>Main Basis analysis</span>
       </div>
       <div className="st03nBreakdownLegend">
         <span className="resp">Response</span>
@@ -307,13 +302,13 @@ function ComponentMix({ analysis, topRows }) {
 
 function OffenderRanking({ topRows }) {
   return (
-    <section className="evidencePanel st03nOffenderPanel">
+    <section className="evidencePanel st03nOffenderPanel compactOffenderPanel">
       <div className="panelTitleRow">
         <h2>ST03N Offender Ranking</h2>
-        <span>Basis review list</span>
+        <span>Compact review list</span>
       </div>
       <div className="evidenceList finalEvidenceList st03nCompactList">
-        {topRows.slice(0, 8).map((row) => (
+        {topRows.slice(0, 6).map((row) => (
           <div key={`${row.kind}-${row.fileName}-${row.label}-ranking`}>
             <b>{row.label}</b>
             <span>{row.kind} · {row.component} · score {row.score}/100</span>
@@ -343,9 +338,9 @@ function EvidenceCharts({ analysis, topRows }) {
     <>
       <KpiStrip topRows={topRows} />
       <div className="st03nDashboardBoard" style={dashboardGridStyle}>
-        <div style={span(7)}><ImpactMatrixPanel rows={chartRows} /></div>
-        <div style={span(5)}><ComponentMix analysis={analysis} topRows={topRows} /></div>
-        <div style={span(12)}><BreakdownPanel rows={chartRows} /></div>
+        <div style={span(8)}><BreakdownPanel rows={chartRows} /></div>
+        <div style={span(4)}><ComponentMix analysis={analysis} topRows={topRows} /></div>
+        <div style={span(12)}><EvidenceFocusPanel rows={chartRows} /></div>
         <div style={span(4)}><MetricPanel title="Top Response Time" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" tone="response" /></div>
         <div style={span(4)}><MetricPanel title="Top DB Time" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" tone="db" /></div>
         <div style={span(4)}><MetricPanel title="Steps Volume" tag="Execution volume" rows={topStepRows} metric="steps" tone="steps" /></div>
