@@ -1,4 +1,5 @@
 import React from 'react'
+import ReactECharts from 'echarts-for-react'
 import {
   buildOwnerAction,
   classifySapError,
@@ -22,6 +23,7 @@ import './ToolEvidenceSpecialist.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
+const GRAPH_COLORS = ['#60a5fa', '#22d3ee', '#34d399', '#facc15', '#a78bfa', '#fb7185']
 const KNOWN_ERRORS = [
   'CONVT_OVERFLOW',
   'CONVT_NO_NUMBER',
@@ -112,7 +114,7 @@ function parseGenericErrors(text = '', fileName = '') {
 function displayLabel(value = '', max = 28) {
   const label = safe(value)
   const normalized = !label || label === '?' || label.toUpperCase() === 'UNKNOWN' ? 'Unknown' : label
-  return normalized.length > max ? `${normalized.slice(0, Math.max(8, max - 1))}…` : normalized
+  return normalized.length > max ? `${normalized.slice(0, Math.max(8, max - 1))}...` : normalized
 }
 
 function compactFamilyLabel(family = '') {
@@ -210,23 +212,7 @@ function buildAnalysis(files, rows, evidenceServer) {
   const summary = primary
     ? `${primary.name} is strongest: ${primary.hits} hit(s), ${primary.critHits} CRIT, owner ${primary.owner}.`
     : 'No known SAP error patterns detected from uploaded logs.'
-
-  return {
-    files,
-    rows,
-    errorGroups,
-    jobGroups,
-    programGroups,
-    primary,
-    timeline,
-    confidence,
-    confidenceText: confidenceLabel(confidence, rows, primary),
-    verdict,
-    nextAction,
-    summary,
-    evidenceServer,
-    createdAt: new Date().toISOString(),
-  }
+  return { files, rows, errorGroups, jobGroups, programGroups, primary, timeline, confidence, confidenceText: confidenceLabel(confidence, rows, primary), verdict, nextAction, summary, evidenceServer, createdAt: new Date().toISOString() }
 }
 
 function cleanActionText(text = '') {
@@ -273,11 +259,7 @@ function buildInfraTimeline(rows = []) {
 function buildSeverityMix(rows = []) {
   const counts = { CRIT: 0, WARN: 0, OK: 0 }
   rows.forEach((row) => { counts[row.className] = (counts[row.className] || 0) + 1 })
-  return [
-    { name: 'CRIT', hits: counts.CRIT, crit: counts.CRIT },
-    { name: 'WARN', hits: counts.WARN, crit: 0 },
-    { name: 'OK', hits: counts.OK, crit: 0 },
-  ].filter((item) => item.hits > 0)
+  return [{ name: 'CRIT', hits: counts.CRIT, crit: counts.CRIT }, { name: 'WARN', hits: counts.WARN, crit: 0 }, { name: 'OK', hits: counts.OK, crit: 0 }].filter((item) => item.hits > 0)
 }
 
 function buildHostMix(rows = []) {
@@ -312,11 +294,7 @@ function wpStateLabel(value = '') {
 }
 
 function buildProgramCpuPressure(groups = []) {
-  return groups.slice(0, 6).map((item) => ({
-    name: displayLabel(item.name, 24),
-    hits: item.maxCpu || 0,
-    crit: item.critHits || 0,
-  }))
+  return groups.slice(0, 6).map((item) => ({ name: displayLabel(item.name, 24), hits: item.maxCpu || 0, crit: item.critHits || 0 }))
 }
 
 function buildInfraSummary(rows = []) {
@@ -324,16 +302,7 @@ function buildInfraSummary(rows = []) {
   const maxRssRow = rows.reduce((best, row) => ((row.rssGb || 0) > (best?.rssGb || 0) ? row : best), null)
   const hostChart = buildHostMix(rows)
   const critCount = rows.filter((row) => row.className === 'CRIT').length
-  return {
-    peakCpu: peakCpuRow?.cpu || 0,
-    peakCpuTime: peakCpuRow?.timeLabel || '-',
-    peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34),
-    maxRssGb: maxRssRow?.rssGb || 0,
-    maxRssTime: maxRssRow?.timeLabel || '-',
-    impactedHost: hostChart[0]?.name || 'Unknown',
-    hostHits: hostChart[0]?.hits || 0,
-    critCount,
-  }
+  return { peakCpu: peakCpuRow?.cpu || 0, peakCpuTime: peakCpuRow?.timeLabel || '-', peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34), maxRssGb: maxRssRow?.rssGb || 0, maxRssTime: maxRssRow?.timeLabel || '-', impactedHost: hostChart[0]?.name || 'Unknown', hostHits: hostChart[0]?.hits || 0, critCount }
 }
 
 function AcceptedTypes({ items }) {
@@ -350,7 +319,7 @@ function ToolHero({ busy, onFiles }) {
       </div>
       <label className="evidenceUpload finalUpload">
         <input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} />
-        <strong>{busy ? 'Parsing…' : 'Upload Log Evidence'}</strong>
+        <strong>{busy ? 'Parsing...' : 'Upload Log Evidence'}</strong>
         <small>Accepted files</small>
         <AcceptedTypes items={ACCEPTED_TYPES} />
       </label>
@@ -358,160 +327,85 @@ function ToolHero({ busy, onFiles }) {
   )
 }
 
-function MetricRows({ rows = [], metric = 'hits', secondMetric = 'crit', unit = '', maxRows = 6 }) {
-  const max = Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
-  return (
-    <div className="logMetricRows">
-      {rows.slice(0, maxRows).map((row, index) => {
-        const value = Number(row[metric] || 0)
-        const pct = Math.max(4, Math.min(100, (value / max) * 100))
-        return (
-          <div key={`${row.name}-${metric}-${index}`} className="logMetricRow">
-            <div>
-              <b>{displayLabel(row.name, 36)}</b>
-              <span>{fmt(value, 0)}{unit}{secondMetric ? ` · CRIT ${fmt(row[secondMetric] || 0, 0)}` : ''}</span>
-            </div>
-            <i style={{ width: `${pct}%` }} />
-          </div>
-        )
-      })}
-    </div>
-  )
+function chartBase(extra = {}) {
+  return {
+    backgroundColor: 'transparent',
+    color: GRAPH_COLORS,
+    textStyle: { color: 'rgba(226,232,240,.82)' },
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(15,23,42,.96)', borderColor: 'rgba(148,163,184,.22)', textStyle: { color: '#e5e7eb', fontSize: 12 }, extraCssText: 'box-shadow:0 16px 40px rgba(0,0,0,.32);border-radius:12px;' },
+    grid: { left: 120, right: 24, top: 18, bottom: 24, containLabel: true },
+    ...extra,
+  }
 }
 
 function MetricPanel({ title, tag, rows = [], metric = 'hits', secondMetric = 'crit', unit = '', maxRows = 6 }) {
-  return (
-    <section className="evidencePanel logMetricPanel">
-      <div className="panelTitleRow">
-        <h2>{title}</h2>
-        <span>{tag}</span>
-      </div>
-      <MetricRows rows={rows} metric={metric} secondMetric={secondMetric} unit={unit} maxRows={maxRows} />
-    </section>
-  )
+  const data = rows.slice(0, maxRows).reverse()
+  const option = chartBase({
+    tooltip: { ...chartBase().tooltip, formatter: (items) => {
+      const item = Array.isArray(items) ? items[0] : items
+      const row = item?.data?.row || {}
+      return [`<b>${row.name || item?.name}</b>`, `${metric}: <b>${fmt(row[metric] || 0, 0)}${unit}</b>`, secondMetric ? `CRIT: <b>${fmt(row[secondMetric] || 0, 0)}</b>` : ''].filter(Boolean).join('<br/>')
+    } },
+    xAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
+    yAxis: { type: 'category', data: data.map((row) => displayLabel(row.name, 20)), axisLabel: { color: 'rgba(226,232,240,.82)', fontSize: 10, fontWeight: 800 }, axisTick: { show: false }, axisLine: { show: false } },
+    series: [{ type: 'bar', data: data.map((row) => ({ value: Number(row[metric] || 0), row })), barWidth: 12, itemStyle: { borderRadius: [0, 8, 8, 0], color: GRAPH_COLORS[1] }, label: { show: true, position: 'right', color: 'rgba(226,232,240,.82)', fontSize: 10, formatter: ({ data: item }) => `${fmt(item.row?.[metric] || 0, 0)}${unit}${secondMetric ? ` / C${fmt(item.row?.[secondMetric] || 0, 0)}` : ''}` } }],
+  })
+  return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>{title}</h2><span>{tag}</span></div>{data.length ? <ReactECharts option={option} style={{ height: 230, width: '100%' }} notMerge lazyUpdate /> : <p>No chart data.</p>}</section>
 }
 
 function TimelinePanel({ data = [] }) {
-  return (
-    <section className="evidencePanel logMetricPanel">
-      <div className="panelTitleRow">
-        <h2>Error Timeline</h2>
-        <span>By time window</span>
-      </div>
-      <MetricRows rows={data.map((item) => ({ name: item.time, hits: item.hits, crit: item.crit }))} metric="hits" secondMetric="crit" maxRows={10} />
-    </section>
-  )
+  const items = data.slice(-14)
+  const option = chartBase({
+    tooltip: { ...chartBase().tooltip, trigger: 'axis' },
+    grid: { left: 44, right: 18, top: 22, bottom: 38, containLabel: true },
+    legend: { bottom: 0, textStyle: { color: 'rgba(226,232,240,.78)', fontSize: 10 } },
+    xAxis: { type: 'category', data: items.map((item) => item.time), axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 }, axisLine: { lineStyle: { color: 'rgba(148,163,184,.24)' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
+    series: [
+      { name: 'Hits', type: 'line', smooth: true, symbolSize: 5, data: items.map((item) => item.hits), areaStyle: { opacity: 0.12 } },
+      { name: 'CRIT', type: 'line', smooth: true, symbolSize: 5, data: items.map((item) => item.crit) },
+    ],
+  })
+  return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>Error Timeline</h2><span>By time window</span></div>{items.length ? <ReactECharts option={option} style={{ height: 250, width: '100%' }} notMerge lazyUpdate /> : <p>No timeline data.</p>}</section>
 }
 
 function InfraTrendPanel({ data = [] }) {
-  return (
-    <section className="evidencePanel logMetricPanel">
-      <div className="panelTitleRow">
-        <h2>CPU and Memory Timeline</h2>
-        <span>Avg / max pressure</span>
-      </div>
-      <div className="logTimelineRows">
-        {data.slice(0, 12).map((item) => (
-          <div key={item.time}>
-            <b>{item.time}</b>
-            <span>Avg CPU {fmt(item.avgCpu)}% · Max CPU {fmt(item.maxCpu)}% · RSS {fmt(item.maxRssGb)} GB</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
+  const items = data.slice(-14)
+  const option = chartBase({
+    tooltip: { ...chartBase().tooltip, trigger: 'axis' },
+    grid: { left: 48, right: 18, top: 22, bottom: 38, containLabel: true },
+    legend: { bottom: 0, textStyle: { color: 'rgba(226,232,240,.78)', fontSize: 10 } },
+    xAxis: { type: 'category', data: items.map((item) => item.time), axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(148,163,184,.12)', type: 'dashed' } }, axisLabel: { color: 'rgba(203,213,225,.68)', fontSize: 10 } },
+    series: [
+      { name: 'Avg CPU', type: 'line', smooth: true, data: items.map((item) => item.avgCpu) },
+      { name: 'Max CPU', type: 'line', smooth: true, data: items.map((item) => item.maxCpu) },
+      { name: 'RSS GB', type: 'bar', data: items.map((item) => item.maxRssGb), barWidth: 10 },
+    ],
+  })
+  return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>CPU and Memory Timeline</h2><span>Avg / max pressure</span></div>{items.length ? <ReactECharts option={option} style={{ height: 250, width: '100%' }} notMerge lazyUpdate /> : <p>No infra trend data.</p>}</section>
 }
 
 function Group({ title, rows = [] }) {
-  return (
-    <section className="evidencePanel">
-      <div className="panelTitleRow">
-        <h2>{title}</h2>
-        <span>Top 5</span>
-      </div>
-      <div className="evidenceList compact finalEvidenceList">
-        {rows.slice(0, 5).map((item) => (
-          <div key={item.name}>
-            <b>{displayLabel(item.name, 40)}</b>
-            <span>hits {item.hits} · CRIT {item.critHits}</span>
-            <small>{compactFamilyLabel(item.family || '')} {item.examples?.join(' · ')}</small>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
+  return <section className="evidencePanel"><div className="panelTitleRow"><h2>{title}</h2><span>Top 5</span></div><div className="evidenceList compact finalEvidenceList">{rows.slice(0, 5).map((item) => <div key={item.name}><b>{displayLabel(item.name, 40)}</b><span>hits {item.hits} - CRIT {item.critHits}</span><small>{compactFamilyLabel(item.family || '')} {item.examples?.join(' - ')}</small></div>)}</div></section>
 }
 
 function PrimaryExplanation({ primary, status }) {
-  return (
-    <section className="evidencePanel interpretationPanel">
-      <div className="panelTitleRow">
-        <h2>Primary Error Explanation</h2>
-        <span>Classified signal</span>
-      </div>
-      {primary ? (
-        <>
-          <p><b>{primary.name}</b> points to <b>{compactFamilyLabel(primary.family)}</b>.</p>
-          <p>{primary.meaning}</p>
-          <div className="confidenceRows finalMetricRows">
-            <span>Hits<b>{primary.hits}</b></span>
-            <span>CRIT<b>{primary.critHits}</b></span>
-            <span>Files<b>{primary.files?.length || 0}</b></span>
-          </div>
-        </>
-      ) : <p>{status}</p>}
-    </section>
-  )
+  return <section className="evidencePanel interpretationPanel"><div className="panelTitleRow"><h2>Primary Error Explanation</h2><span>Classified signal</span></div>{primary ? <><p><b>{primary.name}</b> points to <b>{compactFamilyLabel(primary.family)}</b>.</p><p>{primary.meaning}</p><div className="confidenceRows finalMetricRows"><span>Hits<b>{primary.hits}</b></span><span>CRIT<b>{primary.critHits}</b></span><span>Files<b>{primary.files?.length || 0}</b></span></div></> : <p>{status}</p>}</section>
 }
 
 function MappingPanel({ primary }) {
-  return (
-    <section className="evidencePanel">
-      <div className="panelTitleRow">
-        <h2>Error → Job / Program Mapping</h2>
-        <span>Extracted context</span>
-      </div>
-      {primary ? (
-        <div className="evidenceList compact finalEvidenceList">
-          <div><b>Jobs</b><span>{primary.jobs?.join(' · ') || 'No job extracted'}</span></div>
-          <div><b>Programs</b><span>{primary.programs?.join(' · ') || 'No program extracted'}</span></div>
-          <div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div>
-        </div>
-      ) : <p>Upload logs to map errors to jobs and programs.</p>}
-    </section>
-  )
+  return <section className="evidencePanel"><div className="panelTitleRow"><h2>Error to Job / Program Mapping</h2><span>Extracted context</span></div>{primary ? <div className="evidenceList compact finalEvidenceList"><div><b>Jobs</b><span>{primary.jobs?.join(' - ') || 'No job extracted'}</span></div><div><b>Programs</b><span>{primary.programs?.join(' - ') || 'No program extracted'}</span></div><div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div></div> : <p>Upload logs to map errors to jobs and programs.</p>}</section>
 }
 
 function InfraSummaryCards({ summary }) {
-  return (
-    <section className="infraSummaryBoard">
-      <div className="infraSummaryCard">
-        <span>Peak CPU</span>
-        <b>{fmt(summary.peakCpu)}%</b>
-        <small>{summary.peakCpuProgram} · {summary.peakCpuTime}</small>
-      </div>
-      <div className="infraSummaryCard">
-        <span>Max RSS</span>
-        <b>{fmt(summary.maxRssGb)} GB</b>
-        <small>Highest memory footprint · {summary.maxRssTime}</small>
-      </div>
-      <div className="infraSummaryCard">
-        <span>Most Impacted Host</span>
-        <b>{summary.impactedHost}</b>
-        <small>{summary.hostHits} hits · {summary.critCount} CRIT rows</small>
-      </div>
-    </section>
-  )
+  return <section className="infraSummaryBoard"><div className="infraSummaryCard"><span>Peak CPU</span><b>{fmt(summary.peakCpu)}%</b><small>{summary.peakCpuProgram} - {summary.peakCpuTime}</small></div><div className="infraSummaryCard"><span>Max RSS</span><b>{fmt(summary.maxRssGb)} GB</b><small>Highest memory footprint - {summary.maxRssTime}</small></div><div className="infraSummaryCard"><span>Most Impacted Host</span><b>{summary.impactedHost}</b><small>{summary.hostHits} hits - {summary.critCount} CRIT rows</small></div></section>
 }
 
 function EvidenceCharts({ analysis, chartData }) {
   const familyChart = aggregateGroups(analysis.errorGroups, 'family', compactFamilyLabel)
   const ownerChart = aggregateGroups(analysis.errorGroups, 'owner')
-  const programChart = (analysis.programGroups || []).slice(0, 6).map((item) => ({
-    name: displayLabel(item.name, 24),
-    hits: item.hits || 0,
-    crit: item.critHits || 0,
-  }))
+  const programChart = (analysis.programGroups || []).slice(0, 6).map((item) => ({ name: displayLabel(item.name, 24), hits: item.hits || 0, crit: item.critHits || 0 }))
   const infraTimeline = buildInfraTimeline(analysis.rows || [])
   const severityChart = buildSeverityMix(analysis.rows || [])
   const hostChart = buildHostMix(analysis.rows || [])
@@ -519,74 +413,20 @@ function EvidenceCharts({ analysis, chartData }) {
   const wpStateChart = buildSimpleRowChart(analysis.rows || [], 'state', wpStateLabel)
   const programCpuChart = buildProgramCpuPressure(analysis.programGroups || [])
   const infraSummary = buildInfraSummary(analysis.rows || [])
-
-  return (
-    <>
-      <div className="evidenceGrid wide logTopGrid">
-        <MetricPanel title="Top ErrorCode" tag="Hits and CRIT" rows={chartData} maxRows={8} />
-        <section className="evidencePanel">
-          <div className="panelTitleRow">
-            <h2>Error Evidence Ranking</h2>
-            <span>Highest confidence first</span>
-          </div>
-          <div className="evidenceList finalEvidenceList">
-            {analysis.errorGroups.slice(0, 10).map((item) => (
-              <div key={item.name}>
-                <b>{item.name}</b>
-                <span>{compactFamilyLabel(item.family)} · owner {item.owner}</span>
-                <small>hits {item.hits} · CRIT {item.critHits} · max CPU {fmt(item.maxCpu)}% · {item.examples.join(' · ')}</small>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <div className="evidenceGrid triple chartMiniGrid logCompactGrid">
-        <MetricPanel title="Error Family Mix" tag="By hits / CRIT" rows={familyChart} />
-        <MetricPanel title="Owner Direction Mix" tag="By owner" rows={ownerChart} />
-        <MetricPanel title="Top Program Volume" tag="By program" rows={programChart} />
-      </div>
-
-      <div className="evidenceGrid wide logCompactGrid">
-        <TimelinePanel data={analysis.timeline || []} />
-        <MetricPanel title="Host Infra Signal" tag="By host" rows={hostChart} />
-      </div>
-
-      <section className="evidencePanel infraSectionTitle">
-        <div className="panelTitleRow">
-          <h2>Infra Pressure View</h2>
-          <span>CPU / memory / WP state</span>
-        </div>
-        <InfraSummaryCards summary={infraSummary} />
-      </section>
-
-      <div className="evidenceGrid wide chartMiniGrid infraChartGrid">
-        <InfraTrendPanel data={infraTimeline} />
-        <MetricPanel title="Program CPU Pressure" tag="Top max CPU" rows={programCpuChart} metric="hits" secondMetric="crit" unit="%" />
-      </div>
-
-      <div className="evidenceGrid triple chartMiniGrid infraChartGrid">
-        <MetricPanel title="Log Severity Distribution" tag="CRIT / WARN / OK" rows={severityChart} />
-        <MetricPanel title="WP Type Distribution" tag="DIA / BTC / UPD" rows={wpTypeChart} />
-        <MetricPanel title="WP State Mix" tag="Running / waiting" rows={wpStateChart} />
-      </div>
-    </>
-  )
+  return <>
+    <div className="evidenceGrid wide logTopGrid"><MetricPanel title="Top ErrorCode" tag="ECharts hits / CRIT" rows={chartData} maxRows={8} /><MetricPanel title="Error Evidence Ranking" tag="Highest confidence first" rows={(analysis.errorGroups || []).slice(0, 10).map((item) => ({ name: item.name, hits: item.hits, crit: item.critHits }))} maxRows={8} /></div>
+    <div className="evidenceGrid triple chartMiniGrid logCompactGrid"><MetricPanel title="Error Family Mix" tag="By hits / CRIT" rows={familyChart} /><MetricPanel title="Owner Direction Mix" tag="By owner" rows={ownerChart} /><MetricPanel title="Top Program Volume" tag="By program" rows={programChart} /></div>
+    <div className="evidenceGrid wide logCompactGrid"><TimelinePanel data={analysis.timeline || []} /><MetricPanel title="Host Infra Signal" tag="By host" rows={hostChart} /></div>
+    <section className="evidencePanel infraSectionTitle"><div className="panelTitleRow"><h2>Infra Pressure View</h2><span>CPU / memory / WP state</span></div><InfraSummaryCards summary={infraSummary} /></section>
+    <div className="evidenceGrid wide chartMiniGrid infraChartGrid"><InfraTrendPanel data={infraTimeline} /><MetricPanel title="Program CPU Pressure" tag="Top max CPU" rows={programCpuChart} metric="hits" secondMetric="crit" unit="%" /></div>
+    <div className="evidenceGrid triple chartMiniGrid infraChartGrid"><MetricPanel title="Log Severity Distribution" tag="CRIT / WARN / OK" rows={severityChart} /><MetricPanel title="WP Type Distribution" tag="DIA / BTC / UPD" rows={wpTypeChart} /><MetricPanel title="WP State Mix" tag="Running / waiting" rows={wpStateChart} /></div>
+  </>
 }
 
 function buildReportText(analysis) {
   if (!analysis) return ''
   const primary = analysis.primary
-  return [
-    'SAP Log Evidence RCA Summary',
-    `Verdict: ${analysis.verdict}`,
-    `Confidence: ${analysis.confidence}% - ${analysis.confidenceText}`,
-    primary ? `Primary Error: ${primary.name}` : 'Primary Error: -',
-    primary ? `Error Family: ${primary.family}` : 'Error Family: -',
-    primary ? `Owner Direction: ${primary.owner}` : 'Owner Direction: -',
-    `Next Action: ${analysis.nextAction}`,
-    `Parsed Rows: ${analysis.rows?.length || 0}`,
-  ].join('\n')
+  return ['SAP Log Evidence RCA Summary', `Verdict: ${analysis.verdict}`, `Confidence: ${analysis.confidence}% - ${analysis.confidenceText}`, primary ? `Primary Error: ${primary.name}` : 'Primary Error: -', primary ? `Error Family: ${primary.family}` : 'Error Family: -', primary ? `Owner Direction: ${primary.owner}` : 'Owner Direction: -', `Next Action: ${analysis.nextAction}`, `Parsed Rows: ${analysis.rows?.length || 0}`].join('\n')
 }
 
 export default function ToolLogEvidenceV2() {
@@ -596,19 +436,14 @@ export default function ToolLogEvidenceV2() {
   const [status, setStatus] = React.useState('Upload WP-SCOUT/SM21/ST22/dev_w/job logs or ZIP to validate error evidence.')
   const [analysis, setAnalysis] = React.useState(() => loadJson(CACHE_KEY, null))
   const [serverInfo, setServerInfo] = React.useState(null)
-
   React.useEffect(() => {
     let active = true
-    import('../evidence-api-client.js')
-      .then(({ listEvidence }) => listEvidence({ tool: 'investigation', limit: 5 }))
-      .then((response) => { if (active) setServerInfo(response) })
-      .catch(() => { if (active) setServerInfo({ ok: false }) })
+    import('../evidence-api-client.js').then(({ listEvidence }) => listEvidence({ tool: 'investigation', limit: 5 })).then((response) => { if (active) setServerInfo(response) }).catch(() => { if (active) setServerInfo({ ok: false }) })
     return () => { active = false }
   }, [])
-
   const analyze = async (nextFiles = files) => {
     setBusy(true)
-    setStatus('Parsing log evidence…')
+    setStatus('Parsing log evidence...')
     try {
       const rows = []
       for (const file of nextFiles) {
@@ -626,7 +461,6 @@ export default function ToolLogEvidenceV2() {
       setBusy(false)
     }
   }
-
   const onFiles = async (fileList) => {
     setBusy(true)
     try {
@@ -639,61 +473,9 @@ export default function ToolLogEvidenceV2() {
       setBusy(false)
     }
   }
-
   const primary = analysis?.primary
   const chartData = analysis?.errorGroups?.slice(0, 10).map((item) => ({ name: displayLabel(item.name, 22), hits: item.hits, crit: item.critHits })) || []
   const familyValue = primary ? compactFamilyLabel(primary.family) : 'Unknown'
   const displayedFiles = files.length ? files : (analysis?.files || [])
-
-  return (
-    <section className="evidenceToolShell refinedTool finalRcaTool logEvidenceShell">
-      <ToolHero busy={busy} onFiles={onFiles} />
-      <SessionBanner session={session} />
-      <EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-log-evidence-v2" />
-
-      <section className="decisionBoard finalDecisionBoard">
-        <DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} />
-        <DecisionCard label="Error Family" value={familyValue} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" />
-        <DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={ownerHint(primary, analysis)} />
-        <DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} />
-      </section>
-
-      <div className="evidenceGrid">
-        <PrimaryExplanation primary={primary} status={status} />
-        <MappingPanel primary={primary} />
-      </div>
-
-      {analysis ? (
-        <EvidenceCharts analysis={analysis} chartData={chartData} />
-      ) : (
-        <EmptyState title="Upload log evidence">
-          <p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs.</p>
-          <ol>
-            <li>Find the strongest ErrorCode pattern.</li>
-            <li>Map the error to job/program context.</li>
-            <li>Use owner direction to route action to Basis, ABAP, functional, or DB team.</li>
-          </ol>
-        </EmptyState>
-      )}
-
-      {analysis && (
-        <div className="evidenceGrid triple">
-          <Group title="Top JobName" rows={analysis.jobGroups} />
-          <Group title="Top Program" rows={analysis.programGroups} />
-          <Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 5).map((item) => ({
-            name: item.name,
-            hits: item.hits,
-            critHits: item.critHits,
-            family: item.owner,
-            examples: [cleanActionText(buildOwnerAction(item))],
-          }))} />
-        </div>
-      )}
-
-      <div className="evidenceGrid">
-        <UploadedFilesPanel files={displayedFiles} />
-        <EvidenceServerPanel serverInfo={serverInfo} />
-      </div>
-    </section>
-  )
+  return <section className="evidenceToolShell refinedTool finalRcaTool logEvidenceShell"><ToolHero busy={busy} onFiles={onFiles} /><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-log-evidence-v2" /><section className="decisionBoard finalDecisionBoard"><DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} /><DecisionCard label="Error Family" value={familyValue} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" /><DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={ownerHint(primary, analysis)} /><DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} /></section><div className="evidenceGrid"><PrimaryExplanation primary={primary} status={status} /><MappingPanel primary={primary} /></div>{analysis ? <EvidenceCharts analysis={analysis} chartData={chartData} /> : <EmptyState title="Upload log evidence"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs.</p><ol><li>Find the strongest ErrorCode pattern.</li><li>Map the error to job/program context.</li><li>Use owner direction to route action to Basis, ABAP, functional, or DB team.</li></ol></EmptyState>}{analysis && <div className="evidenceGrid triple"><Group title="Top JobName" rows={analysis.jobGroups} /><Group title="Top Program" rows={analysis.programGroups} /><Group title="Recommended Action" rows={(analysis.errorGroups || []).slice(0, 5).map((item) => ({ name: item.name, hits: item.hits, critHits: item.critHits, family: item.owner, examples: [cleanActionText(buildOwnerAction(item))] }))} /></div>}<div className="evidenceGrid"><UploadedFilesPanel files={displayedFiles} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
 }
