@@ -54,10 +54,43 @@ async function expandFiles(fileList) {
   return expanded.filter((file) => ['log', 'txt', 'csv'].includes(fileExt(file.name)))
 }
 
+
+function parseMemorySnapshot(text = '') {
+  const raw = String(text || '')
+  const pickGb = (patterns = []) => {
+    for (const rx of patterns) {
+      const m = raw.match(rx)
+      if (!m) continue
+      const value = Number(m[1])
+      const unit = String(m[2] || 'GB').toUpperCase()
+      if (!Number.isFinite(value)) continue
+      if (unit.startsWith('T')) return value * 1024
+      if (unit.startsWith('M')) return value / 1024
+      if (unit.startsWith('K')) return value / 1024 / 1024
+      return value
+    }
+    return 0
+  }
+
+  const physicalMemGb = pickGb([
+    /(?:physical\s+memory|phys(?:ical)?\s+mem(?:ory)?|mem(?:ory)?\s+total|total\s+memory|MemTotal)\s*[:=]\s*([\d.]+)\s*(TB|GB|G|MB|M|KB|K)?/i,
+    /(?:RAM|Memory)\s*[:=]\s*([\d.]+)\s*(TB|GB|G|MB|M|KB|K)/i,
+    /Mem:\s+([\d.]+)\s*(TB|GB|G|MB|M|KB|K)?/i
+  ])
+
+  const swapGb = pickGb([
+    /(?:swap\s+total|total\s+swap|SwapTotal|swap)\s*[:=]\s*([\d.]+)\s*(TB|GB|G|MB|M|KB|K)?/i,
+    /Swap:\s+([\d.]+)\s*(TB|GB|G|MB|M|KB|K)?/i
+  ])
+
+  return { physicalMemGb, swapGb }
+}
+
 function parseWpRows(text = '', fileName = '') {
   const snapshot = text.match(/snapshot\s*@\s*([^\n]+)/i)?.[1]?.trim() || ''
   const timeLabel = snapshot.split(' ')[1]?.slice(0, 5) || snapshot || fileName
   const host = text.match(/Hostname\s*:\s*(\S+)/i)?.[1]?.trim() || text.match(/##\s*WP-SCOUT\s*@\s*(\S+)/i)?.[1]?.trim() || 'UNKNOWN'
+  const mem = parseMemorySnapshot(text)
   const rows = []
   const rx = /^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+([\d.]+)\s+([\d.]+G)\s+([\d.]+)\s+([RS])\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(CRIT|WARN|OK)\s+(\S+)\s+(\S+)\s+(.*)$/
   String(text || '').replace(/\r/g, '').split('\n').forEach((line) => {
@@ -80,6 +113,8 @@ function parseWpRows(text = '', fileName = '') {
       type: m[4],
       cpu: Number(m[5]) || 0,
       rssGb: Number(m[7]) || 0,
+      physicalMemGb: mem.physicalMemGb,
+      swapGb: mem.swapGb,
       state: m[8],
       className: m[14],
       program,
@@ -94,6 +129,7 @@ function parseWpRows(text = '', fileName = '') {
 
 function parseGenericErrors(text = '', fileName = '') {
   const rows = []
+  const mem = parseMemorySnapshot(text)
   String(text || '').replace(/\r/g, '').split('\n').forEach((line, idx) => {
     const errorCode = KNOWN_ERRORS.find((error) => line.includes(error))
     if (!errorCode) return
@@ -108,6 +144,8 @@ function parseGenericErrors(text = '', fileName = '') {
       type: '',
       cpu: 0,
       rssGb: 0,
+      physicalMemGb: mem.physicalMemGb,
+      swapGb: mem.swapGb,
       state: '',
       className: severity,
       program: safe(line).slice(0, 140),
@@ -295,11 +333,13 @@ function buildInfraTimeline(rows = []) {
   const map = new Map()
   rows.forEach((row) => {
     const time = row.timeLabel || 'unknown'
-    const current = map.get(time) || { time, samples: 0, cpuTotal: 0, avgCpu: 0, maxCpu: 0, maxRssGb: 0, crit: 0, warn: 0 }
+    const current = map.get(time) || { time, samples: 0, cpuTotal: 0, avgCpu: 0, maxCpu: 0, maxRssGb: 0, physicalMemGb: 0, swapGb: 0, crit: 0, warn: 0 }
     current.samples += 1
     current.cpuTotal += Number(row.cpu) || 0
     current.maxCpu = Math.max(current.maxCpu, Number(row.cpu) || 0)
     current.maxRssGb = Math.max(current.maxRssGb, Number(row.rssGb) || 0)
+    current.physicalMemGb = Math.max(current.physicalMemGb, Number(row.physicalMemGb) || 0)
+    current.swapGb = Math.max(current.swapGb, Number(row.swapGb) || 0)
     current.crit += row.className === 'CRIT' ? 1 : 0
     current.warn += row.className === 'WARN' ? 1 : 0
     current.avgCpu = Number((current.cpuTotal / current.samples).toFixed(2))
@@ -352,9 +392,11 @@ function buildProgramCpuPressure(groups = []) {
 function buildInfraSummary(rows = []) {
   const peakCpuRow = rows.reduce((best, row) => ((row.cpu || 0) > (best?.cpu || 0) ? row : best), null)
   const maxRssRow = rows.reduce((best, row) => ((row.rssGb || 0) > (best?.rssGb || 0) ? row : best), null)
+  const physicalMemGb = Math.max(0, ...rows.map((row) => Number(row.physicalMemGb) || 0))
+  const swapGb = Math.max(0, ...rows.map((row) => Number(row.swapGb) || 0))
   const hostChart = buildHostMix(rows)
   const critCount = rows.filter((row) => row.className === 'CRIT').length
-  return { peakCpu: peakCpuRow?.cpu || 0, peakCpuTime: peakCpuRow?.timeLabel || '-', peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34), maxRssGb: maxRssRow?.rssGb || 0, maxRssTime: maxRssRow?.timeLabel || '-', impactedHost: hostChart[0]?.name || 'Unknown', hostHits: hostChart[0]?.hits || 0, critCount }
+  return { peakCpu: peakCpuRow?.cpu || 0, peakCpuTime: peakCpuRow?.timeLabel || '-', peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34), maxRssGb: maxRssRow?.rssGb || 0, maxRssTime: maxRssRow?.timeLabel || '-', physicalMemGb, swapGb, impactedHost: hostChart[0]?.name || 'Unknown', hostHits: hostChart[0]?.hits || 0, critCount }
 }
 
 function AcceptedTypes({ items }) {
@@ -433,6 +475,8 @@ function InfraTrendPanel({ data = [] }) {
       { name: 'Avg CPU', type: 'line', smooth: true, data: items.map((item) => item.avgCpu), itemStyle: { color: LOG_COLORS.BASIS }, lineStyle: { color: LOG_COLORS.BASIS } },
       { name: 'Max CPU', type: 'line', smooth: true, data: items.map((item) => item.maxCpu), itemStyle: { color: LOG_COLORS.CRIT }, lineStyle: { color: LOG_COLORS.CRIT } },
       { name: 'RSS GB', type: 'bar', data: items.map((item) => ({ value: item.maxRssGb, itemStyle: { color: item.maxRssGb >= 5 ? LOG_COLORS.WARN : LOG_COLORS.DB } })), barWidth: 10 },
+      { name: 'Physical GB', type: 'line', smooth: true, data: items.map((item) => item.physicalMemGb || 0), itemStyle: { color: LOG_COLORS.OK }, lineStyle: { color: LOG_COLORS.OK, type: 'dashed' } },
+      { name: 'Swap GB', type: 'line', smooth: true, data: items.map((item) => item.swapGb || 0), itemStyle: { color: LOG_COLORS.ABAP }, lineStyle: { color: LOG_COLORS.ABAP, type: 'dashed' } },
     ],
   })
   return <section className="evidencePanel logMetricPanel"><div className="panelTitleRow"><h2>CPU and Memory Timeline</h2><span>Avg / max pressure</span></div>{items.length ? <ReactECharts option={option} style={{ height: 250, width: '100%' }} notMerge lazyUpdate /> : <p>No infra trend data.</p>}</section>
@@ -451,7 +495,13 @@ function MappingPanel({ primary }) {
 }
 
 function InfraSummaryCards({ summary }) {
-  return <section className="infraSummaryBoard"><div className="infraSummaryCard"><span>Peak CPU</span><b>{fmt(summary.peakCpu)}%</b><small>{summary.peakCpuProgram} - {summary.peakCpuTime}</small></div><div className="infraSummaryCard"><span>Max RSS</span><b>{fmt(summary.maxRssGb)} GB</b><small>Highest memory footprint - {summary.maxRssTime}</small></div><div className="infraSummaryCard"><span>Most Impacted Host</span><b>{summary.impactedHost}</b><small>{summary.hostHits} hits - {summary.critCount} CRIT rows</small></div></section>
+  return <section className="infraSummaryBoard">
+    <div className="infraSummaryCard"><span>Peak CPU</span><b>{fmt(summary.peakCpu)}%</b><small>{summary.peakCpuProgram} - {summary.peakCpuTime}</small></div>
+    <div className="infraSummaryCard"><span>Max RSS</span><b>{fmt(summary.maxRssGb)} GB</b><small>Highest WP memory footprint - {summary.maxRssTime}</small></div>
+    <div className="infraSummaryCard"><span>Physical Memory</span><b>{summary.physicalMemGb ? `${fmt(summary.physicalMemGb)} GB` : '-'}</b><small>Total RAM detected from uploaded log</small></div>
+    <div className="infraSummaryCard"><span>Swap Total</span><b>{summary.swapGb ? `${fmt(summary.swapGb)} GB` : '-'}</b><small>Swap capacity detected from uploaded log</small></div>
+    <div className="infraSummaryCard"><span>Most Impacted Host</span><b>{summary.impactedHost}</b><small>{summary.hostHits} hits - {summary.critCount} CRIT rows</small></div>
+  </section>
 }
 
 function EvidenceCharts({ analysis, chartData }) {
