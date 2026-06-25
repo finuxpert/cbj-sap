@@ -2,15 +2,105 @@ import React from 'react'
 import { copyText, downloadJson, fileSizeLabel } from './evidence-utils.js'
 import './EvidenceDecisionKit.css'
 
-function useSt03nCompactGrid() {
+const ST03N_VIEW_STYLE_ID = 'st03n-view-mode-runtime'
+
+function ensureSt03nViewStyles() {
+  if (typeof document === 'undefined') return
+  if (document.getElementById(ST03N_VIEW_STYLE_ID)) return
+
+  const style = document.createElement('style')
+  style.id = ST03N_VIEW_STYLE_ID
+  style.textContent = `
+    .st03nViewSwitch{display:inline-flex;gap:4px;padding:4px;border:1px solid rgba(148,163,184,.18);border-radius:999px;background:rgba(15,23,42,.38)}
+    .st03nViewSwitch button{border-radius:999px!important;min-height:30px!important;padding:0 12px!important}
+    .st03nViewSwitch button.active{background:linear-gradient(135deg,#7ce38b,#25f3d0)!important;color:#07100b!important;border-color:transparent!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard{grid-template-columns:repeat(12,minmax(0,1fr))!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div{display:block!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(1){grid-column:span 12!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(2){grid-column:span 8!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(3){grid-column:span 4!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(n+4){grid-column:span 12!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(7),
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(8),
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(9){grid-column:span 4!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nFooterGrid{display:grid!important}
+    .st03nImpactShell:not(.st03nReportMode) .st03nDashboardBoard>div:nth-child(2) .evidenceList{display:grid!important}
+    .st03nImpactShell:not(.st03nReportMode) .visual>div[style*='height: 360']{height:360px!important}
+    .st03nImpactShell:not(.st03nReportMode) .visual>div[style*='height: 340']{height:340px!important}
+    .st03nImpactShell:not(.st03nReportMode) .visual>div[style*='height: 330']{height:330px!important}
+    .st03nImpactShell:not(.st03nReportMode) .visual>div[style*='height: 300']{height:300px!important}
+    .st03nReportMode{padding:12px 14px!important}
+    .st03nReportMode .sessionBanner,
+    .st03nReportMode .st03nFooterGrid,
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(4),
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(n+6){display:none!important}
+    .st03nReportMode .evidenceHero{grid-template-columns:minmax(0,1fr)!important;padding:12px 16px!important;margin-bottom:8px!important}
+    .st03nReportMode .evidenceUpload{display:none!important}
+    .st03nReportMode .heroCopyBlock>span{font-size:10px!important}
+    .st03nReportMode .heroCopyBlock h1{font-size:0!important;margin:4px 0!important;line-height:1!important}
+    .st03nReportMode .heroCopyBlock h1::after{content:'ST03N RCA Report';font-size:26px;letter-spacing:-.04em}
+    .st03nReportMode .heroCopyBlock p{font-size:12px!important;max-width:980px!important}
+    .st03nReportMode .decisionBoard{grid-template-columns:1.2fr 1.2fr .8fr .8fr!important;gap:8px!important;margin-bottom:8px!important}
+    .st03nReportMode .decisionCard{min-height:72px!important;padding:9px 11px!important;border-radius:13px!important}
+    .st03nReportMode .decisionCard span{font-size:9px!important}
+    .st03nReportMode .decisionCard b{font-size:18px!important}
+    .st03nReportMode .decisionCard small{font-size:10px!important;line-height:1.25!important}
+    .st03nReportMode .st03nSummaryGrid{grid-template-columns:minmax(0,1fr)!important;margin-bottom:8px!important}
+    .st03nReportMode .parsePanel{padding:9px 11px!important}
+    .st03nReportMode .parsePanel .panelTitleRow{display:none!important}
+    .st03nReportMode .parsePanel .statusList{grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:6px!important}
+    .st03nReportMode .parsePanel .statusList div{min-height:34px!important;padding:6px 7px!important;border-radius:999px!important;display:flex!important;align-items:center!important;gap:6px!important;overflow:hidden!important}
+    .st03nReportMode .parsePanel .statusList b{font-size:10px!important;white-space:nowrap!important}
+    .st03nReportMode .parsePanel .statusList span{display:none!important}
+    .st03nReportMode .interpretationPanel{padding:10px 12px!important}
+    .st03nReportMode .interpretationPanel p{font-size:12px!important;margin:0!important}
+    .st03nReportMode .interpretationPanel .confidenceRows{margin-top:8px!important}
+    .st03nReportMode .st03nKpiStrip{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;margin-bottom:8px!important}
+    .st03nReportMode .st03nKpiCard{min-height:64px!important;padding:9px 10px!important;border-radius:13px!important}
+    .st03nReportMode .st03nKpiCard span{font-size:9px!important}
+    .st03nReportMode .st03nKpiCard b{font-size:16px!important}
+    .st03nReportMode .st03nKpiCard small{font-size:10px!important}
+    .st03nReportMode .st03nDashboardBoard{grid-template-columns:repeat(12,minmax(0,1fr))!important;gap:8px!important;margin-top:8px!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(1){grid-column:span 3!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(2){grid-column:span 6!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(3){grid-column:span 3!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5){grid-column:span 12!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(2) .evidenceList{display:none!important}
+    .st03nReportMode .evidencePanel{padding:10px 11px!important;border-radius:14px!important}
+    .st03nReportMode .panelTitleRow h2{font-size:10px!important;margin-bottom:6px!important}
+    .st03nReportMode .panelTitleRow span{font-size:9px!important}
+    .st03nReportMode .visual>div[style*='height: 360'],
+    .st03nReportMode .visual>div[style*='height: 330'],
+    .st03nReportMode .visual>div[style*='height: 300']{height:215px!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) .panelTitleRow span{font-size:0!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) .panelTitleRow span::after{content:'Top 5 offenders';font-size:9px}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) input,
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) select,
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) .panelTitleRow+div,
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) .panelTitleRow+div+div{display:none!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) table{min-width:760px!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) tbody tr:nth-child(n+6){display:none!important}
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) th,
+    .st03nReportMode .st03nDashboardBoard>div:nth-child(5) td{padding:7px 8px!important;font-size:10px!important}
+    @media(max-width:1120px){.st03nReportMode .decisionBoard,.st03nReportMode .st03nKpiStrip,.st03nReportMode .parsePanel .statusList{grid-template-columns:1fr!important}.st03nReportMode .st03nDashboardBoard>div{grid-column:span 12!important}}
+  `
+  document.head.appendChild(style)
+}
+
+function useSt03nViewMode(filenamePrefix) {
+  const isSt03n = String(filenamePrefix || '').includes('st03n')
+  const [viewMode, setViewMode] = React.useState('analyst')
+
   React.useEffect(() => {
-    if (typeof document === 'undefined') return
-    if (document.getElementById('st03n-compact-runtime')) return
-    const style = document.createElement('style')
-    style.id = 'st03n-compact-runtime'
-    style.textContent = `.st03nImpactShell .st03nDashboardBoard{grid-template-columns:repeat(12,minmax(0,1fr))!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(1){grid-column:span 3!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(2){grid-column:span 6!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(3){grid-column:span 3!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(5){grid-column:span 12!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(4),.st03nImpactShell .st03nDashboardBoard>div:nth-child(n+6),.st03nImpactShell .st03nFooterGrid{display:none!important}.st03nImpactShell .st03nDashboardBoard>div:nth-child(2) .evidenceList{display:none!important}.st03nImpactShell .visual>div[style*='height: 360'],.st03nImpactShell .visual>div[style*='height: 330'],.st03nImpactShell .visual>div[style*='height: 300']{height:230px!important}`
-    document.head.appendChild(style)
-  }, [])
+    if (!isSt03n || typeof document === 'undefined') return undefined
+    ensureSt03nViewStyles()
+    const shell = document.querySelector('.st03nImpactShell')
+    if (!shell) return undefined
+    shell.classList.toggle('st03nReportMode', viewMode === 'report')
+    return () => shell.classList.remove('st03nReportMode')
+  }, [isSt03n, viewMode])
+
+  return isSt03n ? [viewMode, setViewMode] : [null, () => {}]
 }
 
 export function DecisionCard({ label, value, hint, tone = '' }) {
@@ -22,8 +112,17 @@ export function SessionBanner({ session }) {
   return <section className="sessionBanner"><b>Latest RCA session</b><span>{session.sid} • {session.host} • {session.window?.start} - {session.window?.end}</span><small>{session.summary}</small></section>
 }
 
-async function exportEvidencePdf(filenamePrefix = 'sap-evidence-analysis') {
+async function exportEvidencePdf(filenamePrefix = 'sap-evidence-analysis', options = {}) {
+  const forceReport = Boolean(options.forceReport)
   const shell = document.querySelector('.evidenceToolShell') || document.querySelector('main') || document.body
+  const shouldForceReport = forceReport && shell?.classList?.contains('st03nImpactShell')
+  const wasReportMode = shouldForceReport ? shell.classList.contains('st03nReportMode') : false
+
+  if (shouldForceReport) {
+    ensureSt03nViewStyles()
+    shell.classList.add('st03nReportMode')
+  }
+
   const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
     import('html2canvas'),
     import('jspdf'),
@@ -82,10 +181,13 @@ async function exportEvidencePdf(filenamePrefix = 'sap-evidence-analysis') {
 
   pdf.save(`${filenamePrefix}-report.pdf`)
   window.scrollTo(0, originalScrollY)
+
+  if (shouldForceReport && !wasReportMode) shell.classList.remove('st03nReportMode')
 }
 
 export function EvidenceToolbar({ analysis, cacheKey, reportText, filenamePrefix = 'sap-evidence-analysis' }) {
-  useSt03nCompactGrid()
+  const [viewMode, setViewMode] = useSt03nViewMode(filenamePrefix)
+  const isSt03n = Boolean(viewMode)
   const [copied, setCopied] = React.useState(false)
   const [exportingPdf, setExportingPdf] = React.useState(false)
   const canExport = Boolean(analysis)
@@ -98,7 +200,7 @@ export function EvidenceToolbar({ analysis, cacheKey, reportText, filenamePrefix
     if (!canExport || exportingPdf) return
     setExportingPdf(true)
     try {
-      await exportEvidencePdf(filenamePrefix)
+      await exportEvidencePdf(filenamePrefix, { forceReport: isSt03n })
     } catch (error) {
       console.error('Failed to export evidence PDF', error)
       window.alert('Failed to export PDF. Please try again or reduce browser zoom to 90%.')
@@ -110,7 +212,20 @@ export function EvidenceToolbar({ analysis, cacheKey, reportText, filenamePrefix
     if (cacheKey) localStorage.removeItem(cacheKey)
     window.location.reload()
   }
-  return <div className="evidenceToolbar"><button type="button" disabled={!canExport} onClick={copy}>{copied ? 'Copied' : 'Copy Summary'}</button><button type="button" disabled={!canExport} onClick={() => downloadJson(`${filenamePrefix}.json`, analysis)}>Export JSON</button><button type="button" disabled={!canExport || exportingPdf} onClick={exportPdf}>{exportingPdf ? 'Exporting PDF…' : 'Export PDF'}</button><button type="button" onClick={clear}>Clear Cache</button></div>
+  return (
+    <div className="evidenceToolbar">
+      {isSt03n ? (
+        <div className="st03nViewSwitch" role="group" aria-label="ST03N view mode">
+          <button type="button" className={viewMode === 'analyst' ? 'active' : ''} onClick={() => setViewMode('analyst')}>Analyst View</button>
+          <button type="button" className={viewMode === 'report' ? 'active' : ''} onClick={() => setViewMode('report')}>Report View</button>
+        </div>
+      ) : null}
+      <button type="button" disabled={!canExport} onClick={copy}>{copied ? 'Copied' : 'Copy Summary'}</button>
+      <button type="button" disabled={!canExport} onClick={() => downloadJson(`${filenamePrefix}.json`, analysis)}>Export JSON</button>
+      <button type="button" disabled={!canExport || exportingPdf} onClick={exportPdf}>{exportingPdf ? 'Exporting PDF…' : 'Export PDF'}</button>
+      <button type="button" onClick={clear}>Clear Cache</button>
+    </div>
+  )
 }
 
 export function UploadedFilesPanel({ files = [] }) {
