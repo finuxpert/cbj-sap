@@ -1,0 +1,155 @@
+/* Log evidence memory layout polish */
+.memoryQualitySwapGrid,
+.memoryEvidenceGrid,
+.infraChartGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  align-items: stretch;
+}
+
+.memoryQualitySwapGrid > .evidencePanel,
+.memoryEvidenceGrid > .evidencePanel,
+.infraChartGrid > .evidencePanel {
+  min-height: 0;
+}
+
+.memoryEvidencePanel {
+  opacity: 1 !important;
+}
+
+.memoryEvidencePanel .memoryKpiGrid,
+.memoryQualityPanel .memoryQualityGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.swapEvidencePanel,
+.memoryQualityPanel,
+.memoryEvidencePanel,
+.memoryEvidenceChart {
+  min-height: 0;
+}
+
+.memorySummaryBoard {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.memorySummaryBoard .infraSummaryCard {
+  min-height: 96px;
+}
+
+.memoryBadge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, .28);
+  padding: 5px 9px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.memoryKpiGrid,
+.memoryQualityGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.memoryKpiGrid > div,
+.memoryQualityGrid > div {
+  padding: 11px;
+  border: 1px solid rgba(148, 163, 184, .15);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .026);
+}
+
+.memoryKpiGrid span,
+.memoryQualityGrid span {
+  display: block;
+  color: rgba(203, 213, 225, .72);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.memoryKpiGrid b,
+.memoryQualityGrid b {
+  display: block;
+  margin-top: 6px;
+  color: rgba(248, 250, 252, .96);
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+
+.memoryQualityGrid small,
+.memoryFootnote {
+  display: block;
+  margin-top: 6px;
+  color: rgba(203, 213, 225, .68);
+  line-height: 1.45;
+}
+
+.memoryUnavailable {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+  padding: 14px;
+  border: 1px dashed rgba(245, 158, 11, .38);
+  border-radius: 14px;
+  background: rgba(245, 158, 11, .06);
+}
+
+.memoryStatusStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.memoryStatusStrip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(203, 213, 225, .76);
+  font-size: 12px;
+}
+
+.logEvidenceShell .evidencePanel,
+.logEvidenceShell .decisionCard,
+.logEvidenceShell .infraSummaryCard {
+  transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+.logEvidenceShell .evidencePanel:hover,
+.logEvidenceShell .decisionCard:hover,
+.logEvidenceShell .infraSummaryCard:hover {
+  transform: translateY(-2px);
+}
+
+.logSkeleton {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.logSkeleton span {
+  min-height: 54px;
+  border-radius: 16px;
+  background: rgba(148, 163, 184, .12);
+}
+
+@media (max-width: 1120px) {
+  .memoryQualitySwapGrid,
+  .memoryEvidenceGrid,
+  .infraChartGrid,
+  .memorySummaryBoard,
+  .memoryKpiGrid,
+  .memoryQualityGrid,
+  .logSkeleton {
+    grid-template-columns: 1fr !important;
+  }
+}
