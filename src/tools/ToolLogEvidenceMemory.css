@@ -7,9 +7,15 @@
 
 .logEvidenceShell .memoryQualitySwapGrid,
 .logEvidenceShell .memoryEvidenceGrid,
-.logEvidenceShell .infraChartGrid {
+.logEvidenceShell .evidenceGrid.wide.infraChartGrid {
   display: grid !important;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  align-items: stretch !important;
+}
+
+.logEvidenceShell .evidenceGrid.triple.infraChartGrid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   align-items: stretch !important;
 }
 
@@ -192,13 +198,15 @@
 @media (min-width: 1280px) {
   .logEvidenceShell .memoryEvidenceGrid > .memoryEvidencePanel { grid-column: span 1; }
   .logEvidenceShell .memoryEvidenceGrid > .memoryEvidenceChart { grid-column: span 1; }
-  .logEvidenceShell .infraChartGrid > .logMetricPanel { min-height: 300px; }
+  .logEvidenceShell .evidenceGrid.wide.infraChartGrid > .logMetricPanel { min-height: 300px; }
+  .logEvidenceShell .evidenceGrid.triple.infraChartGrid > .logMetricPanel { min-height: 260px; }
 }
 
 @media (max-width: 1120px) {
   .logEvidenceShell .memoryQualitySwapGrid,
   .logEvidenceShell .memoryEvidenceGrid,
-  .logEvidenceShell .infraChartGrid,
+  .logEvidenceShell .evidenceGrid.wide.infraChartGrid,
+  .logEvidenceShell .evidenceGrid.triple.infraChartGrid,
   .logEvidenceShell .memorySummaryBoard,
   .memoryKpiGrid,
   .memoryQualityGrid,
