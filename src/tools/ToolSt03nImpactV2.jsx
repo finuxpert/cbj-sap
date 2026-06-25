@@ -35,6 +35,10 @@ function compactLabel(value = '', max = 18) {
   return label.length > max ? `${label.slice(0, Math.max(8, max - 1))}…` : label
 }
 
+function evidenceName(row = {}, fallback = 'ST03N item') {
+  return compactLabel(row.label || row.name || row.program || row.transaction || row.fileName || row.kind || fallback, 28)
+}
+
 function metricMax(rows = [], metric) {
   return Math.max(1, ...rows.map((row) => Number(row[metric] || 0)))
 }
@@ -173,10 +177,10 @@ function KpiStrip({ topRows }) {
 
   return (
     <section className="st03nKpiStrip">
-      <KpiCard label="Top Program" value={compactLabel(topProgram?.label, 22)} hint={topProgram ? `${topProgram.kind} · ${topProgram.component}` : 'No data'} />
-      <KpiCard label="Highest Response" value={highResp ? `${fmt(highResp.responseMs, 0)}ms` : '-'} hint={compactLabel(highResp?.label, 24)} />
-      <KpiCard label="Highest DB Time" value={highDb ? `${fmt(highDb.dbMs, 0)}ms` : '-'} hint={compactLabel(highDb?.label, 24)} />
-      <KpiCard label="Highest Steps" value={highSteps ? fmt(highSteps.steps, 0) : '-'} hint={compactLabel(highSteps?.label, 24)} />
+      <KpiCard label="Top Program" value={evidenceName(topProgram, 'No data')} hint={topProgram ? `${topProgram.kind} · ${topProgram.component}` : 'No data'} />
+      <KpiCard label="Highest Response" value={highResp ? `${fmt(highResp.responseMs, 0)}ms` : '-'} hint={evidenceName(highResp)} />
+      <KpiCard label="Highest DB Time" value={highDb ? `${fmt(highDb.dbMs, 0)}ms` : '-'} hint={evidenceName(highDb)} />
+      <KpiCard label="Highest Steps" value={highSteps ? fmt(highSteps.steps, 0) : '-'} hint={evidenceName(highSteps)} />
     </section>
   )
 }
@@ -191,7 +195,7 @@ function MetricRows({ rows = [], metric, unit = '', maxRows = 5, tone = 'score' 
         return (
           <div key={`${row.name}-${metric}-${index}`} className={`st03nMetricRow ${tone} ${severityClass(pct)}`}>
             <div>
-              <b>{row.name}</b>
+              <b>{evidenceName(row)}</b>
               <span>{fmt(value, 0)}{unit}</span>
             </div>
             <i style={{ width: `${pct}%` }} />
@@ -221,16 +225,14 @@ function EvidenceFocusPanel({ rows = [] }) {
         <h2>Top ST03N Evidence</h2>
         <span>Basis review queue</span>
       </div>
-      <div className="st03nImpactCards compactEvidenceCards">
+      <div className="evidenceList compact finalEvidenceList st03nCompactList">
         {rows.slice(0, 3).map((row, index) => {
           const kind = dominantKind(row)
           return (
-            <div key={`${row.name}-${index}`} className={`st03nImpactCard ${kind}`}>
-              <div>
-                <b>{row.name}</b>
-                <em>{kind.toUpperCase()}</em>
-              </div>
-              <small>Score {row.score}/100 · Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</small>
+            <div key={`${row.name}-${index}`}>
+              <b>{evidenceName(row)}</b>
+              <span>{kind.toUpperCase()} dominant · score {row.score}/100</span>
+              <small>Response {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</small>
             </div>
           )
         })}
@@ -241,35 +243,19 @@ function EvidenceFocusPanel({ rows = [] }) {
 
 function BreakdownPanel({ rows = [] }) {
   return (
-    <section className="evidencePanel st03nBreakdownPanel visual">
+    <section className="evidencePanel st03nBreakdownPanel basisBreakdownPanel">
       <div className="panelTitleRow">
         <h2>Response / DB / Wait Breakdown</h2>
         <span>Main Basis analysis</span>
       </div>
-      <div className="st03nBreakdownLegend">
-        <span className="resp">Response</span>
-        <span className="db">DB</span>
-        <span className="wait">Wait</span>
-      </div>
-      <div className="st03nBreakdownRows">
-        {rows.slice(0, 6).map((row, index) => {
-          const total = Math.max(1, row.response + row.db + row.wait)
-          const respPct = Math.max(3, (row.response / total) * 100)
-          const dbPct = Math.max(3, (row.db / total) * 100)
-          const waitPct = Math.max(3, (row.wait / total) * 100)
+      <div className="evidenceList finalEvidenceList st03nCompactList basisBreakdownList">
+        {rows.slice(0, 5).map((row, index) => {
           const kind = dominantKind(row)
           return (
-            <div key={`${row.name}-breakdown-${index}`} className={`st03nBreakdownRow ${kind}`}>
-              <div>
-                <b>{row.name}</b>
-                <em>{kind.toUpperCase()}</em>
-                <span>Resp {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</span>
-              </div>
-              <p>
-                <i className="resp" style={{ width: `${respPct}%` }} />
-                <i className="db" style={{ width: `${dbPct}%` }} />
-                <i className="wait" style={{ width: `${waitPct}%` }} />
-              </p>
+            <div key={`${row.name}-breakdown-${index}`}>
+              <b>{evidenceName(row)}</b>
+              <span>{kind.toUpperCase()} dominant · Score {row.score}/100 · Steps {fmt(row.steps, 0)}</span>
+              <small>Response {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms</small>
             </div>
           )
         })}
@@ -278,21 +264,19 @@ function BreakdownPanel({ rows = [] }) {
   )
 }
 
-function ComponentMix({ analysis, topRows }) {
+function ComponentMix({ analysis }) {
   const rows = analysis.componentRows?.length ? analysis.componentRows : []
   return (
-    <section className="evidencePanel st03nComponentPanel">
+    <section className="evidencePanel st03nComponentPanel compactComponentPanel">
       <div className="panelTitleRow">
         <h2>Component Mix</h2>
         <span>Classified rows</span>
       </div>
-      <MetricRows rows={rows.map((row) => ({ name: row.name, hits: row.value }))} metric="hits" unit=" hits" maxRows={4} tone="component" />
       <div className="evidenceList compact finalEvidenceList st03nCompactList">
-        {topRows.slice(0, 3).map((row) => (
-          <div key={`${row.kind}-${row.fileName}-${row.label}`}>
-            <b>{row.label}</b>
-            <span>{row.kind} · {row.component} · score {row.score}/100</span>
-            <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms</small>
+        {rows.slice(0, 4).map((row) => (
+          <div key={row.name}>
+            <b>{row.name}</b>
+            <span>{fmt(row.value, 0)} hits</span>
           </div>
         ))}
       </div>
@@ -309,8 +293,8 @@ function OffenderRanking({ topRows }) {
       </div>
       <div className="evidenceList finalEvidenceList st03nCompactList">
         {topRows.slice(0, 6).map((row) => (
-          <div key={`${row.kind}-${row.fileName}-${row.label}-ranking`}>
-            <b>{row.label}</b>
+          <div key={`${row.kind}-${row.fileName}-${row.label || row.name}-ranking`}>
+            <b>{evidenceName(row)}</b>
             <span>{row.kind} · {row.component} · score {row.score}/100</span>
             <small>Response {fmt(row.responseMs, 0)}ms · DB {fmt(row.dbMs, 0)}ms · Wait {fmt(row.waitMs, 0)}ms · Steps {fmt(row.steps, 0)}</small>
           </div>
@@ -322,7 +306,7 @@ function OffenderRanking({ topRows }) {
 
 function EvidenceCharts({ analysis, topRows }) {
   const chartRows = topRows.slice(0, 8).map((row, index) => ({
-    name: compactLabel(row.label, 18),
+    name: evidenceName(row),
     rank: `#${index + 1}`,
     score: row.score || 0,
     response: Math.round(row.responseMs || 0),
@@ -339,7 +323,7 @@ function EvidenceCharts({ analysis, topRows }) {
       <KpiStrip topRows={topRows} />
       <div className="st03nDashboardBoard" style={dashboardGridStyle}>
         <div style={span(8)}><BreakdownPanel rows={chartRows} /></div>
-        <div style={span(4)}><ComponentMix analysis={analysis} topRows={topRows} /></div>
+        <div style={span(4)}><ComponentMix analysis={analysis} /></div>
         <div style={span(12)}><EvidenceFocusPanel rows={chartRows} /></div>
         <div style={span(4)}><MetricPanel title="Top Response Time" tag="Dialog impact" rows={topResponseRows} metric="response" unit="ms" tone="response" /></div>
         <div style={span(4)}><MetricPanel title="Top DB Time" tag="Database pressure" rows={topDbRows} metric="db" unit="ms" tone="db" /></div>
