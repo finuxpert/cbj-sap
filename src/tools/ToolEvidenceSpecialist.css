@@ -231,6 +231,103 @@
 .evidenceToolShell .recharts-text { fill: rgba(224,242,241,0.68); font-size: 11px; }
 .evidenceToolShell .recharts-default-tooltip { border: 1px solid rgba(124,227,139,0.28) !important; border-radius: 12px !important; background: rgba(8,12,15,.96) !important; color: #f8fffd !important; }
 
+/* ST03N compact analyst layout */
+.st03nImpactShell {
+  padding: 14px 18px;
+}
+
+.st03nImpactShell .evidenceHero {
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  border-radius: 18px;
+}
+
+.st03nImpactShell .compactEvidenceHero h1 {
+  font-size: clamp(24px, 2.5vw, 36px);
+  margin: 6px 0;
+}
+
+.st03nImpactShell .evidenceHero p {
+  margin: 0;
+  max-width: 760px;
+}
+
+.st03nImpactShell .evidenceUpload {
+  min-height: 48px;
+  border-radius: 16px;
+}
+
+.st03nImpactShell .evidenceToolbar {
+  margin-bottom: 10px;
+}
+
+.st03nImpactShell .decisionBoard,
+.st03nImpactShell .evidenceGrid,
+.st03nImpactShell .st03nDashboardBoard {
+  gap: 10px !important;
+  margin-bottom: 10px;
+}
+
+.st03nImpactShell .decisionCard {
+  min-height: 94px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.st03nImpactShell .decisionCard b {
+  font-size: clamp(17px, 1.7vw, 23px);
+}
+
+.st03nImpactShell .evidencePanel {
+  padding: 13px;
+  border-radius: 17px;
+}
+
+.st03nImpactShell .evidencePanel h2,
+.st03nImpactShell .panelTitleRow h2 {
+  margin-bottom: 8px;
+}
+
+.st03nImpactShell .statusList,
+.st03nImpactShell .evidenceList,
+.st03nImpactShell .confidenceRows {
+  gap: 7px;
+}
+
+.st03nImpactShell .statusList div,
+.st03nImpactShell .evidenceList div,
+.st03nImpactShell .confidenceRows span {
+  padding: 8px 9px;
+  border-radius: 12px;
+}
+
+.st03nImpactShell .st03nImpactMatrixPanel,
+.st03nImpactShell .st03nOffenderPanel {
+  display: none !important;
+}
+
+.st03nImpactShell .visual > div[style*="height: 360"] { height: 300px !important; }
+.st03nImpactShell .visual > div[style*="height: 340"] { height: 250px !important; }
+.st03nImpactShell .visual > div[style*="height: 330"] { height: 260px !important; }
+.st03nImpactShell .visual > div[style*="height: 300"] { height: 235px !important; }
+
+.st03nImpactShell .st03nMetricPanel svg {
+  height: 125px !important;
+}
+
+.st03nImpactShell section.visual div[style*="max-height: 520"] {
+  max-height: 350px !important;
+}
+
+.st03nImpactShell .basisBreakdownList,
+.st03nImpactShell .st03nCompactList {
+  max-height: 320px;
+}
+
+.st03nImpactShell .st03nFooterGrid .evidenceList {
+  max-height: 260px;
+}
+
 @media (max-width: 1120px) {
   .evidenceHero,
   .evidenceGrid,
