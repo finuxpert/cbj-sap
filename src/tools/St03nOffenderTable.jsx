@@ -1,10 +1,4 @@
 import React from 'react'
-import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 import { fmt } from './evidence-utils.js'
 
 function compactLabel(value = '', max = 42) {
@@ -56,6 +50,13 @@ function dominantKind(row = {}) {
     ['CPU', Number(row.cpu || 0)],
   ]
   return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || 'Response'
+}
+
+function compareRows(a, b, key) {
+  const aValue = a[key]
+  const bValue = b[key]
+  if (typeof aValue === 'number' && typeof bValue === 'number') return aValue - bValue
+  return String(aValue || '').localeCompare(String(bValue || ''), undefined, { numeric: true, sensitivity: 'base' })
 }
 
 const tableShellStyle = {
@@ -115,85 +116,63 @@ const tdStyle = {
   whiteSpace: 'nowrap',
 }
 
+const columns = [
+  { key: 'rank', label: '#' },
+  { key: 'name', label: 'Offender' },
+  { key: 'component', label: 'Component' },
+  { key: 'score', label: 'Score' },
+  { key: 'response', label: 'Response' },
+  { key: 'db', label: 'DB Time' },
+  { key: 'wait', label: 'Wait' },
+  { key: 'cpu', label: 'CPU' },
+  { key: 'steps', label: 'Steps' },
+  { key: 'dominant', label: 'Dominant' },
+]
+
 export default function St03nOffenderTable({ rows = [] }) {
   const [query, setQuery] = React.useState('')
   const [component, setComponent] = React.useState('all')
-  const [sorting, setSorting] = React.useState([{ id: 'score', desc: true }])
+  const [sort, setSort] = React.useState({ key: 'score', direction: 'desc' })
 
   const normalizedRows = React.useMemo(() => normalizeRows(rows), [rows])
   const components = React.useMemo(() => (
     Array.from(new Set(normalizedRows.map((row) => row.component))).sort()
   ), [normalizedRows])
 
-  const searchedRows = React.useMemo(() => {
-    return normalizedRows.filter((row) => {
-      const componentMatch = component === 'all' || row.component === component
-      return componentMatch && rowMatchesQuery(row, query)
+  const visibleRows = React.useMemo(() => {
+    const filtered = normalizedRows
+      .filter((row) => component === 'all' || row.component === component)
+      .filter((row) => rowMatchesQuery(row, query))
+      .map((row) => ({ ...row, dominant: dominantKind(row) }))
+
+    return [...filtered].sort((a, b) => {
+      const result = compareRows(a, b, sort.key)
+      return sort.direction === 'asc' ? result : -result
     })
-  }, [component, normalizedRows, query])
+  }, [component, normalizedRows, query, sort])
 
-  const columns = React.useMemo(() => [
-    {
-      accessorKey: 'rank',
-      header: '#',
-      cell: ({ row }) => <b style={{ color: '#7dd3fc' }}>#{row.original.rank}</b>,
-    },
-    {
-      accessorKey: 'name',
-      header: 'Offender',
-      cell: ({ row }) => (
+  const toggleSort = (key) => {
+    setSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc',
+    }))
+  }
+
+  const renderCell = (row, key) => {
+    if (key === 'rank') return <b style={{ color: '#7dd3fc' }}>#{row.rank}</b>
+    if (key === 'name') {
+      return (
         <div>
-          <b style={{ color: 'rgba(248,250,252,.96)' }}>{row.original.name}</b>
-          <div style={{ color: 'rgba(148,163,184,.78)', marginTop: 4 }}>{row.original.kind} · {row.original.fileName}</div>
+          <b style={{ color: 'rgba(248,250,252,.96)' }}>{row.name}</b>
+          <div style={{ color: 'rgba(148,163,184,.78)', marginTop: 4 }}>{row.kind} · {row.fileName}</div>
         </div>
-      ),
-    },
-    { accessorKey: 'component', header: 'Component' },
-    {
-      accessorKey: 'score',
-      header: 'Score',
-      cell: ({ getValue }) => <b>{fmt(getValue(), 0)}/100</b>,
-    },
-    {
-      accessorKey: 'response',
-      header: 'Response',
-      cell: ({ getValue }) => `${fmt(getValue(), 0)}ms`,
-    },
-    {
-      accessorKey: 'db',
-      header: 'DB Time',
-      cell: ({ getValue }) => `${fmt(getValue(), 0)}ms`,
-    },
-    {
-      accessorKey: 'wait',
-      header: 'Wait',
-      cell: ({ getValue }) => `${fmt(getValue(), 0)}ms`,
-    },
-    {
-      accessorKey: 'cpu',
-      header: 'CPU',
-      cell: ({ getValue }) => `${fmt(getValue(), 0)}ms`,
-    },
-    {
-      accessorKey: 'steps',
-      header: 'Steps',
-      cell: ({ getValue }) => fmt(getValue(), 0),
-    },
-    {
-      id: 'dominant',
-      header: 'Dominant',
-      cell: ({ row }) => dominantKind(row.original),
-    },
-  ], [])
-
-  const table = useReactTable({
-    data: searchedRows,
-    columns,
-    state: { sorting },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  })
+      )
+    }
+    if (key === 'score') return <b>{fmt(row.score, 0)}/100</b>
+    if (['response', 'db', 'wait', 'cpu'].includes(key)) return `${fmt(row[key], 0)}ms`
+    if (key === 'steps') return fmt(row.steps, 0)
+    return row[key]
+  }
 
   return (
     <section className="evidencePanel st03nBreakdownPanel visual">
@@ -218,32 +197,29 @@ export default function St03nOffenderTable({ rows = [] }) {
       </div>
 
       <div style={{ color: 'rgba(148,163,184,.82)', fontSize: 12, marginBottom: 10 }}>
-        Showing <b style={{ color: 'rgba(248,250,252,.94)' }}>{searchedRows.length}</b> of <b style={{ color: 'rgba(248,250,252,.94)' }}>{normalizedRows.length}</b> parsed offenders. Click column headers to sort.
+        Showing <b style={{ color: 'rgba(248,250,252,.94)' }}>{visibleRows.length}</b> of <b style={{ color: 'rgba(248,250,252,.94)' }}>{normalizedRows.length}</b> parsed offenders. Click column headers to sort.
       </div>
 
       <div style={tableShellStyle}>
         <table style={tableStyle}>
           <thead>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} style={thStyle} onClick={header.column.getToggleSortingHandler()}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                    {header.column.getIsSorted() === 'asc' ? ' ↑' : header.column.getIsSorted() === 'desc' ? ' ↓' : ''}
-                  </th>
-                ))}
-              </tr>
-            ))}
+            <tr>
+              {columns.map((column) => (
+                <th key={column.key} style={thStyle} onClick={() => toggleSort(column.key)}>
+                  {column.label}{sort.key === column.key ? (sort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} style={tdStyle}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+            {visibleRows.map((row) => (
+              <tr key={`${row.rank}-${row.name}-${row.fileName}`}>
+                {columns.map((column) => (
+                  <td key={`${row.rank}-${column.key}`} style={tdStyle}>{renderCell(row, column.key)}</td>
                 ))}
               </tr>
             ))}
-            {!table.getRowModel().rows.length ? (
+            {!visibleRows.length ? (
               <tr>
                 <td colSpan={columns.length} style={{ ...tdStyle, textAlign: 'center', padding: 26 }}>
                   No matching offender rows.
