@@ -1,5 +1,5 @@
 import React from 'react'
-import { buildOwnerAction, classifySapError, expandZipAwareFiles, fileExt, fmt, loadJson, safe, saveJson } from '../shared/rca-utils.js'
+import { classifySapError, expandZipAwareFiles, fileExt, fmt, loadJson, safe, saveJson } from '../shared/rca-utils.js'
 import { EmptyState, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
 import '../shared/RcaDashboard.css'
 import './LogPage.css'
@@ -36,14 +36,42 @@ function parseMemorySnapshot(text = '') {
   }
 }
 
+function detectHostFromLine(line = '') {
+  const text = safe(line)
+  return text.match(/^Hostname\s*[:=]\s*(\S+)/i)?.[1]?.trim()
+    || text.match(/^Host\s*[:=]\s*(\S+)/i)?.[1]?.trim()
+    || text.match(/^APP\s*Server\s*[:=]\s*(\S+)/i)?.[1]?.trim()
+    || text.match(/^Application\s*Server\s*[:=]\s*(\S+)/i)?.[1]?.trim()
+    || text.match(/^##\s*WP-SCOUT\s*@\s*(\S+)/i)?.[1]?.trim()
+    || text.match(/\b(AOPH\d+[A-Z0-9_-]*|APP\d{1,2}[A-Z0-9_-]*)\b/i)?.[1]?.trim()
+    || ''
+}
+
+function detectSnapshotFromLine(line = '') {
+  return safe(line).match(/snapshot\s*@\s*([^\n]+)/i)?.[1]?.trim() || ''
+}
+
+function timeFromSnapshot(snapshot = '', fallback = '') {
+  return snapshot.split(' ')[1]?.slice(0, 5) || safe(snapshot) || fallback
+}
+
 function parseWpRows(text = '', fileName = '') {
-  const snapshot = text.match(/snapshot\s*@\s*([^\n]+)/i)?.[1]?.trim() || ''
-  const timeLabel = snapshot.split(' ')[1]?.slice(0, 5) || snapshot || fileName
-  const host = text.match(/Hostname\s*:\s*(\S+)/i)?.[1]?.trim() || text.match(/##\s*WP-SCOUT\s*@\s*(\S+)/i)?.[1]?.trim() || 'UNKNOWN'
+  const initialSnapshot = text.match(/snapshot\s*@\s*([^\n]+)/i)?.[1]?.trim() || ''
+  const initialHost = detectHostFromLine(fileName) || text.match(/^Hostname\s*:\s*(\S+)/im)?.[1]?.trim() || text.match(/^##\s*WP-SCOUT\s*@\s*(\S+)/im)?.[1]?.trim() || 'UNKNOWN'
   const mem = parseMemorySnapshot(text)
+  let currentHost = initialHost
+  let currentSnapshot = initialSnapshot
+  let currentTimeLabel = timeFromSnapshot(currentSnapshot, fileName)
   const rows = []
   const rx = /^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+([\d.]+)\s+([\d.]+G)\s+([\d.]+)\s+([RS])\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(CRIT|WARN|OK)\s+(\S+)\s+(\S+)\s+(.*)$/
   String(text || '').replace(/\r/g, '').split('\n').forEach((line) => {
+    const sectionHost = detectHostFromLine(line)
+    if (sectionHost) currentHost = sectionHost
+    const sectionSnapshot = detectSnapshotFromLine(line)
+    if (sectionSnapshot) {
+      currentSnapshot = sectionSnapshot
+      currentTimeLabel = timeFromSnapshot(sectionSnapshot, currentTimeLabel)
+    }
     const m = safe(line).match(rx)
     if (!m) return
     const rest = safe(m[17])
@@ -53,7 +81,7 @@ function parseWpRows(text = '', fileName = '') {
     const jobName = parts.pop() || '?'
     const errorCode = parts.pop() || '?'
     const program = parts.join(' ') || '?'
-    rows.push({ fileName, snapshot, timeLabel, host, pid: m[1], wp: m[3], type: m[4], cpu: Number(m[5]) || 0, rssGb: Number(m[7]) || 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: m[8], className: m[14], program, errorCode, jobName, durationSec: Number(m[11]) || 0, lineNo: 0, source: 'WP-SCOUT' })
+    rows.push({ fileName, snapshot: currentSnapshot, timeLabel: currentTimeLabel, host: currentHost || 'UNKNOWN', pid: m[1], wp: m[3], type: m[4], cpu: Number(m[5]) || 0, rssGb: Number(m[7]) || 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: m[8], className: m[14], program, errorCode, jobName, durationSec: Number(m[11]) || 0, lineNo: 0, source: 'WP-SCOUT' })
   })
   return rows
 }
@@ -61,12 +89,15 @@ function parseWpRows(text = '', fileName = '') {
 function parseGenericErrors(text = '', fileName = '') {
   const rows = []
   const mem = parseMemorySnapshot(text)
+  let currentHost = detectHostFromLine(fileName) || 'UNKNOWN'
   String(text || '').replace(/\r/g, '').split('\n').forEach((line, idx) => {
+    const sectionHost = detectHostFromLine(line)
+    if (sectionHost) currentHost = sectionHost
     const errorCode = KNOWN_ERRORS.find((error) => line.includes(error))
     if (!errorCode) return
     const hhmm = line.match(/\b(\d{2}:\d{2})(?::\d{2})?\b/)?.[1] || ''
     const severity = /CRIT|ERROR|\bE\b|dump|abend|failed|exception/i.test(line) ? 'CRIT' : 'WARN'
-    rows.push({ fileName, timeLabel: hhmm, host: 'UNKNOWN', pid: '', wp: '', type: '', cpu: 0, rssGb: 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: '', className: severity, program: safe(line).slice(0, 140), errorCode, jobName: '?', durationSec: 0, lineNo: idx + 1, source: 'generic-log' })
+    rows.push({ fileName, timeLabel: hhmm, host: currentHost, pid: '', wp: '', type: '', cpu: 0, rssGb: 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: '', className: severity, program: safe(line).slice(0, 140), errorCode, jobName: '?', durationSec: 0, lineNo: idx + 1, source: 'generic-log' })
   })
   return rows
 }
@@ -236,7 +267,6 @@ function normalizeAnalysis(analysis) {
   return { ...analysis, files, rows, errorGroups, jobGroups, programGroups, primary, timeline, infra, hostResources, confidence }
 }
 
-function cleanActionText(text = '') { return safe(text).replace(/^(Focus [^:]+)\s+\1:?\s*/i, '$1: ') }
 function AcceptedTypes() { return <div className="acceptedTypes">{ACCEPTED_TYPES.map((item) => <span key={item}>{item}</span>)}</div> }
 
 function evidencePeriod(files = []) {
