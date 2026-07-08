@@ -168,6 +168,21 @@ function timeValueFromRow(row, timeColumn, nameColumn) {
   return ''
 }
 
+function normalizeRepeatedTimeBuckets(rows = []) {
+  const timeValues = rows.map((row) => safe(row.time)).filter(Boolean)
+  const uniqueTimes = new Set(timeValues)
+  if (timeValues.length > 1 && uniqueTimes.size <= 1) {
+    return rows.map((row) => ({
+      ...row,
+      time: '',
+      hour: '',
+      interval: '',
+      bucket: '',
+    }))
+  }
+  return rows
+}
+
 export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
   const keys = Object.keys(objects[0] || {})
   const cName = pickColumn(keys, [/transaction/, /report/, /program/, /task type/, /time interval/, /tcode/, /name/, /user/])
@@ -223,7 +238,7 @@ export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
     .filter((row) => row.rawScore > 0)
 
   const maxScore = Math.max(1, ...rawRows.map((row) => row.rawScore))
-  return rawRows
+  return normalizeRepeatedTimeBuckets(rawRows)
     .map((row) => ({ ...row, score: Math.round((row.rawScore / maxScore) * 100) }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 30)
