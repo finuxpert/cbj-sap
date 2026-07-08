@@ -64,6 +64,15 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .compactRcaSidebarBottom{margin-top:auto!important;border-top:1px solid var(--rca-border)!important;padding:8px 0 10px!important;background:rgba(248,250,252,.72)!important;}
 .compactRcaSidebarBottom button{color:#475569!important;}
 
+.compactRcaApp .rcaFinalFooterGrid .rcaFinalCard,
+.compactRcaApp .rcaFinalFooterGrid .evidencePanel,
+.compactRcaApp .st03nFooterCompact .rcaFinalCard,
+.compactRcaApp .logFooterCompact .rcaFinalCard{
+  animation:none!important;
+  transform:none!important;
+  box-shadow:none!important;
+}
+
 @media(max-width:1100px){
   .compactRcaApp > main{width:100vw!important;margin-left:0!important;padding:calc(var(--rca-topbar-height) + 12px) 10px 0!important;}
   .compactRcaApp > main > .fullBleed{width:100%!important;}
