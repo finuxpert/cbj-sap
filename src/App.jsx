@@ -2,9 +2,10 @@ import React from 'react'
 import Navbar from './components/Navbar.jsx'
 import { tools } from './tools'
 import useRoute from './app/useRoute.js'
+import SortableTablesEnhancer from './features/rca/shared/SortableTablesEnhancer.jsx'
 import './features/rca/shared/RcaShell.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-rca-clean-shell-v1'
+const APP_BUILD_STAMP = 'sap-20260708-rca-sortable-tables-v1'
 
 export default function App() {
   const route = useRoute()
@@ -13,6 +14,7 @@ export default function App() {
 
   return (
     <div className="appShell isTool compactRcaApp" data-build={APP_BUILD_STAMP}>
+      <SortableTablesEnhancer />
       <Navbar />
       <main>
         <React.Suspense fallback={<section className="container section"><div className="card">Loading RCA module…</div></section>}>
