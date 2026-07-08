@@ -1,0 +1,124 @@
+/* Lightweight RCA motion layer: CSS-only, no runtime dependency */
+@keyframes rcaFadeUp{
+  from{opacity:0;transform:translateY(8px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+@keyframes rcaSoftScale{
+  from{opacity:0;transform:translateY(6px) scale(.992);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
+
+@keyframes rcaLineDraw{
+  from{stroke-dashoffset:1000;}
+  to{stroke-dashoffset:0;}
+}
+
+@keyframes rcaBarRise{
+  from{transform:scaleY(.08);opacity:.25;}
+  to{transform:scaleY(1);opacity:1;}
+}
+
+.compactRcaApp .fullBleed{
+  animation:rcaFadeUp .22s ease-out both;
+}
+
+.compactRcaApp .rcaFinalHero{
+  animation:rcaSoftScale .26s ease-out both;
+}
+
+.compactRcaApp .rcaFinalCard,
+.compactRcaApp .evidencePanel,
+.compactRcaApp .st03nTabs,
+.compactRcaApp .logTabs{
+  animation:rcaFadeUp .24s ease-out both;
+}
+
+.compactRcaApp .rcaFinalCard:nth-of-type(2){animation-delay:.035s;}
+.compactRcaApp .rcaFinalCard:nth-of-type(3){animation-delay:.07s;}
+.compactRcaApp .rcaFinalCard:nth-of-type(4){animation-delay:.105s;}
+.compactRcaApp .rcaFinalCard:nth-of-type(5){animation-delay:.14s;}
+
+.compactRcaApp .st03nTabs button,
+.compactRcaApp .logTabs button,
+.compactRcaSidebar a,
+.compactRcaApp .rcaFinalUpload,
+.compactRcaApp .rcaFinalTableWrap tbody tr td,
+.compactRcaApp .rcaFinalTableCard tbody tr td{
+  transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .16s ease,opacity .16s ease;
+}
+
+.compactRcaApp .st03nTabs button:hover,
+.compactRcaApp .logTabs button:hover{
+  background:rgba(37,99,235,.06);
+  color:#075bd8;
+}
+
+.compactRcaSidebar a:hover{
+  background:rgba(37,99,235,.07)!important;
+  color:#075bd8!important;
+}
+
+.compactRcaApp .rcaFinalUpload:hover{
+  border-color:rgba(147,197,253,.82);
+  box-shadow:0 0 0 3px rgba(37,99,235,.12),0 16px 30px rgba(15,23,42,.12);
+  transform:translateY(-1px);
+}
+
+.compactRcaApp .rcaFinalTableWrap tbody tr:hover td,
+.compactRcaApp .rcaFinalTableCard tbody tr:hover td{
+  transform:translateX(1px);
+}
+
+.compactRcaApp .st03nLineChart polyline,
+.compactRcaApp .logLinePath{
+  stroke-dasharray:1000;
+  stroke-dashoffset:1000;
+  animation:rcaLineDraw .82s cubic-bezier(.22,.61,.36,1) .08s forwards;
+}
+
+.compactRcaApp .st03nLineChart polyline:nth-of-type(2),
+.compactRcaApp .logLinePath:nth-of-type(2){animation-delay:.16s;}
+.compactRcaApp .st03nLineChart polyline:nth-of-type(3),
+.compactRcaApp .logLinePath:nth-of-type(3){animation-delay:.24s;}
+.compactRcaApp .st03nLineChart polyline:nth-of-type(4),
+.compactRcaApp .logLinePath:nth-of-type(4){animation-delay:.32s;}
+
+.compactRcaApp .rcaTrendPoint span{
+  transform-origin:bottom center;
+  animation:rcaBarRise .38s ease-out both;
+}
+
+.compactRcaApp .rcaTrendPoint:nth-child(2) span{animation-delay:.03s;}
+.compactRcaApp .rcaTrendPoint:nth-child(3) span{animation-delay:.06s;}
+.compactRcaApp .rcaTrendPoint:nth-child(4) span{animation-delay:.09s;}
+.compactRcaApp .rcaTrendPoint:nth-child(5) span{animation-delay:.12s;}
+.compactRcaApp .rcaTrendPoint:nth-child(6) span{animation-delay:.15s;}
+.compactRcaApp .rcaTrendPoint:nth-child(7) span{animation-delay:.18s;}
+.compactRcaApp .rcaTrendPoint:nth-child(8) span{animation-delay:.21s;}
+.compactRcaApp .rcaTrendPoint:nth-child(9) span{animation-delay:.24s;}
+.compactRcaApp .rcaTrendPoint:nth-child(10) span{animation-delay:.27s;}
+
+.compactRcaBrand:hover .rcaLogoMark{
+  transform:translateY(-1px);
+  box-shadow:0 0 0 1px rgba(125,211,252,.62),0 14px 28px rgba(37,99,235,.42)!important;
+}
+
+.compactRcaBrand .rcaLogoMark,
+.compactRcaBrand .brandTitle,
+.compactRcaBrand .brandSub{
+  transition:transform .18s ease,filter .18s ease,box-shadow .18s ease,color .18s ease;
+}
+
+.compactRcaBrand:hover .brandTitle{
+  color:#f8fbff!important;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .compactRcaApp *,
+  .compactRcaApp *::before,
+  .compactRcaApp *::after{
+    animation:none!important;
+    transition:none!important;
+  }
+}
