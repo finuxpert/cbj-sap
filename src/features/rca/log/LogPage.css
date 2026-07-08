@@ -497,3 +497,88 @@
   margin:6px 0 0;
   padding-left:2px;
 }
+
+/* System Resources trend insight redesign */
+.logTechnicalPage .logLineFootnote{
+  display:none!important;
+}
+
+.logTechnicalPage .logPeakLabel{
+  fill:#0f172a;
+  font-size:9px;
+  font-weight:900;
+  paint-order:stroke;
+  stroke:#ffffff;
+  stroke-width:3px;
+}
+
+.logTechnicalPage .logLinePoint.peakPoint{
+  stroke:#0f172a;
+  stroke-width:2.2;
+}
+
+.logTechnicalPage .logLineInsights{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+  margin-top:9px;
+}
+
+.logTechnicalPage .logLineInsights div{
+  background:#ffffff;
+  border:1px solid #dbe5ef;
+  border-radius:12px;
+  box-shadow:0 8px 18px rgba(15,23,42,.045);
+  min-width:0;
+  padding:8px 9px;
+}
+
+.logTechnicalPage .logLineInsights span{
+  color:#64748b;
+  display:block;
+  font-size:8.5px;
+  font-weight:900;
+  letter-spacing:.09em;
+  line-height:1;
+  text-transform:uppercase;
+}
+
+.logTechnicalPage .logLineInsights b{
+  color:#0f172a;
+  display:block;
+  font-size:12px;
+  font-weight:950;
+  margin-top:4px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.logTechnicalPage .logLineInsights small{
+  color:#475569;
+  display:block;
+  font-size:9.5px;
+  font-weight:800;
+  margin-top:3px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.logTechnicalPage .logLineInsights .up{
+  border-left:3px solid #16a34a;
+}
+
+.logTechnicalPage .logLineInsights .down{
+  border-left:3px solid #f97316;
+}
+
+.logTechnicalPage .logLineInsights .peak{
+  border-left:3px solid #2563eb;
+}
+
+@media(max-width:860px){
+  .logTechnicalPage .logLineInsights{
+    grid-template-columns:1fr;
+  }
+}

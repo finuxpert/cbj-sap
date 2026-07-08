@@ -326,6 +326,65 @@ function TrendChart({ title, data = [], metric = 'hits', tone = 'hit' }) {
   return <section className="rcaFinalCard rcaFinalChartCard"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>Time window</span></div>{items.length ? <div className="rcaLiteTrend">{items.map((item) => <div className="rcaTrendPoint" key={`${title}-${item.time}`}><span className={tone} style={{ height: `${Math.max(4, ((item[metric] || 0) / maxValue) * 120)}px` }} title={`${item.time} ${metric} ${item[metric]}`} /><small>{item.time}</small></div>)}</div> : <p>No timeline data.</p>}</section>
 }
 
+function buildLineInsights(series = [], suffix = '') {
+  const points = series.flatMap((item) =>
+    (item.points || []).map((point, idx) => ({
+      host: item.name,
+      idx,
+      time: point.time,
+      value: Number(point.value) || 0,
+    })),
+  )
+
+  const peak = points.reduce((best, point) => (point.value > (best?.value ?? -1) ? point : best), null)
+
+  let rise = null
+  let drop = null
+
+  series.forEach((item) => {
+    ;(item.points || []).forEach((point, idx, arr) => {
+      if (idx === 0) return
+      const prev = arr[idx - 1]
+      const current = Number(point.value) || 0
+      const previous = Number(prev.value) || 0
+      const delta = current - previous
+      const entry = {
+        host: item.name,
+        from: prev.time,
+        to: point.time,
+        delta,
+        current,
+        previous,
+      }
+
+      if (delta > 0 && (!rise || delta > rise.delta)) rise = entry
+      if (delta < 0 && (!drop || Math.abs(delta) > Math.abs(drop.delta))) drop = entry
+    })
+  })
+
+  const unit = suffix || ''
+  return [
+    {
+      label: 'Peak',
+      value: peak ? `${fmt(peak.value)} ${unit}` : '-',
+      meta: peak ? `${displayLabel(peak.host, 16)} @ ${peak.time}` : 'No peak detected',
+      tone: 'peak',
+    },
+    {
+      label: 'Naik terbesar',
+      value: rise ? `+${fmt(rise.delta)} ${unit}` : '-',
+      meta: rise ? `${rise.from} → ${rise.to} · ${displayLabel(rise.host, 16)}` : 'No increase detected',
+      tone: 'up',
+    },
+    {
+      label: 'Turun terbesar',
+      value: drop ? `${fmt(drop.delta)} ${unit}` : '-',
+      meta: drop ? `${drop.from} → ${drop.to} · ${displayLabel(drop.host, 16)}` : 'No decrease detected',
+      tone: 'down',
+    },
+  ]
+}
+
 function LineChart({ title, subtitle, series = [], suffix = '', limitMax = 100 }) {
   const width = 680
   const height = 190
@@ -337,13 +396,20 @@ function LineChart({ title, subtitle, series = [], suffix = '', limitMax = 100 }
   const axisLabels = labels
     .map((label, idx) => ({ label, idx }))
     .filter((item) => item.idx === 0 || item.idx === labels.length - 1 || item.idx % showEvery === 0)
+  const insights = buildLineInsights(series, suffix)
   const x = (idx, count) => pad + (count <= 1 ? 0 : (idx / (count - 1)) * (width - pad * 2))
   const y = (value) => height - pad - ((Number(value) || 0) / maxValue) * (height - pad * 2)
 
   return <section className="rcaFinalCard rcaFinalChartCard logLineCard"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div>{series.length ? <><svg className="logLineSvg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. Time axis from uploaded WP-SCOUT snapshot.`}><g className="logGridLines">{[0, 25, 50, 75, 100].map((tick) => <line key={tick} x1={pad} x2={width - pad} y1={y((tick / 100) * maxValue)} y2={y((tick / 100) * maxValue)} />)}</g>{series.map((item, idx) => {
     const points = item.points.map((point, pointIdx) => `${x(pointIdx, item.points.length)},${y(point.value)}`).join(' ')
-    return <g key={item.name}><polyline className={`logLinePath line${idx % 5}`} points={points} />{item.points.map((point, pointIdx) => <circle key={`${item.name}-${point.time}-${pointIdx}`} className={`logLinePoint line${idx % 5}`} cx={x(pointIdx, item.points.length)} cy={y(point.value)} r={labels.length <= 12 ? 3.4 : 2.8}><title>{`${item.name} · ${point.time} · ${fmt(point.value)} ${suffix}`}</title></circle>)}</g>
-  })}</svg><div className="logLineLegend">{series.map((item, idx) => <span key={item.name}><i className={`line${idx % 5}`} />{displayLabel(item.name, 18)}</span>)}</div><div className={`logLineAxis ${labels.length > 12 ? 'dense' : ''}`}>{axisLabels.map(({ label, idx }) => <small key={`${label}-${idx}`} title={`Snapshot time ${label}`}>{label}</small>)}<b>{suffix}</b></div><p className="logLineFootnote">Time from uploaded WP-SCOUT snapshot</p></> : <p>No timeline data.</p>}</section>
+    const peakIdx = item.points.reduce((bestIdx, point, pointIdx, arr) => ((Number(point.value) || 0) > (Number(arr[bestIdx]?.value) || 0) ? pointIdx : bestIdx), 0)
+
+    return <g key={item.name}><polyline className={`logLinePath line${idx % 5}`} points={points} />{item.points.map((point, pointIdx) => {
+      const value = Number(point.value) || 0
+      const isPeak = pointIdx === peakIdx && value > 0
+      return <g key={`${item.name}-${point.time}-${pointIdx}`}><circle className={`logLinePoint line${idx % 5} ${isPeak ? 'peakPoint' : ''}`} cx={x(pointIdx, item.points.length)} cy={y(point.value)} r={isPeak ? 4.4 : (labels.length <= 12 ? 3.4 : 2.8)}><title>{`${item.name} · ${point.time} · ${fmt(point.value)} ${suffix}`}</title></circle>{isPeak ? <text className="logPeakLabel" x={x(pointIdx, item.points.length)} y={Math.max(14, y(point.value) - 9)} textAnchor="middle">{point.time}</text> : null}</g>
+    })}</g>
+  })}</svg><div className="logLineLegend">{series.map((item, idx) => <span key={item.name}><i className={`line${idx % 5}`} />{displayLabel(item.name, 18)}</span>)}</div><div className={`logLineAxis ${labels.length > 12 ? 'dense' : ''}`}>{axisLabels.map(({ label, idx }) => <small key={`${label}-${idx}`} title={`Snapshot time ${label}`}>{label}</small>)}<b>{suffix}</b></div><div className="logLineInsights">{insights.map((item) => <div className={item.tone} key={`${title}-${item.label}`}><span>{item.label}</span><b>{item.value}</b><small>{item.meta}</small></div>)}</div></> : <p>No timeline data.</p>}</section>
 }
 function DataTable({ title, subtitle, rows = [], columns = [] }) {
   return <section className="rcaFinalCard rcaFinalTableCard logDataTable"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div><div className="rcaFinalTableWrap"><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={`${title}-${index}-${row.name || row.pid || row.program}`}>{columns.map((column) => <td key={column.key}>{column.render ? column.render(row, index) : row[column.key]}</td>)}</tr>)}</tbody></table></div></section>
