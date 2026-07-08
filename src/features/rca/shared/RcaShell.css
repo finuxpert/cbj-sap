@@ -29,19 +29,15 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .compactRcaApp .st03nKpiGrid{display:none!important;}
 
 .compactRcaTopbar{position:fixed!important;inset:0 0 auto 0!important;z-index:100!important;height:var(--rca-topbar-height)!important;min-height:var(--rca-topbar-height)!important;background:var(--rca-topbar)!important;border:0!important;box-shadow:0 6px 18px rgba(15,23,42,.16)!important;}
-.compactRcaTopbarInner{height:var(--rca-topbar-height)!important;max-width:none!important;padding:0 18px 0 54px!important;display:grid!important;grid-template-columns:300px 1fr auto!important;align-items:center!important;gap:14px!important;}
+.compactRcaTopbarInner{height:var(--rca-topbar-height)!important;max-width:none!important;padding:0 18px 0 54px!important;display:grid!important;grid-template-columns:300px 1fr!important;align-items:center!important;gap:14px!important;}
 .compactRcaBrand{display:inline-flex!important;align-items:center!important;gap:10px!important;color:#fff!important;text-decoration:none!important;min-width:0;}
 .sapBadge{display:inline-grid!important;place-items:center!important;width:38px!important;height:23px!important;border-radius:6px 13px 6px 6px!important;background:linear-gradient(135deg,#0ea5ff,#0066cc)!important;color:#fff!important;font-size:11px!important;font-weight:950!important;letter-spacing:-.04em!important;}
 .compactRcaBrand .brandText{display:flex!important;flex-direction:column!important;min-width:0!important;}
 .compactRcaBrand .brandTitle{color:#fff!important;font-size:14px!important;font-weight:900!important;line-height:1.05!important;white-space:nowrap!important;}
 .compactRcaBrand .brandSub{color:#cbd5e1!important;font-size:9.5px!important;font-weight:700!important;line-height:1.15!important;white-space:nowrap!important;}
 .compactRcaToolTabs{display:none!important;}
-.compactRcaCrumb{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;min-width:0!important;color:#e2e8f0!important;line-height:1.1!important;text-align:center!important;}
-.compactRcaCrumb span{color:#64748b!important;text-transform:uppercase!important;letter-spacing:.16em!important;font-size:9px!important;font-weight:900!important;}
-.compactRcaCrumb strong{margin-top:2px!important;color:#f8fafc!important;font-size:12px!important;font-weight:900!important;white-space:nowrap!important;}
-.compactRcaUtility{display:flex!important;align-items:center!important;gap:10px!important;color:#dbeafe!important;}
-.compactRcaUtility span,.compactRcaUtility strong{display:none!important;}
-.compactRcaUtility small{font-size:9.5px!important;line-height:1.1!important;color:#94a3b8!important;font-weight:900!important;letter-spacing:.04em!important;text-align:right!important;}
+.compactRcaCrumb{display:none!important;}
+.compactRcaUtility{display:none!important;}
 .mobileBtn{display:none!important;}
 .mobileNavDock{display:none!important;}
 
@@ -64,9 +60,7 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
   .compactRcaApp > main{width:100vw!important;margin-left:0!important;padding:calc(var(--rca-topbar-height) + 12px) 10px 0!important;}
   .compactRcaApp > main > .fullBleed{width:100%!important;}
   .compactRcaSidebar{display:none!important;}
-  .compactRcaTopbarInner{padding-left:18px!important;grid-template-columns:1fr auto 38px!important;}
-  .compactRcaCrumb{display:none!important;}
-  .compactRcaUtility{display:none!important;}
+  .compactRcaTopbarInner{padding-left:18px!important;grid-template-columns:1fr 38px!important;}
   .mobileBtn{width:36px!important;height:36px!important;display:inline-grid!important;place-items:center!important;border:1px solid rgba(148,163,184,.24)!important;border-radius:10px!important;background:rgba(255,255,255,.05)!important;color:#fff!important;font-size:19px!important;}
   .mobileNavDock{display:block!important;}
 }
