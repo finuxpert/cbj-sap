@@ -93,6 +93,21 @@ function formatMemPct(row) {
   return `${Number(((rss / total) * 100).toFixed(1))}%`
 }
 
+function removeDuplicateLogOverviewTab() {
+  const logTabs = document.querySelector('.logTabs')
+  if (!logTabs) return
+  const buttons = Array.from(logTabs.querySelectorAll('button'))
+  const overview = buttons.find((button) => button.textContent.trim().toLowerCase() === 'overview')
+  const errorAnalysis = buttons.find((button) => button.textContent.trim().toLowerCase() === 'error analysis')
+  if (!overview) return
+
+  if (overview.classList.contains('active') && errorAnalysis) {
+    errorAnalysis.click()
+  }
+
+  overview.remove()
+}
+
 function augmentJobProgramTable(table, rows) {
   if (table.dataset.pidAugmented === 'true') return
   if (!tableTitle(table).toLowerCase().includes('job / program mapping')) return
@@ -205,6 +220,7 @@ function enhanceTable(table) {
 }
 
 function enhanceAllTables() {
+  removeDuplicateLogOverviewTab()
   augmentEvidenceTables()
   document.querySelectorAll('.rcaFinalTableWrap table').forEach(enhanceTable)
 }
