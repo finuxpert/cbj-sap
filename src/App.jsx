@@ -4,9 +4,10 @@ import { tools } from './tools'
 import useRoute from './app/useRoute.js'
 import { installEnterpriseRcaMockup } from './tools/installEnterpriseRcaMockup.js'
 import { installEnterpriseRcaPhase2 } from './tools/installEnterpriseRcaPhase2.js'
+import { installEnterpriseRcaPhase3 } from './tools/installEnterpriseRcaPhase3.js'
 import './tools/EnterpriseRcaMockup.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-compact-rca-phase2'
+const APP_BUILD_STAMP = 'sap-20260708-compact-rca-phase3'
 
 export default function App() {
   const route = useRoute()
@@ -16,6 +17,7 @@ export default function App() {
   React.useEffect(() => {
     installEnterpriseRcaMockup()
     installEnterpriseRcaPhase2()
+    installEnterpriseRcaPhase3()
   }, [route.name])
 
   return (
