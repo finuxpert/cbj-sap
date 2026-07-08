@@ -44,6 +44,15 @@
   text-overflow:ellipsis;
 }
 
+/* Time Profile focus: hide duplicated Workload Overview panel beside the chart */
+.st03nTechnicalPage .st03nTwoCol.wideLeft{
+  grid-template-columns:1fr;
+}
+
+.st03nTechnicalPage .st03nTwoCol.wideLeft > .st03nDataTable.compact{
+  display:none!important;
+}
+
 @media(max-width:1180px){
   .st03nTechnicalPage .st03nKpi.wide b{
     font-size:15px;
