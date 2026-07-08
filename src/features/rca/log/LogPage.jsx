@@ -333,11 +333,18 @@ function LineChart({ title, subtitle, series = [], suffix = '', limitMax = 100 }
   const allValues = series.flatMap((item) => item.points.map((point) => Number(point.value) || 0))
   const maxValue = Math.max(1, limitMax || 0, ...allValues)
   const labels = series[0]?.points?.map((point) => point.time) || []
+  const showEvery = labels.length <= 12 ? 1 : Math.ceil(labels.length / 8)
+  const axisLabels = labels
+    .map((label, idx) => ({ label, idx }))
+    .filter((item) => item.idx === 0 || item.idx === labels.length - 1 || item.idx % showEvery === 0)
   const x = (idx, count) => pad + (count <= 1 ? 0 : (idx / (count - 1)) * (width - pad * 2))
   const y = (value) => height - pad - ((Number(value) || 0) / maxValue) * (height - pad * 2)
-  return <section className="rcaFinalCard rcaFinalChartCard logLineCard"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div>{series.length ? <><svg className="logLineSvg" viewBox={`0 0 ${width} ${height}`} role="img"><g className="logGridLines">{[0, 25, 50, 75, 100].map((tick) => <line key={tick} x1={pad} x2={width - pad} y1={y((tick / 100) * maxValue)} y2={y((tick / 100) * maxValue)} />)}</g>{series.map((item, idx) => { const points = item.points.map((point, pointIdx) => `${x(pointIdx, item.points.length)},${y(point.value)}`).join(' '); return <polyline key={item.name} className={`logLinePath line${idx % 5}`} points={points} /> })}</svg><div className="logLineLegend">{series.map((item, idx) => <span key={item.name}><i className={`line${idx % 5}`} />{displayLabel(item.name, 18)}</span>)}</div><div className="logLineAxis">{labels.filter((_label, idx) => idx % Math.ceil(Math.max(1, labels.length / 6)) === 0).map((label) => <small key={label}>{label}</small>)}<b>{suffix}</b></div></> : <p>No timeline data.</p>}</section>
-}
 
+  return <section className="rcaFinalCard rcaFinalChartCard logLineCard"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div>{series.length ? <><svg className="logLineSvg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${title}. Time axis from uploaded WP-SCOUT snapshot.`}><g className="logGridLines">{[0, 25, 50, 75, 100].map((tick) => <line key={tick} x1={pad} x2={width - pad} y1={y((tick / 100) * maxValue)} y2={y((tick / 100) * maxValue)} />)}</g>{series.map((item, idx) => {
+    const points = item.points.map((point, pointIdx) => `${x(pointIdx, item.points.length)},${y(point.value)}`).join(' ')
+    return <g key={item.name}><polyline className={`logLinePath line${idx % 5}`} points={points} />{item.points.map((point, pointIdx) => <circle key={`${item.name}-${point.time}-${pointIdx}`} className={`logLinePoint line${idx % 5}`} cx={x(pointIdx, item.points.length)} cy={y(point.value)} r={labels.length <= 12 ? 3.4 : 2.8}><title>{`${item.name} · ${point.time} · ${fmt(point.value)} ${suffix}`}</title></circle>)}</g>
+  })}</svg><div className="logLineLegend">{series.map((item, idx) => <span key={item.name}><i className={`line${idx % 5}`} />{displayLabel(item.name, 18)}</span>)}</div><div className={`logLineAxis ${labels.length > 12 ? 'dense' : ''}`}>{axisLabels.map(({ label, idx }) => <small key={`${label}-${idx}`} title={`Snapshot time ${label}`}>{label}</small>)}<b>{suffix}</b></div><p className="logLineFootnote">Time from uploaded WP-SCOUT snapshot</p></> : <p>No timeline data.</p>}</section>
+}
 function DataTable({ title, subtitle, rows = [], columns = [] }) {
   return <section className="rcaFinalCard rcaFinalTableCard logDataTable"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div><div className="rcaFinalTableWrap"><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={`${title}-${index}-${row.name || row.pid || row.program}`}>{columns.map((column) => <td key={column.key}>{column.render ? column.render(row, index) : row[column.key]}</td>)}</tr>)}</tbody></table></div></section>
 }

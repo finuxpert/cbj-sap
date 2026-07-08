@@ -436,3 +436,55 @@
     grid-template-columns:112px minmax(120px,1fr) 48px;
   }
 }
+
+/* System Resources time-axis clarity */
+.logTechnicalPage .logLinePoint{
+  stroke:#ffffff;
+  stroke-width:1.8;
+  filter:drop-shadow(0 2px 4px rgba(15,23,42,.12));
+}
+
+.logTechnicalPage .logLinePoint.line0{fill:#2563eb;}
+.logTechnicalPage .logLinePoint.line1{fill:#f97316;}
+.logTechnicalPage .logLinePoint.line2{fill:#16a34a;}
+.logTechnicalPage .logLinePoint.line3{fill:#7c3aed;}
+.logTechnicalPage .logLinePoint.line4{fill:#0891b2;}
+
+.logTechnicalPage .logLineAxis{
+  align-items:flex-start;
+  min-height:28px;
+}
+
+.logTechnicalPage .logLineAxis small{
+  border-radius:999px;
+  background:rgba(241,245,249,.86);
+  color:#475569;
+  line-height:1;
+  padding:5px 7px;
+  white-space:nowrap;
+}
+
+.logTechnicalPage .logLineAxis.dense{
+  gap:10px;
+  min-height:42px;
+  padding-top:10px;
+}
+
+.logTechnicalPage .logLineAxis.dense small{
+  transform:rotate(-38deg);
+  transform-origin:top left;
+}
+
+.logTechnicalPage .logLineAxis b{
+  padding-top:5px;
+}
+
+.logTechnicalPage .logLineFootnote{
+  border-top:1px dashed rgba(148,163,184,.30);
+  color:#64748b;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.04em;
+  margin:4px 0 0;
+  padding-top:8px;
+}
