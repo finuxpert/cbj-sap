@@ -43,6 +43,91 @@
   min-height:230px;
 }
 
+.logTechnicalPage .logLineCard{
+  min-height:306px;
+}
+
+.logTechnicalPage .logLineSvg{
+  display:block;
+  width:100%;
+  min-height:205px;
+  margin-top:6px;
+  overflow:visible;
+}
+
+.logTechnicalPage .logGridLines line{
+  stroke:#e5edf6;
+  stroke-width:1;
+}
+
+.logTechnicalPage .logLinePath{
+  fill:none;
+  stroke-width:3.2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  filter:drop-shadow(0 3px 5px rgba(15,23,42,.08));
+}
+
+.logTechnicalPage .logLinePath.line0{stroke:#2563eb;}
+.logTechnicalPage .logLinePath.line1{stroke:#f97316;}
+.logTechnicalPage .logLinePath.line2{stroke:#16a34a;}
+.logTechnicalPage .logLinePath.line3{stroke:#7c3aed;}
+.logTechnicalPage .logLinePath.line4{stroke:#0891b2;}
+
+.logTechnicalPage .logLineLegend{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 14px;
+  margin-top:2px;
+}
+
+.logTechnicalPage .logLineLegend span{
+  align-items:center;
+  color:#334155;
+  display:inline-flex;
+  font-size:11px;
+  font-weight:800;
+  gap:6px;
+}
+
+.logTechnicalPage .logLineLegend i{
+  border-radius:999px;
+  display:inline-block;
+  height:8px;
+  width:18px;
+}
+
+.logTechnicalPage .logLineLegend i.line0{background:#2563eb;}
+.logTechnicalPage .logLineLegend i.line1{background:#f97316;}
+.logTechnicalPage .logLineLegend i.line2{background:#16a34a;}
+.logTechnicalPage .logLineLegend i.line3{background:#7c3aed;}
+.logTechnicalPage .logLineLegend i.line4{background:#0891b2;}
+
+.logTechnicalPage .logLineAxis{
+  align-items:center;
+  border-top:1px solid rgba(148,163,184,.22);
+  display:flex;
+  gap:16px;
+  justify-content:flex-start;
+  margin-top:8px;
+  padding-top:8px;
+}
+
+.logTechnicalPage .logLineAxis small{
+  color:#64748b;
+  font-size:10px;
+  font-weight:700;
+}
+
+.logTechnicalPage .logLineAxis b{
+  color:#475569;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.08em;
+  margin-left:auto;
+  text-transform:uppercase;
+}
+
 .logTechnicalPage .logHostGrid{
   display:grid;
   grid-template-columns:repeat(5,minmax(0,1fr));
@@ -64,8 +149,7 @@
 }
 
 .logTechnicalPage .logHostTitle span,
-.logTechnicalPage .logHostContext span,
-.logTechnicalPage .logRcaGrid span{
+.logTechnicalPage .logHostContext span{
   color:#64748b;
   font-size:10px;
   font-weight:800;
@@ -124,30 +208,6 @@
   white-space:nowrap;
 }
 
-.logTechnicalPage .logRcaExplanation{
-  margin-top:12px;
-}
-
-.logTechnicalPage .logRcaGrid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-}
-
-.logTechnicalPage .logRcaGrid div{
-  border:1px solid rgba(148,163,184,.28);
-  border-radius:16px;
-  background:rgba(248,250,252,.7);
-  padding:12px;
-}
-
-.logTechnicalPage .logRcaGrid p{
-  color:#1f2937;
-  font-size:12px;
-  line-height:1.55;
-  margin:6px 0 0;
-}
-
 .logTechnicalPage .logFooterCompact{
   grid-template-columns:1fr 1fr;
   margin-top:12px;
@@ -167,10 +227,6 @@
   .logTechnicalPage .logHostGrid{
     grid-template-columns:repeat(3,minmax(0,1fr));
   }
-
-  .logTechnicalPage .logRcaGrid{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
 }
 
 @media(max-width:1180px){
@@ -183,8 +239,7 @@
   .logTechnicalPage .logKpiGrid,
   .logTechnicalPage .logFooterCompact,
   .logTechnicalPage .rcaFinalMiniFacts,
-  .logTechnicalPage .logHostGrid,
-  .logTechnicalPage .logRcaGrid{
+  .logTechnicalPage .logHostGrid{
     grid-template-columns:1fr;
   }
 }
