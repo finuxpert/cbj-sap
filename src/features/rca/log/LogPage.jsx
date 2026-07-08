@@ -1,11 +1,13 @@
 import React from 'react'
-import { buildOwnerAction, classifySapError, expandZipAwareFiles, fileExt, fmt, latestRcaSession, loadJson, safe, saveJson } from '../shared/rca-utils.js'
-import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
+import { buildOwnerAction, classifySapError, expandZipAwareFiles, fileExt, fmt, loadJson, safe, saveJson } from '../shared/rca-utils.js'
+import { EmptyState, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
 import '../shared/RcaDashboard.css'
+import './LogPage.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
-const KNOWN_ERRORS = ['CONVT_OVERFLOW', 'CONVT_NO_NUMBER', 'DBSQL_DUPLICATE_KEY_ER', 'DBSQL_SQL_DEADLOCK_DET', 'ITAB_DUPLICATE_KEY', 'LOAD_PROGRAM_TABLE_MIS', 'SYSTEM_ABAP_ACCESS_DEN', 'GETWA_NOT_ASSIGNED', 'UNCAUGHT_EXCEPTION', 'SYNTAX_ERROR', 'CALL_FUNCTION_SEND_ERR', 'TIME_OUT', 'IMPORT_WRONG_END_POS']
+const KNOWN_ERRORS = ['CONVT_OVERFLOW', 'CONVT_NO_NUMBER', 'DBSQL_DUPLICATE_KEY_ER', 'DBSQL_SQL_DEADLOCK_DET', 'ITAB_DUPLICATE_KEY', 'LOAD_PROGRAM_TABLE_MIS', 'SYSTEM_ABAP_ACCESS_DEN', 'GETWA_NOT_ASSIGNED', 'UNCAUGHT_EXCEPTION', 'SYNTAX_ERROR', 'CALL_FUNCTION_SEND_ERR', 'TIME_OUT', 'IMPORT_WRONG_END_POS', 'TSV_TNEW_PAGE_ALLOC_FA']
+const LOG_TABS = ['Overview', 'Error Analysis', 'Work Process', 'Job Analysis', 'System Resources']
 
 async function expandFiles(fileList) {
   const expanded = await expandZipAwareFiles(fileList, ['log', 'txt', 'csv'])
@@ -51,7 +53,7 @@ function parseWpRows(text = '', fileName = '') {
     const jobName = parts.pop() || '?'
     const errorCode = parts.pop() || '?'
     const program = parts.join(' ') || '?'
-    rows.push({ fileName, snapshot, timeLabel, host, pid: m[1], wp: m[3], type: m[4], cpu: Number(m[5]) || 0, rssGb: Number(m[7]) || 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: m[8], className: m[14], program, errorCode, jobName, lineNo: 0, source: 'WP-SCOUT' })
+    rows.push({ fileName, snapshot, timeLabel, host, pid: m[1], wp: m[3], type: m[4], cpu: Number(m[5]) || 0, rssGb: Number(m[7]) || 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: m[8], className: m[14], program, errorCode, jobName, durationSec: Number(m[11]) || 0, lineNo: 0, source: 'WP-SCOUT' })
   })
   return rows
 }
@@ -64,7 +66,7 @@ function parseGenericErrors(text = '', fileName = '') {
     if (!errorCode) return
     const hhmm = line.match(/\b(\d{2}:\d{2})(?::\d{2})?\b/)?.[1] || ''
     const severity = /CRIT|ERROR|\bE\b|dump|abend|failed|exception/i.test(line) ? 'CRIT' : 'WARN'
-    rows.push({ fileName, timeLabel: hhmm, host: 'UNKNOWN', pid: '', wp: '', type: '', cpu: 0, rssGb: 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: '', className: severity, program: safe(line).slice(0, 140), errorCode, jobName: '?', lineNo: idx + 1, source: 'generic-log' })
+    rows.push({ fileName, timeLabel: hhmm, host: 'UNKNOWN', pid: '', wp: '', type: '', cpu: 0, rssGb: 0, physicalMemGb: mem.physicalMemGb, swapGb: mem.swapGb, state: '', className: severity, program: safe(line).slice(0, 140), errorCode, jobName: '?', durationSec: 0, lineNo: idx + 1, source: 'generic-log' })
   })
   return rows
 }
@@ -84,17 +86,19 @@ function group(rows, key) {
   rows.forEach((row) => {
     const name = safe(row[key]) || '?'
     const family = classifySapError(key === 'errorCode' ? name : row.errorCode)
-    const current = map.get(name) || { name, hits: 0, critHits: 0, warnHits: 0, maxCpu: 0, examples: new Set(), jobs: new Set(), programs: new Set(), times: new Set(), files: new Set(), sources: new Set(), family: family.family, owner: family.owner, meaning: family.meaning }
+    const current = map.get(name) || { name, hits: 0, critHits: 0, warnHits: 0, maxCpu: 0, maxRssGb: 0, examples: new Set(), jobs: new Set(), programs: new Set(), times: new Set(), files: new Set(), hosts: new Set(), sources: new Set(), family: family.family, owner: family.owner, meaning: family.meaning }
     current.hits += 1
     current.critHits += row.className === 'CRIT' ? 1 : 0
     current.warnHits += row.className === 'WARN' ? 1 : 0
     current.maxCpu = Math.max(current.maxCpu, row.cpu || 0)
+    current.maxRssGb = Math.max(current.maxRssGb, row.rssGb || 0)
     if (row.program && key !== 'program') current.examples.add(row.program)
     if (row.jobName && key !== 'jobName') current.examples.add(row.jobName)
     if (row.program) current.programs.add(row.program)
     if (row.jobName) current.jobs.add(row.jobName)
     if (row.timeLabel) current.times.add(row.timeLabel)
     if (row.fileName) current.files.add(row.fileName)
+    if (row.host) current.hosts.add(row.host)
     if (row.source) current.sources.add(row.source)
     map.set(name, current)
   })
@@ -105,6 +109,7 @@ function group(rows, key) {
     programs: Array.from(item.programs).filter((value) => value !== '?').slice(0, 5),
     times: Array.from(item.times).slice(0, 10),
     files: Array.from(item.files).slice(0, 5),
+    hosts: Array.from(item.hosts).slice(0, 5),
     sources: Array.from(item.sources).slice(0, 5),
   })).sort((a, b) => b.critHits - a.critHits || b.hits - a.hits)
 }
@@ -112,47 +117,17 @@ function group(rows, key) {
 function buildTimeline(rows = []) {
   const map = new Map()
   rows.forEach((row) => {
-    if (!row.timeLabel) return
-    const current = map.get(row.timeLabel) || { time: row.timeLabel, hits: 0, crit: 0, warn: 0 }
+    const key = row.timeLabel || 'N/A'
+    const current = map.get(key) || { time: key, hits: 0, crit: 0, warn: 0, cpu: 0, rssGb: 0 }
     current.hits += 1
     current.crit += row.className === 'CRIT' ? 1 : 0
     current.warn += row.className === 'WARN' ? 1 : 0
-    map.set(row.timeLabel, current)
+    current.cpu = Math.max(current.cpu, row.cpu || 0)
+    current.rssGb = Math.max(current.rssGb, row.rssGb || 0)
+    map.set(key, current)
   })
   return Array.from(map.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
 }
-
-function confidenceLabel(confidence, rows, primary) {
-  if (!primary) return 'No classified error pattern found.'
-  if (rows.length < 3) return 'Low sample size; treat as initial clue, not final RCA.'
-  if (confidence >= 75) return 'Strong pattern from uploaded log evidence.'
-  if (confidence >= 45) return 'Moderate pattern; verify with ST03N/WP-SCOUT timeline.'
-  return 'Weak pattern; evidence is partial.'
-}
-
-function buildAnalysis(files, rows, evidenceServer) {
-  const errorGroups = group(rows, 'errorCode')
-  const jobGroups = group(rows, 'jobName')
-  const programGroups = group(rows, 'program')
-  const primary = errorGroups[0]
-  const timeline = buildTimeline(rows)
-  const sourceCount = new Set(rows.map((row) => row.source)).size
-  const fileCount = new Set(rows.map((row) => row.fileName)).size
-  const confidence = primary ? Math.min(100, Math.round(Math.min(36, (primary.critHits || 0) * 9) + (primary.hits > 1 ? 16 : 0) + Math.min(24, rows.length * 2) + Math.min(14, fileCount * 4 + sourceCount * 3) + Math.min(10, timeline.length * 2))) : 0
-  const verdict = primary ? 'Detected' : 'Not confirmed'
-  const nextAction = primary ? buildOwnerAction(primary) : 'Upload WP-SCOUT, SM21, ST22, dev_w, or job logs containing SAP error patterns.'
-  const summary = primary ? `${primary.name} is strongest: ${primary.hits} hit(s), ${primary.critHits} CRIT, owner ${primary.owner}.` : 'No known SAP error patterns detected from uploaded logs.'
-  return { files, rows, errorGroups, jobGroups, programGroups, primary, timeline, confidence, confidenceText: confidenceLabel(confidence, rows, primary), verdict, nextAction, summary, evidenceServer, createdAt: new Date().toISOString() }
-}
-
-function buildReportText(analysis) {
-  if (!analysis) return ''
-  const primary = analysis.primary
-  return ['SAP Log Evidence RCA Summary', `Verdict: ${analysis.verdict}`, `Confidence: ${analysis.confidence}% - ${analysis.confidenceText}`, primary ? `Primary Error: ${primary.name}` : 'Primary Error: -', primary ? `Error Family: ${primary.family}` : 'Error Family: -', primary ? `Owner Direction: ${primary.owner}` : 'Owner Direction: -', `Next Action: ${analysis.nextAction}`, `Parsed Rows: ${analysis.rows?.length || 0}`].join('\n')
-}
-
-function cleanActionText(text = '') { return safe(text).replace(/^(Focus [^:]+)\s+\1:?\s*/i, '$1: ') }
-function ownerHint(primary, analysis) { if (!primary) return 'Based only on uploaded evidence pattern.'; const target = primary.jobs?.[0] || primary.programs?.[0] || primary.examples?.[0] || primary.name; const firstTime = primary.times?.[0] || 'peak time'; return `Review ${target} around ${firstTime}. ${analysis?.rows?.length || 0} parsed rows.` }
 
 function percentile(values = [], p = 95) {
   const nums = values.map(Number).filter((value) => Number.isFinite(value)).sort((a, b) => a - b)
@@ -172,59 +147,118 @@ function buildInfraSummary(rows = []) {
   return { peakCpu: peakCpuRow?.cpu || 0, peakCpuTime: peakCpuRow?.timeLabel || '-', peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34), maxRssGb: maxRssRow?.rssGb || 0, maxRssTime: maxRssRow?.timeLabel || '-', totalRssGb: Number(rssValues.reduce((sum, value) => sum + value, 0).toFixed(2)), p95RssGb: percentile(rssValues, 95), physicalMemGb, swapGb, badWp: critCount + warnCount, critCount, warnCount }
 }
 
+function buildAnalysis(files, rows) {
+  const errorGroups = group(rows, 'errorCode')
+  const jobGroups = group(rows, 'jobName')
+  const programGroups = group(rows, 'program')
+  const primary = errorGroups[0]
+  const timeline = buildTimeline(rows)
+  const infra = buildInfraSummary(rows)
+  const fileCount = new Set(rows.map((row) => row.fileName)).size
+  const confidence = primary ? Math.min(100, Math.round(Math.min(36, (primary.critHits || 0) * 9) + (primary.hits > 1 ? 16 : 0) + Math.min(24, rows.length * 2) + Math.min(14, fileCount * 4) + Math.min(10, timeline.length * 2))) : 0
+  return { files, rows, errorGroups, jobGroups, programGroups, primary, timeline, infra, confidence, createdAt: new Date().toISOString() }
+}
+
+function buildReportText(analysis) {
+  if (!analysis) return ''
+  const primary = analysis.primary
+  return ['SAP Work Process Log Analysis', primary ? `Primary Error: ${primary.name}` : 'Primary Error: -', primary ? `Error Family: ${primary.family}` : 'Error Family: -', primary ? `Owner: ${primary.owner}` : 'Owner: -', `Bad WP: ${analysis.infra?.badWp || 0}`, `Rows: ${analysis.rows?.length || 0}`].join('\n')
+}
+
+function cleanActionText(text = '') { return safe(text).replace(/^(Focus [^:]+)\s+\1:?\s*/i, '$1: ') }
 function AcceptedTypes() { return <div className="acceptedTypes">{ACCEPTED_TYPES.map((item) => <span key={item}>{item}</span>)}</div> }
 
-function FinalHero({ busy, onFiles }) {
-  return <header className="rcaFinalHero"><div><span>SAP Basis RCA Evidence Analyzer</span><h1>Log Evidence Console</h1><p>Compact log classification console for WP-SCOUT, SM21, ST22, dev_w, job log, and CSV evidence.</p></div><label className="rcaFinalUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} /><strong>{busy ? 'Parsing…' : 'Upload Log Evidence'}</strong><small>Log, text, CSV, or ZIP evidence</small><AcceptedTypes /></label></header>
+function evidencePeriod(files = []) {
+  const joined = files.map((file) => file.name || '').join(' ')
+  const match = joined.match(/(\d{1,2}\.\d{1,2}\.\d{4})\s*-\s*(\d{1,2}\.\d{1,2}\.\d{4})/)
+  if (match) return `${match[1]} - ${match[2]}`
+  return 'Uploaded log period'
 }
 
-function ErrorRankingChart({ rows = [] }) {
-  const data = rows.slice(0, 8)
-  const maxHits = Math.max(1, ...data.map((row) => row.hits || 0))
-  return <section className="rcaFinalCard rcaFinalChartCard"><div className="rcaFinalPanelTitle"><h2>Top Error Code / Error Ranking</h2><span>Hits / CRIT</span></div>{data.length ? <div className="rcaLiteBars logBars">{data.map((row) => <div className="rcaLiteBarRow" key={row.name}><div className="rcaLiteBarLabel" title={row.name}>{displayLabel(row.name, 24)}</div><div className="rcaLiteBarTrack"><span className="crit" style={{ width: `${Math.max(2, (row.hits / maxHits) * 100)}%` }} /></div><div className="rcaLiteBarValue">{row.hits} / C{row.critHits || 0}</div></div>)}</div> : <p>No classified error rows.</p>}</section>
+function evidencePackName(files = []) {
+  const zip = files.find((file) => String(file.name || '').toLowerCase().endsWith('.zip'))
+  if (zip?.name) return zip.name
+  return files[0]?.name || 'No log evidence loaded'
 }
 
-function ErrorTrendChart({ data = [] }) {
+function LogHeader({ busy, files, analysis, onFiles }) {
+  const displayedFiles = files.length ? files : (analysis?.files || [])
+  return <header className="rcaFinalHero logTechnicalHero"><div><span>Work Process Log Console</span><h1>Log Evidence Console</h1><p>Technical investigation view for WP-SCOUT, SM21, ST22, dev_w trace, background job log, CPU, RSS, swap, PID, program, and error evidence.</p></div><label className="rcaFinalUpload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => onFiles(event.target.files)} /><strong>{busy ? 'Parsing logs…' : 'Upload Log Evidence'}</strong><small>Log, text, CSV, or ZIP evidence</small><AcceptedTypes /></label><div className="st03nFilterBar logFilterBar"><label><span>System</span><select defaultValue="PRD"><option>PRD</option><option>AOQ</option><option>QAS</option></select></label><label><span>Time Window</span><input readOnly value={evidencePeriod(displayedFiles)} /></label><label><span>Evidence Pack</span><input readOnly value={evidencePackName(displayedFiles)} /></label><label><span>Files</span><input readOnly value={`${displayedFiles.length || 0}`} /></label></div></header>
+}
+
+function LogTabs({ activeTab, onChange }) {
+  return <nav className="st03nTabs logTabs">{LOG_TABS.map((tab) => <button type="button" className={activeTab === tab ? 'active' : ''} key={tab} onClick={() => onChange(tab)}>{tab}</button>)}</nav>
+}
+
+function KpiStrip({ analysis, status }) {
+  const primary = analysis?.primary
+  const infra = analysis?.infra || {}
+  const kpis = [
+    ['Primary Error', primary?.name || 'Pending', primary ? `${primary.hits} hits / ${primary.critHits} CRIT` : status, primary ? 'hot' : ''],
+    ['Error Family', primary ? compactFamilyLabel(primary.family) : 'Unknown', primary?.meaning || 'Upload logs to classify error family', ''],
+    ['Owner', primary?.owner || 'Pending', primary ? cleanActionText(buildOwnerAction(primary)) : 'Basis / ABAP / Integration routing', ''],
+    ['Bad WP', fmt(infra.badWp || 0, 0), 'CRIT + WARN work process rows', ''],
+    ['Peak CPU', `${fmt(infra.peakCpu || 0)}%`, `${infra.peakCpuProgram || '-'} · ${infra.peakCpuTime || '-'}`, ''],
+    ['Max RSS / Swap', `${fmt(infra.maxRssGb || 0)} GB / ${fmt(infra.swapGb || 0)} GB`, 'RSS and detected swap', ''],
+  ]
+  return <section className="st03nKpiGrid logKpiGrid">{kpis.map(([label, value, hint, tone]) => <div className={`st03nKpi logKpi ${tone || ''}`} key={label}><span>{label}</span><b>{value}</b><small>{hint}</small></div>)}</section>
+}
+
+function BarChart({ title, subtitle, rows = [], valueKey = 'hits', labelKey = 'name', tone = 'crit', limit = 8 }) {
+  const data = rows.slice(0, limit)
+  const maxValue = Math.max(1, ...data.map((row) => Number(row[valueKey]) || 0))
+  return <section className="rcaFinalCard rcaFinalChartCard"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div>{data.length ? <div className="rcaLiteBars logBars">{data.map((row) => <div className="rcaLiteBarRow" key={`${title}-${row[labelKey]}`}><div className="rcaLiteBarLabel" title={row[labelKey]}>{displayLabel(row[labelKey], 26)}</div><div className="rcaLiteBarTrack"><span className={tone} style={{ width: `${Math.max(2, ((Number(row[valueKey]) || 0) / maxValue) * 100)}%` }} /></div><div className="rcaLiteBarValue">{fmt(Number(row[valueKey]) || 0, valueKey === 'hits' ? 0 : 1)}</div></div>)}</div> : <p>No data available.</p>}</section>
+}
+
+function TrendChart({ title, data = [], metric = 'hits', tone = 'hit' }) {
   const items = data.slice(-18)
-  const maxHits = Math.max(1, ...items.map((item) => item.hits || 0))
-  return <section className="rcaFinalCard rcaFinalChartCard"><div className="rcaFinalPanelTitle"><h2>Error Trend</h2><span>Time Window</span></div>{items.length ? <div className="rcaLiteTrend">{items.map((item) => <div className="rcaTrendPoint" key={item.time}><span className="hit" style={{ height: `${Math.max(4, (item.hits / maxHits) * 120)}px` }} title={`${item.time} hits ${item.hits}`} /><span className="crit" style={{ height: `${Math.max(3, (item.crit / maxHits) * 120)}px` }} title={`${item.time} crit ${item.crit}`} /><small>{item.time}</small></div>)}</div> : <p>No timeline data.</p>}</section>
+  const maxValue = Math.max(1, ...items.map((item) => item[metric] || 0))
+  return <section className="rcaFinalCard rcaFinalChartCard"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>Time window</span></div>{items.length ? <div className="rcaLiteTrend">{items.map((item) => <div className="rcaTrendPoint" key={`${title}-${item.time}`}><span className={tone} style={{ height: `${Math.max(4, ((item[metric] || 0) / maxValue) * 120)}px` }} title={`${item.time} ${metric} ${item[metric]}`} /><small>{item.time}</small></div>)}</div> : <p>No timeline data.</p>}</section>
+}
+
+function DataTable({ title, subtitle, rows = [], columns = [] }) {
+  return <section className="rcaFinalCard rcaFinalTableCard logDataTable"><div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div><div className="rcaFinalTableWrap"><table><thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr key={`${title}-${index}-${row.name || row.pid || row.program}`}>{columns.map((column) => <td key={column.key}>{column.render ? column.render(row, index) : row[column.key]}</td>)}</tr>)}</tbody></table></div></section>
 }
 
 function ErrorRankingTable({ rows = [] }) {
-  return <section className="rcaFinalCard rcaFinalTableCard"><div className="rcaFinalPanelTitle"><h2>Error Ranking Table</h2><span>Top classified errors</span></div><div className="rcaFinalTableWrap"><table><thead><tr><th>Error Code</th><th>Family</th><th>Owner</th><th>Hits</th><th>CRIT</th><th>Programs / Jobs</th></tr></thead><tbody>{rows.slice(0, 8).map((row) => <tr key={row.name}><td><b>{displayLabel(row.name, 34)}</b></td><td>{compactFamilyLabel(row.family)}</td><td>{row.owner}</td><td>{row.hits}</td><td>{row.critHits}</td><td>{[...(row.programs || []), ...(row.jobs || [])].slice(0, 2).join(' · ') || '-'}</td></tr>)}</tbody></table></div></section>
+  return <DataTable title="Error Ranking" subtitle="Classified SAP errors" rows={rows.slice(0, 12)} columns={[{ key: 'rank', label: '#', render: (_row, index) => index + 1 }, { key: 'name', label: 'Error Code', render: (row) => <b>{displayLabel(row.name, 34)}</b> }, { key: 'family', label: 'Family', render: (row) => compactFamilyLabel(row.family) }, { key: 'owner', label: 'Owner' }, { key: 'hits', label: 'Hits' }, { key: 'critHits', label: 'CRIT' }, { key: 'context', label: 'Program / Job', render: (row) => [...(row.programs || []), ...(row.jobs || [])].slice(0, 2).join(' · ') || '-' }]} />
 }
 
-function RcaInsight({ primary, analysis, status }) {
-  return <section className="rcaFinalCard rcaFinalInsightBlock"><div className="rcaFinalPanelTitle"><h2>RCA Insight</h2><span>Classified Signal</span></div>{primary ? <><p><b>{primary.name}</b> points to <b>{compactFamilyLabel(primary.family)}</b>.</p><p>{primary.meaning}</p><div className="rcaFinalMetricRows"><span>Hits<b>{primary.hits}</b></span><span>CRIT<b>{primary.critHits}</b></span><span>Files<b>{primary.files?.length || 0}</b></span></div><p className="rcaFinalAction">{analysis.nextAction}</p></> : <p>{status}</p>}</section>
+function TopResourceTable({ rows = [] }) {
+  const data = [...rows].sort((a, b) => (b.cpu || 0) - (a.cpu || 0) || (b.rssGb || 0) - (a.rssGb || 0)).slice(0, 14)
+  return <DataTable title="Top Resource Consumer" subtitle="CPU / RSS / Swap by work process" rows={data} columns={[{ key: 'rank', label: '#', render: (_row, index) => index + 1 }, { key: 'host', label: 'APP Server', render: (row) => displayLabel(row.host, 18) }, { key: 'pid', label: 'PID' }, { key: 'wp', label: 'WP' }, { key: 'type', label: 'Type' }, { key: 'cpu', label: 'CPU %', render: (row) => fmt(row.cpu) }, { key: 'rssGb', label: 'RSS GB', render: (row) => fmt(row.rssGb) }, { key: 'swapGb', label: 'Swap GB', render: (row) => fmt(row.swapGb) }, { key: 'program', label: 'Program', render: (row) => displayLabel(row.program, 32) }, { key: 'jobName', label: 'Job', render: (row) => displayLabel(row.jobName, 24) }, { key: 'errorCode', label: 'Error', render: (row) => displayLabel(row.errorCode, 24) }]} />
 }
 
-function MappingPanel({ primary }) {
-  return <section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Error to Job / Program Mapping</h2><span>Extracted Context</span></div>{primary ? <div className="rcaFinalList"><div><b>Jobs</b><span>{primary.jobs?.join(' · ') || 'No job extracted'}</span></div><div><b>Programs</b><span>{primary.programs?.join(' · ') || 'No program extracted'}</span></div><div><b>Seen at</b><span>{primary.times?.join(', ') || 'No timestamp extracted'}</span></div></div> : <p>Upload logs to map errors to jobs and programs.</p>}</section>
+function LongRunningTable({ rows = [] }) {
+  const data = [...rows].sort((a, b) => (b.durationSec || 0) - (a.durationSec || 0) || (b.cpu || 0) - (a.cpu || 0)).slice(0, 12)
+  return <DataTable title="Long Running Work Process / Jobs" subtitle="Runtime context" rows={data} columns={[{ key: 'timeLabel', label: 'Time' }, { key: 'host', label: 'APP Server', render: (row) => displayLabel(row.host, 18) }, { key: 'pid', label: 'PID' }, { key: 'wp', label: 'WP' }, { key: 'type', label: 'Type' }, { key: 'durationSec', label: 'Duration', render: (row) => `${fmt(row.durationSec, 0)} s` }, { key: 'cpu', label: 'CPU %', render: (row) => fmt(row.cpu) }, { key: 'program', label: 'Program', render: (row) => displayLabel(row.program, 38) }, { key: 'jobName', label: 'Job', render: (row) => displayLabel(row.jobName, 28) }, { key: 'className', label: 'Status' }]} />
 }
 
-function RecommendedAction({ analysis }) {
-  const rows = (analysis?.errorGroups || []).slice(0, 5).map((item) => ({ name: item.name, text: cleanActionText(buildOwnerAction(item)), owner: item.owner }))
-  return <section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Recommended Action</h2><span>Owner Routing</span></div><div className="rcaFinalList">{rows.length ? rows.map((item) => <div key={item.name}><b>{item.owner} · {item.name}</b><span>{item.text}</span></div>) : <div><b>Pending</b><span>No action until error evidence is parsed.</span></div>}</div></section>
+function JobProgramMapping({ analysis }) {
+  const jobs = (analysis?.jobGroups || []).filter((row) => row.name !== '?').slice(0, 12)
+  return <DataTable title="Job / Program Mapping" subtitle="Extracted from log context" rows={jobs} columns={[{ key: 'rank', label: '#', render: (_row, index) => index + 1 }, { key: 'name', label: 'Job Name', render: (row) => <b>{displayLabel(row.name, 34)}</b> }, { key: 'programs', label: 'Program', render: (row) => row.programs?.join(' · ') || '-' }, { key: 'hosts', label: 'APP Server', render: (row) => row.hosts?.join(' · ') || '-' }, { key: 'times', label: 'Seen At', render: (row) => row.times?.join(', ') || '-' }, { key: 'hits', label: 'Hits' }, { key: 'maxCpu', label: 'Max CPU', render: (row) => fmt(row.maxCpu) }, { key: 'maxRssGb', label: 'Max RSS', render: (row) => `${fmt(row.maxRssGb)} GB` }]} />
 }
 
-function InfraPressure({ rows = [] }) {
-  const summary = buildInfraSummary(rows)
-  return <section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Infra Pressure</h2><span>Compact WP Signal</span></div><section className="rcaFinalInfraGrid"><div><span>Peak CPU</span><b>{fmt(summary.peakCpu)}%</b><small>{summary.peakCpuProgram} · {summary.peakCpuTime}</small></div><div><span>Max RSS</span><b>{fmt(summary.maxRssGb)} GB</b><small>{summary.maxRssTime}</small></div><div><span>P95 RSS</span><b>{fmt(summary.p95RssGb)} GB</b><small>WP rows only</small></div><div><span>Total RSS</span><b>{fmt(summary.totalRssGb)} GB</b><small>Parsed RSS sum</small></div><div><span>Bad WP</span><b>{fmt(summary.badWp, 0)}</b><small>CRIT + WARN</small></div><div><span>Physical / Swap</span><b>{summary.physicalMemGb ? `${fmt(summary.physicalMemGb)} / ${fmt(summary.swapGb)} GB` : 'N/A'}</b><small>Only if detected</small></div></section></section>
+function WorkProcessByType({ rows = [] }) {
+  const groups = group(rows, 'type').filter((row) => row.name !== '?')
+  return <DataTable title="Work Process by Type" subtitle="DIA / BTC / UPD / ENQ context" rows={groups} columns={[{ key: 'name', label: 'WP Type' }, { key: 'hits', label: 'Rows' }, { key: 'critHits', label: 'CRIT' }, { key: 'warnHits', label: 'WARN' }, { key: 'maxCpu', label: 'Max CPU', render: (row) => fmt(row.maxCpu) }, { key: 'maxRssGb', label: 'Max RSS', render: (row) => `${fmt(row.maxRssGb)} GB` }, { key: 'programs', label: 'Programs', render: (row) => row.programs?.slice(0, 2).join(' · ') || '-' }]} />
+}
+
+function LogTabContent({ activeTab, analysis }) {
+  const rows = analysis?.rows || []
+  if (activeTab === 'Error Analysis') return <><ErrorRankingTable rows={analysis.errorGroups || []} /><TrendChart title="Error Hits Over Time" data={analysis.timeline || []} metric="hits" tone="hit" /><BarChart title="Error Code Distribution" subtitle="Hits" rows={analysis.errorGroups || []} valueKey="hits" tone="crit" /></>
+  if (activeTab === 'Work Process') return <><LongRunningTable rows={rows} /><WorkProcessByType rows={rows} /></>
+  if (activeTab === 'Job Analysis') return <><JobProgramMapping analysis={analysis} /><BarChart title="Program Frequency" subtitle="Hits by program" rows={analysis.programGroups || []} valueKey="hits" tone="db" /></>
+  if (activeTab === 'System Resources') return <><div className="st03nTwoCol"><TrendChart title="CPU Utilization" data={analysis.timeline || []} metric="cpu" tone="hit" /><TrendChart title="Memory RSS" data={analysis.timeline || []} metric="rssGb" tone="crit" /></div><TopResourceTable rows={rows} /></>
+  return <><div className="st03nTwoCol wideLeft"><BarChart title="Top Error Code" subtitle="Hits / CRIT" rows={analysis.errorGroups || []} valueKey="hits" tone="crit" /><TrendChart title="Error Hits Over Time" data={analysis.timeline || []} metric="hits" tone="hit" /></div><TopResourceTable rows={rows} /></>
 }
 
 export default function LogPage() {
-  const [session] = React.useState(latestRcaSession)
   const [files, setFiles] = React.useState([])
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('Upload WP-SCOUT/SM21/ST22/dev_w/job logs or ZIP to validate error evidence.')
   const [analysis, setAnalysis] = React.useState(() => loadJson(CACHE_KEY, null))
-  const [serverInfo, setServerInfo] = React.useState(null)
-
-  React.useEffect(() => {
-    let active = true
-    import('../../../evidence-api-client.js').then(({ listEvidence }) => listEvidence({ tool: 'investigation', limit: 5 })).then((response) => { if (active) setServerInfo(response) }).catch(() => { if (active) setServerInfo({ ok: false }) })
-    return () => { active = false }
-  }, [])
+  const [activeTab, setActiveTab] = React.useState('Overview')
 
   const analyze = async (nextFiles = files) => {
     setBusy(true)
@@ -236,7 +270,7 @@ export default function LogPage() {
         const wpRows = parseWpRows(text, file.name)
         rows.push(...(wpRows.length ? wpRows : parseGenericErrors(text, file.name)))
       }
-      const result = buildAnalysis(nextFiles.map((file) => ({ name: file.name, size: file.size })), rows, serverInfo)
+      const result = buildAnalysis(nextFiles.map((file) => ({ name: file.name, size: file.size })), rows)
       setAnalysis(result)
       saveJson(CACHE_KEY, result)
       setStatus('Log evidence analysis complete.')
@@ -252,6 +286,7 @@ export default function LogPage() {
     try {
       const expanded = await expandFiles(fileList)
       setFiles(expanded)
+      setActiveTab('Overview')
       await analyze(expanded)
     } catch (error) {
       setStatus(error?.message || 'Failed to read upload.')
@@ -260,9 +295,6 @@ export default function LogPage() {
     }
   }
 
-  const primary = analysis?.primary
-  const familyValue = primary ? compactFamilyLabel(primary.family) : 'Unknown'
   const displayedFiles = files.length ? files : (analysis?.files || [])
-
-  return <section className="rcaFinalShell logEvidenceShell"><FinalHero busy={busy} onFiles={onFiles} /><SessionBanner session={session} /><EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-log-evidence-final" /><section className="rcaFinalKpiStrip"><DecisionCard label="Primary Error" value={primary?.name || 'Pending'} hint={analysis?.summary || status} tone={primary ? 'good' : ''} /><DecisionCard label="Error Family" value={familyValue} hint={primary?.meaning || 'Upload logs to classify error family'} tone="blue" /><DecisionCard label="Owner Direction" value={primary?.owner || 'Pending'} hint={ownerHint(primary, analysis)} /><DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.confidenceText || `${analysis?.rows?.length || 0} parsed rows`} /></section>{analysis ? <><div className="rcaFinalMainGrid"><main className="rcaFinalMainCol"><ErrorRankingChart rows={analysis.errorGroups || []} /><ErrorTrendChart data={analysis.timeline || []} /><ErrorRankingTable rows={analysis.errorGroups || []} /></main><aside className="rcaFinalInsightCol"><RcaInsight primary={primary} analysis={analysis} status={status} /><MappingPanel primary={primary} /><RecommendedAction analysis={analysis} /></aside></div><div className="rcaFinalFooterGrid"><InfraPressure rows={analysis.rows || []} /></div></> : <EmptyState title="Upload log evidence"><p>Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs. This dashboard uses real uploaded evidence and cached analysis only.</p></EmptyState>}<div className="rcaFinalFooterGrid"><UploadedFilesPanel files={displayedFiles} /><EvidenceServerPanel serverInfo={serverInfo} /></div></section>
+  return <section className="rcaFinalShell logEvidenceShell logTechnicalPage"><LogHeader busy={busy} files={files} analysis={analysis} onFiles={onFiles} /><LogTabs activeTab={activeTab} onChange={setActiveTab} /><KpiStrip analysis={analysis} status={status} />{analysis ? <><LogTabContent activeTab={activeTab} analysis={analysis} /><div className="rcaFinalFooterGrid logFooterCompact"><UploadedFilesPanel files={displayedFiles} /><section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Parsed Context</h2><span>Evidence source</span></div><div className="rcaFinalMiniFacts"><div><span>Rows</span><b>{fmt(analysis.rows?.length || 0, 0)}</b></div><div><span>Files</span><b>{fmt(displayedFiles.length || 0, 0)}</b></div><div><span>Created</span><b>{analysis.createdAt ? new Date(analysis.createdAt).toLocaleString() : '-'}</b></div></div></section></div></> : <EmptyState title="Upload log evidence"><p>{status} Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs. This dashboard uses uploaded evidence and cached analysis only.</p></EmptyState>}</section>
 }
