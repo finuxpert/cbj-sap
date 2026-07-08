@@ -26,10 +26,30 @@ function taskType(row = {}) {
   return compactLabel(row?.taskType || row?.task || row?.component || row?.kind || 'Dialog', 18)
 }
 
+function extractTimeLabel(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+
+  const time = raw.match(/(?:^|\D)([01]?\d|2[0-3])[:.](\d{2})(?::\d{2})?(?:\D|$)/)
+  if (time) return `${String(time[1]).padStart(2, '0')}:${time[2]}`
+
+  const compactTime = raw.match(/(?:^|\D)([01]\d|2[0-3])([0-5]\d)(?:\D|$)/)
+  if (compactTime) return `${compactTime[1]}:${compactTime[2]}`
+
+  const date = raw.match(/\b(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})\b/)
+  if (date) return date[1]
+
+  return ''
+}
+
 function bucketLabel(row = {}, index = 0) {
-  const raw = row.time || row.hour || row.interval || row.bucket || row.period || ''
-  if (raw) return compactLabel(raw, 10)
-  return `T${String(index + 1).padStart(2, '0')}`
+  const candidates = [row.time, row.hour, row.interval, row.bucket, row.period, row.startTime, row.endTime, row.timestamp, row.dateTime, row.datetime, row.date, row.label, row.name, row.fileName]
+  for (const item of candidates) {
+    const extracted = extractTimeLabel(item)
+    if (extracted) return compactLabel(extracted, 10)
+    if (item && ['time', 'hour', 'interval', 'bucket', 'period', 'startTime', 'endTime'].some((key) => row[key] === item)) return compactLabel(item, 10)
+  }
+  return String(index + 1).padStart(2, '0')
 }
 
 function graphRows(rows = [], limit = 12) {
@@ -140,7 +160,7 @@ function KpiStrip({ analysis, stats, period }) {
   return <section className="st03nKpiGrid">{kpis.map(([label, value, hint, tone]) => <div className={`st03nKpi ${tone || ''}`} key={label}><span>{label}</span><b>{value}</b><small>{hint}</small></div>)}</section>
 }
 
-function SeriesChart({ title, subtitle = 'Parsed metric sequence', rows = [], series = [], height = 220 }) {
+function SeriesChart({ title, subtitle = 'Parsed time sequence', rows = [], series = [], height = 220 }) {
   const data = graphRows(rows, 10)
   const maxValue = Math.max(1, ...data.flatMap((row) => series.map((item) => Number(row[item.key] || 0))))
   const width = 1000
@@ -284,7 +304,7 @@ function St03nTabContent({ activeTab, rows = [] }) {
   }
   return <>
     <div className="st03nTwoCol wideLeft">
-      <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed metric sequence" rows={rows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
+      <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed time sequence" rows={rows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
       <WorkloadOverview rows={rows} />
     </div>
     <div className="st03nTwoCol">
