@@ -183,11 +183,11 @@ function SeriesChart({ title, subtitle = 'Parsed source sequence', rows = [], se
   const data = graphRows(rows, 10)
   const maxValue = Math.max(1, ...data.flatMap((row) => series.map((item) => Number(row[item.key] || 0))))
   const width = 1000
-  const chartHeight = height
+  const chartHeight = Math.max(height, 240)
   const left = 46
   const right = 22
-  const top = 18
-  const bottom = 34
+  const top = 22
+  const bottom = 42
   const innerW = width - left - right
   const innerH = chartHeight - top - bottom
   const x = (index) => left + (data.length <= 1 ? 0 : (index / (data.length - 1)) * innerW)
@@ -201,7 +201,7 @@ function SeriesChart({ title, subtitle = 'Parsed source sequence', rows = [], se
           const points = data.map((row, index) => `${x(index)},${y(row[item.key])}`).join(' ')
           return <polyline key={item.key} className={item.key} points={points} />
         })}
-        {data.map((row, index) => <text key={`${row.name}-${index}`} x={x(index)} y={chartHeight - 10}>{row.bucket}</text>)}
+        {data.map((row, index) => <text key={`${row.name}-${index}`} x={x(index)} y={chartHeight - 12}>{row.bucket}</text>)}
       </svg> : <p>No parsed ST03N rows available for this evidence tab.</p>}
       <div className="st03nLegend">{series.map((item) => <span className={item.key} key={item.key}>{item.label}</span>)}</div>
     </section>
@@ -301,23 +301,23 @@ function St03nTabContent({ activeTab, rows = [] }) {
   if (activeTab === 'Workload Overview') {
     return <>
       <WorkloadOverview rows={tabRows} full />
-      <div className="st03nThreeCol">
-        <SeriesChart title="Average Response" rows={data} series={[{ key: 'response', label: 'Avg Response' }]} height={160} />
-        <SeriesChart title="Average DB Time" rows={data} series={[{ key: 'db', label: 'Avg DB Time' }]} height={160} />
-        <SeriesChart title="Average Wait Time" rows={data} series={[{ key: 'wait', label: 'Avg Wait Time' }]} height={160} />
+      <div className="st03nThreeCol workloadChartGrid">
+        <SeriesChart title="Average Response" rows={data} series={[{ key: 'response', label: 'Avg Response' }]} height={240} />
+        <SeriesChart title="Average DB Time" rows={data} series={[{ key: 'db', label: 'Avg DB Time' }]} height={240} />
+        <SeriesChart title="Average Wait Time" rows={data} series={[{ key: 'wait', label: 'Avg Wait Time' }]} height={240} />
       </div>
     </>
   }
   if (activeTab === 'Top Response Time') {
     return <>
       <TopResponseTable rows={tabRows} />
-      <SeriesChart title="Top Response Time Profile" rows={data.length ? data : topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={190} />
+      <SeriesChart title="Top Response Time Profile" rows={data.length ? data : topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={240} />
     </>
   }
   if (activeTab === 'Top DB Accesses') {
     return <>
       <TopDbTable rows={tabRows} />
-      <SeriesChart title="Top DB Time Profile" rows={data.length ? data : topDb} series={[{ key: 'db', label: 'DB Time' }]} height={190} />
+      <SeriesChart title="Top DB Time Profile" rows={data.length ? data : topDb} series={[{ key: 'db', label: 'DB Time' }]} height={240} />
     </>
   }
   if (activeTab === 'Transaction Profile') {
