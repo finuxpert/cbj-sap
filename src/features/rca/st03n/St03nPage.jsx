@@ -8,6 +8,13 @@ import './St03nPage.css'
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
 const ST03N_TABS = ['Time Profile', 'Workload Overview', 'Top Response Time', 'Top DB Accesses', 'Transaction Profile']
+const TAB_KIND = {
+  'Time Profile': 'timeProfile',
+  'Workload Overview': 'workload',
+  'Top Response Time': 'topResponse',
+  'Top DB Accesses': 'topDb',
+  'Transaction Profile': 'transactionStandard',
+}
 
 function compactLabel(value = '', max = 30) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
@@ -50,6 +57,12 @@ function bucketLabel(row = {}, index = 0) {
     if (item && ['time', 'hour', 'interval', 'bucket', 'period', 'startTime', 'endTime'].some((key) => row[key] === item)) return compactLabel(item, 10)
   }
   return String(index + 1).padStart(2, '0')
+}
+
+function rowsForTab(rows = [], activeTab = 'Time Profile') {
+  const kind = TAB_KIND[activeTab]
+  if (!kind) return rows
+  return rows.filter((row) => row.kind === kind)
 }
 
 function graphRows(rows = [], limit = 12) {
@@ -183,7 +196,7 @@ function SeriesChart({ title, subtitle = 'Parsed time sequence', rows = [], seri
           return <polyline key={item.key} className={item.key} points={points} />
         })}
         {data.map((row, index) => <text key={`${row.name}-${index}`} x={x(index)} y={chartHeight - 10}>{row.bucket}</text>)}
-      </svg> : <p>No parsed ST03N rows available.</p>}
+      </svg> : <p>No parsed ST03N rows available for this evidence tab.</p>}
       <div className="st03nLegend">{series.map((item) => <span className={item.key} key={item.key}>{item.label}</span>)}</div>
     </section>
   )
@@ -197,7 +210,7 @@ function DataTable({ title, subtitle, rows = [], columns = [], compact = false }
         <table>
           <thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
           <tbody>
-            {rows.map((row, index) => <tr key={`${title}-${row.name || row.taskType}-${index}`}>{columns.map((column) => <td key={column.key}>{column.render ? column.render(row, index) : row[column.key]}</td>)}</tr>)}
+            {rows.length ? rows.map((row, index) => <tr key={`${title}-${row.name || row.taskType}-${index}`}>{columns.map((column) => <td key={column.key}>{column.render ? column.render(row, index) : row[column.key]}</td>)}</tr>) : <tr><td colSpan={columns.length}>No parsed ST03N rows available for this evidence tab.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -276,10 +289,11 @@ function TransactionProfileTable({ rows = [] }) {
 }
 
 function St03nTabContent({ activeTab, rows = [] }) {
-  const { data, topResponse, topDb } = preparedTables(rows)
+  const tabRows = rowsForTab(rows, activeTab)
+  const { data, topResponse, topDb } = preparedTables(tabRows)
   if (activeTab === 'Workload Overview') {
     return <>
-      <WorkloadOverview rows={rows} full />
+      <WorkloadOverview rows={tabRows} full />
       <div className="st03nThreeCol">
         <SeriesChart title="Average Response" rows={data} series={[{ key: 'response', label: 'Avg Response' }]} height={160} />
         <SeriesChart title="Average DB Time" rows={data} series={[{ key: 'db', label: 'Avg DB Time' }]} height={160} />
@@ -289,27 +303,27 @@ function St03nTabContent({ activeTab, rows = [] }) {
   }
   if (activeTab === 'Top Response Time') {
     return <>
-      <TopResponseTable rows={rows} />
+      <TopResponseTable rows={tabRows} />
       <SeriesChart title="Top Response Time Trend" rows={topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={190} />
     </>
   }
   if (activeTab === 'Top DB Accesses') {
     return <>
-      <TopDbTable rows={rows} />
+      <TopDbTable rows={tabRows} />
       <SeriesChart title="Top DB Time Trend" rows={topDb} series={[{ key: 'db', label: 'DB Time' }]} height={190} />
     </>
   }
   if (activeTab === 'Transaction Profile') {
-    return <TransactionProfileTable rows={rows} />
+    return <TransactionProfileTable rows={tabRows} />
   }
   return <>
     <div className="st03nTwoCol wideLeft">
-      <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed time sequence" rows={rows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
-      <WorkloadOverview rows={rows} />
+      <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed time sequence" rows={tabRows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
+      <WorkloadOverview rows={tabRows} />
     </div>
     <div className="st03nTwoCol">
-      <TopResponseTable rows={rows} />
-      <TopDbTable rows={rows} />
+      <TopResponseTable rows={tabRows} />
+      <TopDbTable rows={tabRows} />
     </div>
   </>
 }
@@ -367,7 +381,8 @@ export default function St03nPage() {
 
   const rows = analysis?.rows || []
   const displayedFiles = files.length ? files : (analysis?.files || [])
-  const stats = pageStats(rows)
+  const activeRows = rowsForTab(rows, activeTab)
+  const stats = pageStats(activeRows)
   const period = evidencePeriod(displayedFiles)
 
   return (
