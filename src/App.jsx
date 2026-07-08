@@ -3,9 +3,10 @@ import Navbar from './components/Navbar.jsx'
 import { tools } from './tools'
 import useRoute from './app/useRoute.js'
 import { installEnterpriseRcaMockup } from './tools/installEnterpriseRcaMockup.js'
+import { installEnterpriseRcaPhase2 } from './tools/installEnterpriseRcaPhase2.js'
 import './tools/EnterpriseRcaMockup.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-compact-rca-mockup-runtime'
+const APP_BUILD_STAMP = 'sap-20260708-compact-rca-phase2'
 
 export default function App() {
   const route = useRoute()
@@ -14,6 +15,7 @@ export default function App() {
 
   React.useEffect(() => {
     installEnterpriseRcaMockup()
+    installEnterpriseRcaPhase2()
   }, [route.name])
 
   return (
