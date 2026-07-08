@@ -9,6 +9,7 @@
   --rca-sidebar-width:176px;
   --rca-topbar-height:64px;
   --rca-safe-top-gap:22px;
+  --rca-workspace-max:1440px;
 }
 
 html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
@@ -16,41 +17,24 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .compactRcaApp{min-height:100vh;background:var(--rca-bg)!important;color:var(--rca-text)!important;}
 .compactRcaApp main{
   box-sizing:border-box!important;
-  width:100vw!important;
   margin:0!important;
-  padding-top:calc(var(--rca-topbar-height) + var(--rca-safe-top-gap))!important;
-  padding-left:var(--rca-sidebar-width)!important;
+  margin-left:var(--rca-sidebar-width)!important;
+  width:calc(100vw - var(--rca-sidebar-width))!important;
+  padding:calc(var(--rca-topbar-height) + var(--rca-safe-top-gap)) 22px 0!important;
   background:var(--rca-bg)!important;
   min-height:100vh!important;
   overflow-x:hidden!important;
 }
 .compactRcaApp .fullBleed{
   box-sizing:border-box!important;
-  width:calc(100vw - var(--rca-sidebar-width))!important;
+  width:100%!important;
   min-width:0!important;
   background:var(--rca-bg)!important;
-  overflow-x:hidden!important;
+  overflow:visible!important;
 }
 
-.compactRcaTopbar{
-  position:fixed!important;
-  inset:0 0 auto 0!important;
-  z-index:100!important;
-  height:var(--rca-topbar-height)!important;
-  min-height:var(--rca-topbar-height)!important;
-  background:var(--rca-topbar)!important;
-  border:0!important;
-  box-shadow:0 8px 24px rgba(15,23,42,.18)!important;
-}
-.compactRcaTopbarInner{
-  height:var(--rca-topbar-height)!important;
-  max-width:none!important;
-  padding:0 22px 0 58px!important;
-  display:grid!important;
-  grid-template-columns:330px minmax(240px,1fr) auto 44px!important;
-  align-items:center!important;
-  gap:16px!important;
-}
+.compactRcaTopbar{position:fixed!important;inset:0 0 auto 0!important;z-index:100!important;height:var(--rca-topbar-height)!important;min-height:var(--rca-topbar-height)!important;background:var(--rca-topbar)!important;border:0!important;box-shadow:0 8px 24px rgba(15,23,42,.18)!important;}
+.compactRcaTopbarInner{height:var(--rca-topbar-height)!important;max-width:none!important;padding:0 22px 0 58px!important;display:grid!important;grid-template-columns:330px minmax(240px,1fr) auto 44px!important;align-items:center!important;gap:16px!important;}
 .compactRcaBrand{display:inline-flex!important;align-items:center!important;gap:12px!important;color:#fff!important;text-decoration:none!important;min-width:0;}
 .sapBadge{display:inline-grid!important;place-items:center!important;width:42px!important;height:24px!important;border-radius:6px 14px 6px 6px!important;background:linear-gradient(135deg,#0ea5ff,#0066cc)!important;color:#fff!important;font-size:12px!important;font-weight:950!important;letter-spacing:-.04em!important;}
 .compactRcaBrand .brandText{display:flex!important;flex-direction:column!important;min-width:0!important;}
@@ -64,21 +48,7 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .compactRcaUtility small{font-size:10px!important;line-height:1.1!important;color:#94a3b8!important;font-weight:800!important;}
 .mobileBtn{width:38px!important;height:38px!important;display:inline-grid!important;place-items:center!important;border:1px solid rgba(148,163,184,.22)!important;border-radius:10px!important;background:rgba(255,255,255,.05)!important;color:#fff!important;font-size:20px!important;}
 
-.compactRcaSidebar{
-  position:fixed!important;
-  z-index:90!important;
-  top:var(--rca-topbar-height)!important;
-  bottom:0!important;
-  left:0!important;
-  width:var(--rca-sidebar-width)!important;
-  display:flex!important;
-  flex-direction:column!important;
-  overflow:hidden!important;
-  background:var(--rca-sidebar)!important;
-  border-right:1px solid var(--rca-border)!important;
-  box-shadow:7px 0 18px rgba(15,23,42,.04)!important;
-  color:var(--rca-text)!important;
-}
+.compactRcaSidebar{position:fixed!important;z-index:90!important;top:var(--rca-topbar-height)!important;bottom:0!important;left:0!important;width:var(--rca-sidebar-width)!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;background:var(--rca-sidebar)!important;border-right:1px solid var(--rca-border)!important;box-shadow:7px 0 18px rgba(15,23,42,.04)!important;color:var(--rca-text)!important;}
 .sidebarTopGlyph{position:fixed!important;left:18px!important;top:17px!important;z-index:120!important;color:rgba(255,255,255,.72)!important;font-size:16px!important;line-height:.7!important;letter-spacing:-4px!important;transform:rotate(90deg)!important;}
 .compactRcaSidebar nav{display:grid!important;gap:2px!important;padding:12px 0 8px!important;margin:0!important;}
 .compactRcaSidebar a,.compactRcaSidebar button{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:36px!important;padding:0 13px!important;border:0!important;background:transparent!important;color:#334155!important;text-decoration:none!important;font:800 11px/1.2 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;cursor:pointer!important;}
@@ -90,29 +60,31 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 
 .compactRcaApp .rcaFinalShell{
   box-sizing:border-box!important;
-  width:100%!important;
-  max-width:none!important;
-  margin:0!important;
-  padding:0 14px 72px!important;
+  width:min(100%,var(--rca-workspace-max))!important;
+  max-width:var(--rca-workspace-max)!important;
+  margin:0 auto!important;
+  padding:0 0 72px!important;
 }
 .compactRcaApp .rcaFinalHero{margin-top:0!important;}
+.compactRcaApp .rcaFinalMainGrid{grid-template-columns:minmax(0,1fr) 340px!important;gap:12px!important;}
+.compactRcaApp .rcaFinalInsightCol{position:sticky!important;top:calc(var(--rca-topbar-height) + 12px)!important;}
+.compactRcaApp .rcaFinalChartCard{overflow:hidden!important;}
+.compactRcaApp .rcaFinalChartCard .echarts-for-react{max-width:100%!important;}
 
-.rcaFinalShell .evidenceToolbar button:disabled,
-.rcaFinalShell .evidenceToolbar button[disabled]{opacity:1!important;color:#94a3b8!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;cursor:not-allowed!important;}
+.rcaFinalShell .evidenceToolbar button:disabled,.rcaFinalShell .evidenceToolbar button[disabled]{opacity:1!important;color:#94a3b8!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;cursor:not-allowed!important;}
 .rcaFinalShell .evidenceToolbar button:not(:disabled){color:#0f172a!important;background:#fff!important;border:1px solid #cbd5e1!important;}
 .rcaFinalShell .evidenceToolbar button:not(:disabled):hover{background:#eff6ff!important;border-color:#93c5fd!important;}
 .rcaFinalShell .st03nViewSwitch button:not(:disabled).active,.rcaFinalShell .st03nViewSwitch button.active{background:#0f172a!important;color:#fff!important;border-color:#0f172a!important;}
-
 .rcaFinalShell .emptyState,.rcaFinalShell .emptyState.card{min-height:96px!important;padding:24px!important;margin:0 0 12px!important;}
 .logEvidenceShell .rcaFinalFooterGrid{margin-top:10px!important;}
 .logEvidenceShell .rcaFinalFooterGrid .evidencePanel{min-height:116px!important;}
 .logEvidenceShell .rcaFinalKpiStrip{margin-bottom:10px!important;}
 
 @media(max-width:1100px){
-  .compactRcaApp main{width:100vw!important;margin-left:0!important;padding-left:0!important;padding-top:calc(var(--rca-topbar-height) + 16px)!important;}
-  .compactRcaApp .fullBleed{width:100vw!important;}
+  .compactRcaApp main{width:100vw!important;margin-left:0!important;padding:calc(var(--rca-topbar-height) + 16px) 10px 0!important;}
+  .compactRcaApp .fullBleed{width:100%!important;}
   .compactRcaSidebar{display:none!important;}
   .compactRcaTopbarInner{padding-left:18px!important;grid-template-columns:1fr auto 38px!important;}
   .compactRcaUtility{display:none!important;}
-  .rcaFinalShell{width:100%!important;max-width:none!important;padding-left:10px!important;padding-right:10px!important;}
+  .rcaFinalShell{width:100%!important;max-width:none!important;padding-left:0!important;padding-right:0!important;}
 }
