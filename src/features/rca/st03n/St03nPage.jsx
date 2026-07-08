@@ -124,8 +124,8 @@ function St03nHeader({ busy, files, analysis, onFiles }) {
   )
 }
 
-function St03nTabs() {
-  return <nav className="st03nTabs">{ST03N_TABS.map((tab, index) => <button className={index === 0 ? 'active' : ''} key={tab}>{tab}</button>)}</nav>
+function St03nTabs({ activeTab, onChange }) {
+  return <nav className="st03nTabs">{ST03N_TABS.map((tab) => <button type="button" className={activeTab === tab ? 'active' : ''} key={tab} onClick={() => onChange(tab)}>{tab}</button>)}</nav>
 }
 
 function KpiStrip({ analysis, stats, period }) {
@@ -185,8 +185,8 @@ function DataTable({ title, subtitle, rows = [], columns = [], compact = false }
   )
 }
 
-function WorkloadOverview({ rows = [] }) {
-  const grouped = Object.values(graphRows(rows, rows.length).reduce((acc, row) => {
+function workloadRows(rows = []) {
+  return Object.values(graphRows(rows, rows.length).reduce((acc, row) => {
     const key = row.taskType || 'Dialog'
     if (!acc[key]) acc[key] = { taskType: key, steps: 0, response: 0, db: 0, wait: 0, count: 0 }
     acc[key].steps += row.steps
@@ -195,22 +195,32 @@ function WorkloadOverview({ rows = [] }) {
     acc[key].wait += row.wait
     acc[key].count += 1
     return acc
-  }, {})).map((item) => ({ ...item, response: Math.round(item.response / item.count), db: Math.round(item.db / item.count), wait: Math.round(item.wait / item.count) })).slice(0, 6)
+  }, {})).map((item) => ({ ...item, response: Math.round(item.response / item.count), db: Math.round(item.db / item.count), wait: Math.round(item.wait / item.count) })).slice(0, 8)
+}
+
+function WorkloadOverview({ rows = [], full = false }) {
+  const grouped = workloadRows(rows)
   return <DataTable compact title="Workload Overview" subtitle="By task type" rows={grouped} columns={[
     { key: 'taskType', label: 'Task Type' },
     { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
     { key: 'response', label: 'Avg Resp', render: (row) => `${fmt(row.response, 0)} ms` },
     { key: 'db', label: 'Avg DB', render: (row) => `${fmt(row.db, 0)} ms` },
     { key: 'wait', label: 'Avg Wait', render: (row) => `${fmt(row.wait, 0)} ms` },
+    ...(full ? [{ key: 'count', label: 'Records', render: (row) => fmt(row.count, 0) }] : []),
   ]} />
 }
 
-function St03nTables({ rows = [] }) {
+function preparedTables(rows = []) {
   const data = graphRows(rows, rows.length || 1)
-  const topResponse = [...data].sort((a, b) => b.response - a.response).slice(0, 8)
-  const topDb = [...data].sort((a, b) => b.db - a.db).slice(0, 8)
-  const transactionRows = [...data].sort((a, b) => b.steps - a.steps).slice(0, 8)
-  const responseColumns = [
+  const topResponse = [...data].sort((a, b) => b.response - a.response).slice(0, 10)
+  const topDb = [...data].sort((a, b) => b.db - a.db).slice(0, 10)
+  const transactionRows = [...data].sort((a, b) => b.steps - a.steps).slice(0, 12)
+  return { data, topResponse, topDb, transactionRows }
+}
+
+function TopResponseTable({ rows = [] }) {
+  const { topResponse } = preparedTables(rows)
+  return <DataTable title="Top Response Time" subtitle="By total response time" rows={topResponse} columns={[
     { key: 'rank', label: '#', render: (_row, index) => index + 1 },
     { key: 'name', label: 'Program / TCode' },
     { key: 'taskType', label: 'Task Type' },
@@ -218,35 +228,70 @@ function St03nTables({ rows = [] }) {
     { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
     { key: 'wait', label: 'Wait', render: (row) => `${fmt(row.wait, 0)} ms` },
     { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
-  ]
-  return (
-    <>
-      <div className="st03nTwoCol">
-        <DataTable title="Top Offender" subtitle="By total response time" rows={topResponse} columns={responseColumns} />
-        <DataTable title="Top DB Accesses" subtitle="By DB time" rows={topDb} columns={[
-          { key: 'rank', label: '#', render: (_row, index) => index + 1 },
-          { key: 'name', label: 'Program / TCode' },
-          { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
-          { key: 'response', label: 'Response', render: (row) => `${fmt(row.response, 0)} ms` },
-          { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
-        ]} />
-      </div>
+  ]} />
+}
+
+function TopDbTable({ rows = [] }) {
+  const { topDb } = preparedTables(rows)
+  return <DataTable title="Top DB Accesses" subtitle="By DB time" rows={topDb} columns={[
+    { key: 'rank', label: '#', render: (_row, index) => index + 1 },
+    { key: 'name', label: 'Program / TCode' },
+    { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
+    { key: 'response', label: 'Response', render: (row) => `${fmt(row.response, 0)} ms` },
+    { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
+  ]} />
+}
+
+function TransactionProfileTable({ rows = [] }) {
+  const { transactionRows } = preparedTables(rows)
+  return <DataTable title="Transaction Profile Standard" subtitle="Parsed workload records" rows={transactionRows} columns={[
+    { key: 'name', label: 'Transaction / Report' },
+    { key: 'taskType', label: 'Task Type' },
+    { key: 'response', label: 'Avg Response', render: (row) => `${fmt(row.response, 0)} ms` },
+    { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
+    { key: 'cpu', label: 'CPU Time', render: (row) => `${fmt(row.cpu, 0)} ms` },
+    { key: 'wait', label: 'Wait Time', render: (row) => `${fmt(row.wait, 0)} ms` },
+    { key: 'steps', label: 'Dialog Steps', render: (row) => fmt(row.steps, 0) },
+  ]} />
+}
+
+function St03nTabContent({ activeTab, rows = [] }) {
+  const { data, topResponse, topDb } = preparedTables(rows)
+  if (activeTab === 'Workload Overview') {
+    return <>
+      <WorkloadOverview rows={rows} full />
       <div className="st03nThreeCol">
-        <SeriesChart title="Response Time" rows={topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={160} />
-        <SeriesChart title="DB Time" rows={topDb} series={[{ key: 'db', label: 'DB Time' }]} height={160} />
-        <SeriesChart title="Wait Time" rows={data} series={[{ key: 'wait', label: 'Wait Time' }]} height={160} />
+        <SeriesChart title="Average Response" rows={data} series={[{ key: 'response', label: 'Avg Response' }]} height={160} />
+        <SeriesChart title="Average DB Time" rows={data} series={[{ key: 'db', label: 'Avg DB Time' }]} height={160} />
+        <SeriesChart title="Average Wait Time" rows={data} series={[{ key: 'wait', label: 'Avg Wait Time' }]} height={160} />
       </div>
-      <DataTable title="Transaction Profile Standard" subtitle="Parsed workload records" rows={transactionRows} columns={[
-        { key: 'name', label: 'Transaction / Report' },
-        { key: 'taskType', label: 'Task Type' },
-        { key: 'response', label: 'Avg Response', render: (row) => `${fmt(row.response, 0)} ms` },
-        { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
-        { key: 'cpu', label: 'CPU Time', render: (row) => `${fmt(row.cpu, 0)} ms` },
-        { key: 'wait', label: 'Wait Time', render: (row) => `${fmt(row.wait, 0)} ms` },
-        { key: 'steps', label: 'Dialog Steps', render: (row) => fmt(row.steps, 0) },
-      ]} />
     </>
-  )
+  }
+  if (activeTab === 'Top Response Time') {
+    return <>
+      <TopResponseTable rows={rows} />
+      <SeriesChart title="Top Response Time Trend" rows={topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={190} />
+    </>
+  }
+  if (activeTab === 'Top DB Accesses') {
+    return <>
+      <TopDbTable rows={rows} />
+      <SeriesChart title="Top DB Time Trend" rows={topDb} series={[{ key: 'db', label: 'DB Time' }]} height={190} />
+    </>
+  }
+  if (activeTab === 'Transaction Profile') {
+    return <TransactionProfileTable rows={rows} />
+  }
+  return <>
+    <div className="st03nTwoCol wideLeft">
+      <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed metric sequence" rows={rows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
+      <WorkloadOverview rows={rows} />
+    </div>
+    <div className="st03nTwoCol">
+      <TopResponseTable rows={rows} />
+      <TopDbTable rows={rows} />
+    </div>
+  </>
 }
 
 export default function St03nPage() {
@@ -254,6 +299,7 @@ export default function St03nPage() {
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('Upload ST03N evidence pack to render workload data.')
   const [analysis, setAnalysis] = React.useState(() => loadJson(CACHE_KEY, null))
+  const [activeTab, setActiveTab] = React.useState('Time Profile')
 
   const analyze = async (nextFiles = files) => {
     setBusy(true)
@@ -290,6 +336,7 @@ export default function St03nPage() {
     try {
       const expanded = await expandSt03nFiles(fileList)
       setFiles(expanded)
+      setActiveTab('Time Profile')
       await analyze(expanded)
     } catch (error) {
       setStatus(error?.message || 'Failed to read upload.')
@@ -306,14 +353,10 @@ export default function St03nPage() {
   return (
     <section className="rcaFinalShell st03nImpactShell st03nTechnicalPage">
       <St03nHeader busy={busy} files={files} analysis={analysis} onFiles={onFiles} />
-      <St03nTabs />
+      <St03nTabs activeTab={activeTab} onChange={setActiveTab} />
       <KpiStrip analysis={analysis} stats={stats} period={period} />
       {analysis ? <>
-        <div className="st03nTwoCol wideLeft">
-          <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed metric sequence" rows={rows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
-          <WorkloadOverview rows={rows} />
-        </div>
-        <St03nTables rows={rows} />
+        <St03nTabContent activeTab={activeTab} rows={rows} />
         <div className="rcaFinalFooterGrid st03nFooterCompact">
           <UploadedFilesPanel files={displayedFiles} />
           <section className="rcaFinalCard">
