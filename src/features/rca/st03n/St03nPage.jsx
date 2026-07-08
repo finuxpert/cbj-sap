@@ -1,216 +1,245 @@
 import React from 'react'
-import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from '../shared/rca-utils.js'
-import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
+import { fmt, loadJson, saveJson } from '../shared/rca-utils.js'
+import { EmptyState, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
 import { buildSt03nAnalysis, classifySt03nFile, expandSt03nFiles, parseSt03nFile, REQUIRED_ST03N } from './st03n-parser.js'
-import St03nOffenderTable from './St03nOffenderTable.jsx'
 import '../shared/RcaDashboard.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
+const ST03N_TABS = ['Time Profile', 'Workload Overview', 'Top Response Time', 'Top DB Accesses', 'Transaction Profile']
 
-function compactLabel(value = '', max = 28) {
+function compactLabel(value = '', max = 30) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
   return label.length > max ? `${label.slice(0, max - 1)}…` : label
-}
-
-function rowLabel(row = {}, fallback = 'ST03N item') {
-  return compactLabel(row?.label || row?.name || row?.program || row?.transaction || row?.fileName || row?.kind || fallback, 34)
 }
 
 function metric(row = {}, primary, fallback) {
   return Math.round(Number(row?.[primary] ?? row?.[fallback] ?? 0))
 }
 
-function dominantKind(row = {}) {
-  const entries = [
-    ['Response', Number(row.response || row.responseMs || 0)],
-    ['DB', Number(row.db || row.dbMs || 0)],
-    ['Wait', Number(row.wait || row.waitMs || 0)],
-    ['CPU', Number(row.cpu || row.cpuMs || 0)],
-  ]
-  return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || 'Response'
+function rowName(row = {}) {
+  return compactLabel(row?.label || row?.name || row?.program || row?.transaction || row?.fileName || row?.kind || 'ST03N item', 36)
 }
 
-function graphRows(rows = [], limit = 7) {
+function taskType(row = {}) {
+  return compactLabel(row?.taskType || row?.task || row?.component || row?.kind || 'Dialog', 18)
+}
+
+function graphRows(rows = [], limit = 12) {
   return rows.slice(0, limit).map((row) => {
     const response = metric(row, 'response', 'responseMs')
     const db = metric(row, 'db', 'dbMs')
     const wait = metric(row, 'wait', 'waitMs')
     const cpu = metric(row, 'cpu', 'cpuMs')
-    const effective = Math.max(response, db + wait + cpu)
+    const steps = Math.round(Number(row.steps || 0))
     return {
       ...row,
-      name: rowLabel(row),
+      name: rowName(row),
+      taskType: taskType(row),
       response,
       db,
       wait,
       cpu,
-      effective,
-      steps: Math.round(Number(row.steps || 0)),
+      steps,
+      effective: Math.max(response, db + wait + cpu),
     }
   })
 }
 
+function evidencePeriod(files = []) {
+  const name = files[0]?.name || ''
+  const match = name.match(/(\d{1,2}\.\d{1,2}\.\d{4})\s*-\s*(\d{1,2}\.\d{1,2}\.\d{4})/)
+  if (match) return `${match[1]} - ${match[2]}`
+  return 'Uploaded ST03N period'
+}
+
 function buildReportText(analysis) {
   if (!analysis) return ''
-  const top = analysis.top
+  const rows = graphRows(analysis.rows || [], 10)
   return [
-    'SAP ST03N Impact Summary',
-    `Verdict: ${analysis.verdict}`,
-    `Confidence: ${analysis.confidence}% - ${analysis.correlation}`,
-    `Completeness: ${analysis.completeness}%`,
-    `Dominant Component: ${analysis.dominant}`,
-    top ? `Top Evidence: ${top.label}` : 'Top Evidence: -',
-    top ? `Response: ${fmt(top.responseMs, 0)}ms | DB: ${fmt(top.dbMs, 0)}ms | Wait: ${fmt(top.waitMs, 0)}ms` : '',
-    `Next Action: ${analysis.nextAction}`,
-  ].filter(Boolean).join('\n')
+    'ST03N Workload Analysis',
+    `Rows: ${fmt(analysis.rows?.length || 0, 0)}`,
+    `Files: ${fmt(analysis.files?.length || 0, 0)}`,
+    ...rows.map((row, index) => `#${index + 1} ${row.name} | Response ${fmt(row.response, 0)}ms | DB ${fmt(row.db, 0)}ms | Wait ${fmt(row.wait, 0)}ms | Steps ${fmt(row.steps, 0)}`),
+  ].join('\n')
+}
+
+function pageStats(rows = []) {
+  const data = graphRows(rows, rows.length || 1)
+  const totalSteps = data.reduce((sum, row) => sum + row.steps, 0)
+  const peakResponse = Math.max(0, ...data.map((row) => row.response))
+  const peakDb = Math.max(0, ...data.map((row) => row.db))
+  const weightedResponse = data.reduce((sum, row) => sum + (row.response * Math.max(row.steps, 1)), 0)
+  const weight = data.reduce((sum, row) => sum + Math.max(row.steps, 1), 0) || 1
+  return {
+    totalSteps,
+    peakResponse,
+    avgResponse: Math.round(weightedResponse / weight),
+    peakDb,
+  }
 }
 
 function AcceptedTypes() {
   return <div className="acceptedTypes">{ACCEPTED_TYPES.map((item) => <span key={item}>{item}</span>)}</div>
 }
 
-function FinalHero({ busy, onFiles }) {
+function St03nHeader({ busy, files, analysis, onFiles }) {
+  const displayedFiles = files.length ? files : (analysis?.files || [])
   return (
     <header className="rcaFinalHero">
       <div>
-        <span>SAP Basis RCA Evidence Analyzer</span>
+        <span>ST03N Evidence Console</span>
         <h1>ST03N Workload Analyzer</h1>
-        <p>Compact workload impact console based on uploaded ST03N evidence, cached analysis, parse coverage, and top offender ranking.</p>
+        <p>Technical workload view for Time Profile, Workload Overview, Top Response Time, Top DB Accesses, and Transaction Profile evidence.</p>
       </div>
       <label className="rcaFinalUpload">
         <input type="file" multiple accept=".zip,.xlsx,.xls,.csv" onChange={(event) => onFiles(event.target.files)} />
-        <strong>{busy ? 'Parsing…' : 'Upload ST03N Evidence'}</strong>
+        <strong>{busy ? 'Parsing ST03N…' : 'Upload ST03N Evidence'}</strong>
         <small>Excel, CSV, or ZIP evidence pack</small>
         <AcceptedTypes />
       </label>
+      <div className="st03nFilterBar">
+        <label><span>System</span><select defaultValue="AOQ"><option>AOQ</option><option>PRD</option><option>QAS</option></select></label>
+        <label><span>Time Window</span><input readOnly value={evidencePeriod(displayedFiles)} /></label>
+        <label><span>Evidence Pack</span><input readOnly value={displayedFiles[0]?.name || 'No ST03N evidence loaded'} /></label>
+        <label><span>Files</span><input readOnly value={`${displayedFiles.length || 0} / ${REQUIRED_ST03N.length}`} /></label>
+      </div>
     </header>
   )
 }
 
-function ParseStatusPanel({ analysis, detected }) {
-  const cachedFiles = analysis?.files || []
+function St03nTabs() {
+  return <nav className="st03nTabs">{ST03N_TABS.map((tab, index) => <button className={index === 0 ? 'active' : ''} key={tab}>{tab}</button>)}</nav>
+}
+
+function KpiStrip({ analysis, stats, period }) {
+  const kpis = [
+    ['Selected Window', period, 'ST03N evidence period'],
+    ['Total Dialog Steps', fmt(stats.totalSteps, 0), 'Parsed workload steps'],
+    ['Peak Response Time', `${fmt(stats.peakResponse, 0)} ms`, 'Highest parsed response'],
+    ['Average Response Time', `${fmt(stats.avgResponse, 0)} ms`, 'Weighted by dialog steps'],
+    ['Peak DB Time', `${fmt(stats.peakDb, 0)} ms`, 'Highest parsed DB time'],
+    ['Files Parsed', `${analysis?.files?.length || 0} / ${REQUIRED_ST03N.length}`, 'Required evidence coverage'],
+  ]
+  return <section className="st03nKpiGrid">{kpis.map(([label, value, hint]) => <div className="st03nKpi" key={label}><span>{label}</span><b>{value}</b><small>{hint}</small></div>)}</section>
+}
+
+function SeriesChart({ title, rows = [], series = [], height = 220 }) {
+  const data = graphRows(rows, 10)
+  const maxValue = Math.max(1, ...data.flatMap((row) => series.map((item) => Number(row[item.key] || 0))))
+  const width = 1000
+  const chartHeight = height
+  const left = 46
+  const right = 22
+  const top = 18
+  const bottom = 34
+  const innerW = width - left - right
+  const innerH = chartHeight - top - bottom
+  const x = (index) => left + (data.length <= 1 ? 0 : (index / (data.length - 1)) * innerW)
+  const y = (value) => top + innerH - ((Number(value || 0) / maxValue) * innerH)
   return (
-    <section className="rcaFinalCard">
-      <div className="rcaFinalPanelTitle"><h2>Parse Status</h2><span>Required Pack</span></div>
-      <div className="rcaFinalStatusList">
-        {REQUIRED_ST03N.map((required) => {
-          const parsed = analysis?.parseStatus?.filter((item) => item.key === required.key) || []
-          const okStatus = parsed.find((item) => item.ok)
-          const parsedFileStatus = parsed.find((item) => item.fileName)
-          const cachedFile = cachedFiles.find((file) => classifySt03nFile(file.name) === required.key)
-          const currentFile = detected[required.key]?.[0]
-          const hasFile = Boolean(currentFile || cachedFile || parsedFileStatus)
-          const state = okStatus ? 'ok' : hasFile ? 'detected' : 'missing'
-          const message = currentFile?.name || parsedFileStatus?.fileName || cachedFile?.name || parsed[0]?.message || 'missing'
-          return <div key={required.key} className={state}><b>{required.label}</b><span>{okStatus ? 'Ready' : hasFile ? 'Detected' : 'Missing'}</span><small>{message}</small></div>
+    <section className="rcaFinalCard st03nChartPanel">
+      <div className="rcaFinalPanelTitle"><h2>{title}</h2><span>ms</span></div>
+      {data.length ? <svg className="st03nLineChart" viewBox={`0 0 ${width} ${chartHeight}`} role="img">
+        {[0, .25, .5, .75, 1].map((tick) => <line key={tick} x1={left} x2={width - right} y1={top + tick * innerH} y2={top + tick * innerH} />)}
+        {series.map((item) => {
+          const points = data.map((row, index) => `${x(index)},${y(row[item.key])}`).join(' ')
+          return <polyline key={item.key} className={item.key} points={points} />
         })}
+        {data.map((row, index) => <text key={`${row.name}-${index}`} x={x(index)} y={chartHeight - 10}>{index + 1}</text>)}
+      </svg> : <p>No parsed ST03N rows available.</p>}
+      <div className="st03nLegend">{series.map((item) => <span className={item.key} key={item.key}>{item.label}</span>)}</div>
+    </section>
+  )
+}
+
+function DataTable({ title, subtitle, rows = [], columns = [] }) {
+  return (
+    <section className="rcaFinalCard rcaFinalTableCard st03nDataTable">
+      <div className="rcaFinalPanelTitle"><h2>{title}</h2><span>{subtitle}</span></div>
+      <div className="rcaFinalTableWrap">
+        <table>
+          <thead><tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((row, index) => <tr key={`${title}-${row.name}-${index}`}>{columns.map((column) => <td key={column.key}>{column.render ? column.render(row, index) : row[column.key]}</td>)}</tr>)}
+          </tbody>
+        </table>
       </div>
     </section>
   )
 }
 
-function BasisInterpretation({ analysis, status }) {
-  const top = analysis?.top
-  return (
-    <section className="rcaFinalCard rcaFinalInsightBlock">
-      <div className="rcaFinalPanelTitle"><h2>Basis Interpretation</h2><span>RCA Signal</span></div>
-      {top ? <>
-        <p><b>{top.label}</b> is the strongest parsed workload signal. Dominant component is <b>{analysis.dominant || top.component}</b>.</p>
-        <div className="rcaFinalMetricRows">
-          <span>Score<b>{top.score}/100</b></span>
-          <span>Response<b>{fmt(top.responseMs, 0)}ms</b></span>
-          <span>DB Share<b>{fmt(top.dbShare)}%</b></span>
-        </div>
-        <p className="rcaFinalAction">{analysis.nextAction}</p>
-      </> : <p>{status}</p>}
-    </section>
-  )
+function WorkloadOverview({ rows = [] }) {
+  const grouped = Object.values(graphRows(rows, rows.length).reduce((acc, row) => {
+    const key = row.taskType || 'Dialog'
+    if (!acc[key]) acc[key] = { taskType: key, steps: 0, response: 0, db: 0, wait: 0, cpu: 0, count: 0 }
+    acc[key].steps += row.steps
+    acc[key].response += row.response
+    acc[key].db += row.db
+    acc[key].wait += row.wait
+    acc[key].cpu += row.cpu
+    acc[key].count += 1
+    return acc
+  }, {})).map((item) => ({ ...item, response: Math.round(item.response / item.count), db: Math.round(item.db / item.count), wait: Math.round(item.wait / item.count), cpu: Math.round(item.cpu / item.count) })).slice(0, 6)
+  return <DataTable title="Workload Overview" subtitle="By task type" rows={grouped} columns={[
+    { key: 'taskType', label: 'Task Type' },
+    { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
+    { key: 'response', label: 'Avg Response', render: (row) => `${fmt(row.response, 0)} ms` },
+    { key: 'db', label: 'Avg DB', render: (row) => `${fmt(row.db, 0)} ms` },
+    { key: 'wait', label: 'Avg Wait', render: (row) => `${fmt(row.wait, 0)} ms` },
+    { key: 'cpu', label: 'Avg CPU', render: (row) => `${fmt(row.cpu, 0)} ms` },
+  ]} />
 }
 
-function EvidenceSummary({ analysis }) {
+function St03nTables({ rows = [] }) {
+  const data = graphRows(rows, rows.length || 1)
+  const topResponse = [...data].sort((a, b) => b.response - a.response).slice(0, 8)
+  const topDb = [...data].sort((a, b) => b.db - a.db).slice(0, 8)
+  const transactionRows = [...data].sort((a, b) => b.steps - a.steps).slice(0, 8)
+  const responseColumns = [
+    { key: 'rank', label: '#', render: (_row, index) => index + 1 },
+    { key: 'name', label: 'Program / TCode' },
+    { key: 'taskType', label: 'Task Type' },
+    { key: 'response', label: 'Total Response', render: (row) => `${fmt(row.response, 0)} ms` },
+    { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
+    { key: 'wait', label: 'Wait', render: (row) => `${fmt(row.wait, 0)} ms` },
+    { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
+  ]
   return (
-    <section className="rcaFinalCard">
-      <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Cached / Parsed</span></div>
-      <div className="rcaFinalMiniFacts">
-        <div><span>Rows</span><b>{fmt(analysis?.rows?.length || 0, 0)}</b></div>
-        <div><span>Files</span><b>{fmt(analysis?.files?.length || 0, 0)}</b></div>
-        <div><span>Created</span><b>{analysis?.createdAt ? new Date(analysis.createdAt).toLocaleString() : '-'}</b></div>
+    <>
+      <div className="st03nTwoCol">
+        <DataTable title="Top Offender" subtitle="By total response time" rows={topResponse} columns={responseColumns} />
+        <DataTable title="Top DB Accesses" subtitle="By logical DB contribution" rows={topDb} columns={[
+          { key: 'rank', label: '#', render: (_row, index) => index + 1 },
+          { key: 'name', label: 'Program / TCode' },
+          { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
+          { key: 'response', label: 'Response', render: (row) => `${fmt(row.response, 0)} ms` },
+          { key: 'steps', label: 'Steps', render: (row) => fmt(row.steps, 0) },
+        ]} />
       </div>
-    </section>
-  )
-}
-
-function BreakdownChart({ rows = [] }) {
-  const data = graphRows(rows, 7)
-  const maxValue = Math.max(1, ...data.map((row) => row.effective))
-  return (
-    <section className="rcaFinalCard rcaFinalChartCard">
-      <div className="rcaFinalPanelTitle"><h2>Response Time Breakdown / Top Offender</h2><span>ms by component</span></div>
-      {data.length ? <div className="rcaLiteBars st03nBars">
-        {data.map((row) => {
-          const dbPct = Math.max(1, Math.min(100, (row.db / maxValue) * 100))
-          const waitPct = Math.max(1, Math.min(100, (row.wait / maxValue) * 100))
-          const cpuPct = Math.max(1, Math.min(100, (row.cpu / maxValue) * 100))
-          return <div className="rcaLiteBarRow" key={`${row.name}-${row.score}-${row.effective}`}>
-            <div className="rcaLiteBarLabel" title={row.name}>{row.name}</div>
-            <div className="rcaLiteBarTrack">
-              <span className="db" style={{ width: `${dbPct}%` }} title={`DB ${fmt(row.db, 0)}ms`} />
-              <span className="wait" style={{ width: `${waitPct}%` }} title={`Wait ${fmt(row.wait, 0)}ms`} />
-              <span className="cpu" style={{ width: `${cpuPct}%` }} title={`CPU ${fmt(row.cpu, 0)}ms`} />
-            </div>
-            <div className="rcaLiteBarValue">{fmt(row.effective, 0)}ms</div>
-          </div>
-        })}
-        <div className="rcaLiteLegend"><span className="db">DB</span><span className="wait">Wait</span><span className="cpu">CPU</span></div>
-      </div> : <p>No parsed metric rows available.</p>}
-    </section>
-  )
-}
-
-function TopOffenderCompactTable({ rows = [] }) {
-  return (
-    <section className="rcaFinalCard rcaFinalTableCard">
-      <div className="rcaFinalPanelTitle"><h2>Top Offender Table</h2><span>Basis Review Queue</span></div>
-      <St03nOffenderTable rows={rows.slice(0, 10)} />
-    </section>
-  )
-}
-
-function OffenderQueue({ rows = [] }) {
-  const items = graphRows(rows, 5)
-  return (
-    <section className="rcaFinalCard">
-      <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Top Signals</span></div>
-      <div className="rcaFinalList">
-        {items.map((row, index) => <div key={`${row.name}-${index}`}><b>#{index + 1} {row.name}</b><span>{dominantKind(row)} dominant · Score {row.score}/100</span><small>Effective {fmt(row.effective, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms · Steps {fmt(row.steps, 0)}</small></div>)}
+      <div className="st03nThreeCol">
+        <SeriesChart title="Response Time" rows={topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={160} />
+        <SeriesChart title="DB Time" rows={topDb} series={[{ key: 'db', label: 'DB Time' }]} height={160} />
+        <SeriesChart title="Wait Time" rows={data} series={[{ key: 'wait', label: 'Wait Time' }]} height={160} />
       </div>
-    </section>
+      <DataTable title="Transaction Profile Standard" subtitle="Parsed workload records" rows={transactionRows} columns={[
+        { key: 'name', label: 'Transaction / Report' },
+        { key: 'taskType', label: 'Task Type' },
+        { key: 'response', label: 'Avg Response', render: (row) => `${fmt(row.response, 0)} ms` },
+        { key: 'db', label: 'DB Time', render: (row) => `${fmt(row.db, 0)} ms` },
+        { key: 'cpu', label: 'CPU Time', render: (row) => `${fmt(row.cpu, 0)} ms` },
+        { key: 'wait', label: 'Wait Time', render: (row) => `${fmt(row.wait, 0)} ms` },
+        { key: 'steps', label: 'Dialog Steps', render: (row) => fmt(row.steps, 0) },
+      ]} />
+    </>
   )
 }
 
 export default function St03nPage() {
-  const [session] = React.useState(latestRcaSession)
   const [files, setFiles] = React.useState([])
   const [busy, setBusy] = React.useState(false)
-  const [status, setStatus] = React.useState('Upload ST03N pack or ZIP to validate workload impact.')
+  const [status, setStatus] = React.useState('Upload ST03N evidence pack to render workload data.')
   const [analysis, setAnalysis] = React.useState(() => loadJson(CACHE_KEY, null))
-  const [serverInfo, setServerInfo] = React.useState(null)
-
-  React.useEffect(() => {
-    let active = true
-    getRecentEvidence({ tool: 'investigation', limit: 5 }).then((response) => { if (active) setServerInfo(response) })
-    return () => { active = false }
-  }, [])
-
-  const detected = React.useMemo(() => {
-    const map = Object.fromEntries(REQUIRED_ST03N.map((item) => [item.key, []]))
-    files.forEach((file) => {
-      const key = classifySt03nFile(file.name)
-      if (key) map[key].push(file)
-    })
-    return map
-  }, [files])
 
   const analyze = async (nextFiles = files) => {
     setBusy(true)
@@ -231,7 +260,7 @@ export default function St03nPage() {
         }
       }
       rows.sort((a, b) => b.score - a.score)
-      const result = buildSt03nAnalysis(nextFiles.map((file) => ({ name: file.name, size: file.size })), parseStatus, rows, serverInfo)
+      const result = buildSt03nAnalysis(nextFiles.map((file) => ({ name: file.name, size: file.size })), parseStatus, rows, null)
       setAnalysis(result)
       saveJson(CACHE_KEY, result)
       setStatus('ST03N analysis complete.')
@@ -255,36 +284,37 @@ export default function St03nPage() {
     }
   }
 
-  const topRows = analysis?.rows?.slice(0, 12) || []
+  const rows = analysis?.rows || []
   const displayedFiles = files.length ? files : (analysis?.files || [])
+  const stats = pageStats(rows)
+  const period = evidencePeriod(displayedFiles)
 
   return (
-    <section className="rcaFinalShell st03nImpactShell">
-      <FinalHero busy={busy} onFiles={onFiles} />
-      <SessionBanner session={session} />
-      <EvidenceToolbar analysis={analysis} cacheKey={CACHE_KEY} reportText={buildReportText(analysis)} filenamePrefix="sap-st03n-impact-final" />
-      <section className="rcaFinalKpiStrip">
-        <DecisionCard label="Impact Verdict" value={analysis?.verdict || 'Pending'} hint={analysis?.nextAction || status} tone={analysis?.verdict === 'Detected' ? 'good' : ''} />
-        <DecisionCard label="Dominant Component" value={analysis?.dominant || 'Unknown'} hint="Derived from response, DB, wait, and CPU columns" tone="blue" />
-        <DecisionCard label="Confidence" value={`${analysis?.confidence || 0}%`} hint={analysis?.correlation || 'Pending upload'} />
-        <DecisionCard label="Completeness" value={`${analysis?.completeness || 0}%`} hint="Required ST03N evidence coverage" />
-      </section>
-      {analysis ? <div className="rcaFinalMainGrid">
-        <main className="rcaFinalMainCol">
-          <BreakdownChart rows={topRows} />
-          <TopOffenderCompactTable rows={topRows} />
-        </main>
-        <aside className="rcaFinalInsightCol">
-          <BasisInterpretation analysis={analysis} status={status} />
-          <ParseStatusPanel analysis={analysis} detected={detected} />
-          <EvidenceSummary analysis={analysis} />
-          <OffenderQueue rows={topRows} />
-        </aside>
-      </div> : <EmptyState title="Upload ST03N evidence pack"><p>Upload Time Profile, Workload, Transaction Standard, Top Response, and Top DB evidence. The dashboard uses uploaded files and cache only; no dummy RCA data is generated.</p></EmptyState>}
-      <div className="rcaFinalFooterGrid">
-        <UploadedFilesPanel files={displayedFiles} />
-        <EvidenceServerPanel serverInfo={serverInfo} />
-      </div>
+    <section className="rcaFinalShell st03nImpactShell st03nTechnicalPage">
+      <St03nHeader busy={busy} files={files} analysis={analysis} onFiles={onFiles} />
+      <St03nTabs />
+      <KpiStrip analysis={analysis} stats={stats} period={period} />
+      {analysis ? <>
+        <div className="st03nTwoCol wideLeft">
+          <SeriesChart title="Time Profile (Dialog Steps)" rows={rows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
+          <WorkloadOverview rows={rows} />
+        </div>
+        <St03nTables rows={rows} />
+        <div className="rcaFinalFooterGrid st03nFooterCompact">
+          <UploadedFilesPanel files={displayedFiles} />
+          <section className="rcaFinalCard">
+            <div className="rcaFinalPanelTitle"><h2>Parse Status</h2><span>Required ST03N files</span></div>
+            <div className="rcaFinalStatusList">
+              {REQUIRED_ST03N.map((required) => {
+                const parsed = analysis?.parseStatus?.filter((item) => item.key === required.key) || []
+                const okStatus = parsed.find((item) => item.ok)
+                const cachedFile = displayedFiles.find((file) => classifySt03nFile(file.name) === required.key)
+                return <div key={required.key} className={okStatus ? 'ok' : cachedFile ? 'detected' : 'missing'}><b>{required.label}</b><span>{okStatus ? 'Ready' : cachedFile ? 'Detected' : 'Missing'}</span><small>{cachedFile?.name || parsed[0]?.message || 'missing'}</small></div>
+              })}
+            </div>
+          </section>
+        </div>
+      </> : <EmptyState title="Upload ST03N evidence pack"><p>{status} Required evidence: Time Profile, Workload Overview, Transaction Profile Standard, Top Response Time, and Top DB Accesses.</p></EmptyState>}
     </section>
   )
 }
