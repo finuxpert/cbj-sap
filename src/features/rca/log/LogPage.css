@@ -1,0 +1,73 @@
+.logTechnicalPage .logTechnicalHero h1{
+  letter-spacing:-.04em;
+}
+
+.logTechnicalPage .logFilterBar input[readonly]{
+  text-overflow:ellipsis;
+}
+
+.logTechnicalPage .logKpiGrid{
+  grid-template-columns:repeat(6,minmax(0,1fr));
+}
+
+.logTechnicalPage .logKpi.hot{
+  border-left:4px solid #dc2626;
+}
+
+.logTechnicalPage .logKpi b{
+  font-size:18px;
+}
+
+.logTechnicalPage .logKpi small{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.logTechnicalPage .logDataTable .rcaFinalTableWrap table{
+  min-width:980px;
+}
+
+.logTechnicalPage .logDataTable th,
+.logTechnicalPage .logDataTable td{
+  font-size:11px;
+  padding-left:8px;
+  padding-right:8px;
+}
+
+.logTechnicalPage .rcaLiteBarTrack .db{
+  background:#0f766e;
+}
+
+.logTechnicalPage .rcaLiteTrend{
+  min-height:230px;
+}
+
+.logTechnicalPage .logFooterCompact{
+  grid-template-columns:1fr 1fr;
+  margin-top:12px;
+}
+
+.logTechnicalPage .rcaFinalMiniFacts{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+}
+
+.logTechnicalPage .rcaFinalMiniFacts div{
+  min-height:64px;
+}
+
+@media(max-width:1180px){
+  .logTechnicalPage .logKpiGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media(max-width:860px){
+  .logTechnicalPage .logKpiGrid,
+  .logTechnicalPage .logFooterCompact,
+  .logTechnicalPage .rcaFinalMiniFacts{
+    grid-template-columns:1fr;
+  }
+}
