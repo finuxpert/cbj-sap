@@ -66,7 +66,7 @@ function rowsForTab(rows = [], activeTab = 'Time Profile') {
 }
 
 function graphRows(rows = [], limit = 12) {
-  return rows.slice(0, limit).map((row, index) => {
+  const data = rows.slice(0, limit).map((row, index) => {
     const response = metric(row, 'response', 'responseMs')
     const db = metric(row, 'db', 'dbMs')
     const wait = metric(row, 'wait', 'waitMs')
@@ -85,6 +85,12 @@ function graphRows(rows = [], limit = 12) {
       effective: Math.max(response, db + wait + cpu),
     }
   })
+  const buckets = data.map((row) => row.bucket).filter(Boolean)
+  const uniqueBuckets = new Set(buckets)
+  if (buckets.length > 1 && uniqueBuckets.size <= 1) {
+    return data.map((row, index) => ({ ...row, bucket: String(index + 1).padStart(2, '0') }))
+  }
+  return data
 }
 
 function evidencePeriod(files = []) {
@@ -173,7 +179,7 @@ function KpiStrip({ analysis, stats, period }) {
   return <section className="st03nKpiGrid">{kpis.map(([label, value, hint, tone]) => <div className={`st03nKpi ${tone || ''}`} key={label}><span>{label}</span><b>{value}</b><small>{hint}</small></div>)}</section>
 }
 
-function SeriesChart({ title, subtitle = 'Parsed time sequence', rows = [], series = [], height = 220 }) {
+function SeriesChart({ title, subtitle = 'Parsed source sequence', rows = [], series = [], height = 220 }) {
   const data = graphRows(rows, 10)
   const maxValue = Math.max(1, ...data.flatMap((row) => series.map((item) => Number(row[item.key] || 0))))
   const width = 1000
@@ -244,7 +250,8 @@ function WorkloadOverview({ rows = [], full = false }) {
 }
 
 function preparedTables(rows = []) {
-  const data = graphRows(rows, rows.length || 1)
+  const sourceRows = [...rows].sort((a, b) => (Number(a.sourceIndex) || 0) - (Number(b.sourceIndex) || 0))
+  const data = graphRows(sourceRows, sourceRows.length || 1)
   const topResponse = [...data].sort((a, b) => b.response - a.response).slice(0, 10)
   const topDb = [...data].sort((a, b) => b.db - a.db).slice(0, 10)
   const transactionRows = [...data].sort((a, b) => b.steps - a.steps).slice(0, 12)
@@ -304,13 +311,13 @@ function St03nTabContent({ activeTab, rows = [] }) {
   if (activeTab === 'Top Response Time') {
     return <>
       <TopResponseTable rows={tabRows} />
-      <SeriesChart title="Top Response Time Trend" rows={topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={190} />
+      <SeriesChart title="Top Response Time Profile" rows={data.length ? data : topResponse} series={[{ key: 'response', label: 'Response Time' }]} height={190} />
     </>
   }
   if (activeTab === 'Top DB Accesses') {
     return <>
       <TopDbTable rows={tabRows} />
-      <SeriesChart title="Top DB Time Trend" rows={topDb} series={[{ key: 'db', label: 'DB Time' }]} height={190} />
+      <SeriesChart title="Top DB Time Profile" rows={data.length ? data : topDb} series={[{ key: 'db', label: 'DB Time' }]} height={190} />
     </>
   }
   if (activeTab === 'Transaction Profile') {
@@ -318,7 +325,7 @@ function St03nTabContent({ activeTab, rows = [] }) {
   }
   return <>
     <div className="st03nTwoCol wideLeft">
-      <SeriesChart title="Time Profile (Dialog Steps)" subtitle="Parsed time sequence" rows={tabRows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
+      <SeriesChart title="Time Profile (Dialog Steps)" rows={tabRows} series={[{ key: 'response', label: 'Response Time' }, { key: 'db', label: 'DB Time' }, { key: 'wait', label: 'Wait Time' }]} />
       <WorkloadOverview rows={tabRows} />
     </div>
     <div className="st03nTwoCol">
@@ -353,7 +360,6 @@ export default function St03nPage() {
           parseStatus.push(parsed.status)
         }
       }
-      rows.sort((a, b) => b.score - a.score)
       const result = buildSt03nAnalysis(nextFiles.map((file) => ({ name: file.name, size: file.size })), parseStatus, rows, null)
       setAnalysis(result)
       saveJson(CACHE_KEY, result)
