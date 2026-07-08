@@ -1,6 +1,5 @@
 import React from 'react'
 import { tools, preloadTool } from '../tools'
-import sapRcaLogo from '../assets/sap-rca-workspace-logo.svg'
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
@@ -30,7 +29,12 @@ export default function Navbar() {
       <header className="navbar rcaNav finalNav compactRcaTopbar">
         <div className="navInner rcaNavInner compactRcaTopbarInner">
           <a className="brand rcaBrand compactRcaBrand" href="#/st03n" aria-label="SAP RCA Workspace home">
-            <img className="compactRcaLogo" src={sapRcaLogo} alt="SAP RCA Workspace" />
+            <span className="rcaLogoMark" aria-hidden="true"><b>&gt;</b><i /></span>
+            <span className="rcaLogoDivider" aria-hidden="true" />
+            <span className="brandText">
+              <span className="brandTitle">SAP RCA Workspace</span>
+              <span className="brandSub"><span className="brandMiniIcon">▥</span> ST03N &amp; Log Evidence Console</span>
+            </span>
           </a>
 
           <div className="compactRcaCrumb" aria-label="Current RCA module">
