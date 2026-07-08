@@ -1,6 +1,8 @@
 import React from 'react'
 import './SortableTablesEnhancer.css'
 
+const LOG_CACHE_KEY = 'sap_log_evidence_v2_cache'
+
 function normalizeCellValue(value = '') {
   const raw = String(value || '').trim()
   if (!raw) return { type: 'empty', value: '' }
@@ -37,6 +39,126 @@ function compareValues(aText, bText, direction) {
   return String(a.value).localeCompare(String(b.value), undefined, { numeric: true, sensitivity: 'base' }) * multiplier
 }
 
+function readLogCache() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(LOG_CACHE_KEY) || 'null')
+    return Array.isArray(parsed?.rows) ? parsed.rows : []
+  } catch (_error) {
+    return []
+  }
+}
+
+function tableTitle(table) {
+  return table.closest('.rcaFinalTableCard, .rcaFinalCard')?.querySelector('.rcaFinalPanelTitle h2, h2')?.textContent?.trim() || ''
+}
+
+function headerIndex(table, label) {
+  const headers = Array.from(table.querySelectorAll('thead th'))
+  return headers.findIndex((th) => th.textContent.trim().toLowerCase() === label.toLowerCase())
+}
+
+function insertHeaderAfter(table, afterLabel, label) {
+  if (headerIndex(table, label) >= 0) return headerIndex(table, label)
+  const headRow = table.querySelector('thead tr')
+  if (!headRow) return -1
+  const th = document.createElement('th')
+  th.textContent = label
+  const afterIdx = headerIndex(table, afterLabel)
+  const afterNode = afterIdx >= 0 ? headRow.children[afterIdx] : null
+  if (afterNode?.nextSibling) headRow.insertBefore(th, afterNode.nextSibling)
+  else headRow.appendChild(th)
+  return headerIndex(table, label)
+}
+
+function insertCellAfter(row, afterIdx, value) {
+  const td = document.createElement('td')
+  td.textContent = value
+  if (row.children[afterIdx]?.nextSibling) row.insertBefore(td, row.children[afterIdx].nextSibling)
+  else row.appendChild(td)
+}
+
+function uniqueJoined(values = [], limit = 4) {
+  return Array.from(new Set(values.map((value) => String(value || '').trim()).filter(Boolean))).slice(0, limit).join(' · ') || '-'
+}
+
+function formatGb(value) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? `${Number(number.toFixed(1))} GB` : '-'
+}
+
+function formatMemPct(row) {
+  const rss = Number(row?.rssGb) || 0
+  const total = Number(row?.physicalMemGb) || 0
+  if (!rss || !total) return '-'
+  return `${Number(((rss / total) * 100).toFixed(1))}%`
+}
+
+function augmentJobProgramTable(table, rows) {
+  if (table.dataset.pidAugmented === 'true') return
+  if (!tableTitle(table).toLowerCase().includes('job / program mapping')) return
+  const jobIdx = headerIndex(table, 'Job Name')
+  if (jobIdx < 0) return
+
+  insertHeaderAfter(table, 'Job Name', 'PID')
+  const pidMap = new Map()
+  rows.forEach((row) => {
+    const job = String(row.jobName || '').trim()
+    if (!job || job === '?') return
+    const current = pidMap.get(job) || []
+    if (row.pid) current.push(row.pid)
+    pidMap.set(job, current)
+  })
+
+  Array.from(table.querySelectorAll('tbody tr')).forEach((tr) => {
+    if (tr.dataset.pidAugmented === 'true') return
+    const job = tr.children[jobIdx]?.textContent?.trim() || ''
+    insertCellAfter(tr, jobIdx, uniqueJoined(pidMap.get(job) || [], 6))
+    tr.dataset.pidAugmented = 'true'
+  })
+
+  table.dataset.pidAugmented = 'true'
+  table.dataset.sortEnhanced = ''
+}
+
+function augmentLongRunningTable(table, rows) {
+  if (table.dataset.memAugmented === 'true') return
+  if (!tableTitle(table).toLowerCase().includes('long running work process')) return
+
+  const timeIdx = headerIndex(table, 'Time')
+  const hostIdx = headerIndex(table, 'APP Server')
+  const pidIdx = headerIndex(table, 'PID')
+  const wpIdx = headerIndex(table, 'WP')
+  const cpuIdx = headerIndex(table, 'CPU %')
+  if ([timeIdx, hostIdx, pidIdx, wpIdx, cpuIdx].some((idx) => idx < 0)) return
+
+  insertHeaderAfter(table, 'CPU %', 'RSS GB')
+  insertHeaderAfter(table, 'RSS GB', 'MEM %')
+
+  Array.from(table.querySelectorAll('tbody tr')).forEach((tr) => {
+    if (tr.dataset.memAugmented === 'true') return
+    const time = tr.children[timeIdx]?.textContent?.trim() || ''
+    const host = tr.children[hostIdx]?.textContent?.trim() || ''
+    const pid = tr.children[pidIdx]?.textContent?.trim() || ''
+    const wp = tr.children[wpIdx]?.textContent?.trim() || ''
+    const sourceRow = rows.find((row) => String(row.timeLabel || '') === time && String(row.host || '') === host && String(row.pid || '') === pid && String(row.wp || '') === wp)
+    insertCellAfter(tr, cpuIdx, formatGb(sourceRow?.rssGb))
+    insertCellAfter(tr, cpuIdx + 1, formatMemPct(sourceRow))
+    tr.dataset.memAugmented = 'true'
+  })
+
+  table.dataset.memAugmented = 'true'
+  table.dataset.sortEnhanced = ''
+}
+
+function augmentEvidenceTables() {
+  const rows = readLogCache()
+  if (!rows.length) return
+  document.querySelectorAll('.rcaFinalTableWrap table').forEach((table) => {
+    augmentJobProgramTable(table, rows)
+    augmentLongRunningTable(table, rows)
+  })
+}
+
 function enhanceTable(table) {
   if (!table || table.dataset.sortEnhanced === 'true') return
   const headers = Array.from(table.querySelectorAll('thead th'))
@@ -47,11 +169,13 @@ function enhanceTable(table) {
   table.classList.add('sortableEvidenceTable')
 
   headers.forEach((th, index) => {
+    if (th.dataset.sortListener === 'true') return
     th.classList.add('sortableHeader')
     th.tabIndex = 0
     th.setAttribute('role', 'button')
     th.setAttribute('aria-sort', 'none')
     th.title = 'Click to sort ascending/descending'
+    th.dataset.sortListener = 'true'
 
     const applySort = () => {
       const currentDirection = th.dataset.sortDirection === 'asc' ? 'desc' : 'asc'
@@ -62,13 +186,13 @@ function enhanceTable(table) {
       th.dataset.sortDirection = currentDirection
       th.setAttribute('aria-sort', currentDirection === 'asc' ? 'ascending' : 'descending')
 
-      const rows = Array.from(tbody.querySelectorAll('tr'))
-      rows.sort((rowA, rowB) => {
+      const bodyRows = Array.from(tbody.querySelectorAll('tr'))
+      bodyRows.sort((rowA, rowB) => {
         const cellA = rowA.children[index]?.innerText || ''
         const cellB = rowB.children[index]?.innerText || ''
         return compareValues(cellA, cellB, currentDirection)
       })
-      rows.forEach((row) => tbody.appendChild(row))
+      bodyRows.forEach((row) => tbody.appendChild(row))
     }
 
     th.addEventListener('click', applySort)
@@ -81,6 +205,7 @@ function enhanceTable(table) {
 }
 
 function enhanceAllTables() {
+  augmentEvidenceTables()
   document.querySelectorAll('.rcaFinalTableWrap table').forEach(enhanceTable)
 }
 
