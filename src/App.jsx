@@ -5,9 +5,10 @@ import useRoute from './app/useRoute.js'
 import { installEnterpriseRcaMockup } from './tools/installEnterpriseRcaMockup.js'
 import { installEnterpriseRcaPhase2 } from './tools/installEnterpriseRcaPhase2.js'
 import { installEnterpriseRcaPhase3 } from './tools/installEnterpriseRcaPhase3.js'
+import { installEnterpriseRcaPhase4 } from './tools/installEnterpriseRcaPhase4.js'
 import './tools/EnterpriseRcaMockup.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-compact-rca-phase3'
+const APP_BUILD_STAMP = 'sap-20260708-compact-rca-phase4'
 
 export default function App() {
   const route = useRoute()
@@ -18,6 +19,7 @@ export default function App() {
     installEnterpriseRcaMockup()
     installEnterpriseRcaPhase2()
     installEnterpriseRcaPhase3()
+    installEnterpriseRcaPhase4()
   }, [route.name])
 
   return (
