@@ -1,0 +1,101 @@
+:root{
+  --rca-topbar:#0f171d;
+  --rca-sidebar:#ffffff;
+  --rca-bg:#f3f7fb;
+  --rca-border:#dbe5ef;
+  --rca-text:#0f172a;
+  --rca-muted:#64748b;
+  --rca-blue:#2563eb;
+  --rca-sidebar-width:176px;
+  --rca-topbar-height:64px;
+}
+
+html,body,#root{background:var(--rca-bg)!important;}
+
+.compactRcaApp{min-height:100vh;background:var(--rca-bg)!important;color:var(--rca-text)!important;}
+.compactRcaApp main{margin-left:var(--rca-sidebar-width)!important;padding-top:var(--rca-topbar-height)!important;background:var(--rca-bg)!important;min-height:100vh;}
+.compactRcaApp .fullBleed{width:100%!important;background:var(--rca-bg)!important;}
+
+.compactRcaTopbar{
+  position:fixed!important;
+  inset:0 0 auto 0!important;
+  z-index:100!important;
+  height:var(--rca-topbar-height)!important;
+  min-height:var(--rca-topbar-height)!important;
+  background:var(--rca-topbar)!important;
+  border:0!important;
+  box-shadow:0 8px 24px rgba(15,23,42,.18)!important;
+}
+.compactRcaTopbarInner{
+  height:var(--rca-topbar-height)!important;
+  max-width:none!important;
+  padding:0 22px 0 58px!important;
+  display:grid!important;
+  grid-template-columns:330px minmax(240px,1fr) auto 44px!important;
+  align-items:center!important;
+  gap:16px!important;
+}
+.compactRcaBrand{display:inline-flex!important;align-items:center!important;gap:12px!important;color:#fff!important;text-decoration:none!important;min-width:0;}
+.sapBadge{display:inline-grid!important;place-items:center!important;width:42px!important;height:24px!important;border-radius:6px 14px 6px 6px!important;background:linear-gradient(135deg,#0ea5ff,#0066cc)!important;color:#fff!important;font-size:12px!important;font-weight:950!important;letter-spacing:-.04em!important;}
+.compactRcaBrand .brandText{display:flex!important;flex-direction:column!important;min-width:0!important;}
+.compactRcaBrand .brandTitle{color:#fff!important;font-size:15px!important;font-weight:900!important;line-height:1.05!important;white-space:nowrap!important;}
+.compactRcaBrand .brandSub{color:#cbd5e1!important;font-size:10px!important;font-weight:700!important;line-height:1.1!important;white-space:nowrap!important;}
+.compactRcaToolTabs{display:flex!important;justify-content:center!important;align-items:center!important;gap:10px!important;height:var(--rca-topbar-height)!important;}
+.compactRcaToolTabs a{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:8px!important;min-width:94px!important;height:34px!important;padding:0 16px!important;border:1px solid rgba(148,163,184,.18)!important;border-radius:10px!important;background:rgba(255,255,255,.04)!important;color:#dbeafe!important;text-decoration:none!important;font-size:12px!important;font-weight:900!important;}
+.compactRcaToolTabs a[data-active="true"]{background:#17324a!important;border-color:#38bdf8!important;color:#fff!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)!important;}
+.compactRcaUtility{display:flex!important;align-items:center!important;gap:10px!important;color:#dbeafe!important;}
+.compactRcaUtility span,.compactRcaUtility strong{display:none!important;}
+.compactRcaUtility small{font-size:10px!important;line-height:1.1!important;color:#94a3b8!important;font-weight:800!important;}
+.mobileBtn{width:38px!important;height:38px!important;display:inline-grid!important;place-items:center!important;border:1px solid rgba(148,163,184,.22)!important;border-radius:10px!important;background:rgba(255,255,255,.05)!important;color:#fff!important;font-size:20px!important;}
+
+.compactRcaSidebar{
+  position:fixed!important;
+  z-index:90!important;
+  top:var(--rca-topbar-height)!important;
+  bottom:0!important;
+  left:0!important;
+  width:var(--rca-sidebar-width)!important;
+  display:flex!important;
+  flex-direction:column!important;
+  overflow:hidden!important;
+  background:var(--rca-sidebar)!important;
+  border-right:1px solid var(--rca-border)!important;
+  box-shadow:7px 0 18px rgba(15,23,42,.04)!important;
+  color:var(--rca-text)!important;
+}
+.sidebarTopGlyph{position:fixed!important;left:18px!important;top:17px!important;z-index:120!important;color:rgba(255,255,255,.72)!important;font-size:16px!important;line-height:.7!important;letter-spacing:-4px!important;transform:rotate(90deg)!important;}
+.compactRcaSidebar nav{display:grid!important;gap:2px!important;padding:12px 0 8px!important;margin:0!important;}
+.compactRcaSidebar a,.compactRcaSidebar button{display:flex!important;align-items:center!important;gap:10px!important;width:100%!important;min-height:36px!important;padding:0 13px!important;border:0!important;background:transparent!important;color:#334155!important;text-decoration:none!important;font:800 11px/1.2 Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;cursor:pointer!important;}
+.compactRcaSidebar a span,.compactRcaSidebar button span{width:18px!important;min-width:18px!important;text-align:center!important;color:#64748b!important;font-size:13px!important;}
+.compactRcaSidebar a[data-active="true"]{background:#eaf3ff!important;color:#075bd8!important;}
+.compactRcaSidebar a[data-active="true"]::before{content:'';position:absolute;left:0;width:3px;height:24px;border-radius:0 999px 999px 0;background:var(--rca-blue);}
+.compactRcaSidebarBottom{margin-top:auto!important;border-top:1px solid var(--rca-border)!important;padding:8px 0 10px!important;}
+.compactRcaSidebarBottom button{color:#475569!important;}
+
+.rcaFinalShell{padding-top:14px!important;}
+
+.rcaFinalShell .evidenceToolbar button:disabled,
+.rcaFinalShell .evidenceToolbar button[disabled]{
+  opacity:1!important;
+  color:#94a3b8!important;
+  background:#f8fafc!important;
+  border:1px solid #e2e8f0!important;
+  cursor:not-allowed!important;
+}
+.rcaFinalShell .evidenceToolbar button:not(:disabled){color:#0f172a!important;background:#fff!important;border:1px solid #cbd5e1!important;}
+.rcaFinalShell .evidenceToolbar button:not(:disabled):hover{background:#eff6ff!important;border-color:#93c5fd!important;}
+.rcaFinalShell .st03nViewSwitch button:not(:disabled).active,
+.rcaFinalShell .st03nViewSwitch button.active{background:#0f172a!important;color:#fff!important;border-color:#0f172a!important;}
+
+.rcaFinalShell .emptyState,
+.rcaFinalShell .emptyState.card{min-height:96px!important;padding:24px!important;margin:0 0 12px!important;}
+.logEvidenceShell .rcaFinalFooterGrid{margin-top:10px!important;}
+.logEvidenceShell .rcaFinalFooterGrid .evidencePanel{min-height:116px!important;}
+.logEvidenceShell .rcaFinalKpiStrip{margin-bottom:10px!important;}
+
+@media(max-width:1100px){
+  .compactRcaApp main{margin-left:0!important;}
+  .compactRcaSidebar{display:none!important;}
+  .compactRcaTopbarInner{padding-left:18px!important;grid-template-columns:1fr auto 38px!important;}
+  .compactRcaUtility{display:none!important;}
+}
