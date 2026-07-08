@@ -596,3 +596,60 @@
 .logTechnicalPage .logLineFootnote{
   display:none!important;
 }
+
+/* Normalize LOG visual density with ST03N */
+.logTechnicalPage .rcaFinalShell,
+.logTechnicalPage{
+  font-size:12px;
+}
+
+.logTechnicalPage .rcaFinalCard{
+  padding:14px 16px;
+}
+
+.logTechnicalPage .rcaFinalPanelTitle h2,
+.logTechnicalPage .logDataTable .rcaFinalPanelTitle h2,
+.logTechnicalPage .st03nTwoCol .rcaFinalChartCard:not(.logLineCard) .rcaFinalPanelTitle h2,
+.logTechnicalPage .logLineCard .rcaFinalPanelTitle h2{
+  font-size:14.5px;
+}
+
+.logTechnicalPage .logDataTable th,
+.logTechnicalPage .logDataTable td,
+.logTechnicalPage .rcaFinalTableWrap th,
+.logTechnicalPage .rcaFinalTableWrap td{
+  font-size:12px;
+  padding-left:9px;
+  padding-right:9px;
+}
+
+.logTechnicalPage .rcaFinalTableWrap th,
+.logTechnicalPage .rcaFinalTableCard th{
+  height:35px;
+}
+
+.logTechnicalPage .rcaFinalTableWrap td,
+.logTechnicalPage .rcaFinalTableCard td{
+  height:42px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarLabel,
+.logTechnicalPage .st03nTwoCol .rcaLiteBarValue,
+.logTechnicalPage .rcaLiteBarLabel,
+.logTechnicalPage .rcaLiteBarValue{
+  font-size:12px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarRow,
+.logTechnicalPage .rcaLiteBarRow{
+  min-height:32px;
+}
+
+.logTechnicalPage .logLineLegend span{
+  font-size:11px;
+  min-height:25px;
+}
+
+.logTechnicalPage .logHostContext b{
+  font-size:12px;
+}
