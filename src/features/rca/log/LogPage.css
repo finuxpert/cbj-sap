@@ -223,6 +223,14 @@
   min-height:64px;
 }
 
+.logTechnicalPage .rcaFinalPanelTitle span{
+  display:none!important;
+}
+
+.logTechnicalPage .rcaFinalPanelTitle{
+  align-items:center;
+}
+
 /* System Resources polish */
 .logTechnicalPage .st03nTwoCol{
   gap:14px;
