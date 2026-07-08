@@ -4,7 +4,7 @@ import { tools } from './tools'
 import useRoute from './app/useRoute.js'
 import './tools/EnterpriseRcaShell.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-final-rca-dashboard-shell-fix'
+const APP_BUILD_STAMP = 'sap-20260708-rca-clean-shell-v1'
 
 export default function App() {
   const route = useRoute()
