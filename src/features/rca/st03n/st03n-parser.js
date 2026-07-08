@@ -158,9 +158,20 @@ function labelFromRow(row, nameColumn, fileName, index) {
   return candidate || `${fileName.replace(/\.[^.]+$/, '')} item ${index + 1}`
 }
 
+function timeValueFromRow(row, timeColumn, nameColumn) {
+  const explicit = safe(row?.[timeColumn])
+  if (explicit) return explicit
+
+  const nameValue = safe(row?.[nameColumn])
+  if (/\b(?:[01]?\d|2[0-3])[:.]\d{2}(?::\d{2})?\b/.test(nameValue)) return nameValue
+  if (/\b(?:[01]\d|2[0-3])[0-5]\d\b/.test(nameValue)) return nameValue
+  return ''
+}
+
 export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
   const keys = Object.keys(objects[0] || {})
   const cName = pickColumn(keys, [/transaction/, /report/, /program/, /task type/, /time interval/, /tcode/, /name/, /user/])
+  const cTime = pickColumn(keys, [/time interval/, /^time$/, /^hour$/, /period/, /start.*time/, /end.*time/, /timestamp/, /date.*time/, /^date$/])
   const cResp = pickColumn(keys, [/response.*ms/, /respon.*ms/, /average.*response/, /average.*respon/, /dialog step response/, /dialog step respon/, /response time/, /respon time/, /resp/, /elapsed/])
   const cDb = pickColumn(keys, [/database.*ms/, /db time/, /sequential reads time/, /direct reads time/, /^db$/, /database/])
   const cWait = pickColumn(keys, [/wait.*ms/, /roll wait/, /^wait$/])
@@ -170,6 +181,7 @@ export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
   const rawRows = objects
     .map((row, index) => {
       const label = labelFromRow(row, cName, fileName, index)
+      const time = timeValueFromRow(row, cTime, cName)
       const responseMs = toNumber(row[cResp], 0)
       const dbMs = toNumber(row[cDb], 0)
       const waitMs = toNumber(row[cWait], 0)
@@ -192,6 +204,10 @@ export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
         kind,
         fileName,
         label,
+        time,
+        hour: time,
+        interval: time,
+        bucket: time,
         responseMs,
         dbMs,
         waitMs,
@@ -201,7 +217,7 @@ export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
         dbShare,
         waitShare,
         component,
-        columns: { cName, cResp, cDb, cWait, cSteps, cCpu },
+        columns: { cName, cTime, cResp, cDb, cWait, cSteps, cCpu },
       }
     })
     .filter((row) => row.rawScore > 0)
