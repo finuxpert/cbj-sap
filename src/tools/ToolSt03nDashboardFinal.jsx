@@ -1,5 +1,4 @@
 import React from 'react'
-import ReactECharts from 'echarts-for-react'
 import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from './evidence-utils.js'
 import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from './EvidenceDecisionKit.jsx'
 import { buildSt03nAnalysis, classifySt03nFile, expandSt03nFiles, parseSt03nFile, REQUIRED_ST03N } from './parsers/st03nParser.js'
@@ -8,7 +7,6 @@ import './EnterpriseRcaFinal.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
-const GRAPH_COLORS = ['#2563eb', '#0f766e', '#f59e0b', '#9333ea', '#dc2626', '#0891b2']
 
 function compactLabel(value = '', max = 28) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
@@ -33,11 +31,10 @@ function dominantKind(row = {}) {
   return entries.sort((a, b) => b[1] - a[1])[0]?.[0] || 'Response'
 }
 
-function graphRows(rows = [], limit = 8) {
-  return rows.slice(0, limit).map((row, index) => ({
+function graphRows(rows = [], limit = 7) {
+  return rows.slice(0, limit).map((row) => ({
     ...row,
     name: rowLabel(row),
-    color: GRAPH_COLORS[index % GRAPH_COLORS.length],
     response: metric(row, 'response', 'responseMs'),
     db: metric(row, 'db', 'dbMs'),
     wait: metric(row, 'wait', 'waitMs'),
@@ -87,7 +84,7 @@ function ParseStatusPanel({ analysis, detected }) {
   const cachedFiles = analysis?.files || []
   return (
     <section className="rcaFinalCard">
-      <div className="rcaFinalPanelTitle"><h2>Parse Status</h2><span>Required pack</span></div>
+      <div className="rcaFinalPanelTitle"><h2>Parse Status</h2><span>Required Pack</span></div>
       <div className="rcaFinalStatusList">
         {REQUIRED_ST03N.map((required) => {
           const parsed = analysis?.parseStatus?.filter((item) => item.key === required.key) || []
@@ -109,7 +106,7 @@ function BasisInterpretation({ analysis, status }) {
   const top = analysis?.top
   return (
     <section className="rcaFinalCard rcaFinalInsightBlock">
-      <div className="rcaFinalPanelTitle"><h2>Basis Interpretation</h2><span>RCA signal</span></div>
+      <div className="rcaFinalPanelTitle"><h2>Basis Interpretation</h2><span>RCA Signal</span></div>
       {top ? <>
         <p><b>{top.label}</b> is the strongest parsed workload signal. Dominant component is <b>{analysis.dominant || top.component}</b>.</p>
         <div className="rcaFinalMetricRows">
@@ -126,7 +123,7 @@ function BasisInterpretation({ analysis, status }) {
 function EvidenceSummary({ analysis }) {
   return (
     <section className="rcaFinalCard">
-      <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Cached / parsed</span></div>
+      <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Cached / Parsed</span></div>
       <div className="rcaFinalMiniFacts">
         <div><span>Rows</span><b>{fmt(analysis?.rows?.length || 0, 0)}</b></div>
         <div><span>Files</span><b>{fmt(analysis?.files?.length || 0, 0)}</b></div>
@@ -137,29 +134,36 @@ function EvidenceSummary({ analysis }) {
 }
 
 function BreakdownChart({ rows = [] }) {
-  const data = graphRows(rows, 7).reverse()
-  const option = {
-    backgroundColor: 'transparent',
-    color: GRAPH_COLORS,
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#111827', borderWidth: 0, textStyle: { color: '#fff', fontSize: 12 } },
-    legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#475569', fontSize: 11 } },
-    grid: { left: 132, right: 24, top: 20, bottom: 42, containLabel: true },
-    xAxis: { type: 'value', axisLabel: { color: '#64748b', fontSize: 11 }, splitLine: { lineStyle: { color: '#e2e8f0', type: 'dashed' } } },
-    yAxis: { type: 'category', data: data.map((row) => row.name), axisLabel: { color: '#1e293b', fontSize: 11, fontWeight: 700 }, axisTick: { show: false }, axisLine: { show: false } },
-    series: [
-      { name: 'DB', type: 'bar', stack: 'total', data: data.map((row) => row.db), barWidth: 14 },
-      { name: 'Wait', type: 'bar', stack: 'total', data: data.map((row) => row.wait), barWidth: 14 },
-      { name: 'CPU', type: 'bar', stack: 'total', data: data.map((row) => row.cpu), barWidth: 14 },
-      { name: 'Response', type: 'bar', data: data.map((row) => row.response), barWidth: 8, itemStyle: { opacity: 0.35, borderRadius: [0, 6, 6, 0] } },
-    ],
-  }
-  return <section className="rcaFinalCard rcaFinalChartCard"><div className="rcaFinalPanelTitle"><h2>Response Time Breakdown / Top Offender</h2><span>ms by component</span></div>{data.length ? <ReactECharts option={option} style={{ height: 292, width: '100%' }} notMerge lazyUpdate /> : <p>No parsed metric rows available.</p>}</section>
+  const data = graphRows(rows, 7)
+  const maxValue = Math.max(1, ...data.map((row) => Math.max(row.response, row.db + row.wait + row.cpu)))
+  return (
+    <section className="rcaFinalCard rcaFinalChartCard">
+      <div className="rcaFinalPanelTitle"><h2>Response Time Breakdown / Top Offender</h2><span>ms by component</span></div>
+      {data.length ? <div className="rcaLiteBars st03nBars">
+        {data.map((row) => {
+          const dbPct = Math.max(1, Math.min(100, (row.db / maxValue) * 100))
+          const waitPct = Math.max(1, Math.min(100, (row.wait / maxValue) * 100))
+          const cpuPct = Math.max(1, Math.min(100, (row.cpu / maxValue) * 100))
+          return <div className="rcaLiteBarRow" key={`${row.name}-${row.score}-${row.response}`}>
+            <div className="rcaLiteBarLabel" title={row.name}>{row.name}</div>
+            <div className="rcaLiteBarTrack">
+              <span className="db" style={{ width: `${dbPct}%` }} title={`DB ${fmt(row.db, 0)}ms`} />
+              <span className="wait" style={{ width: `${waitPct}%` }} title={`Wait ${fmt(row.wait, 0)}ms`} />
+              <span className="cpu" style={{ width: `${cpuPct}%` }} title={`CPU ${fmt(row.cpu, 0)}ms`} />
+            </div>
+            <div className="rcaLiteBarValue">{fmt(row.response, 0)}ms</div>
+          </div>
+        })}
+        <div className="rcaLiteLegend"><span className="db">DB</span><span className="wait">Wait</span><span className="cpu">CPU</span></div>
+      </div> : <p>No parsed metric rows available.</p>}
+    </section>
+  )
 }
 
 function TopOffenderCompactTable({ rows = [] }) {
   return (
     <section className="rcaFinalCard rcaFinalTableCard">
-      <div className="rcaFinalPanelTitle"><h2>Top Offender Table</h2><span>Basis review queue</span></div>
+      <div className="rcaFinalPanelTitle"><h2>Top Offender Table</h2><span>Basis Review Queue</span></div>
       <St03nOffenderTable rows={rows.slice(0, 10)} />
     </section>
   )
@@ -169,7 +173,7 @@ function OffenderQueue({ rows = [] }) {
   const items = graphRows(rows, 5)
   return (
     <section className="rcaFinalCard">
-      <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Top signals</span></div>
+      <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Top Signals</span></div>
       <div className="rcaFinalList">
         {items.map((row, index) => <div key={`${row.name}-${index}`}><b>#{index + 1} {row.name}</b><span>{dominantKind(row)} dominant · Score {row.score}/100</span><small>Response {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms · Steps {fmt(row.steps, 0)}</small></div>)}
       </div>
