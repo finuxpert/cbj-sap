@@ -2,8 +2,9 @@ import React from 'react'
 import Navbar from './components/Navbar.jsx'
 import { tools } from './tools'
 import useRoute from './app/useRoute.js'
+import './tools/EnterpriseRcaShell.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-final-rca-dashboard'
+const APP_BUILD_STAMP = 'sap-20260708-final-rca-dashboard-shell-fix'
 
 export default function App() {
   const route = useRoute()
