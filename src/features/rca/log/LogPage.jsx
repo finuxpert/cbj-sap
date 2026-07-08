@@ -81,6 +81,11 @@ function compactFamilyLabel(family = '') {
   return safe(family).replace('SAP runtime/log pattern', 'Runtime Pattern').replace('RFC / communication function error', 'RFC / Communication').replace('ABAP program load/runtime issue', 'ABAP Runtime').replace('Database/application data consistency issue', 'Data Consistency') || 'Unknown'
 }
 
+function normalizeHost(value = '') {
+  const host = safe(value)
+  return !host || host.toUpperCase() === 'UNKNOWN' ? 'UNKNOWN' : host
+}
+
 function group(rows, key) {
   const map = new Map()
   rows.forEach((row) => {
@@ -147,6 +152,64 @@ function buildInfraSummary(rows = []) {
   return { peakCpu: peakCpuRow?.cpu || 0, peakCpuTime: peakCpuRow?.timeLabel || '-', peakCpuProgram: displayLabel(peakCpuRow?.program || '-', 34), maxRssGb: maxRssRow?.rssGb || 0, maxRssTime: maxRssRow?.timeLabel || '-', totalRssGb: Number(rssValues.reduce((sum, value) => sum + value, 0).toFixed(2)), p95RssGb: percentile(rssValues, 95), physicalMemGb, swapGb, badWp: critCount + warnCount, critCount, warnCount }
 }
 
+function buildHostResourceSummary(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const host = normalizeHost(row.host)
+    const current = map.get(host) || { name: host, rows: 0, badWp: 0, crit: 0, warn: 0, peakCpu: 0, maxRssGb: 0, maxSwapGb: 0, physicalMemGb: 0, topCpuRow: null, topRssRow: null, pids: new Set(), wpTypes: new Set(), jobs: new Set(), programs: new Set(), errors: new Set(), times: new Set() }
+    current.rows += 1
+    current.crit += row.className === 'CRIT' ? 1 : 0
+    current.warn += row.className === 'WARN' ? 1 : 0
+    current.badWp = current.crit + current.warn
+    current.physicalMemGb = Math.max(current.physicalMemGb, Number(row.physicalMemGb) || 0)
+    current.maxSwapGb = Math.max(current.maxSwapGb, Number(row.swapGb) || 0)
+    if ((row.cpu || 0) >= current.peakCpu) {
+      current.peakCpu = Number(row.cpu) || 0
+      current.topCpuRow = row
+    }
+    if ((row.rssGb || 0) >= current.maxRssGb) {
+      current.maxRssGb = Number(row.rssGb) || 0
+      current.topRssRow = row
+    }
+    if (row.pid) current.pids.add(row.pid)
+    if (row.type) current.wpTypes.add(row.type)
+    if (row.jobName && row.jobName !== '?') current.jobs.add(row.jobName)
+    if (row.program && row.program !== '?') current.programs.add(row.program)
+    if (row.errorCode && row.errorCode !== '?') current.errors.add(row.errorCode)
+    if (row.timeLabel) current.times.add(row.timeLabel)
+    map.set(host, current)
+  })
+  return Array.from(map.values()).map((item) => ({
+    ...item,
+    pids: Array.from(item.pids).slice(0, 6),
+    wpTypes: Array.from(item.wpTypes).slice(0, 6),
+    jobs: Array.from(item.jobs).slice(0, 4),
+    programs: Array.from(item.programs).slice(0, 4),
+    errors: Array.from(item.errors).slice(0, 4),
+    times: Array.from(item.times).slice(0, 6),
+    topPid: item.topCpuRow?.pid || item.topRssRow?.pid || '-',
+    topWp: item.topCpuRow?.wp || item.topRssRow?.wp || '-',
+    topProgram: item.topCpuRow?.program || item.topRssRow?.program || '-',
+    topJob: item.topCpuRow?.jobName || item.topRssRow?.jobName || '-',
+    topError: item.topCpuRow?.errorCode || item.topRssRow?.errorCode || '-',
+  })).sort((a, b) => b.badWp - a.badWp || b.peakCpu - a.peakCpu || b.maxRssGb - a.maxRssGb)
+}
+
+function buildRcaExplanation(analysis) {
+  const rows = analysis?.rows || []
+  const primary = analysis?.primary
+  const host = analysis?.hostResources?.[0]
+  const topRow = [...rows].sort((a, b) => (b.cpu || 0) - (a.cpu || 0) || (b.rssGb || 0) - (a.rssGb || 0) || (b.durationSec || 0) - (a.durationSec || 0))[0]
+  if (!topRow && !primary) return null
+  const family = classifySapError(topRow?.errorCode || primary?.name || '')
+  return {
+    symptom: host ? `${host.name} has ${fmt(host.badWp, 0)} CRIT/WARN WP rows, peak CPU ${fmt(host.peakCpu)}%, max RSS ${fmt(host.maxRssGb)} GB, swap ${fmt(host.maxSwapGb)} GB.` : 'Resource symptom is detected from uploaded log rows.',
+    suspect: topRow ? `Suspect PID ${topRow.pid || '-'} WP ${topRow.wp || '-'} ${topRow.type || '-'} running ${displayLabel(topRow.program, 48)} / ${displayLabel(topRow.jobName, 36)} at ${topRow.timeLabel || '-'} with CPU ${fmt(topRow.cpu)}% and RSS ${fmt(topRow.rssGb)} GB.` : 'No PID-level WP row was available in the evidence.',
+    error: primary ? `${primary.name}: ${primary.meaning || family.meaning}. Owner routing: ${primary.owner || family.owner}.` : `${topRow?.errorCode || '-'}: ${family.meaning}. Owner routing: ${family.owner}.`,
+    action: cleanActionText(buildOwnerAction(primary || { name: topRow?.errorCode || '-', owner: family.owner, family: family.family, meaning: family.meaning })) || 'Validate WP-SCOUT around the incident window, then correlate PID, job, ABAP program, SM21/ST22 error, and OS CPU/RSS/swap from the same APP server.',
+  }
+}
+
 function buildAnalysis(files, rows) {
   const errorGroups = group(rows, 'errorCode')
   const jobGroups = group(rows, 'jobName')
@@ -154,9 +217,11 @@ function buildAnalysis(files, rows) {
   const primary = errorGroups[0]
   const timeline = buildTimeline(rows)
   const infra = buildInfraSummary(rows)
+  const hostResources = buildHostResourceSummary(rows)
   const fileCount = new Set(rows.map((row) => row.fileName)).size
   const confidence = primary ? Math.min(100, Math.round(Math.min(36, (primary.critHits || 0) * 9) + (primary.hits > 1 ? 16 : 0) + Math.min(24, rows.length * 2) + Math.min(14, fileCount * 4) + Math.min(10, timeline.length * 2))) : 0
-  return { files, rows, errorGroups, jobGroups, programGroups, primary, timeline, infra, confidence, createdAt: new Date().toISOString() }
+  const analysis = { files, rows, errorGroups, jobGroups, programGroups, primary, timeline, infra, hostResources, confidence, createdAt: new Date().toISOString() }
+  return { ...analysis, rcaExplanation: buildRcaExplanation(analysis) }
 }
 
 function buildReportText(analysis) {
@@ -244,12 +309,27 @@ function WorkProcessByType({ rows = [] }) {
   return <DataTable title="Work Process by Type" subtitle="DIA / BTC / UPD / ENQ context" rows={groups} columns={[{ key: 'name', label: 'WP Type' }, { key: 'hits', label: 'Rows' }, { key: 'critHits', label: 'CRIT' }, { key: 'warnHits', label: 'WARN' }, { key: 'maxCpu', label: 'Max CPU', render: (row) => fmt(row.maxCpu) }, { key: 'maxRssGb', label: 'Max RSS', render: (row) => `${fmt(row.maxRssGb)} GB` }, { key: 'programs', label: 'Programs', render: (row) => row.programs?.slice(0, 2).join(' · ') || '-' }]} />
 }
 
+function HostResourceCards({ hosts = [] }) {
+  if (!hosts.length) return <section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>APP Server Resource Summary</h2><span>No host-level rows parsed</span></div><p>No APP server resource data available. Clear cache and re-upload WP-SCOUT evidence if the previous upload was parsed before resource extraction.</p></section>
+  return <section className="logHostGrid">{hosts.slice(0, 5).map((host) => <article className="rcaFinalCard logHostCard" key={host.name}><div className="logHostTitle"><span>APP Server</span><b>{displayLabel(host.name, 22)}</b></div><div className="logHostMetrics"><div><span>Peak CPU</span><b>{fmt(host.peakCpu)}%</b></div><div><span>Max RSS</span><b>{fmt(host.maxRssGb)} GB</b></div><div><span>Swap</span><b>{fmt(host.maxSwapGb)} GB</b></div><div><span>Bad WP</span><b>{fmt(host.badWp, 0)}</b></div></div><div className="logHostContext"><span>PID/WP</span><b>{host.topPid} / {host.topWp}</b><span>Program</span><b title={host.topProgram}>{displayLabel(host.topProgram, 34)}</b><span>Job</span><b title={host.topJob}>{displayLabel(host.topJob, 34)}</b><span>Error</span><b title={host.topError}>{displayLabel(host.topError, 34)}</b></div></article>)}</section>
+}
+
+function HostResourceTable({ hosts = [] }) {
+  return <DataTable title="APP Server Resource Matrix" subtitle="CPU / RSS / swap / PID / job / ABAP program by host" rows={hosts} columns={[{ key: 'name', label: 'APP Server', render: (row) => <b>{displayLabel(row.name, 18)}</b> }, { key: 'rows', label: 'Rows' }, { key: 'badWp', label: 'Bad WP' }, { key: 'peakCpu', label: 'Peak CPU', render: (row) => `${fmt(row.peakCpu)}%` }, { key: 'maxRssGb', label: 'Max RSS', render: (row) => `${fmt(row.maxRssGb)} GB` }, { key: 'maxSwapGb', label: 'Swap', render: (row) => `${fmt(row.maxSwapGb)} GB` }, { key: 'topPid', label: 'PID' }, { key: 'topWp', label: 'WP' }, { key: 'wpTypes', label: 'Types', render: (row) => row.wpTypes?.join(' · ') || '-' }, { key: 'topProgram', label: 'Program', render: (row) => displayLabel(row.topProgram, 34) }, { key: 'topJob', label: 'Job', render: (row) => displayLabel(row.topJob, 28) }, { key: 'topError', label: 'Error', render: (row) => displayLabel(row.topError, 24) }]} />
+}
+
+function RcaExplanationCard({ explanation }) {
+  if (!explanation) return null
+  return <section className="rcaFinalCard logRcaExplanation"><div className="rcaFinalPanelTitle"><h2>RCA Explanation</h2><span>Evidence-based narrative</span></div><div className="logRcaGrid"><div><span>Symptom</span><p>{explanation.symptom}</p></div><div><span>Suspect Process</span><p>{explanation.suspect}</p></div><div><span>Error Mapping</span><p>{explanation.error}</p></div><div><span>Recommended Action</span><p>{explanation.action}</p></div></div></section>
+}
+
 function LogTabContent({ activeTab, analysis }) {
   const rows = analysis?.rows || []
+  const hostResources = analysis?.hostResources || buildHostResourceSummary(rows)
   if (activeTab === 'Error Analysis') return <><ErrorRankingTable rows={analysis.errorGroups || []} /><TrendChart title="Error Hits Over Time" data={analysis.timeline || []} metric="hits" tone="hit" /><BarChart title="Error Code Distribution" subtitle="Hits" rows={analysis.errorGroups || []} valueKey="hits" tone="crit" /></>
   if (activeTab === 'Work Process') return <><LongRunningTable rows={rows} /><WorkProcessByType rows={rows} /></>
   if (activeTab === 'Job Analysis') return <><JobProgramMapping analysis={analysis} /><BarChart title="Program Frequency" subtitle="Hits by program" rows={analysis.programGroups || []} valueKey="hits" tone="db" /></>
-  if (activeTab === 'System Resources') return <><div className="st03nTwoCol"><TrendChart title="CPU Utilization" data={analysis.timeline || []} metric="cpu" tone="hit" /><TrendChart title="Memory RSS" data={analysis.timeline || []} metric="rssGb" tone="crit" /></div><TopResourceTable rows={rows} /></>
+  if (activeTab === 'System Resources') return <><HostResourceCards hosts={hostResources} /><div className="st03nTwoCol"><BarChart title="CPU by APP Server" subtitle="Peak CPU %" rows={hostResources} valueKey="peakCpu" tone="hit" /><BarChart title="RSS by APP Server" subtitle="Max RSS GB" rows={hostResources} valueKey="maxRssGb" tone="crit" /></div><HostResourceTable hosts={hostResources} /><TopResourceTable rows={rows} /><RcaExplanationCard explanation={analysis.rcaExplanation || buildRcaExplanation(analysis)} /></>
   return <><div className="st03nTwoCol wideLeft"><BarChart title="Top Error Code" subtitle="Hits / CRIT" rows={analysis.errorGroups || []} valueKey="hits" tone="crit" /><TrendChart title="Error Hits Over Time" data={analysis.timeline || []} metric="hits" tone="hit" /></div><TopResourceTable rows={rows} /></>
 }
 
