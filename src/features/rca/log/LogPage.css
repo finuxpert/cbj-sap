@@ -223,8 +223,187 @@
   min-height:64px;
 }
 
+/* System Resources polish */
+.logTechnicalPage .st03nTwoCol{
+  gap:14px;
+  margin-bottom:14px;
+}
+
+.logTechnicalPage .st03nTabs + .st03nTwoCol,
+.logTechnicalPage .logTabs + .st03nTwoCol{
+  margin-top:10px;
+}
+
+.logTechnicalPage .logLineCard{
+  border-color:#d7e4f2;
+  border-radius:18px;
+  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
+  box-shadow:0 14px 32px rgba(15,23,42,.07);
+  padding:14px 16px 12px;
+}
+
+.logTechnicalPage .logLineCard .rcaFinalPanelTitle{
+  margin-bottom:2px;
+}
+
+.logTechnicalPage .logLineCard .rcaFinalPanelTitle h2{
+  font-size:14px;
+  letter-spacing:-.02em;
+}
+
+.logTechnicalPage .logLineCard .rcaFinalPanelTitle span{
+  color:#58708f;
+  font-size:9.5px;
+  letter-spacing:.12em;
+}
+
+.logTechnicalPage .logLineSvg{
+  min-height:176px;
+  margin-top:0;
+  padding:0 2px;
+}
+
+.logTechnicalPage .logGridLines line{
+  stroke:#e8f0f8;
+}
+
+.logTechnicalPage .logLinePath{
+  stroke-width:2.7;
+  filter:none;
+}
+
+.logTechnicalPage .logLineLegend{
+  align-items:center;
+  border-top:1px solid rgba(203,213,225,.72);
+  display:grid;
+  gap:8px 12px;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  margin-top:0;
+  padding-top:10px;
+}
+
+.logTechnicalPage .logLineLegend span{
+  background:#f8fafc;
+  border:1px solid #e5edf6;
+  border-radius:999px;
+  color:#23364f;
+  font-size:10px;
+  justify-content:center;
+  min-height:24px;
+  padding:0 8px;
+}
+
+.logTechnicalPage .logLineLegend i{
+  height:7px;
+  width:16px;
+}
+
+.logTechnicalPage .logLineAxis{
+  border-top:0;
+  gap:20px;
+  margin-top:8px;
+  padding:0;
+}
+
+.logTechnicalPage .logLineAxis small{
+  color:#51657f;
+  font-size:10px;
+  font-weight:800;
+}
+
+.logTechnicalPage .logLineAxis b{
+  background:#f1f5f9;
+  border:1px solid #dbe5ef;
+  border-radius:999px;
+  color:#334155;
+  padding:3px 8px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaFinalChartCard:not(.logLineCard){
+  border-color:#d7e4f2;
+  border-radius:18px;
+  background:linear-gradient(180deg,#fff,#fbfdff);
+  box-shadow:0 14px 32px rgba(15,23,42,.06);
+  min-height:236px;
+  padding:14px 16px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaFinalChartCard:not(.logLineCard) .rcaFinalPanelTitle{
+  margin-bottom:14px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaFinalChartCard:not(.logLineCard) .rcaFinalPanelTitle h2{
+  font-size:14px;
+  letter-spacing:-.02em;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaFinalChartCard:not(.logLineCard) .rcaFinalPanelTitle span{
+  color:#58708f;
+  font-size:9.5px;
+  letter-spacing:.12em;
+}
+
+.logTechnicalPage .st03nTwoCol .logBars{
+  align-content:start;
+  gap:14px;
+  min-height:0;
+  padding:18px 10px 10px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarRow{
+  grid-template-columns:150px minmax(170px,1fr) 56px;
+  gap:12px;
+  min-height:30px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarLabel{
+  color:#0f172a;
+  font-size:11px;
+  letter-spacing:-.01em;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarTrack{
+  background:#edf3fa;
+  height:18px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarTrack span{
+  border-radius:999px;
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarTrack .hit{
+  background:linear-gradient(90deg,#38bdf8,#2563eb);
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarTrack .crit{
+  background:linear-gradient(90deg,#22c55e,#0891b2);
+}
+
+.logTechnicalPage .st03nTwoCol .rcaLiteBarValue{
+  color:#0f172a;
+  font-size:11px;
+  font-weight:900;
+}
+
+.logTechnicalPage .logDataTable{
+  border-radius:18px;
+  box-shadow:0 14px 32px rgba(15,23,42,.06);
+}
+
+.logTechnicalPage .logDataTable .rcaFinalPanelTitle h2{
+  font-size:14px;
+}
+
+.logTechnicalPage .logDataTable .rcaFinalTableWrap{
+  border-color:#dbe5ef;
+  border-radius:14px;
+}
+
 @media(max-width:1280px){
   .logTechnicalPage .logHostGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+  .logTechnicalPage .logLineLegend{
     grid-template-columns:repeat(3,minmax(0,1fr));
   }
 }
@@ -241,5 +420,11 @@
   .logTechnicalPage .rcaFinalMiniFacts,
   .logTechnicalPage .logHostGrid{
     grid-template-columns:1fr;
+  }
+  .logTechnicalPage .logLineLegend{
+    grid-template-columns:1fr;
+  }
+  .logTechnicalPage .st03nTwoCol .rcaLiteBarRow{
+    grid-template-columns:112px minmax(120px,1fr) 48px;
   }
 }
