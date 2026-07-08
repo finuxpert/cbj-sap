@@ -8,7 +8,7 @@
   --rca-blue:#2563eb;
   --rca-sidebar-width:176px;
   --rca-topbar-height:64px;
-  --rca-safe-top-gap:22px;
+  --rca-safe-top-gap:18px;
   --rca-workspace-max:1440px;
 }
 
@@ -25,13 +25,7 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
   min-height:100vh!important;
   overflow-x:hidden!important;
 }
-.compactRcaApp .fullBleed{
-  box-sizing:border-box!important;
-  width:100%!important;
-  min-width:0!important;
-  background:var(--rca-bg)!important;
-  overflow:visible!important;
-}
+.compactRcaApp .fullBleed{box-sizing:border-box!important;width:100%!important;min-width:0!important;background:var(--rca-bg)!important;overflow:hidden!important;}
 
 .compactRcaTopbar{position:fixed!important;inset:0 0 auto 0!important;z-index:100!important;height:var(--rca-topbar-height)!important;min-height:var(--rca-topbar-height)!important;background:var(--rca-topbar)!important;border:0!important;box-shadow:0 8px 24px rgba(15,23,42,.18)!important;}
 .compactRcaTopbarInner{height:var(--rca-topbar-height)!important;max-width:none!important;padding:0 22px 0 58px!important;display:grid!important;grid-template-columns:330px minmax(240px,1fr) auto 44px!important;align-items:center!important;gap:16px!important;}
@@ -58,18 +52,14 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .compactRcaSidebarBottom{margin-top:auto!important;border-top:1px solid var(--rca-border)!important;padding:8px 0 10px!important;}
 .compactRcaSidebarBottom button{color:#475569!important;}
 
-.compactRcaApp .rcaFinalShell{
-  box-sizing:border-box!important;
-  width:min(100%,var(--rca-workspace-max))!important;
-  max-width:var(--rca-workspace-max)!important;
-  margin:0 auto!important;
-  padding:0 0 72px!important;
-}
+.compactRcaApp .rcaFinalShell{box-sizing:border-box!important;width:min(100%,var(--rca-workspace-max))!important;max-width:var(--rca-workspace-max)!important;margin:0 auto!important;padding:0 0 72px!important;}
 .compactRcaApp .rcaFinalHero{margin-top:0!important;}
-.compactRcaApp .rcaFinalMainGrid{grid-template-columns:minmax(0,1fr) 340px!important;gap:12px!important;}
-.compactRcaApp .rcaFinalInsightCol{position:sticky!important;top:calc(var(--rca-topbar-height) + 12px)!important;}
-.compactRcaApp .rcaFinalChartCard{overflow:hidden!important;}
-.compactRcaApp .rcaFinalChartCard .echarts-for-react{max-width:100%!important;}
+.compactRcaApp .rcaFinalMainGrid{display:grid!important;grid-template-columns:minmax(0,calc(100% - 352px)) 340px!important;gap:12px!important;align-items:start!important;overflow:visible!important;}
+.compactRcaApp .rcaFinalMainCol{min-width:0!important;width:100%!important;overflow:hidden!important;}
+.compactRcaApp .rcaFinalInsightCol{position:relative!important;top:auto!important;z-index:1!important;width:340px!important;min-width:340px!important;}
+.compactRcaApp .rcaFinalChartCard,.compactRcaApp .rcaFinalTableCard{width:100%!important;max-width:100%!important;overflow:hidden!important;}
+.compactRcaApp .rcaFinalChartCard .echarts-for-react,.compactRcaApp .rcaFinalChartCard div[_echarts_instance_]{width:100%!important;max-width:100%!important;overflow:hidden!important;}
+.compactRcaApp .rcaFinalTableCard .st03nTableWrap,.compactRcaApp .rcaFinalTableCard .tableWrap,.compactRcaApp .rcaFinalTableWrap{max-width:100%!important;overflow:auto!important;}
 
 .rcaFinalShell .evidenceToolbar button:disabled,.rcaFinalShell .evidenceToolbar button[disabled]{opacity:1!important;color:#94a3b8!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;cursor:not-allowed!important;}
 .rcaFinalShell .evidenceToolbar button:not(:disabled){color:#0f172a!important;background:#fff!important;border:1px solid #cbd5e1!important;}
@@ -80,6 +70,10 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .logEvidenceShell .rcaFinalFooterGrid .evidencePanel{min-height:116px!important;}
 .logEvidenceShell .rcaFinalKpiStrip{margin-bottom:10px!important;}
 
+@media(max-width:1180px){
+  .compactRcaApp .rcaFinalMainGrid{grid-template-columns:1fr!important;}
+  .compactRcaApp .rcaFinalInsightCol{width:100%!important;min-width:0!important;}
+}
 @media(max-width:1100px){
   .compactRcaApp main{width:100vw!important;margin-left:0!important;padding:calc(var(--rca-topbar-height) + 16px) 10px 0!important;}
   .compactRcaApp .fullBleed{width:100%!important;}
