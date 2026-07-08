@@ -587,3 +587,12 @@
 .logTechnicalPage .logLineInsights{
   display:none!important;
 }
+
+/* Hide System Resources snapshot time axis strip */
+.logTechnicalPage .logLineAxis{
+  display:none!important;
+}
+
+.logTechnicalPage .logLineFootnote{
+  display:none!important;
+}
