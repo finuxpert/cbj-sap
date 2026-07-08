@@ -27,6 +27,8 @@ html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 .compactRcaApp > main > .fullBleed{box-sizing:border-box!important;width:100%!important;min-width:0!important;background:var(--rca-bg)!important;overflow:hidden!important;}
 
 .compactRcaApp .st03nKpiGrid{display:none!important;}
+.compactRcaApp .rcaFinalHero > div > span,
+.compactRcaApp .rcaFinalHero > div > p{display:none!important;}
 
 .compactRcaTopbar{position:fixed!important;inset:0 0 auto 0!important;z-index:100!important;height:var(--rca-topbar-height)!important;min-height:var(--rca-topbar-height)!important;background:var(--rca-topbar)!important;border:0!important;box-shadow:0 6px 18px rgba(15,23,42,.16)!important;}
 .compactRcaTopbarInner{height:var(--rca-topbar-height)!important;max-width:none!important;padding:0 18px 0 54px!important;display:grid!important;grid-template-columns:300px 1fr!important;align-items:center!important;gap:14px!important;}
