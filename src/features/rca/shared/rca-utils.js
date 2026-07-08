@@ -1,5 +1,5 @@
 import JSZip from 'jszip'
-import { listEvidence } from '../evidence-api-client.js'
+import { listEvidence } from '../../../evidence-api-client.js'
 
 export const safe = (value) => String(value ?? '').trim()
 export const lower = (value) => safe(value).toLowerCase()

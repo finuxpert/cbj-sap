@@ -1,6 +1,6 @@
 import React from 'react'
-import { copyText, downloadJson, fileSizeLabel } from './evidence-utils.js'
-import './EvidenceDecisionKit.css'
+import { copyText, downloadJson, fileSizeLabel } from './rca-utils.js'
+import './RcaEvidenceKit.css'
 
 const ST03N_VIEW_STYLE_ID = 'st03n-view-mode-runtime'
 

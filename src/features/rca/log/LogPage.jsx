@@ -1,7 +1,7 @@
 import React from 'react'
-import { buildOwnerAction, classifySapError, expandZipAwareFiles, fileExt, fmt, latestRcaSession, loadJson, safe, saveJson } from './evidence-utils.js'
-import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from './EvidenceDecisionKit.jsx'
-import './EnterpriseRcaFinal.css'
+import { buildOwnerAction, classifySapError, expandZipAwareFiles, fileExt, fmt, latestRcaSession, loadJson, safe, saveJson } from '../shared/rca-utils.js'
+import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
+import '../shared/RcaDashboard.css'
 
 const CACHE_KEY = 'sap_log_evidence_v2_cache'
 const ACCEPTED_TYPES = ['.log', '.txt', '.csv', '.zip']
@@ -212,7 +212,7 @@ function InfraPressure({ rows = [] }) {
   return <section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Infra Pressure</h2><span>Compact WP Signal</span></div><section className="rcaFinalInfraGrid"><div><span>Peak CPU</span><b>{fmt(summary.peakCpu)}%</b><small>{summary.peakCpuProgram} · {summary.peakCpuTime}</small></div><div><span>Max RSS</span><b>{fmt(summary.maxRssGb)} GB</b><small>{summary.maxRssTime}</small></div><div><span>P95 RSS</span><b>{fmt(summary.p95RssGb)} GB</b><small>WP rows only</small></div><div><span>Total RSS</span><b>{fmt(summary.totalRssGb)} GB</b><small>Parsed RSS sum</small></div><div><span>Bad WP</span><b>{fmt(summary.badWp, 0)}</b><small>CRIT + WARN</small></div><div><span>Physical / Swap</span><b>{summary.physicalMemGb ? `${fmt(summary.physicalMemGb)} / ${fmt(summary.swapGb)} GB` : 'N/A'}</b><small>Only if detected</small></div></section></section>
 }
 
-export default function ToolLogDashboardFinal() {
+export default function LogPage() {
   const [session] = React.useState(latestRcaSession)
   const [files, setFiles] = React.useState([])
   const [busy, setBusy] = React.useState(false)
@@ -222,7 +222,7 @@ export default function ToolLogDashboardFinal() {
 
   React.useEffect(() => {
     let active = true
-    import('../evidence-api-client.js').then(({ listEvidence }) => listEvidence({ tool: 'investigation', limit: 5 })).then((response) => { if (active) setServerInfo(response) }).catch(() => { if (active) setServerInfo({ ok: false }) })
+    import('../../../evidence-api-client.js').then(({ listEvidence }) => listEvidence({ tool: 'investigation', limit: 5 })).then((response) => { if (active) setServerInfo(response) }).catch(() => { if (active) setServerInfo({ ok: false }) })
     return () => { active = false }
   }, [])
 

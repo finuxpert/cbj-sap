@@ -1,9 +1,9 @@
 import React from 'react'
-import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from './evidence-utils.js'
-import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from './EvidenceDecisionKit.jsx'
-import { buildSt03nAnalysis, classifySt03nFile, expandSt03nFiles, parseSt03nFile, REQUIRED_ST03N } from './parsers/st03nParser.js'
+import { getRecentEvidence, fmt, latestRcaSession, loadJson, saveJson } from '../shared/rca-utils.js'
+import { DecisionCard, EmptyState, EvidenceServerPanel, EvidenceToolbar, SessionBanner, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
+import { buildSt03nAnalysis, classifySt03nFile, expandSt03nFiles, parseSt03nFile, REQUIRED_ST03N } from './st03n-parser.js'
 import St03nOffenderTable from './St03nOffenderTable.jsx'
-import './EnterpriseRcaFinal.css'
+import '../shared/RcaDashboard.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
@@ -189,7 +189,7 @@ function OffenderQueue({ rows = [] }) {
   )
 }
 
-export default function ToolSt03nDashboardFinal() {
+export default function St03nPage() {
   const [session] = React.useState(latestRcaSession)
   const [files, setFiles] = React.useState([])
   const [busy, setBusy] = React.useState(false)

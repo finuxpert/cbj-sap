@@ -2,7 +2,7 @@ import React from 'react'
 import Navbar from './components/Navbar.jsx'
 import { tools } from './tools'
 import useRoute from './app/useRoute.js'
-import './tools/EnterpriseRcaShell.css'
+import './features/rca/shared/RcaShell.css'
 
 const APP_BUILD_STAMP = 'sap-20260708-rca-clean-shell-v1'
 

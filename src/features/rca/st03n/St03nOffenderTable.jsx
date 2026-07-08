@@ -1,5 +1,5 @@
 import React from 'react'
-import { fmt } from './evidence-utils.js'
+import { fmt } from '../shared/rca-utils.js'
 
 function compactLabel(value = '', max = 42) {
   const label = String(value || 'Unknown').trim() || 'Unknown'
