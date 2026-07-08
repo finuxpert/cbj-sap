@@ -27,9 +27,12 @@
   width:22%;
 }
 
-.st03nTechnicalPage .st03nChartPanel .rcaFinalPanelTitle span{
-  color:#64748b;
-  letter-spacing:.08em;
+.st03nTechnicalPage .rcaFinalPanelTitle span{
+  display:none!important;
+}
+
+.st03nTechnicalPage .rcaFinalPanelTitle{
+  align-items:center;
 }
 
 .st03nTechnicalPage .st03nLineChart text{
