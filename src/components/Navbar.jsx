@@ -2,15 +2,13 @@ import React from 'react'
 import { tools, preloadTool } from '../tools'
 
 const secondaryItems = [
-  { slug: 'overview', label: 'Overview', icon: '⌂', href: '#/st03n' },
-  { slug: 'systems', label: 'Systems', icon: '▣', href: '#/log' },
-  { slug: 'alerts', label: 'Alerts', icon: '△', href: '#/log' },
-  { slug: 'dumps', label: 'Dumps', icon: '▤', href: '#/log' },
-  { slug: 'spool', label: 'Spool', icon: '▥', href: '#/log' },
-  { slug: 'configuration', label: 'Configuration', icon: '⚙', href: '#/st03n' },
-  { slug: 'jobs', label: 'Jobs', icon: '▧', href: '#/log' },
-  { slug: 'workflows', label: 'Workflows', icon: '◇', href: '#/st03n' },
   { slug: 'reports', label: 'Reports', icon: '◫', href: '#/st03n' },
+  { slug: 'configuration', label: 'Configuration', icon: '⚙', href: '#/st03n' },
+  { slug: 'systems', label: 'Systems', icon: '▣', href: '#/log', inactive: true },
+  { slug: 'alerts', label: 'Alerts', icon: '△', href: '#/log', inactive: true },
+  { slug: 'dumps', label: 'Dumps', icon: '▤', href: '#/log', inactive: true },
+  { slug: 'spool', label: 'Spool', icon: '▥', href: '#/log', inactive: true },
+  { slug: 'jobs', label: 'Jobs', icon: '▧', href: '#/log', inactive: true },
 ]
 
 export default function Navbar() {
@@ -33,6 +31,8 @@ export default function Navbar() {
     (slug) => (route === slug || route.startsWith(`${slug}/`)) ? 'true' : 'false',
     [route],
   )
+  const currentTool = tools.find((tool) => active(tool.slug) === 'true') || tools[0]
+  const currentLabel = currentTool?.slug === 'log' ? 'Work Process Log Console' : 'ST03N Workload Analyzer'
 
   return (
     <>
@@ -46,26 +46,12 @@ export default function Navbar() {
             </span>
           </a>
 
-          <nav className="navQuick rcaToolTabs compactRcaToolTabs" aria-label="RCA tools">
-            {tools.map((tool) => (
-              <a
-                key={tool.slug}
-                href={`#/${tool.slug}`}
-                data-active={active(tool.slug)}
-                aria-current={active(tool.slug) === 'true' ? 'page' : undefined}
-                onMouseEnter={() => preloadTool?.(tool.slug)}
-              >
-                <span aria-hidden="true">{tool.slug === 'st03n' ? '▦' : '▤'}</span>
-                {tool.title}
-              </a>
-            ))}
-          </nav>
+          <div className="compactRcaCrumb" aria-label="Current RCA module">
+            <span>Evidence Console</span>
+            <strong>{currentLabel}</strong>
+          </div>
 
           <div className="compactRcaUtility" aria-hidden="true">
-            <span>⌕</span>
-            <span className="notifyDot">◔<em>3</em></span>
-            <span>?</span>
-            <strong>AB</strong>
             <small>ABAPSYS<br />PRD · 00</small>
           </div>
 
@@ -91,6 +77,7 @@ export default function Navbar() {
       <aside className="compactRcaSidebar" aria-label="SAP RCA workspace navigation">
         <div className="sidebarTopGlyph" aria-hidden="true">⋮⋮</div>
         <nav>
+          <div className="compactRcaSidebarSection">Active tools</div>
           {tools.map((tool) => (
             <a
               key={`side-${tool.slug}`}
@@ -102,8 +89,9 @@ export default function Navbar() {
               {tool.title === 'Log' ? 'Log' : 'ST03N'}
             </a>
           ))}
+          <div className="compactRcaSidebarSection muted">Workspace</div>
           {secondaryItems.map((item) => (
-            <a key={item.slug} href={item.href} data-active="false">
+            <a key={item.slug} href={item.href} data-active="false" data-inactive={item.inactive ? 'true' : 'false'}>
               <span>{item.icon}</span>
               {item.label}
             </a>
@@ -111,7 +99,6 @@ export default function Navbar() {
         </nav>
         <div className="compactRcaSidebarBottom">
           <a href="#/st03n"><span>⚙</span>Settings</a>
-          <button type="button"><span>‹</span>Collapse</button>
         </div>
       </aside>
     </>
