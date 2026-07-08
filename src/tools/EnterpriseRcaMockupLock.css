@@ -1,0 +1,84 @@
+/* Final layout lock: loaded after EnterpriseRcaFinal.css to prevent right-column overlap. */
+
+.compactRcaApp .rcaFinalShell{
+  box-sizing:border-box!important;
+  width:min(100%,1440px)!important;
+  max-width:1440px!important;
+  margin:0 auto!important;
+  padding:0 0 72px!important;
+}
+
+.compactRcaApp .rcaFinalMainGrid{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 340px!important;
+  column-gap:12px!important;
+  row-gap:12px!important;
+  align-items:start!important;
+  overflow:visible!important;
+}
+
+.compactRcaApp .rcaFinalMainCol{
+  min-width:0!important;
+  width:100%!important;
+  overflow:hidden!important;
+  display:grid!important;
+  gap:12px!important;
+}
+
+.compactRcaApp .rcaFinalInsightCol{
+  position:relative!important;
+  top:auto!important;
+  right:auto!important;
+  z-index:1!important;
+  width:340px!important;
+  min-width:340px!important;
+  max-width:340px!important;
+  display:grid!important;
+  gap:12px!important;
+}
+
+.compactRcaApp .rcaFinalCard,
+.compactRcaApp .rcaFinalChartCard,
+.compactRcaApp .rcaFinalTableCard{
+  box-sizing:border-box!important;
+  max-width:100%!important;
+}
+
+.compactRcaApp .rcaFinalChartCard{
+  overflow:hidden!important;
+}
+
+.compactRcaApp .rcaFinalChartCard .echarts-for-react,
+.compactRcaApp .rcaFinalChartCard div[_echarts_instance_],
+.compactRcaApp .rcaFinalChartCard canvas,
+.compactRcaApp .rcaFinalChartCard svg{
+  width:100%!important;
+  max-width:100%!important;
+  overflow:hidden!important;
+}
+
+.compactRcaApp .rcaFinalTableCard{
+  overflow:hidden!important;
+}
+
+.compactRcaApp .rcaFinalTableCard .st03nTableWrap,
+.compactRcaApp .rcaFinalTableCard .tableWrap,
+.compactRcaApp .rcaFinalTableWrap{
+  max-width:100%!important;
+  overflow:auto!important;
+}
+
+.compactRcaApp .rcaFinalTableCard table,
+.compactRcaApp .rcaFinalTableWrap table{
+  width:100%!important;
+  min-width:760px!important;
+}
+
+@media(max-width:1180px){
+  .compactRcaApp .rcaFinalMainGrid{grid-template-columns:1fr!important;}
+  .compactRcaApp .rcaFinalInsightCol{width:100%!important;min-width:0!important;max-width:none!important;}
+}
+
+@media(max-width:860px){
+  .compactRcaApp .rcaFinalShell{width:100%!important;max-width:none!important;padding:0 10px 72px!important;}
+}
