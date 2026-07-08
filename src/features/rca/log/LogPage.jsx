@@ -374,11 +374,11 @@ function LogTabContent({ activeTab, analysis }) {
   const rows = analysis?.rows || []
   const hostResources = analysis?.hostResources || buildHostResourceSummary(rows)
   const errorHits = sortByHits(analysis?.errorGroups || [])
-  if (activeTab === 'Error Analysis') return <><ErrorRankingTable rows={analysis.errorGroups || []} /><TrendChart title="Error Hits Over Time" data={analysis.timeline || []} metric="hits" tone="hit" /><BarChart title="Error Code Distribution" subtitle="Hits descending" rows={errorHits} valueKey="hits" tone="crit" /></>
+  if (activeTab === 'Error Analysis') return <><ErrorRankingTable rows={analysis.errorGroups || []} /><TrendChart title="Error Hits Over Time (Hits)" data={analysis.timeline || []} metric="hits" tone="hit" /><BarChart title="Error Code Distribution (Hits)" subtitle="Occurrences from uploaded evidence" rows={errorHits} valueKey="hits" tone="crit" /></>
   if (activeTab === 'Work Process') return <><LongRunningTable rows={rows} /><WorkProcessByType rows={rows} /></>
-  if (activeTab === 'Job Analysis') return <><JobProgramMapping analysis={analysis} /><BarChart title="Program Frequency" subtitle="Hits by program" rows={analysis.programGroups || []} valueKey="hits" tone="db" /></>
+  if (activeTab === 'Job Analysis') return <><JobProgramMapping analysis={analysis} /><BarChart title="Program Frequency (Hits)" subtitle="Occurrences by program" rows={analysis.programGroups || []} valueKey="hits" tone="db" /></>
   if (activeTab === 'System Resources') return <><div className="st03nTwoCol"><LineChart title="CPU Utilization (%) - APP Servers" subtitle="Time series from uploaded WP-SCOUT rows" series={buildHostTimeline(rows, 'cpu')} suffix="CPU %" limitMax={100} /><LineChart title="RSS Memory Trend - APP Servers" subtitle="Resident set size by time" series={buildHostTimeline(rows, 'rssGb')} suffix="RSS GB" limitMax={Math.max(60, analysis?.infra?.maxRssGb || 0)} /></div><div className="st03nTwoCol"><BarChart title="Peak CPU by APP Server" subtitle="Max CPU sample by host" rows={hostResources} valueKey="peakCpu" tone="hit" /><BarChart title="Max RSS by APP Server" subtitle="Max resident set by host" rows={hostResources} valueKey="maxRssGb" tone="crit" /></div><HostResourceTable hosts={hostResources} /></>
-  return <><div className="st03nTwoCol wideLeft"><BarChart title="Top Error Code" subtitle="Hits descending" rows={errorHits} valueKey="hits" tone="crit" /><TrendChart title="Error Hits Over Time" data={analysis.timeline || []} metric="hits" tone="hit" /></div><TopResourceTable rows={rows} /></>
+  return <><div className="st03nTwoCol wideLeft"><BarChart title="Top Error Code (Hits)" subtitle="Hits descending" rows={errorHits} valueKey="hits" tone="crit" /><TrendChart title="Error Hits Over Time (Hits)" data={analysis.timeline || []} metric="hits" tone="hit" /></div><TopResourceTable rows={rows} /></>
 }
 
 export default function LogPage() {
