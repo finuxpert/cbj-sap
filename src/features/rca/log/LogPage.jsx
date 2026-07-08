@@ -163,14 +163,8 @@ function buildHostResourceSummary(rows = []) {
     current.badWp = current.crit + current.warn
     current.physicalMemGb = Math.max(current.physicalMemGb, Number(row.physicalMemGb) || 0)
     current.maxSwapGb = Math.max(current.maxSwapGb, Number(row.swapGb) || 0)
-    if ((row.cpu || 0) >= current.peakCpu) {
-      current.peakCpu = Number(row.cpu) || 0
-      current.topCpuRow = row
-    }
-    if ((row.rssGb || 0) >= current.maxRssGb) {
-      current.maxRssGb = Number(row.rssGb) || 0
-      current.topRssRow = row
-    }
+    if ((row.cpu || 0) >= current.peakCpu) { current.peakCpu = Number(row.cpu) || 0; current.topCpuRow = row }
+    if ((row.rssGb || 0) >= current.maxRssGb) { current.maxRssGb = Number(row.rssGb) || 0; current.topRssRow = row }
     if (row.pid) current.pids.add(row.pid)
     if (row.type) current.wpTypes.add(row.type)
     if (row.jobName && row.jobName !== '?') current.jobs.add(row.jobName)
@@ -210,6 +204,12 @@ function buildRcaExplanation(analysis) {
   }
 }
 
+function calculateConfidence(primary, rows, timeline, files) {
+  const fileCount = new Set((files || []).map((file) => file.name)).size
+  if (!primary) return 0
+  return Math.min(100, Math.round(Math.min(36, (primary.critHits || 0) * 9) + (primary.hits > 1 ? 16 : 0) + Math.min(24, rows.length * 2) + Math.min(14, fileCount * 4) + Math.min(10, timeline.length * 2)))
+}
+
 function buildAnalysis(files, rows) {
   const errorGroups = group(rows, 'errorCode')
   const jobGroups = group(rows, 'jobName')
@@ -218,16 +218,33 @@ function buildAnalysis(files, rows) {
   const timeline = buildTimeline(rows)
   const infra = buildInfraSummary(rows)
   const hostResources = buildHostResourceSummary(rows)
-  const fileCount = new Set(rows.map((row) => row.fileName)).size
-  const confidence = primary ? Math.min(100, Math.round(Math.min(36, (primary.critHits || 0) * 9) + (primary.hits > 1 ? 16 : 0) + Math.min(24, rows.length * 2) + Math.min(14, fileCount * 4) + Math.min(10, timeline.length * 2))) : 0
+  const confidence = calculateConfidence(primary, rows, timeline, files)
   const analysis = { files, rows, errorGroups, jobGroups, programGroups, primary, timeline, infra, hostResources, confidence, createdAt: new Date().toISOString() }
   return { ...analysis, rcaExplanation: buildRcaExplanation(analysis) }
 }
 
+function normalizeAnalysis(analysis) {
+  if (!analysis) return null
+  const rows = Array.isArray(analysis.rows) ? analysis.rows : []
+  if (!rows.length) return analysis
+  const files = Array.isArray(analysis.files) ? analysis.files : []
+  const errorGroups = group(rows, 'errorCode')
+  const jobGroups = group(rows, 'jobName')
+  const programGroups = group(rows, 'program')
+  const primary = errorGroups[0] || analysis.primary
+  const timeline = buildTimeline(rows)
+  const infra = buildInfraSummary(rows)
+  const hostResources = buildHostResourceSummary(rows)
+  const confidence = calculateConfidence(primary, rows, timeline, files)
+  const normalized = { ...analysis, files, rows, errorGroups, jobGroups, programGroups, primary, timeline, infra, hostResources, confidence }
+  return { ...normalized, rcaExplanation: buildRcaExplanation(normalized) }
+}
+
 function buildReportText(analysis) {
   if (!analysis) return ''
-  const primary = analysis.primary
-  return ['SAP Work Process Log Analysis', primary ? `Primary Error: ${primary.name}` : 'Primary Error: -', primary ? `Error Family: ${primary.family}` : 'Error Family: -', primary ? `Owner: ${primary.owner}` : 'Owner: -', `Bad WP: ${analysis.infra?.badWp || 0}`, `Rows: ${analysis.rows?.length || 0}`].join('\n')
+  const normalized = normalizeAnalysis(analysis)
+  const primary = normalized.primary
+  return ['SAP Work Process Log Analysis', primary ? `Primary Error: ${primary.name}` : 'Primary Error: -', primary ? `Error Family: ${primary.family}` : 'Error Family: -', primary ? `Owner: ${primary.owner}` : 'Owner: -', `Bad WP: ${normalized.infra?.badWp || 0}`, `Rows: ${normalized.rows?.length || 0}`].join('\n')
 }
 
 function cleanActionText(text = '') { return safe(text).replace(/^(Focus [^:]+)\s+\1:?\s*/i, '$1: ') }
@@ -256,8 +273,9 @@ function LogTabs({ activeTab, onChange }) {
 }
 
 function KpiStrip({ analysis, status }) {
-  const primary = analysis?.primary
-  const infra = analysis?.infra || {}
+  const normalized = normalizeAnalysis(analysis)
+  const primary = normalized?.primary
+  const infra = normalized?.infra || {}
   const kpis = [
     ['Primary Error', primary?.name || 'Pending', primary ? `${primary.hits} hits / ${primary.critHits} CRIT` : status, primary ? 'hot' : ''],
     ['Error Family', primary ? compactFamilyLabel(primary.family) : 'Unknown', primary?.meaning || 'Upload logs to classify error family', ''],
@@ -339,6 +357,7 @@ export default function LogPage() {
   const [status, setStatus] = React.useState('Upload WP-SCOUT/SM21/ST22/dev_w/job logs or ZIP to validate error evidence.')
   const [analysis, setAnalysis] = React.useState(() => loadJson(CACHE_KEY, null))
   const [activeTab, setActiveTab] = React.useState('Overview')
+  const normalizedAnalysis = React.useMemo(() => normalizeAnalysis(analysis), [analysis])
 
   const analyze = async (nextFiles = files) => {
     setBusy(true)
@@ -375,6 +394,6 @@ export default function LogPage() {
     }
   }
 
-  const displayedFiles = files.length ? files : (analysis?.files || [])
-  return <section className="rcaFinalShell logEvidenceShell logTechnicalPage"><LogHeader busy={busy} files={files} analysis={analysis} onFiles={onFiles} /><LogTabs activeTab={activeTab} onChange={setActiveTab} /><KpiStrip analysis={analysis} status={status} />{analysis ? <><LogTabContent activeTab={activeTab} analysis={analysis} /><div className="rcaFinalFooterGrid logFooterCompact"><UploadedFilesPanel files={displayedFiles} /><section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Parsed Context</h2><span>Evidence source</span></div><div className="rcaFinalMiniFacts"><div><span>Rows</span><b>{fmt(analysis.rows?.length || 0, 0)}</b></div><div><span>Files</span><b>{fmt(displayedFiles.length || 0, 0)}</b></div><div><span>Created</span><b>{analysis.createdAt ? new Date(analysis.createdAt).toLocaleString() : '-'}</b></div></div></section></div></> : <EmptyState title="Upload log evidence"><p>{status} Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs. This dashboard uses uploaded evidence and cached analysis only.</p></EmptyState>}</section>
+  const displayedFiles = files.length ? files : (normalizedAnalysis?.files || [])
+  return <section className="rcaFinalShell logEvidenceShell logTechnicalPage"><LogHeader busy={busy} files={files} analysis={normalizedAnalysis} onFiles={onFiles} /><LogTabs activeTab={activeTab} onChange={setActiveTab} /><KpiStrip analysis={normalizedAnalysis} status={status} />{normalizedAnalysis ? <><LogTabContent activeTab={activeTab} analysis={normalizedAnalysis} /><div className="rcaFinalFooterGrid logFooterCompact"><UploadedFilesPanel files={displayedFiles} /><section className="rcaFinalCard"><div className="rcaFinalPanelTitle"><h2>Parsed Context</h2><span>Evidence source</span></div><div className="rcaFinalMiniFacts"><div><span>Rows</span><b>{fmt(normalizedAnalysis.rows?.length || 0, 0)}</b></div><div><span>Files</span><b>{fmt(displayedFiles.length || 0, 0)}</b></div><div><span>Created</span><b>{normalizedAnalysis.createdAt ? new Date(normalizedAnalysis.createdAt).toLocaleString() : '-'}</b></div></div></section></div></> : <EmptyState title="Upload log evidence"><p>{status} Upload WP-SCOUT logs, SM21/ST22 text, dev_w trace, job log text, CSV, or a ZIP containing logs. This dashboard uses uploaded evidence and cached analysis only.</p></EmptyState>}</section>
 }
