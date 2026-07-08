@@ -4,8 +4,9 @@ import { tools } from './tools'
 import useRoute from './app/useRoute.js'
 import SortableTablesEnhancer from './features/rca/shared/SortableTablesEnhancer.jsx'
 import './features/rca/shared/RcaShell.css'
+import './features/rca/shared/RcaMotion.css'
 
-const APP_BUILD_STAMP = 'sap-20260708-rca-sortable-tables-v1'
+const APP_BUILD_STAMP = 'sap-20260708-rca-motion-v1'
 
 export default function App() {
   const route = useRoute()
