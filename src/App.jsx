@@ -2,8 +2,9 @@ import React from 'react'
 import Navbar from './components/Navbar.jsx'
 import { tools } from './tools'
 import useRoute from './app/useRoute.js'
+import './tools/EnterpriseRcaMockup.css'
 
-const APP_BUILD_STAMP = 'sap-20260624-st03n-log-cleanup'
+const APP_BUILD_STAMP = 'sap-20260708-compact-rca-mockup'
 
 export default function App() {
   const route = useRoute()
@@ -11,7 +12,7 @@ export default function App() {
   const ActiveTool = tool.Component
 
   return (
-    <div className="appShell isTool" data-build={APP_BUILD_STAMP}>
+    <div className="appShell isTool compactRcaApp" data-build={APP_BUILD_STAMP}>
       <Navbar />
       <main>
         <React.Suspense fallback={<section className="container section"><div className="card">Loading RCA module…</div></section>}>
