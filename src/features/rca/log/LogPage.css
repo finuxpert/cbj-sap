@@ -247,7 +247,7 @@
   border-radius:18px;
   background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
   box-shadow:0 14px 32px rgba(15,23,42,.07);
-  padding:14px 16px 12px;
+  padding:14px 16px 14px;
 }
 
 .logTechnicalPage .logLineCard .rcaFinalPanelTitle{
@@ -451,40 +451,72 @@
 .logTechnicalPage .logLinePoint.line4{fill:#0891b2;}
 
 .logTechnicalPage .logLineAxis{
-  align-items:flex-start;
-  min-height:28px;
+  align-items:center;
+  background:linear-gradient(180deg,#f8fbff 0%,#f1f6fc 100%);
+  border:1px solid rgba(203,213,225,.86);
+  border-radius:14px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(44px,1fr)) auto;
+  gap:6px;
+  margin-top:8px;
+  min-height:34px;
+  padding:6px 8px;
+}
+
+.logTechnicalPage .logLineAxis::before{
+  color:#64748b;
+  content:'Snapshot time';
+  font-size:9px;
+  font-weight:900;
+  grid-column:1 / -1;
+  letter-spacing:.11em;
+  line-height:1;
+  text-transform:uppercase;
 }
 
 .logTechnicalPage .logLineAxis small{
-  border-radius:999px;
-  background:rgba(241,245,249,.86);
-  color:#475569;
+  background:#ffffff;
+  border:1px solid #dbe5ef;
+  border-radius:8px;
+  box-shadow:0 2px 6px rgba(15,23,42,.04);
+  color:#0f172a;
+  font-size:10.5px;
+  font-weight:900;
+  justify-self:start;
   line-height:1;
   padding:5px 7px;
   white-space:nowrap;
 }
 
 .logTechnicalPage .logLineAxis.dense{
-  gap:10px;
-  min-height:42px;
-  padding-top:10px;
+  gap:6px;
+  min-height:46px;
+  padding-top:7px;
 }
 
 .logTechnicalPage .logLineAxis.dense small{
-  transform:rotate(-38deg);
-  transform-origin:top left;
+  transform:rotate(-34deg);
+  transform-origin:center;
 }
 
 .logTechnicalPage .logLineAxis b{
-  padding-top:5px;
+  align-self:start;
+  background:#eef6ff;
+  border:1px solid #cbdff5;
+  border-radius:999px;
+  color:#0f172a;
+  font-size:10px;
+  font-weight:900;
+  justify-self:end;
+  padding:5px 9px;
 }
 
 .logTechnicalPage .logLineFootnote{
-  border-top:1px dashed rgba(148,163,184,.30);
   color:#64748b;
+  display:block;
   font-size:10px;
   font-weight:800;
-  letter-spacing:.04em;
-  margin:4px 0 0;
-  padding-top:8px;
+  letter-spacing:.035em;
+  margin:7px 0 0;
+  padding-left:2px;
 }
