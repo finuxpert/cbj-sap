@@ -41,3 +41,8 @@ docs/*_PRIVATE.md
 *.njsproj
 *.sln
 *.sw?
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
