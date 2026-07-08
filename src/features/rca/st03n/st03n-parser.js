@@ -218,6 +218,7 @@ export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
       return {
         kind,
         fileName,
+        sourceIndex: index,
         label,
         time,
         hour: time,
@@ -240,7 +241,6 @@ export function summarizeSt03nObjects(kind, objects = [], fileName = '') {
   const maxScore = Math.max(1, ...rawRows.map((row) => row.rawScore))
   return normalizeRepeatedTimeBuckets(rawRows)
     .map((row) => ({ ...row, score: Math.round((row.rawScore / maxScore) * 100) }))
-    .sort((a, b) => b.score - a.score)
     .slice(0, 30)
 }
 
@@ -267,7 +267,8 @@ export async function parseSt03nFile(file, required = REQUIRED_ST03N) {
 }
 
 export function buildSt03nAnalysis(files, parseStatus, rows, evidenceServer) {
-  const top = rows[0]
+  const sortedRows = [...rows].sort((a, b) => b.score - a.score)
+  const top = sortedRows[0]
   const parsedFiles = parseStatus.filter((item) => item.ok).length
   const completeness = Math.round((parsedFiles / REQUIRED_ST03N.length) * 100)
   const counts = rows.reduce((acc, row) => {
