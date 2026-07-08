@@ -11,11 +11,26 @@
   --rca-safe-top-gap:22px;
 }
 
-html,body,#root{background:var(--rca-bg)!important;}
+html,body,#root{background:var(--rca-bg)!important;overflow-x:hidden!important;}
 
 .compactRcaApp{min-height:100vh;background:var(--rca-bg)!important;color:var(--rca-text)!important;}
-.compactRcaApp main{margin-left:var(--rca-sidebar-width)!important;padding-top:calc(var(--rca-topbar-height) + var(--rca-safe-top-gap))!important;background:var(--rca-bg)!important;min-height:100vh;overflow-x:hidden;}
-.compactRcaApp .fullBleed{width:100%!important;background:var(--rca-bg)!important;}
+.compactRcaApp main{
+  box-sizing:border-box!important;
+  width:100vw!important;
+  margin:0!important;
+  padding-top:calc(var(--rca-topbar-height) + var(--rca-safe-top-gap))!important;
+  padding-left:var(--rca-sidebar-width)!important;
+  background:var(--rca-bg)!important;
+  min-height:100vh!important;
+  overflow-x:hidden!important;
+}
+.compactRcaApp .fullBleed{
+  box-sizing:border-box!important;
+  width:calc(100vw - var(--rca-sidebar-width))!important;
+  min-width:0!important;
+  background:var(--rca-bg)!important;
+  overflow-x:hidden!important;
+}
 
 .compactRcaTopbar{
   position:fixed!important;
@@ -73,36 +88,29 @@ html,body,#root{background:var(--rca-bg)!important;}
 .compactRcaSidebarBottom{margin-top:auto!important;border-top:1px solid var(--rca-border)!important;padding:8px 0 10px!important;}
 .compactRcaSidebarBottom button{color:#475569!important;}
 
-.rcaFinalShell{
+.compactRcaApp .rcaFinalShell{
   box-sizing:border-box!important;
   width:100%!important;
   max-width:none!important;
   margin:0!important;
   padding:0 14px 72px!important;
 }
-.rcaFinalHero{margin-top:0!important;}
+.compactRcaApp .rcaFinalHero{margin-top:0!important;}
 
 .rcaFinalShell .evidenceToolbar button:disabled,
-.rcaFinalShell .evidenceToolbar button[disabled]{
-  opacity:1!important;
-  color:#94a3b8!important;
-  background:#f8fafc!important;
-  border:1px solid #e2e8f0!important;
-  cursor:not-allowed!important;
-}
+.rcaFinalShell .evidenceToolbar button[disabled]{opacity:1!important;color:#94a3b8!important;background:#f8fafc!important;border:1px solid #e2e8f0!important;cursor:not-allowed!important;}
 .rcaFinalShell .evidenceToolbar button:not(:disabled){color:#0f172a!important;background:#fff!important;border:1px solid #cbd5e1!important;}
 .rcaFinalShell .evidenceToolbar button:not(:disabled):hover{background:#eff6ff!important;border-color:#93c5fd!important;}
-.rcaFinalShell .st03nViewSwitch button:not(:disabled).active,
-.rcaFinalShell .st03nViewSwitch button.active{background:#0f172a!important;color:#fff!important;border-color:#0f172a!important;}
+.rcaFinalShell .st03nViewSwitch button:not(:disabled).active,.rcaFinalShell .st03nViewSwitch button.active{background:#0f172a!important;color:#fff!important;border-color:#0f172a!important;}
 
-.rcaFinalShell .emptyState,
-.rcaFinalShell .emptyState.card{min-height:96px!important;padding:24px!important;margin:0 0 12px!important;}
+.rcaFinalShell .emptyState,.rcaFinalShell .emptyState.card{min-height:96px!important;padding:24px!important;margin:0 0 12px!important;}
 .logEvidenceShell .rcaFinalFooterGrid{margin-top:10px!important;}
 .logEvidenceShell .rcaFinalFooterGrid .evidencePanel{min-height:116px!important;}
 .logEvidenceShell .rcaFinalKpiStrip{margin-bottom:10px!important;}
 
 @media(max-width:1100px){
-  .compactRcaApp main{margin-left:0!important;padding-top:calc(var(--rca-topbar-height) + 16px)!important;}
+  .compactRcaApp main{width:100vw!important;margin-left:0!important;padding-left:0!important;padding-top:calc(var(--rca-topbar-height) + 16px)!important;}
+  .compactRcaApp .fullBleed{width:100vw!important;}
   .compactRcaSidebar{display:none!important;}
   .compactRcaTopbarInner{padding-left:18px!important;grid-template-columns:1fr auto 38px!important;}
   .compactRcaUtility{display:none!important;}
