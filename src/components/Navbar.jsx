@@ -1,16 +1,6 @@
 import React from 'react'
 import { tools, preloadTool } from '../tools'
 
-const secondaryItems = [
-  { slug: 'reports', label: 'Reports', icon: '◫', href: '#/st03n' },
-  { slug: 'configuration', label: 'Configuration', icon: '⚙', href: '#/st03n' },
-  { slug: 'systems', label: 'Systems', icon: '▣', href: '#/log', inactive: true },
-  { slug: 'alerts', label: 'Alerts', icon: '△', href: '#/log', inactive: true },
-  { slug: 'dumps', label: 'Dumps', icon: '▤', href: '#/log', inactive: true },
-  { slug: 'spool', label: 'Spool', icon: '▥', href: '#/log', inactive: true },
-  { slug: 'jobs', label: 'Jobs', icon: '▧', href: '#/log', inactive: true },
-]
-
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false)
   const [route, setRoute] = React.useState(() =>
@@ -89,17 +79,7 @@ export default function Navbar() {
               {tool.title === 'Log' ? 'Log' : 'ST03N'}
             </a>
           ))}
-          <div className="compactRcaSidebarSection muted">Workspace</div>
-          {secondaryItems.map((item) => (
-            <a key={item.slug} href={item.href} data-active="false" data-inactive={item.inactive ? 'true' : 'false'}>
-              <span>{item.icon}</span>
-              {item.label}
-            </a>
-          ))}
         </nav>
-        <div className="compactRcaSidebarBottom">
-          <a href="#/st03n"><span>⚙</span>Settings</a>
-        </div>
       </aside>
     </>
   )
