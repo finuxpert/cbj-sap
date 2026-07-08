@@ -1,0 +1,48 @@
+.st03nTechnicalPage .st03nKpi.wide b{
+  font-size:16px;
+  line-height:1.18;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+}
+
+.st03nTechnicalPage .st03nKpi.wide{
+  min-width:0;
+}
+
+.st03nTechnicalPage .st03nDataTable.compact .rcaFinalTableWrap table{
+  min-width:560px;
+  table-layout:fixed;
+}
+
+.st03nTechnicalPage .st03nDataTable.compact th,
+.st03nTechnicalPage .st03nDataTable.compact td{
+  padding-left:7px;
+  padding-right:7px;
+  font-size:11px;
+}
+
+.st03nTechnicalPage .st03nDataTable.compact th:first-child,
+.st03nTechnicalPage .st03nDataTable.compact td:first-child{
+  width:22%;
+}
+
+.st03nTechnicalPage .st03nChartPanel .rcaFinalPanelTitle span{
+  color:#64748b;
+  letter-spacing:.08em;
+}
+
+.st03nTechnicalPage .st03nLineChart text{
+  font-size:9px;
+  letter-spacing:.02em;
+}
+
+.st03nTechnicalPage .st03nFilterBar input[readonly]{
+  text-overflow:ellipsis;
+}
+
+@media(max-width:1180px){
+  .st03nTechnicalPage .st03nKpi.wide b{
+    font-size:15px;
+  }
+}
