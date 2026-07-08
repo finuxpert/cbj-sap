@@ -1,0 +1,38 @@
+.sortableEvidenceTable thead th.sortableHeader{
+  cursor:pointer;
+  padding-right:20px;
+  position:relative;
+  user-select:none;
+  white-space:nowrap;
+}
+
+.sortableEvidenceTable thead th.sortableHeader::after{
+  color:#7dd3fc;
+  content:'↕';
+  font-size:10px;
+  font-weight:900;
+  opacity:.62;
+  position:absolute;
+  right:7px;
+  top:50%;
+  transform:translateY(-50%);
+}
+
+.sortableEvidenceTable thead th.sortableHeader[data-sort-direction='asc']::after{
+  content:'↑';
+  opacity:1;
+}
+
+.sortableEvidenceTable thead th.sortableHeader[data-sort-direction='desc']::after{
+  content:'↓';
+  opacity:1;
+}
+
+.sortableEvidenceTable thead th.sortableHeader:hover{
+  color:#e0f2fe;
+}
+
+.sortableEvidenceTable thead th.sortableHeader:focus{
+  outline:2px solid rgba(56,189,248,.7);
+  outline-offset:-2px;
+}
