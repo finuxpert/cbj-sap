@@ -1,43 +1,32 @@
 /* Lightweight RCA motion layer: CSS-only, no runtime dependency */
-@keyframes rcaFadeUp{
-  from{opacity:0;transform:translateY(8px);}
+@keyframes rcaFadeSoft{
+  from{opacity:0;transform:translateY(4px);}
   to{opacity:1;transform:translateY(0);}
 }
 
-@keyframes rcaSoftScale{
-  from{opacity:0;transform:translateY(6px) scale(.992);}
-  to{opacity:1;transform:translateY(0) scale(1);}
-}
-
-@keyframes rcaLineDraw{
-  from{stroke-dashoffset:1000;}
-  to{stroke-dashoffset:0;}
+@keyframes rcaChartFade{
+  from{opacity:.18;}
+  to{opacity:1;}
 }
 
 @keyframes rcaBarRise{
-  from{transform:scaleY(.08);opacity:.25;}
+  from{transform:scaleY(.72);opacity:.45;}
   to{transform:scaleY(1);opacity:1;}
 }
 
 .compactRcaApp .fullBleed{
-  animation:rcaFadeUp .22s ease-out both;
+  animation:rcaFadeSoft .18s cubic-bezier(.2,0,.2,1) both;
+  will-change:opacity,transform;
 }
 
-.compactRcaApp .rcaFinalHero{
-  animation:rcaSoftScale .26s ease-out both;
-}
-
+.compactRcaApp .rcaFinalHero,
 .compactRcaApp .rcaFinalCard,
 .compactRcaApp .evidencePanel,
 .compactRcaApp .st03nTabs,
 .compactRcaApp .logTabs{
-  animation:rcaFadeUp .24s ease-out both;
+  animation:rcaFadeSoft .2s cubic-bezier(.2,0,.2,1) both;
+  will-change:opacity,transform;
 }
-
-.compactRcaApp .rcaFinalCard:nth-of-type(2){animation-delay:.035s;}
-.compactRcaApp .rcaFinalCard:nth-of-type(3){animation-delay:.07s;}
-.compactRcaApp .rcaFinalCard:nth-of-type(4){animation-delay:.105s;}
-.compactRcaApp .rcaFinalCard:nth-of-type(5){animation-delay:.14s;}
 
 .compactRcaApp .st03nTabs button,
 .compactRcaApp .logTabs button,
@@ -45,7 +34,7 @@
 .compactRcaApp .rcaFinalUpload,
 .compactRcaApp .rcaFinalTableWrap tbody tr td,
 .compactRcaApp .rcaFinalTableCard tbody tr td{
-  transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .16s ease,opacity .16s ease;
+  transition:background-color .18s cubic-bezier(.2,0,.2,1),border-color .18s cubic-bezier(.2,0,.2,1),color .18s cubic-bezier(.2,0,.2,1),box-shadow .18s cubic-bezier(.2,0,.2,1),opacity .18s cubic-bezier(.2,0,.2,1);
 }
 
 .compactRcaApp .st03nTabs button:hover,
@@ -61,53 +50,34 @@
 
 .compactRcaApp .rcaFinalUpload:hover{
   border-color:rgba(147,197,253,.82);
-  box-shadow:0 0 0 3px rgba(37,99,235,.12),0 16px 30px rgba(15,23,42,.12);
-  transform:translateY(-1px);
+  box-shadow:0 0 0 3px rgba(37,99,235,.10),0 10px 24px rgba(15,23,42,.10);
 }
 
 .compactRcaApp .rcaFinalTableWrap tbody tr:hover td,
 .compactRcaApp .rcaFinalTableCard tbody tr:hover td{
-  transform:translateX(1px);
+  background:#eff6ff!important;
 }
 
+/* Keep chart motion subtle. Heavy stroke-dash animation felt choppy on dense SVG/table pages. */
 .compactRcaApp .st03nLineChart polyline,
 .compactRcaApp .logLinePath{
-  stroke-dasharray:1000;
-  stroke-dashoffset:1000;
-  animation:rcaLineDraw .82s cubic-bezier(.22,.61,.36,1) .08s forwards;
+  animation:rcaChartFade .28s cubic-bezier(.2,0,.2,1) both;
+  will-change:opacity;
 }
-
-.compactRcaApp .st03nLineChart polyline:nth-of-type(2),
-.compactRcaApp .logLinePath:nth-of-type(2){animation-delay:.16s;}
-.compactRcaApp .st03nLineChart polyline:nth-of-type(3),
-.compactRcaApp .logLinePath:nth-of-type(3){animation-delay:.24s;}
-.compactRcaApp .st03nLineChart polyline:nth-of-type(4),
-.compactRcaApp .logLinePath:nth-of-type(4){animation-delay:.32s;}
 
 .compactRcaApp .rcaTrendPoint span{
   transform-origin:bottom center;
-  animation:rcaBarRise .38s ease-out both;
+  animation:rcaBarRise .24s cubic-bezier(.2,0,.2,1) both;
 }
 
-.compactRcaApp .rcaTrendPoint:nth-child(2) span{animation-delay:.03s;}
-.compactRcaApp .rcaTrendPoint:nth-child(3) span{animation-delay:.06s;}
-.compactRcaApp .rcaTrendPoint:nth-child(4) span{animation-delay:.09s;}
-.compactRcaApp .rcaTrendPoint:nth-child(5) span{animation-delay:.12s;}
-.compactRcaApp .rcaTrendPoint:nth-child(6) span{animation-delay:.15s;}
-.compactRcaApp .rcaTrendPoint:nth-child(7) span{animation-delay:.18s;}
-.compactRcaApp .rcaTrendPoint:nth-child(8) span{animation-delay:.21s;}
-.compactRcaApp .rcaTrendPoint:nth-child(9) span{animation-delay:.24s;}
-.compactRcaApp .rcaTrendPoint:nth-child(10) span{animation-delay:.27s;}
-
 .compactRcaBrand:hover .rcaLogoMark{
-  transform:translateY(-1px);
-  box-shadow:0 0 0 1px rgba(125,211,252,.62),0 14px 28px rgba(37,99,235,.42)!important;
+  box-shadow:0 0 0 1px rgba(125,211,252,.62),0 12px 24px rgba(37,99,235,.34)!important;
 }
 
 .compactRcaBrand .rcaLogoMark,
 .compactRcaBrand .brandTitle,
 .compactRcaBrand .brandSub{
-  transition:transform .18s ease,filter .18s ease,box-shadow .18s ease,color .18s ease;
+  transition:filter .18s cubic-bezier(.2,0,.2,1),box-shadow .18s cubic-bezier(.2,0,.2,1),color .18s cubic-bezier(.2,0,.2,1);
 }
 
 .compactRcaBrand:hover .brandTitle{
