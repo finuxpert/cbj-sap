@@ -32,15 +32,23 @@ function dominantKind(row = {}) {
 }
 
 function graphRows(rows = [], limit = 7) {
-  return rows.slice(0, limit).map((row) => ({
-    ...row,
-    name: rowLabel(row),
-    response: metric(row, 'response', 'responseMs'),
-    db: metric(row, 'db', 'dbMs'),
-    wait: metric(row, 'wait', 'waitMs'),
-    cpu: metric(row, 'cpu', 'cpuMs'),
-    steps: Math.round(Number(row.steps || 0)),
-  }))
+  return rows.slice(0, limit).map((row) => {
+    const response = metric(row, 'response', 'responseMs')
+    const db = metric(row, 'db', 'dbMs')
+    const wait = metric(row, 'wait', 'waitMs')
+    const cpu = metric(row, 'cpu', 'cpuMs')
+    const effective = Math.max(response, db + wait + cpu)
+    return {
+      ...row,
+      name: rowLabel(row),
+      response,
+      db,
+      wait,
+      cpu,
+      effective,
+      steps: Math.round(Number(row.steps || 0)),
+    }
+  })
 }
 
 function buildReportText(analysis) {
@@ -135,7 +143,7 @@ function EvidenceSummary({ analysis }) {
 
 function BreakdownChart({ rows = [] }) {
   const data = graphRows(rows, 7)
-  const maxValue = Math.max(1, ...data.map((row) => Math.max(row.response, row.db + row.wait + row.cpu)))
+  const maxValue = Math.max(1, ...data.map((row) => row.effective))
   return (
     <section className="rcaFinalCard rcaFinalChartCard">
       <div className="rcaFinalPanelTitle"><h2>Response Time Breakdown / Top Offender</h2><span>ms by component</span></div>
@@ -144,14 +152,14 @@ function BreakdownChart({ rows = [] }) {
           const dbPct = Math.max(1, Math.min(100, (row.db / maxValue) * 100))
           const waitPct = Math.max(1, Math.min(100, (row.wait / maxValue) * 100))
           const cpuPct = Math.max(1, Math.min(100, (row.cpu / maxValue) * 100))
-          return <div className="rcaLiteBarRow" key={`${row.name}-${row.score}-${row.response}`}>
+          return <div className="rcaLiteBarRow" key={`${row.name}-${row.score}-${row.effective}`}>
             <div className="rcaLiteBarLabel" title={row.name}>{row.name}</div>
             <div className="rcaLiteBarTrack">
               <span className="db" style={{ width: `${dbPct}%` }} title={`DB ${fmt(row.db, 0)}ms`} />
               <span className="wait" style={{ width: `${waitPct}%` }} title={`Wait ${fmt(row.wait, 0)}ms`} />
               <span className="cpu" style={{ width: `${cpuPct}%` }} title={`CPU ${fmt(row.cpu, 0)}ms`} />
             </div>
-            <div className="rcaLiteBarValue">{fmt(row.response, 0)}ms</div>
+            <div className="rcaLiteBarValue">{fmt(row.effective, 0)}ms</div>
           </div>
         })}
         <div className="rcaLiteLegend"><span className="db">DB</span><span className="wait">Wait</span><span className="cpu">CPU</span></div>
@@ -175,7 +183,7 @@ function OffenderQueue({ rows = [] }) {
     <section className="rcaFinalCard">
       <div className="rcaFinalPanelTitle"><h2>Evidence Summary</h2><span>Top Signals</span></div>
       <div className="rcaFinalList">
-        {items.map((row, index) => <div key={`${row.name}-${index}`}><b>#{index + 1} {row.name}</b><span>{dominantKind(row)} dominant · Score {row.score}/100</span><small>Response {fmt(row.response, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms · Steps {fmt(row.steps, 0)}</small></div>)}
+        {items.map((row, index) => <div key={`${row.name}-${index}`}><b>#{index + 1} {row.name}</b><span>{dominantKind(row)} dominant · Score {row.score}/100</span><small>Effective {fmt(row.effective, 0)}ms · DB {fmt(row.db, 0)}ms · Wait {fmt(row.wait, 0)}ms · Steps {fmt(row.steps, 0)}</small></div>)}
       </div>
     </section>
   )
