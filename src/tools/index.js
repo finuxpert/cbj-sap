@@ -1,8 +1,8 @@
 import React from 'react'
 
 const importers = {
-  st03n: () => import('./ToolSt03nImpactV2.jsx'),
-  log: () => import('./ToolLogEvidenceV2.jsx'),
+  st03n: () => import('./ToolSt03nDashboardFinal.jsx'),
+  log: () => import('./ToolLogDashboardFinal.jsx'),
 }
 
 const meta = [
