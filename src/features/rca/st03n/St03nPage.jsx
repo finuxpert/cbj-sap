@@ -3,6 +3,7 @@ import { fmt, loadJson, saveJson } from '../shared/rca-utils.js'
 import { EmptyState, UploadedFilesPanel } from '../shared/RcaEvidenceKit.jsx'
 import { buildSt03nAnalysis, classifySt03nFile, expandSt03nFiles, parseSt03nFile, REQUIRED_ST03N } from './st03n-parser.js'
 import '../shared/RcaDashboard.css'
+import './St03nPage.css'
 
 const CACHE_KEY = 'sap_st03n_impact_v2_cache'
 const ACCEPTED_TYPES = ['.xlsx', '.xls', '.csv', '.zip']
