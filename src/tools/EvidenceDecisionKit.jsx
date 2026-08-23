@@ -20,6 +20,8 @@ export function EvidenceToolbar({ analysis, cacheKey, reportText, filenamePrefix
     window.setTimeout(() => setCopied(false), 1600)
   }
   const clear = () => {
+    const confirmed = window.confirm('Clear cached analysis for this tool? Uploaded server evidence and Case History are not deleted.')
+    if (!confirmed) return
     if (cacheKey) localStorage.removeItem(cacheKey)
     window.location.reload()
   }
