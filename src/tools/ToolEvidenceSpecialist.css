@@ -249,4 +249,177 @@
   .evidenceToolShell { padding: 12px; }
   .evidenceHero { padding: 16px; }
   .evidenceHero h1 { font-size: 34px; }
+
+  .st03nImpactShell {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px;
+    overflow-x: clip;
+  }
+
+  .st03nImpactShell *,
+  .st03nImpactShell *::before,
+  .st03nImpactShell *::after {
+    min-width: 0;
+  }
+
+  .st03nImpactShell .evidenceHero,
+  .st03nImpactShell .compactEvidenceHero,
+  .st03nImpactShell .finalHero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    align-items: stretch;
+    padding: 16px;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .st03nImpactShell .heroCopyBlock {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .st03nImpactShell .heroCopyBlock > span,
+  .st03nImpactShell .heroCopyBlock h1,
+  .st03nImpactShell .heroCopyBlock p {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .st03nImpactShell .heroCopyBlock h1,
+  .st03nImpactShell .compactEvidenceHero h1,
+  .st03nImpactShell .finalHero h1 {
+    margin: 6px 0 8px;
+    font-size: clamp(30px, 9.5vw, 38px);
+    line-height: 1.06;
+    letter-spacing: -0.04em;
+  }
+
+  .st03nImpactShell .heroCopyBlock p,
+  .st03nImpactShell .finalHero p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .st03nImpactShell .evidenceUpload,
+  .st03nImpactShell .finalUpload {
+    width: 100%;
+    max-width: 100%;
+    min-height: 112px;
+    justify-self: stretch;
+    align-self: stretch;
+    align-items: flex-start;
+    padding: 14px;
+    border-radius: 16px;
+    text-align: left;
+  }
+
+  .st03nImpactShell .finalUpload strong,
+  .st03nImpactShell .finalUpload small {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .st03nImpactShell .acceptedTypes {
+    display: flex;
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .st03nImpactShell .acceptedTypes span {
+    flex: 0 1 auto;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  .st03nImpactShell .evidenceToolbar,
+  .st03nImpactShell .decisionBoard,
+  .st03nImpactShell .finalDecisionBoard,
+  .st03nImpactShell .evidenceGrid,
+  .st03nImpactShell .evidenceGrid.wide,
+  .st03nImpactShell .evidenceGrid.triple,
+  .st03nImpactShell .st03nSummaryGrid,
+  .st03nImpactShell .st03nKpiStrip,
+  .st03nImpactShell .st03nDashboardBoard,
+  .st03nImpactShell .st03nFooterGrid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .st03nImpactShell .st03nDashboardBoard > div,
+  .st03nImpactShell .st03nDashboardBoard > div:nth-child(n) {
+    grid-column: 1 / -1 !important;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .st03nImpactShell .evidencePanel,
+  .st03nImpactShell .decisionCard,
+  .st03nImpactShell .sessionBanner,
+  .st03nImpactShell .st03nKpiCard,
+  .st03nImpactShell .emptyState {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .st03nImpactShell .parsePanel .statusList,
+  .st03nImpactShell .confidenceRows,
+  .st03nImpactShell .finalMetricRows {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .st03nImpactShell .panelTitleRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px 10px;
+  }
+
+  .st03nImpactShell .panelTitleRow span {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .st03nImpactShell .st03nChartPanel,
+  .st03nImpactShell .st03nMetricPanel,
+  .st03nImpactShell .st03nComponentPanel,
+  .st03nImpactShell .st03nOffenderPanel,
+  .st03nImpactShell .visual {
+    overflow: hidden;
+  }
+
+  .st03nImpactShell canvas,
+  .st03nImpactShell svg,
+  .st03nImpactShell [style*="width: 100%"] {
+    max-width: 100%;
+  }
+
+  .finalNav .rcaNavInner,
+  .finalNav .rcaBrand,
+  .finalNav .brandText {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .finalNav .brandTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .finalMobilePanel .row {
+    max-width: 100%;
+  }
+
+  .finalMobilePanel .btn {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+  }
 }
