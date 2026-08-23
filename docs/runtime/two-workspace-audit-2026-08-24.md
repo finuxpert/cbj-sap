@@ -10,7 +10,7 @@ The application should expose only two primary SAP analysis workspaces:
 1. **ST03N Analysis** — workload/performance evidence.
 2. **Log Analysis** — error, trace, job/program, infra signal, and process evidence.
 
-Case History remains a shared persistence capability, not a third analysis workspace.
+Case History remains a shared persistence/correlation capability, not a third analysis workspace.
 
 ## Functional mapping
 
@@ -20,11 +20,25 @@ Case History remains a shared persistence capability, not a third analysis works
 | WP-SCOUT Process | Log Analysis → Process Evidence | WP-SCOUT rows are process/log evidence: PID, WP, CPU/RSS, job, program, error code, recurrence. Log Evidence V2 already parses WP-SCOUT input. |
 | Log Evidence V2 | Log Analysis → Log Evidence | Owns SM21/ST22/dev_w/job logs, error families, owner direction, infra saturation, job/program mapping, and timeline. |
 | Dashboard / InvestigationWorkspace V2 | Retired from active routing | It duplicates ST03N and WP-SCOUT parsing and creates a third investigation surface with overlapping conclusions. |
+| Dashboard cross-tool correlation | Case Detail / RCA Analytics | Cross-tool capability is preserved by the existing Case History correlation API and `CorrelationSummary`, which shows correlated sources, affected hosts, workprocesses, confidence, root cause, and recommended actions. |
 | Case History | Embedded shared utility + internal `#/cases` route | Required for explicit persistence, correlation, audit trail, and case detail. It should not compete with analysis tools in primary navigation. |
 | Runbook page | Removed from primary routing | Current page is only a short placeholder. Action guidance already exists in ST03N/Log results and repository runbooks remain in docs. |
 | Ops page | Removed from primary routing | Current page is a placeholder. Operational ownership is more useful when derived from Log Analysis owner direction. |
 | PDF export | Context-aware utility | ST03N keeps analyzer export; Log Evidence keeps logs export; Process Evidence preserves comparer export internally. |
 | Evidence API archive | Shared utility | Log archive remains on Log Evidence; ST03N keeps server/evidence context in its own analysis flow. |
+
+## Why the old Dashboard can be retired safely
+
+The dashboard's useful cross-tool concept is not being deleted. `CaseDetailWithAnalytics` already loads backend case correlation, and `CorrelationSummary` renders correlated tools/sources, related workprocesses, affected hosts, confidence, top root cause, next check, and recommended actions. This is a better location for combined RCA because correlation should happen after evidence from ST03N and Log has been linked to the same case.
+
+The resulting workflow is:
+
+1. Analyze workload in ST03N.
+2. Analyze errors/process evidence in Log.
+3. Link both results to one Case History case.
+4. Review cross-tool correlation in that case's RCA Analytics.
+
+This preserves the combined-analysis value without keeping a duplicate Dashboard parser/workbench.
 
 ## Navigation model
 
@@ -98,6 +112,7 @@ Before merging this architecture into `dev`:
 7. Verify top desktop/mobile navigation contains only ST03N and Log.
 8. Verify `Analysis History` from both Case Link panels opens `#/cases`.
 9. Verify create/link/save Case History remains explicit and functional.
-10. Verify PDF export selects analyzer/logs/comparer output according to the current view.
+10. Save ST03N and Log/Process evidence to the same case and verify Case Detail RCA Analytics correlates sources/workprocesses/hosts.
+11. Verify PDF export selects analyzer/logs/comparer output according to the current view.
 
 Known repository-wide lint debt from the pre-v0.2.0 codebase should be cleaned in a dedicated PR; do not mix mass lint rewrites with this routing/IA change.
