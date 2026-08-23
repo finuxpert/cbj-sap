@@ -1,6 +1,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { getCurrentHashRoute } from '../app/routeUtils.js'
+import { APP_VERSION } from '../app/version.js'
 import { tools, preloadTool } from '../tools'
 import SapRcaLogo from './SapRcaLogo.jsx'
 
@@ -159,7 +160,7 @@ export default function Navbar() {
       <div style={mobileStyles.panel}>
         <div style={mobileStyles.head}>
           <div>
-            <div style={mobileStyles.title}>SAP RCA Workspace</div>
+            <div style={mobileStyles.title}>SAP RCA Workspace · v{APP_VERSION}</div>
             <p style={mobileStyles.sub}>Quick access RCA tools</p>
           </div>
           <button style={mobileStyles.close} type="button" onClick={closeMobile} aria-label="Close menu">×</button>
@@ -201,11 +202,11 @@ export default function Navbar() {
     <>
       <header className="navbar rcaNav">
         <div className="navInner rcaNavInner">
-          <a className="brand rcaBrand" href="#/" onClick={closeMobile}>
+          <a className="brand rcaBrand" href="#/" onClick={closeMobile} aria-label={`SAP RCA Workspace v${APP_VERSION} home`}>
             <SapRcaLogo />
             <span className="brandText">
               <span className="brandTitle">SAP RCA Workspace</span>
-              <span className="brandSub">Basis evidence console</span>
+              <span className="brandSub">Basis evidence console · v{APP_VERSION}</span>
             </span>
           </a>
 
@@ -215,6 +216,7 @@ export default function Navbar() {
                 key={tool.slug}
                 href={`#/tool/${tool.slug}`}
                 data-active={active(`/tool/${tool.slug}`)}
+                aria-current={active(`/tool/${tool.slug}`) === 'true' ? 'page' : undefined}
                 onMouseEnter={() => preloadTool?.(tool.slug)}
               >
                 <span>{tool.icon}</span>{tool.title}
@@ -223,10 +225,10 @@ export default function Navbar() {
           </nav>
 
           <nav className="navLinks rcaNavLinks" aria-label="Workspace navigation">
-            <a href="#/" data-active={active('/')}>Dashboard</a>
-            <a href="#/cases" data-active={active('/cases')}>Cases</a>
-            <a href="#/about" data-active={active('/about')}>Runbook</a>
-            <a href="#/contact" data-active={active('/contact')}>Ops</a>
+            <a href="#/" data-active={active('/')} aria-current={active('/') === 'true' ? 'page' : undefined}>Dashboard</a>
+            <a href="#/cases" data-active={active('/cases')} aria-current={active('/cases') === 'true' ? 'page' : undefined}>Cases</a>
+            <a href="#/about" data-active={active('/about')} aria-current={active('/about') === 'true' ? 'page' : undefined}>Runbook</a>
+            <a href="#/contact" data-active={active('/contact')} aria-current={active('/contact') === 'true' ? 'page' : undefined}>Ops</a>
           </nav>
 
           <button

@@ -1,10 +1,15 @@
+const ROUTE_ALIASES = {
+  '/st03n': '/tool/analyzer',
+  '/log': '/tool/logs',
+}
+
 export function normalizeHashRoute(value = '/') {
   const parts = value.split('/').filter(Boolean)
-
-  if (parts[0] !== 'sap') return value || '/'
-
-  const next = `/${parts.slice(1).join('/')}`
-  return next === '/' ? '/' : next
+  const normalized = parts[0] === 'sap'
+    ? `/${parts.slice(1).join('/')}`
+    : (value || '/')
+  const route = normalized === '' ? '/' : normalized
+  return ROUTE_ALIASES[route] || route
 }
 
 export function getCurrentHashRoute() {

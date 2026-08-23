@@ -6,6 +6,7 @@ import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
 import { tools } from './tools'
 import useRoute from './app/useRoute.js'
+import { APP_VERSION, formatAppTitle } from './app/version.js'
 import Home from './app/pages/Home.jsx'
 import About from './app/pages/About.jsx'
 import Contact from './app/pages/Contact.jsx'
@@ -15,7 +16,15 @@ import NotFound from './app/pages/NotFound.jsx'
 import ToolExportDock from './features/pdf/ToolExportDock.jsx'
 import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
 
-const APP_BUILD_STAMP = 'sap-20260508-case-detail-analytics'
+function routeTitle(route, tool) {
+  if (route.name === 'home') return 'Dashboard'
+  if (route.name === 'cases') return 'Case History'
+  if (route.name === 'caseDetail') return `Case ${route.caseId || ''}`.trim()
+  if (route.name === 'about') return 'Runbook'
+  if (route.name === 'contact') return 'Ops'
+  if (route.name === 'tool') return tool?.title || 'RCA Tool'
+  return 'Not Found'
+}
 
 export default function App() {
   const route = useRoute()
@@ -23,8 +32,12 @@ export default function App() {
   const ActiveTool = tool ? tool.Component : null
   const showEvidencePanel = route.name === 'tool' && route.slug === 'logs'
 
+  React.useEffect(() => {
+    document.title = formatAppTitle(routeTitle(route, tool))
+  }, [route, tool])
+
   return (
-    <div className={`appShell ${route.name === 'tool' ? 'isTool' : ''}`} data-build={APP_BUILD_STAMP}>
+    <div className={`appShell ${route.name === 'tool' ? 'isTool' : ''}`} data-build={`sap-${APP_VERSION}`} data-version={APP_VERSION}>
       <Navbar />
       <main>
         {route.name === 'home' && <Home />}
