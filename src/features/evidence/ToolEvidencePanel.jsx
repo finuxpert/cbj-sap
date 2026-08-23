@@ -3,19 +3,13 @@ import EvidenceUploader from './EvidenceUploader.jsx'
 
 const TOOL_COPY = {
   logs: {
-    title: 'Log Triage Evidence Archive',
-    note: 'Evidence archive for Log Triage. Parser workflow remains inside the tool below.',
-    tags: ['log-triage', 'sap-rca'],
-    accept: '.log,.txt,.zip,.gz,.csv',
-  },
-  comparer: {
-    title: 'Comparator Evidence Archive',
-    note: 'Evidence archive for RCA Comparator / WP-SCOUT snapshots.',
-    tags: ['comparer', 'wp-scout', 'sap-rca'],
+    title: 'Log Analysis Evidence Archive',
+    note: 'Shared archive for Log Analysis. WP-SCOUT process evidence is available from the Process Evidence view inside Log Analysis.',
+    tags: ['log-analysis', 'wp-scout', 'sap-rca'],
     accept: '.log,.txt,.zip,.gz,.csv',
   },
   analyzer: {
-    title: 'ST03N Evidence Archive',
+    title: 'ST03N Analysis Evidence Archive',
     note: 'Evidence archive for ST03N workload exports.',
     tags: ['st03n', 'workload', 'sap-rca'],
     accept: '.xlsx,.xls,.csv,.zip',
