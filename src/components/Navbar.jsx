@@ -28,8 +28,8 @@ const mobileStyles = {
     maxWidth: 520,
     margin: '0 auto',
     padding: 14,
-    border: '1px solid rgba(45, 212, 191, 0.44)',
-    borderRadius: 22,
+    border: '1px solid rgba(56, 189, 248, 0.28)',
+    borderRadius: 18,
     background: '#071013',
     color: 'rgba(250, 255, 253, 0.98)',
     boxShadow: '0 28px 90px rgba(0, 0, 0, 0.78)',
@@ -43,7 +43,7 @@ const mobileStyles = {
   },
   title: {
     marginBottom: 4,
-    color: 'rgba(45, 212, 191, 0.98)',
+    color: 'rgba(56, 189, 248, 0.98)',
     fontSize: 12,
     fontWeight: 950,
     letterSpacing: '0.08em',
@@ -51,36 +51,36 @@ const mobileStyles = {
   },
   sub: {
     margin: 0,
-    color: 'rgba(220, 238, 238, 0.76)',
+    color: 'rgba(220, 238, 238, 0.70)',
     fontSize: 12,
   },
   close: {
     width: 42,
     height: 42,
     flex: '0 0 42px',
-    border: '1px solid rgba(214, 242, 240, 0.18)',
-    borderRadius: 14,
-    background: 'rgba(255, 255, 255, 0.07)',
+    border: '1px solid rgba(214, 242, 240, 0.14)',
+    borderRadius: 12,
+    background: 'rgba(255, 255, 255, 0.05)',
     color: 'rgba(250, 255, 253, 0.98)',
     fontSize: 26,
     lineHeight: 1,
   },
   group: {
     display: 'grid',
-    gap: 10,
+    gap: 8,
   },
   item: {
     display: 'block',
-    padding: '13px 14px',
-    border: '1px solid rgba(214, 242, 240, 0.14)',
-    borderRadius: 16,
-    background: 'rgba(255, 255, 255, 0.055)',
+    padding: '12px 13px',
+    border: '1px solid rgba(214, 242, 240, 0.10)',
+    borderRadius: 12,
+    background: 'rgba(255, 255, 255, 0.028)',
     color: 'rgba(250, 255, 253, 0.98)',
     textDecoration: 'none',
   },
   itemActive: {
-    border: '1px solid rgba(45, 212, 191, 0.48)',
-    background: 'linear-gradient(135deg, rgba(45, 212, 191, 0.20), rgba(56, 189, 248, 0.10))',
+    border: '1px solid rgba(56, 189, 248, 0.34)',
+    background: 'rgba(56, 189, 248, 0.08)',
   },
   itemTitle: {
     display: 'block',
@@ -91,7 +91,7 @@ const mobileStyles = {
   },
   itemSub: {
     display: 'block',
-    color: 'rgba(220, 238, 238, 0.76)',
+    color: 'rgba(220, 238, 238, 0.70)',
     fontSize: 12,
     lineHeight: 1.4,
   },
@@ -139,7 +139,7 @@ export default function Navbar() {
         <div style={mobileStyles.head}>
           <div>
             <div style={mobileStyles.title}>SAP RCA Workspace · v{APP_VERSION}</div>
-            <p style={mobileStyles.sub}>Two focused analysis workspaces</p>
+            <p style={mobileStyles.sub}>ST03N workload and operational evidence analysis</p>
           </div>
           <button style={mobileStyles.close} type="button" onClick={closeMobile} aria-label="Close menu">×</button>
         </div>
@@ -171,7 +171,7 @@ export default function Navbar() {
             <SapRcaLogo />
             <span className="brandText">
               <span className="brandTitle">SAP RCA Workspace</span>
-              <span className="brandSub">ST03N + Log analysis · v{APP_VERSION}</span>
+              <span className="brandSub">Analysis workspace · v{APP_VERSION}</span>
             </span>
           </a>
 

@@ -8,24 +8,89 @@ export function DecisionCard({ label, value, hint, tone = '' }) {
 
 export function SessionBanner({ session }) {
   if (!session) return null
-  return <section className="sessionBanner"><b>Latest RCA session</b><span>{session.sid} • {session.host} • {session.window?.start} - {session.window?.end}</span><small>{session.summary}</small></section>
+  const windowLabel = [session.window?.start, session.window?.end].filter(Boolean).join('–')
+  return (
+    <details className="sessionContext">
+      <summary>
+        <span className="sessionContextLabel">Session context</span>
+        <strong>{session.sid || 'SAP'}</strong>
+        <span>{session.host || 'Host n/a'}</span>
+        {windowLabel ? <span>{windowLabel}</span> : null}
+        <em>Details</em>
+      </summary>
+      <div className="sessionContextBody">
+        <b>Latest correlated RCA session</b>
+        <p>{session.summary || 'No additional session summary available.'}</p>
+      </div>
+    </details>
+  )
 }
 
 export function EvidenceToolbar({ analysis, cacheKey, reportText, filenamePrefix = 'sap-evidence-analysis' }) {
   const [copied, setCopied] = React.useState(false)
   const canExport = Boolean(analysis)
+
   const copy = async () => {
     await copyText(reportText || JSON.stringify(analysis || {}, null, 2))
     setCopied(true)
     window.setTimeout(() => setCopied(false), 1600)
   }
+
   const clear = () => {
-    const confirmed = window.confirm('Clear cached analysis for this tool? Uploaded server evidence and Case History are not deleted.')
+    const confirmed = window.confirm('Clear local cached analysis for this tool? Server evidence and Case History are not deleted.')
     if (!confirmed) return
     if (cacheKey) localStorage.removeItem(cacheKey)
     window.location.reload()
   }
-  return <div className="evidenceToolbar"><button type="button" disabled={!canExport} onClick={copy}>{copied ? 'Copied' : 'Copy Summary'}</button><button type="button" disabled={!canExport} onClick={() => downloadJson(`${filenamePrefix}.json`, analysis)}>Export JSON</button><button type="button" onClick={clear}>Clear Cache</button></div>
+
+  return (
+    <div className="evidenceToolbar" aria-label="Analysis actions">
+      <button className="evidenceToolbarPrimary" type="button" disabled={!canExport} onClick={copy}>
+        {copied ? 'Copied' : 'Copy summary'}
+      </button>
+      <details className="evidenceActionMenu">
+        <summary>More</summary>
+        <div className="evidenceActionMenuPanel">
+          <button type="button" disabled={!canExport} onClick={() => downloadJson(`${filenamePrefix}.json`, analysis)}>Export JSON</button>
+          <button className="danger" type="button" onClick={clear}>Clear local cache</button>
+        </div>
+      </details>
+    </div>
+  )
+}
+
+export function WorkspaceTabs({ tabs = [], active, onChange, label = 'Analysis views' }) {
+  return (
+    <nav className="workspaceTabs" role="tablist" aria-label={label}>
+      {tabs.map((tab) => (
+        <button
+          type="button"
+          role="tab"
+          key={tab.id}
+          aria-selected={active === tab.id}
+          data-active={active === tab.id ? 'true' : 'false'}
+          onClick={() => onChange(tab.id)}
+        >
+          {tab.label}
+          {tab.meta ? <span>{tab.meta}</span> : null}
+        </button>
+      ))}
+    </nav>
+  )
+}
+
+export function AnalysisDisclosure({ label, title, meta, children, defaultOpen = false }) {
+  return (
+    <details className="analysisDisclosure" open={defaultOpen || undefined}>
+      <summary>
+        <span>{label}</span>
+        <strong>{title}</strong>
+        {meta ? <small>{meta}</small> : null}
+        <em>Open</em>
+      </summary>
+      <div className="analysisDisclosureBody">{children}</div>
+    </details>
+  )
 }
 
 export function UploadedFilesPanel({ files = [] }) {

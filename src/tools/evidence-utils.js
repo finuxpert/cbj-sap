@@ -15,7 +15,7 @@ export function toNumber(value, fallback = 0) {
   } else {
     text = text.replace(',', '.')
   }
-  text = text.replace(/[^0-9.\-]/g, '')
+  text = text.replace(/[^0-9.-]/g, '')
   const parsed = Number.parseFloat(text)
   return Number.isFinite(parsed) ? parsed : fallback
 }

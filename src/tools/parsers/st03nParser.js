@@ -10,7 +10,12 @@ export const REQUIRED_ST03N = [
 ]
 
 export function classifySt03nFile(name = '') {
-  const normalized = lower(name).replace(/[_()\[\]]/g, '-')
+  const normalized = lower(name)
+    .replaceAll('_', '-')
+    .replaceAll('(', '-')
+    .replaceAll(')', '-')
+    .replaceAll('[', '-')
+    .replaceAll(']', '-')
   return REQUIRED_ST03N.find((item) => item.patterns.some((pattern) => normalized.includes(pattern)))?.key || ''
 }
 

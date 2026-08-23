@@ -38,7 +38,7 @@ function normalizeDirectRows(rows = []) {
   }))
 }
 
-export function getWpScoutDirectUploadHydrationPayload() {
+function getWpScoutDirectUploadHydrationPayload() {
   const payload = readDirectUploadPayload()
   const rows = normalizeDirectRows(payload?.rows || [])
   if (!rows.length) return null
@@ -78,7 +78,7 @@ export default function ToolComparerDirectHydrated() {
   if (!ToolComparerClean) {
     return (
       <section className="container section">
-        <div className="card">Loading WP-SCOUT comparator…</div>
+        <div className="card">Loading WP-SCOUT process evidence…</div>
       </section>
     )
   }

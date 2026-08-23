@@ -1,5 +1,5 @@
 export const APP_NAME = 'SAP RCA Workspace'
-export const APP_VERSION = '0.2.0'
+export const APP_VERSION = '0.3.0'
 
 export function formatAppTitle(section = '') {
   return `${section ? `${section} · ` : ''}${APP_NAME} v${APP_VERSION}`

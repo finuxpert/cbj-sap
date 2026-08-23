@@ -15,17 +15,13 @@ export default function ToolLogWorkspace({ route }) {
     <>
       <section className="logWorkspaceModeBar" aria-label="Log analysis mode">
         <div className="logWorkspaceModeCopy">
-          <span>LOG ANALYSIS</span>
-          <strong>Unified error & process evidence</strong>
-          <small>Use Log Evidence for SM21/ST22/dev_w/job logs. Use Process Evidence for WP-SCOUT PID/WP/job/program correlation.</small>
+          <span>Log Analysis</span>
+          <strong>{processView ? 'Process evidence' : 'Error evidence'}</strong>
+          <small>{processView ? 'WP-SCOUT PID / work process / job / program correlation.' : 'SM21 / ST22 / dev_w / job log evidence and ownership direction.'}</small>
         </div>
         <nav className="logWorkspaceModeTabs" aria-label="Log analysis views">
-          <a href="#/log" data-active={processView ? 'false' : 'true'} aria-current={processView ? undefined : 'page'}>
-            Log Evidence
-          </a>
-          <a href="#/tool/logs/process" data-active={processView ? 'true' : 'false'} aria-current={processView ? 'page' : undefined}>
-            Process Evidence · WP-SCOUT
-          </a>
+          <a href="#/log" data-active={processView ? 'false' : 'true'} aria-current={processView ? undefined : 'page'}>Log Evidence</a>
+          <a href="#/tool/logs/process" data-active={processView ? 'true' : 'false'} aria-current={processView ? 'page' : undefined}>Process Evidence</a>
         </nav>
       </section>
 

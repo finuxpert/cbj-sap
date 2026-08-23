@@ -39,7 +39,7 @@ export async function sqliteChooseDb(){
       excludeAcceptAllOption:false, multiple:false
     })
     return h
-  }catch(e){
+  }catch{
     const h = await window.showSaveFilePicker({
       suggestedName:'sap-tools.db',
       types:[{ description:'SQLite DB', accept:{'application/x-sqlite3':['.db','.sqlite']} }]

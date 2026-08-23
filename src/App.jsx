@@ -11,7 +11,6 @@ import CaseHistory from './app/pages/CaseHistory.jsx'
 import CaseDetailWithAnalytics from './app/pages/CaseDetailWithAnalytics.jsx'
 import NotFound from './app/pages/NotFound.jsx'
 import ToolExportDock from './features/pdf/ToolExportDock.jsx'
-import ToolEvidencePanel from './features/evidence/ToolEvidencePanel.jsx'
 
 function routeTitle(route, tool) {
   if (route.name === 'cases') return 'Analysis History'
@@ -25,7 +24,6 @@ export default function App() {
   const route = useRoute()
   const tool = route.name === 'tool' ? tools.find((item) => item.slug === route.slug) : null
   const ActiveTool = tool ? tool.Component : null
-  const showEvidencePanel = route.name === 'tool' && route.slug === 'logs' && route.view !== 'process'
   const exportSlug = route.name === 'tool' && route.slug === 'logs' && route.view === 'process'
     ? 'comparer'
     : route.slug
@@ -42,7 +40,6 @@ export default function App() {
         {route.name === 'caseDetail' && <CaseDetailWithAnalytics caseId={route.caseId} />}
         {route.name === 'tool' && ActiveTool && (
           <React.Suspense fallback={<section className="container section"><div className="card">Loading SAP analysis module…</div></section>}>
-            {showEvidencePanel && <ToolEvidencePanel tool={route.slug} />}
             <div className="fullBleed"><ActiveTool route={route} /></div>
             <ToolExportDock slug={exportSlug} />
           </React.Suspense>
