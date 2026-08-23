@@ -153,6 +153,7 @@ export default function CaseLinkPanel({
           <h2>{title}</h2>
           <p className="mutedText">{description}</p>
         </div>
+        <a className="btn" href="#/cases">Analysis History</a>
       </div>
 
       <div className="caseLinkStep">
@@ -193,7 +194,7 @@ export default function CaseLinkPanel({
                 return <option key={id || item.title} value={id}>{caseLabel(item)}</option>
               })}
             </select>
-            <small>{visibleCases.length ? 'Select the DB case that should receive this WP-SCOUT analysis.' : 'No existing DB case found. Create a new case first.'}</small>
+            <small>{visibleCases.length ? 'Select the DB case that should receive this analysis.' : 'No existing DB case found. Create a new case first.'}</small>
           </div>
         )}
       </div>
