@@ -1,3 +1,5 @@
+@import './ToolResponsive2026.css';
+
 .evidenceToolShell {
   --tool-accent: #38bdf8;
   --tool-good: #22c55e;
