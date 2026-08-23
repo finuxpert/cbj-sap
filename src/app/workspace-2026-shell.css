@@ -1,0 +1,9 @@
+.mobileVersionBadge {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .mobileVersionBadge {
+    display: inline-flex;
+  }
+}
