@@ -6,9 +6,8 @@ import { tools, preloadTool } from '../tools'
 import SapRcaLogo from './SapRcaLogo.jsx'
 
 const MOBILE_TOOL_LABELS = {
-  comparer: 'WP-SCOUT',
-  analyzer: 'ST03N Impact',
-  logs: 'Log Evidence',
+  analyzer: 'ST03N Analysis',
+  logs: 'Log Analysis',
 }
 
 const mobileStyles = {
@@ -96,25 +95,6 @@ const mobileStyles = {
     fontSize: 12,
     lineHeight: 1.4,
   },
-  footer: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 10,
-    marginTop: 14,
-  },
-  footerLink: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 42,
-    border: '1px solid rgba(214, 242, 240, 0.14)',
-    borderRadius: 14,
-    background: 'rgba(255, 255, 255, 0.055)',
-    color: 'rgba(250, 255, 253, 0.98)',
-    fontSize: 13,
-    fontWeight: 850,
-    textDecoration: 'none',
-  },
 }
 
 function mobileItemStyle(isActive) {
@@ -151,31 +131,21 @@ export default function Navbar() {
     (href) => route === href || route.startsWith(`${href}/`),
     [route],
   )
-
   const closeMobile = React.useCallback(() => setMobileOpen(false), [])
-  const coreTools = tools.filter((tool) => ['comparer', 'analyzer', 'logs'].includes(tool.slug))
 
   const mobileMenu = mobileOpen ? createPortal(
-    <div style={mobileStyles.overlay} role="dialog" aria-label="Mobile navigation menu">
+    <div style={mobileStyles.overlay} role="dialog" aria-label="SAP analysis navigation">
       <div style={mobileStyles.panel}>
         <div style={mobileStyles.head}>
           <div>
             <div style={mobileStyles.title}>SAP RCA Workspace · v{APP_VERSION}</div>
-            <p style={mobileStyles.sub}>Quick access RCA tools</p>
+            <p style={mobileStyles.sub}>Two focused analysis workspaces</p>
           </div>
           <button style={mobileStyles.close} type="button" onClick={closeMobile} aria-label="Close menu">×</button>
         </div>
 
         <div style={mobileStyles.group}>
-          <a style={mobileItemStyle(isActive('/'))} href="#/" onClick={closeMobile}>
-            <strong style={mobileStyles.itemTitle}>Dashboard</strong>
-            <span style={mobileStyles.itemSub}>Upload evidence pack & incident workflow</span>
-          </a>
-          <a style={mobileItemStyle(isActive('/cases'))} href="#/cases" onClick={closeMobile}>
-            <strong style={mobileStyles.itemTitle}>Case History</strong>
-            <span style={mobileStyles.itemSub}>Mobile RCA summary, anomaly, status, and evidence count</span>
-          </a>
-          {coreTools.map((tool) => (
+          {tools.map((tool) => (
             <a
               style={mobileItemStyle(isActive(`/tool/${tool.slug}`))}
               key={tool.slug}
@@ -188,11 +158,6 @@ export default function Navbar() {
             </a>
           ))}
         </div>
-
-        <div style={mobileStyles.footer}>
-          <a style={mobileStyles.footerLink} href="#/about" onClick={closeMobile}>Runbook</a>
-          <a style={mobileStyles.footerLink} href="#/contact" onClick={closeMobile}>Ops</a>
-        </div>
       </div>
     </div>,
     document.body,
@@ -202,16 +167,16 @@ export default function Navbar() {
     <>
       <header className="navbar rcaNav">
         <div className="navInner rcaNavInner">
-          <a className="brand rcaBrand" href="#/" onClick={closeMobile} aria-label={`SAP RCA Workspace v${APP_VERSION} home`}>
+          <a className="brand rcaBrand" href="#/st03n" onClick={closeMobile} aria-label={`SAP RCA Workspace v${APP_VERSION} ST03N analysis`}>
             <SapRcaLogo />
             <span className="brandText">
               <span className="brandTitle">SAP RCA Workspace</span>
-              <span className="brandSub">Basis evidence console · v{APP_VERSION}</span>
+              <span className="brandSub">ST03N + Log analysis · v{APP_VERSION}</span>
             </span>
           </a>
 
-          <nav className="navQuick rcaToolTabs" aria-label="RCA tools">
-            {coreTools.map((tool) => (
+          <nav className="navQuick rcaToolTabs" aria-label="SAP analysis workspaces">
+            {tools.map((tool) => (
               <a
                 key={tool.slug}
                 href={`#/tool/${tool.slug}`}
@@ -222,13 +187,6 @@ export default function Navbar() {
                 <span>{tool.icon}</span>{tool.title}
               </a>
             ))}
-          </nav>
-
-          <nav className="navLinks rcaNavLinks" aria-label="Workspace navigation">
-            <a href="#/" data-active={active('/')} aria-current={active('/') === 'true' ? 'page' : undefined}>Dashboard</a>
-            <a href="#/cases" data-active={active('/cases')} aria-current={active('/cases') === 'true' ? 'page' : undefined}>Cases</a>
-            <a href="#/about" data-active={active('/about')} aria-current={active('/about') === 'true' ? 'page' : undefined}>Runbook</a>
-            <a href="#/contact" data-active={active('/contact')} aria-current={active('/contact') === 'true' ? 'page' : undefined}>Ops</a>
           </nav>
 
           <button
