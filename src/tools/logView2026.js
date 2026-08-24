@@ -1,4 +1,5 @@
 import { buildJobGroups, snapshotSeverity } from './logAnalysis2026.js'
+import { buildIncidentAnalytics } from './incidentAnalytics2026.js'
 
 const num = (value) => Number(value || 0)
 const fmt = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
@@ -109,6 +110,26 @@ function hostOverview(analysis, start = '', end = '') {
   }).sort((a, b) => b.priority - a.priority || severityRank(b.severity) - severityRank(a.severity) || b.peakLoad - a.peakLoad)
 }
 
+function enrichJobs(jobs = [], analytics = null) {
+  const map = new Map((analytics?.workloads || []).map((item) => [item.key, item]))
+  return jobs.map((job) => {
+    const signal = map.get(job.key)
+    return signal ? {
+      ...job,
+      cpuDelta: signal.cpuDelta,
+      rssDelta: signal.rssDelta,
+      anomalyScore: signal.score,
+      analyticsSignals: signal.signals,
+      newErrors: signal.newErrors,
+      dStateDuring: signal.dStateDuring,
+      beforeCpu: signal.beforeCpu,
+      duringCpu: signal.duringCpu,
+      beforeRss: signal.beforeRss,
+      duringRss: signal.duringRss,
+    } : job
+  })
+}
+
 export function buildLogView(analysis, options = {}) {
   if (!analysis) return null
   const hosts = Array.from(new Set((analysis.telemetry || []).map((row) => row.host))).filter(Boolean).sort()
@@ -130,9 +151,10 @@ export function buildLogView(analysis, options = {}) {
   const peaks = { cpu: peak(snapshots, 'cpuPct'), ram: peak(snapshots, 'memoryPct'), load: peak(snapshots, 'loadRatio'), swapIn: peak(snapshots, 'swapIn'), wpCritical: peak(snapshots, 'wpCritical') }
   const focusTime = options.focusTime && windowTimes.has(options.focusTime) ? options.focusTime : ''
   const focusTimes = focusTime ? new Set([focusTime]) : new Set()
-  const jobsWindow = buildJobGroups(processes, windowTimes, snapshots.length)
-  const jobsIncident = incidentTimes.size ? buildJobGroups(processes, incidentTimes, incidentSnapshots.length) : []
-  const jobsFocus = focusTime ? buildJobGroups(processes, focusTimes, 1) : []
+  const analytics = buildIncidentAnalytics({ snapshots, processes, incidentTimes })
+  const jobsWindow = enrichJobs(buildJobGroups(processes, windowTimes, snapshots.length), analytics)
+  const jobsIncident = enrichJobs(incidentTimes.size ? buildJobGroups(processes, incidentTimes, incidentSnapshots.length) : [], analytics)
+  const jobsFocus = enrichJobs(focusTime ? buildJobGroups(processes, focusTimes, 1) : [], analytics)
   const role = hostRole(host)
   return {
     hosts, host, role, allHostSnapshots, snapshots, processes, labels,
@@ -143,6 +165,6 @@ export function buildLogView(analysis, options = {}) {
     jobsWindow, jobsIncident, jobsFocus,
     errorsIncident: incidentTimes.size ? errorSummary(processes, incidentTimes) : [],
     errorsWindow: windowTimes.size ? errorSummary(processes, windowTimes) : [],
-    completeness: completeness(snapshots), focusTime,
+    completeness: completeness(snapshots), focusTime, analytics,
   }
 }
