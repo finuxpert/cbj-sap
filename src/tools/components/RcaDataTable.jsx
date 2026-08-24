@@ -37,17 +37,28 @@ export default function RcaDataTable({
   const [page, setPage] = React.useState(1)
   const lastViewSignature = React.useRef('')
 
+  const deferredQuery = React.useDeferredValue(query)
+  const deferredFilterState = React.useDeferredValue(filterState)
+  const deferredSort = React.useDeferredValue(sort)
+  const pending = deferredQuery !== query || deferredFilterState !== filterState || deferredSort !== sort
+
   React.useEffect(() => { setPage(1) }, [query, filterState, rows])
 
+  const availableFilterOptions = React.useMemo(() => {
+    const options = new Map()
+    filters.forEach((filter) => options.set(filter.key, filterOptions(rows, filter)))
+    return options
+  }, [rows, filters])
+
   const filtered = React.useMemo(() => {
-    const needle = String(query || '').trim().toLowerCase()
+    const needle = String(deferredQuery || '').trim().toLowerCase()
     return rows.filter((row) => {
       if (needle) {
         const haystack = columns.filter((column) => column.searchable !== false).map((column) => rawValue(column, row)).flat().join(' ').toLowerCase()
         if (!haystack.includes(needle)) return false
       }
       for (const filter of filters) {
-        const selected = filterState[filter.key]
+        const selected = deferredFilterState[filter.key]
         if (!selected || selected === '__all__') continue
         const value = filter.value ? filter.value(row) : row?.[filter.key]
         if (Array.isArray(value)) {
@@ -56,19 +67,19 @@ export default function RcaDataTable({
       }
       return true
     })
-  }, [rows, query, columns, filters, filterState])
+  }, [rows, deferredQuery, columns, filters, deferredFilterState])
 
   const sorted = React.useMemo(() => {
-    if (!sort?.key) return filtered
-    const column = columns.find((item) => item.key === sort.key)
+    if (!deferredSort?.key) return filtered
+    const column = columns.find((item) => item.key === deferredSort.key)
     if (!column) return filtered
     return [...filtered].sort((a, b) => {
       const result = compareValues(rawValue(column, a), rawValue(column, b))
-      return sort.dir === 'asc' ? result : -result
+      return deferredSort.dir === 'asc' ? result : -result
     })
-  }, [filtered, sort, columns])
+  }, [filtered, deferredSort, columns])
 
-  const viewSignature = sorted.map((row, index) => String(rowKey(row, index))).join('|')
+  const viewSignature = React.useMemo(() => sorted.map((row, index) => String(rowKey(row, index))).join('|'), [sorted, rowKey])
   React.useEffect(() => {
     if (!onViewChange || viewSignature === lastViewSignature.current) return
     lastViewSignature.current = viewSignature
@@ -90,10 +101,10 @@ export default function RcaDataTable({
   }
 
   const hasToolbar = search || filters.length > 0
-  return <div className={`rca26DataTable ${className}`}>
+  return <div className={`rca26DataTable ${className}`} aria-busy={pending ? 'true' : 'false'} data-pending={pending ? 'true' : 'false'}>
     {hasToolbar && <div className="rca26TableToolbar">
       {search && <input className="rca26Search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholder} />}
-      {filters.map((filter) => <label className="rca26Filter" key={filter.key}><span>{filter.label}</span><select value={filterState[filter.key] || '__all__'} onChange={(event) => setFilterState((current) => ({ ...current, [filter.key]: event.target.value }))}><option value="__all__">All</option>{filterOptions(rows, filter).map((option) => <option value={option} key={option}>{option}</option>)}</select></label>)}
+      {filters.map((filter) => <label className="rca26Filter" key={filter.key}><span>{filter.label}</span><select value={filterState[filter.key] || '__all__'} onChange={(event) => setFilterState((current) => ({ ...current, [filter.key]: event.target.value }))}><option value="__all__">All</option>{(availableFilterOptions.get(filter.key) || []).map((option) => <option value={option} key={option}>{option}</option>)}</select></label>)}
       {(query || Object.values(filterState).some((value) => value && value !== '__all__')) && <button className="rca26TextBtn" onClick={() => { setQuery(''); setFilterState({}) }}>Clear</button>}
       <span className="rca26ResultCount">{sorted.length.toLocaleString()} rows</span>
     </div>}

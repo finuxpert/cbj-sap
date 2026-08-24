@@ -14,6 +14,23 @@ const MOBILE_TOOL_SUB = {
   logs: 'Resources',
 }
 
+function canAnimateNavigation(event) {
+  if (event.defaultPrevented || event.button !== 0) return false
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false
+  return typeof document.startViewTransition === 'function'
+}
+
+function navigateWorkspace(event, href, slug) {
+  preloadTool?.(slug)
+  if (!canAnimateNavigation(event)) return
+  event.preventDefault()
+  document.startViewTransition(() => {
+    window.location.hash = href
+    return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  })
+}
+
 export default function Navbar() {
   const [route, setRoute] = React.useState(getCurrentHashRoute)
 
@@ -50,6 +67,7 @@ export default function Navbar() {
                   href={`#${href}`}
                   data-active={active ? 'true' : 'false'}
                   aria-current={active ? 'page' : undefined}
+                  onClick={(event) => navigateWorkspace(event, href, tool.slug)}
                   onMouseEnter={() => preloadTool?.(tool.slug)}
                   onFocus={() => preloadTool?.(tool.slug)}
                 >
@@ -73,6 +91,7 @@ export default function Navbar() {
               href={`#${href}`}
               data-active={active ? 'true' : 'false'}
               aria-current={active ? 'page' : undefined}
+              onClick={(event) => navigateWorkspace(event, href, tool.slug)}
               onTouchStart={() => preloadTool?.(tool.slug)}
               onFocus={() => preloadTool?.(tool.slug)}
             >
