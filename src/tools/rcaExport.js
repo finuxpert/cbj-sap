@@ -18,12 +18,22 @@ export function downloadCsv(filename, columns, rows) {
 
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
 
-function blockNodes(root) {
+function visibleBlockNodes(root) {
   return Array.from(root?.children || []).filter((node) => {
     if (!(node instanceof HTMLElement)) return false
     const style = window.getComputedStyle(node)
     return style.display !== 'none' && node.offsetWidth > 0 && node.offsetHeight > 0
   })
+}
+
+function blockNodes(root) {
+  if (!root) return []
+  const reportRoot = root.getAttribute?.('data-report-kind') === 'log' ? root.querySelector('.rca26IncidentReportOnly') : null
+  if (reportRoot instanceof HTMLElement) {
+    const reportStyle = window.getComputedStyle(reportRoot)
+    if (reportStyle.display !== 'none' && reportRoot.offsetWidth > 0 && reportRoot.offsetHeight > 0) return visibleBlockNodes(reportRoot)
+  }
+  return visibleBlockNodes(root)
 }
 
 function sliceCanvas(source, startY, height) {
@@ -51,7 +61,8 @@ export async function downloadWorkspacePdf(root, options = {}) {
     const pageHeight = pdf.internal.pageSize.getHeight()
     const margin = 7
     const footer = 8
-    const gap = 3
+    const reportMode = root.getAttribute?.('data-report-kind') === 'log'
+    const gap = reportMode ? 1.5 : 3
     const contentWidth = pageWidth - (margin * 2)
     const contentHeight = pageHeight - (margin * 2) - footer
     let y = margin
@@ -64,6 +75,9 @@ export async function downloadWorkspacePdf(root, options = {}) {
     }
 
     for (const node of blockNodes(root)) {
+      const forcePageBefore = reportMode && node.classList?.contains('rca26ReportTopWorkload')
+      if (forcePageBefore && pageHasContent) addPage()
+
       const canvas = await html2canvas(node, {
         backgroundColor: '#ffffff',
         scale: 1.35,
