@@ -1,0 +1,208 @@
+/* 2026 process-evidence cleanup: keep analysis first, move persistence to the bottom. */
+
+.cmpCleanShell {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Duplicates the global app and Log Analysis headers. */
+.cmpCleanHeader,
+.cmpCleanIntakeCard,
+.cmpCleanFinding,
+.cmpCleanActionsPanel,
+.cmpRcaInsightPanel {
+  display: none !important;
+}
+
+/* Let the case rail become a late-stage flex item instead of consuming the first viewport. */
+.cmpCleanTopRow {
+  display: contents !important;
+}
+
+.cmpCleanSideRail {
+  order: 90;
+  display: block !important;
+  width: 100%;
+  margin: 6px 0 0 !important;
+}
+
+/* Analysis history already exists globally; do not duplicate the evidence archive here. */
+.cmpCleanSideRail .evidenceHistory {
+  display: none !important;
+}
+
+.cmpCleanEvidenceIntake {
+  order: 0;
+  margin: 0 0 2px !important;
+  padding: 12px 14px !important;
+  border-radius: 14px !important;
+}
+
+.cmpCleanEvidenceIntakeHead {
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.cmpCleanEvidenceIntakeHead h2 {
+  margin: 2px 0 !important;
+  font-size: 16px !important;
+}
+
+.cmpCleanEvidenceIntakeHead p {
+  margin: 0 !important;
+  max-width: 760px;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.cmpCleanEvidenceIntakeBody {
+  margin-top: 8px !important;
+}
+
+.cmpCleanEvidenceStatus {
+  min-height: 0 !important;
+  padding: 8px 10px !important;
+}
+
+/* Four useful quick stats only: critical, warning, hosts, peak RSS. */
+.cmpCleanStats {
+  order: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 7px !important;
+  margin: 0 !important;
+}
+
+.cmpCleanStats > :nth-child(1),
+.cmpCleanStats > :nth-child(2) {
+  display: none !important;
+}
+
+.cmpCleanStat {
+  min-height: 72px !important;
+  padding: 9px 11px !important;
+}
+
+.cmpCleanExecutiveRibbon {
+  order: 2;
+  margin: 0 !important;
+}
+
+.cmpCleanGrid {
+  order: 3;
+  gap: 8px !important;
+  margin-top: 0 !important;
+}
+
+/* Resource behavior is the primary reason this view exists: show it first and full-width. */
+.cmpResourceTrendPanel {
+  order: -10;
+  grid-column: 1 / -1 !important;
+}
+
+.cmpCleanGrid > .span2 {
+  grid-column: 1 / -1 !important;
+}
+
+.cmpCleanPanel {
+  border-radius: 14px !important;
+}
+
+.cmpCleanPanelHead,
+.cmpTrendTitleBlock {
+  gap: 10px !important;
+}
+
+.cmpCleanTableWrap {
+  max-height: min(48dvh, 520px) !important;
+}
+
+/* Persistence remains available, but only after the analysis. */
+.cmpCleanSideRail .caseLinkCard {
+  margin: 0 !important;
+  border-radius: 14px !important;
+}
+
+.cmpCleanSideRail .caseHistoryPanelHead {
+  padding-bottom: 8px !important;
+}
+
+.cmpCleanSideRail .caseHistoryPanelHead p {
+  max-width: 760px;
+}
+
+@media (max-width: 900px) {
+  .cmpCleanStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .cmpCleanGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .cmpCleanGrid > *,
+  .cmpResourceTrendPanel,
+  .cmpCleanGrid > .span2 {
+    grid-column: 1 !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .cmpCleanShell {
+    gap: 6px;
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .cmpCleanEvidenceIntake {
+    padding: 9px !important;
+  }
+
+  .cmpCleanEvidenceIntakeHead {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  .cmpCleanEvidenceIntakeActions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 5px !important;
+  }
+
+  .cmpCleanEvidenceIntakeActions .ghost {
+    grid-column: 1 / -1;
+  }
+
+  .cmpCleanStats {
+    gap: 5px !important;
+  }
+
+  .cmpCleanStat {
+    min-height: 64px !important;
+    padding: 8px !important;
+  }
+
+  .cmpCleanTableWrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .cmpCleanTable {
+    min-width: 820px;
+  }
+
+  .cmpResourceTrendPanel .cmpCleanChart,
+  .cmpCleanPanel.rcaReadableChartPanel .cmpCleanChart {
+    min-width: 680px;
+  }
+
+  .cmpCleanPanel.rcaReadableChartPanel,
+  .cmpResourceTrendPanel {
+    overflow-x: auto !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .cmpCleanStats {
+    grid-template-columns: 1fr !important;
+  }
+}
