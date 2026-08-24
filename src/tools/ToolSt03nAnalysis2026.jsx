@@ -1,38 +1,131 @@
 import React from 'react'
-import {ResponsiveContainer,LineChart,Line,BarChart,Bar,CartesianGrid,XAxis,YAxis,Tooltip,Legend,Brush} from 'recharts'
-import CaseLinkPanel from '../features/cases/CaseLinkPanel.jsx'
-import useCaseHistoryLink from '../features/cases/useCaseHistoryLink.js'
-import {expandSt03nFiles,REQUIRED_ST03N} from './parsers/st03nParser.js'
-import {loadJson,saveJson} from './evidence-utils.js'
-import {analyzeSt03nFiles,transactionDecomposition} from './st03nAnalysis2026.js'
+import { ResponsiveContainer, LineChart, Line, BarChart, Bar, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Brush } from 'recharts'
+import { expandSt03nFiles, REQUIRED_ST03N } from './parsers/st03nParser.js'
+import { analyzeSt03nFiles, transactionDecomposition } from './st03nAnalysis2026.js'
+import RcaDataTable from './components/RcaDataTable.jsx'
+import { downloadCsv } from './rcaExport.js'
 import './RcaWorkspace2026.css'
+import './RcaWorkspaceV13.css'
 
-const CASE_KEY='sap_rca_st03n_v121_case'
-const n=(v,d=0)=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:d}),sh=(v='',m=28)=>String(v).length>m?`${String(v).slice(0,m-1)}…`:String(v)
-const Metric=({label,value,meta,tone=''})=><div className={`rca26Metric ${tone}`}><span>{label}</span><strong title={String(value)}>{value}</strong><small>{meta||'—'}</small></div>
-const numH=x=>({label:x,num:true})
-function Table({heads,rows,className=''}){return <div className={`rca26TableWrap ${className}`}><table className="rca26Table"><thead><tr>{heads.map((h,i)=><th key={i} className={h.num?'num':''}>{h.label||h}</th>)}</tr></thead><tbody>{rows}</tbody></table></div>}
-function Tip({active,payload,label}){if(!active||!payload?.length)return null;const r=payload[0].payload;return <div className="rca26Tooltip"><strong>{label}</strong><span>Avg Response {n(r.avgResponseMs,1)} ms</span><span>DB {n(r.avgDbMs,1)} ms</span><span>CPU {n(r.avgCpuMs,1)} ms</span><span>Wait + Roll {n(r.avgWaitTotalMs,1)} ms</span><span>Steps {n(r.steps)}</span></div>}
-function workerParse(files){return new Promise((resolve,reject)=>{if(typeof Worker==='undefined')return reject(new Error('Worker unavailable'));const w=new Worker(new URL('./workers/st03nParser.worker.js',import.meta.url),{type:'module'});w.onmessage=e=>{w.terminate();e.data?.ok?resolve(e.data.analysis):reject(new Error(e.data?.error||'Worker failed'))};w.onerror=e=>{w.terminate();reject(new Error(e.message||'Worker failed'))};w.postMessage({files})})}
-function buildCasePayload(a,title){return{title,severity:'INFO',summary:a?`ST03N ${a.coverage.filter(x=>x.ok).length}/${REQUIRED_ST03N.length} groups parsed; ${a.consistencyCheckCount||0} consistency check(s).`:'',top_anomaly:a?.topTransaction?.object||a?.topResponseRecord?.label||'',top_suspect:a?.topResponseRecord?.program||'',status:'OPEN',created_by:'sap-rca-workspace-v1.2.1'}}
-function buildParsedPayload(a){return{tool:'ST03N Analysis v1.2.1',verdict:'ST03N workload parsed',severity:'INFO',confidence:0,top_anomaly:a?.topTransaction?.object||'',top_suspect:a?.topResponseRecord?.program||'',summary:a?`${a.totalRows} normalized ST03N rows; ${a.consistencyCheckCount||0} source consistency check(s).`:'',result_json:{coverage:a?.coverage,consistencyCheckCount:a?.consistencyCheckCount,peakInterval:a?.peakInterval,topTransaction:a?.topTransaction,topResponseRecord:a?.topResponseRecord,topDbRecord:a?.topDbRecord,timeProfile:a?.timeProfile,taskTypes:a?.taskTypes,transactions:(a?.transactions||[]).slice(0,100),responseRecords:(a?.responseRecords||[]).slice(0,100),dbRecords:(a?.dbRecords||[]).slice(0,100)}}}
+const n = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
+const sh = (value = '', max = 28) => String(value).length > max ? `${String(value).slice(0, max - 1)}…` : String(value)
+const Metric = ({ label, value, meta, tone = '' }) => <div className={`rca26Metric ${tone}`}><span>{label}</span><strong title={String(value)}>{value}</strong><small>{meta || '—'}</small></div>
 
-export default function ToolSt03nAnalysis2026(){
- const [files,setFiles]=React.useState([]),[busy,setBusy]=React.useState(false),[status,setStatus]=React.useState('Upload the five ST03N exports or a ZIP pack.'),[a,setA]=React.useState(null),[allTx,setAllTx]=React.useState(false),[allResp,setAllResp]=React.useState(false),[allDb,setAllDb]=React.useState(false)
- const caseLink=useCaseHistoryLink({storageKey:CASE_KEY,buildCasePayload,buildParsedPayload,defaultCaseTitle:'ST03N RCA Case',toolName:'ST03N Analysis v1.2.1',uploadTags:['st03n','rca-v1.2.1'],loadJson,saveJson})
- const analyze=React.useCallback(async fs=>{setBusy(true);setStatus('Parsing ST03N exports…');try{let result;try{result=await workerParse(fs)}catch{result=await analyzeSt03nFiles(fs)}setA(result);setAllTx(false);setAllResp(false);setAllDb(false);setStatus(`Parsed ${result.totalRows} rows from ${result.coverage.filter(x=>x.ok).length}/${REQUIRED_ST03N.length} evidence groups.`)}catch(e){setStatus(e?.message||'ST03N parse failed.')}finally{setBusy(false)}},[])
- const upload=React.useCallback(async list=>{setBusy(true);try{const fs=await expandSt03nFiles(list);setFiles(fs);await analyze(fs)}catch(e){setStatus(e?.message||'Upload failed.');setBusy(false)}},[analyze])
- const workload=a?.workloadTransactions||a?.transactions||[],dec=React.useMemo(()=>transactionDecomposition(workload,8),[workload]),ok=a?.coverage?.filter(x=>x.ok).length||0,peak=a?.peakInterval?.row,tx=a?.topTransaction,resp=a?.topResponseRecord,db=a?.topDbRecord,max=Math.max(1,...workload.slice(0,8).map(x=>Number(x.totalResponseSec||0))),packDate=resp?.timestamp?.slice(0,10)||db?.timestamp?.slice(0,10)||'—'
- const txRows=allTx?(a?.transactions||[]):(a?.transactions||[]).slice(0,15),respRows=allResp?(a?.responseRecords||[]):(a?.responseRecords||[]).slice(0,15),dbRows=allDb?(a?.dbRecords||[]):(a?.dbRecords||[]).slice(0,15)
- return <section className="rca26Shell"><div className="rca26Inner">
-  <header className="rca26Head"><div><h1>ST03N Analysis</h1><p>Time profile → task type → transaction/program → statistical record.</p></div><label className="rca26Upload"><input type="file" multiple accept=".zip,.xlsx,.xls,.csv" onChange={e=>upload(e.target.files)}/>{busy?'Parsing…':'Upload ST03N Pack'}</label></header>
-  <nav className="rca26Tabs compact"><a href="#st03n-time">Time Profile</a><a href="#st03n-workload">Workload</a><a href="#st03n-records">Top Records</a><a href="#st03n-evidence">Evidence</a></nav>
-  <section className="rca26MetricStrip st03nStrip"><Metric label="Evidence coverage" value={`${ok}/${REQUIRED_ST03N.length}`} meta={`${a?.totalRows||0} normalized rows`} tone={ok===REQUIRED_ST03N.length?'good':'warn'}/><Metric label="Pack date" value={packDate} meta={files.length?`${files.length} files`:status}/><Metric label="Peak hour avg response" value={peak?`${n(peak.avgResponseMs,1)} ms`:'—'} meta={peak?.interval||'Time Profile'}/><Metric label="Top workload total response" value={tx?sh(tx.object,22):'—'} meta={tx?`${n(tx.totalResponseSec)} s · ${n(tx.steps)} steps`:'Transaction Standard'}/><Metric label="Top response record" value={resp?sh(resp.label,22):'—'} meta={resp?`${n(resp.responseMs)} ms · ${resp.timestamp}`:'Top Response'}/><Metric label="Source consistency" value={a?`${a.consistencyCheckCount||0} CHECK`:'—'} meta="Total response vs avg response × steps" tone={a?.consistencyCheckCount?'warn':'good'}/></section>
-  <div className="rca26Grid st03nMain" id="st03n-time"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Time Profile</h2><p>Average response, DB, CPU and wait by exported ST03N interval.</p></div><span className="rca26Tag">24h workload</span></div>{a?.timeProfile?.length?<div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={a.timeProfile} margin={{top:10,right:20,left:0,bottom:28}}><CartesianGrid strokeDasharray="3 6" vertical={false}/><XAxis dataKey="interval"/><YAxis/><Tooltip content={<Tip/>}/><Legend/><Line type="linear" dataKey="avgResponseMs" name="Avg Response" stroke="#4d8fff" strokeWidth={2.4} dot/><Line type="linear" dataKey="avgDbMs" name="Avg DB" stroke="#35d4cf" strokeWidth={2} dot/><Line type="linear" dataKey="avgCpuMs" name="Avg CPU" stroke="#f5a623" strokeWidth={2} dot/><Line type="linear" dataKey="avgWaitTotalMs" name="Wait + Roll" stroke="#9d79ff" strokeWidth={2} dot/><Brush dataKey="interval" height={20}/></LineChart></ResponsiveContainer></div>:<div className="rca26Empty">{status}</div>}</section><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Task Type Overview</h2><p>Aggregate workload; not mixed with transaction/statistical records.</p></div></div><Table heads={['Task Type',numH('Steps'),numH('Avg Resp'),numH('DB'),numH('CPU'),numH('Wait+Roll')]} rows={(a?.taskTypes||[]).map(r=><tr key={r.taskType}><td>{r.taskType}</td><td className="num">{n(r.steps)}</td><td className="num">{n(r.avgResponseMs,1)} ms</td><td className="num">{n(r.avgDbMs,1)}</td><td className="num">{n(r.avgCpuMs,1)}</td><td className="num">{n(r.avgWaitTotalMs,1)}</td></tr>)}/></section></div>
-  <section className="rca26Panel rca26Deferred" id="st03n-workload"><div className="rca26PanelHead"><div><h2>Average Response Decomposition — Top Workload</h2><p>Unattributed = response minus known DB/CPU/wait/load components; it is not a root-cause classification.</p></div></div>{dec.length?<div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><BarChart data={dec} margin={{top:8,right:18,left:0,bottom:72}}><CartesianGrid strokeDasharray="3 6" vertical={false}/><XAxis dataKey="name" angle={-28} textAnchor="end" interval={0} height={82} tickFormatter={v=>sh(v,20)}/><YAxis/><Tooltip formatter={v=>`${n(v,1)} ms`}/><Legend/><Bar stackId="a" dataKey="db" name="DB" fill="#35d4cf"/><Bar stackId="a" dataKey="cpu" name="CPU" fill="#4d8fff"/><Bar stackId="a" dataKey="wait" name="Wait" fill="#9d79ff"/><Bar stackId="a" dataKey="rollWait" name="Roll Wait" fill="#7550d8"/><Bar stackId="a" dataKey="load" name="Load" fill="#f5a623"/><Bar stackId="a" dataKey="unattributed" name="Unattributed" fill="#586a74"/></BarChart></ResponsiveContainer></div>:<div className="rca26Empty compact">No transaction data.</div>}</section>
-  <div className="rca26Grid st03nWorkloadGrid rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Top Workload by Total Response</h2><p>Technical &lt;...&gt; objects remain in details but do not dominate this ranking.</p></div></div><div className="rca26Bars">{workload.slice(0,8).map(r=><div className="rca26BarRow workload" key={`${r.object}-${r.jobName}`}><label>{r.object}</label><div className="rca26BarTrack"><div className="rca26BarFill" style={{width:`${Math.max(2,Number(r.totalResponseSec||0)/max*100)}%`}}/></div><strong>{n(r.totalResponseSec)}s</strong></div>)}</div></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Transaction / Program Details</h2><p>Source values are preserved; consistency only flags mismatches and never rewrites the data.</p></div></div><Table className="jobs" heads={['Scope','Object','Background Job',numH('Steps'),numH('Total Resp'),numH('Avg Resp'),'Consistency',numH('Avg DB'),numH('Avg CPU'),numH('Avg Wait+Roll')]} rows={txRows.map((r,i)=><tr key={`${r.object}-${i}`}><td><span className={`rca26Scope ${r.technical?'technical':'workload'}`}>{r.technical?'TECH':'WORKLOAD'}</span></td><td>{r.object}</td><td>{r.jobName||'—'}</td><td className="num">{n(r.steps)}</td><td className="num">{n(r.totalResponseSec)} s</td><td className="num">{n(r.avgResponseMs,1)} ms</td><td><span className={`rca26Status ${r.responseConsistency==='CHECK'?'warn':'ok'}`}>{r.responseConsistency}{r.responseConsistency==='CHECK'?` ${n(r.responseConsistencyPct,1)}%`:''}</span></td><td className="num">{n(r.avgDbMs,1)}</td><td className="num">{n(r.avgCpuMs,1)}</td><td className="num">{n(r.avgWaitTotalMs,1)}</td></tr>)}/>{(a?.transactions||[]).length>15?<button className="rca26ShowMore" onClick={()=>setAllTx(v=>!v)}>{allTx?'Show top 15':`Show all ${a.transactions.length}`}</button>:null}</section></div>
-  <div className="rca26Grid two rca26Deferred" id="st03n-records"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Top Response Statistical Records</h2><p>Individual records; extreme source values are retained, not normalized away.</p></div></div><Table className="records" heads={['Timestamp','Program / Tx','Task','WP','User',numH('Response'),numH('DB'),numH('CPU'),numH('Wait'),numH('Roll Wait')]} rows={respRows.map((r,i)=><tr key={`${r.timestamp}-${i}`} data-extreme={r.extreme}><td>{r.timestamp}</td><td>{r.program||r.transaction||r.label}</td><td>{r.taskType}</td><td>{r.wp}</td><td>{r.user}</td><td className="num">{n(r.responseMs)} ms</td><td className="num">{n(r.dbMs)}</td><td className="num">{n(r.cpuMs)}</td><td className="num">{n(r.waitMs)}</td><td className="num">{n(r.rollWaitMs)}</td></tr>)}/>{(a?.responseRecords||[]).length>15?<button className="rca26ShowMore" onClick={()=>setAllResp(v=>!v)}>{allResp?'Show top 15':`Show all ${a.responseRecords.length}`}</button>:null}</section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Top DB Access Records</h2><p>Sequential/direct/change access time and logical-call volume.</p></div></div><Table className="records" heads={['Timestamp','Program / Tx','Task','WP',numH('DB Access'),numH('Logical Calls'),numH('Seq Reads'),numH('Direct Reads')]} rows={dbRows.map((r,i)=><tr key={`${r.timestamp}-${i}`}><td>{r.timestamp}</td><td>{r.program||r.transaction||r.label}</td><td>{r.taskType}</td><td>{r.wp}</td><td className="num">{n(r.dbAccessMs)} ms</td><td className="num">{n(r.logicalCalls)}</td><td className="num">{n(r.sequentialReads)}</td><td className="num">{n(r.directReads)}</td></tr>)}/>{(a?.dbRecords||[]).length>15?<button className="rca26ShowMore" onClick={()=>setAllDb(v=>!v)}>{allDb?'Show top 15':`Show all ${a.dbRecords.length}`}</button>:null}</section></div>
-  <section className="rca26Panel rca26Deferred" id="st03n-evidence"><div className="rca26PanelHead"><div><h2>Evidence Coverage</h2><p>Parser status for the five expected ST03N exports.</p></div></div><div className="rca26Coverage">{REQUIRED_ST03N.map(req=>{const x=(a?.coverage||[]).find(r=>r.kind===req.key);return <div key={req.key} data-ok={x?.ok}><span>{req.label}</span><b>{x?.ok?'Parsed':'Missing'}</b><small>{x?.fileName||'—'}{x?.ok?` · ${x.rows} rows`:''}</small></div>})}</div></section>
-  <section className="rca26Case rca26Deferred"><div><span>Evidence</span><strong>{files.length} uploaded file(s)</strong><small>{status}</small></div><div className="rca26CaseActions"><a className="rca26Link" href="#/cases">History</a><button className="rca26Btn" onClick={()=>document.getElementById('st03n-case-v121')?.toggleAttribute('open')}>Case</button></div></section><details className="rca26Disclosure" id="st03n-case-v121"><summary>Case persistence</summary><div className="rca26DisclosureBody"><CaseLinkPanel title="ST03N case" description="Persist only after validating workload evidence." caseId={caseLink.caseId} caseTitle={caseLink.caseTitle} recentCases={caseLink.recentCases} savingCase={caseLink.savingCase} creatingCase={caseLink.creatingCase} saveStatus={caseLink.saveStatus} onCaseIdChange={caseLink.setCaseId} onCaseTitleChange={caseLink.setCaseTitle} onCreateCase={()=>caseLink.createLinkedCase(a)} onSaveCurrent={()=>caseLink.persistAnalysis(a,files)} hasAnalysis={Boolean(a)} saveLabel="Save ST03N analysis"/></div></details>
- </div></section>
+function workerParse(files) {
+  return new Promise((resolve, reject) => {
+    if (typeof Worker === 'undefined') return reject(new Error('Worker unavailable'))
+    const worker = new Worker(new URL('./workers/st03nParser.worker.js', import.meta.url), { type: 'module' })
+    worker.onmessage = (event) => { worker.terminate(); event.data?.ok ? resolve(event.data.analysis) : reject(new Error(event.data?.error || 'Worker failed')) }
+    worker.onerror = (event) => { worker.terminate(); reject(new Error(event.message || 'Worker failed')) }
+    worker.postMessage({ files })
+  })
+}
+
+function TimeTip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const row = payload[0].payload
+  return <div className="rca26Tooltip"><strong>{label}</strong><span>Avg Response {n(row.avgResponseMs, 1)} ms</span><span>DB {n(row.avgDbMs, 1)} ms</span><span>CPU {n(row.avgCpuMs, 1)} ms</span><span>Wait + Roll {n(row.avgWaitTotalMs, 1)} ms</span><span>Steps {n(row.steps)}</span></div>
+}
+
+function DecompTip({ active, payload, label, percent }) {
+  if (!active || !payload?.length) return null
+  return <div className="rca26Tooltip"><strong>{label}</strong>{payload.filter((item) => Number(item.value) > 0).map((item) => <span key={item.dataKey}><i style={{ background: item.color }} />{item.name} {percent ? `${n(item.value, 1)}%` : `${n(item.value, 1)} ms`}</span>)}</div>
+}
+
+function recordHourMatches(timestamp = '', interval = '') {
+  if (!interval) return true
+  const start = Number(String(interval).match(/(\d{1,2})/)?.[1])
+  const hour = Number(String(timestamp).match(/\s(\d{1,2}):/)?.[1])
+  return Number.isFinite(start) && Number.isFinite(hour) ? hour === start : true
+}
+
+function recordObjectMatches(record, selectedObject = '') {
+  if (!selectedObject) return true
+  const target = selectedObject.trim().toUpperCase()
+  return [record.transaction, record.program, record.label].some((value) => String(value || '').trim().toUpperCase() === target)
+}
+
+function percentDecomposition(rows) {
+  return rows.map((row) => {
+    const keys = ['db', 'cpu', 'wait', 'rollWait', 'load', 'unattributed']
+    const total = keys.reduce((sum, key) => sum + Number(row[key] || 0), 0) || 1
+    return { ...row, ...Object.fromEntries(keys.map((key) => [key, Number(row[key] || 0) / total * 100])) }
+  })
+}
+
+export default function ToolSt03nAnalysis2026() {
+  const [files, setFiles] = React.useState([])
+  const [busy, setBusy] = React.useState(false)
+  const [status, setStatus] = React.useState('Upload the five ST03N exports or a ZIP pack.')
+  const [analysis, setAnalysis] = React.useState(null)
+  const [selectedInterval, setSelectedInterval] = React.useState('')
+  const [selectedObject, setSelectedObject] = React.useState('')
+  const [txQuery, setTxQuery] = React.useState('')
+  const [decompMode, setDecompMode] = React.useState('percent')
+  const [transactionViewRows, setTransactionViewRows] = React.useState([])
+
+  const analyze = React.useCallback(async (inputFiles) => {
+    setBusy(true); setStatus('Parsing ST03N exports…')
+    try {
+      let result; try { result = await workerParse(inputFiles) } catch { result = await analyzeSt03nFiles(inputFiles) }
+      setAnalysis(result); setSelectedInterval(''); setSelectedObject(''); setTxQuery('')
+      setStatus(`Parsed ${result.totalRows} rows from ${result.coverage.filter((item) => item.ok).length}/${REQUIRED_ST03N.length} evidence groups.`)
+    } catch (error) { setStatus(error?.message || 'ST03N parse failed.') } finally { setBusy(false) }
+  }, [])
+
+  const upload = React.useCallback(async (list) => {
+    setBusy(true)
+    try { const expanded = await expandSt03nFiles(list); setFiles(expanded); await analyze(expanded) }
+    catch (error) { setStatus(error?.message || 'Upload failed.'); setBusy(false) }
+  }, [analyze])
+
+  const workload = analysis?.workloadTransactions || analysis?.transactions || []
+  const decompositionAbsolute = React.useMemo(() => transactionDecomposition(workload, 8), [workload])
+  const decomposition = React.useMemo(() => decompMode === 'percent' ? percentDecomposition(decompositionAbsolute) : decompositionAbsolute, [decompositionAbsolute, decompMode])
+  const ok = analysis?.coverage?.filter((item) => item.ok).length || 0
+  const peak = analysis?.peakInterval?.row, topTx = analysis?.topTransaction, topResp = analysis?.topResponseRecord, topDb = analysis?.topDbRecord
+  const max = Math.max(1, ...workload.slice(0, 8).map((item) => Number(item.totalResponseSec || 0)))
+  const packDate = topResp?.timestamp?.slice(0, 10) || topDb?.timestamp?.slice(0, 10) || '—'
+
+  const selectObject = (object) => { setSelectedObject((current) => current === object ? '' : object); setTxQuery(object || '') }
+  const filteredResponse = (analysis?.responseRecords || []).filter((row) => recordHourMatches(row.timestamp, selectedInterval) && recordObjectMatches(row, selectedObject))
+  const filteredDb = (analysis?.dbRecords || []).filter((row) => recordHourMatches(row.timestamp, selectedInterval) && recordObjectMatches(row, selectedObject))
+
+  const taskColumns = [
+    { key: 'taskType', label: 'Task Type' }, { key: 'steps', label: 'Steps', num: true }, { key: 'avgResponseMs', label: 'Avg Resp', num: true, render: (row) => `${n(row.avgResponseMs, 1)} ms` },
+    { key: 'avgDbMs', label: 'DB', num: true, render: (row) => n(row.avgDbMs, 1) }, { key: 'avgCpuMs', label: 'CPU', num: true, render: (row) => n(row.avgCpuMs, 1) }, { key: 'avgWaitTotalMs', label: 'Wait+Roll', num: true, render: (row) => n(row.avgWaitTotalMs, 1) },
+  ]
+  const transactionColumns = [
+    { key: 'scope', label: 'Scope', value: (row) => row.technical ? 'TECH' : 'WORKLOAD', render: (row) => <span className={`rca26Scope ${row.technical ? 'technical' : 'workload'}`}>{row.technical ? 'TECH' : 'WORKLOAD'}</span> },
+    { key: 'object', label: 'Object' }, { key: 'jobName', label: 'Background Job', render: (row) => row.jobName || '—' }, { key: 'steps', label: 'Steps', num: true },
+    { key: 'totalResponseSec', label: 'Total Resp', num: true, render: (row) => `${n(row.totalResponseSec)} s` }, { key: 'avgResponseMs', label: 'Avg Resp', num: true, render: (row) => `${n(row.avgResponseMs, 1)} ms` },
+    { key: 'responseConsistency', label: 'Consistency', render: (row) => <span className={`rca26Status ${row.responseConsistency === 'CHECK' ? 'warn' : 'ok'}`}>{row.responseConsistency}{row.responseConsistency === 'CHECK' ? ` ${n(row.responseConsistencyPct, 1)}%` : ''}</span> },
+    { key: 'avgDbMs', label: 'Avg DB', num: true, render: (row) => n(row.avgDbMs, 1) }, { key: 'avgCpuMs', label: 'Avg CPU', num: true, render: (row) => n(row.avgCpuMs, 1) }, { key: 'avgWaitTotalMs', label: 'Avg Wait+Roll', num: true, render: (row) => n(row.avgWaitTotalMs, 1) },
+  ]
+  const responseColumns = [
+    { key: 'timestamp', label: 'Timestamp' }, { key: 'label', label: 'Program / Tx', value: (row) => row.program || row.transaction || row.label }, { key: 'taskType', label: 'Task' }, { key: 'wp', label: 'WP', num: true }, { key: 'user', label: 'User' },
+    { key: 'responseMs', label: 'Response', num: true, render: (row) => `${n(row.responseMs)} ms` }, { key: 'dbMs', label: 'DB', num: true, render: (row) => n(row.dbMs) }, { key: 'cpuMs', label: 'CPU', num: true, render: (row) => n(row.cpuMs) }, { key: 'waitMs', label: 'Wait', num: true, render: (row) => n(row.waitMs) }, { key: 'rollWaitMs', label: 'Roll Wait', num: true, render: (row) => n(row.rollWaitMs) },
+  ]
+  const dbColumns = [
+    { key: 'timestamp', label: 'Timestamp' }, { key: 'label', label: 'Program / Tx', value: (row) => row.program || row.transaction || row.label }, { key: 'taskType', label: 'Task' }, { key: 'wp', label: 'WP', num: true },
+    { key: 'dbAccessMs', label: 'DB Access', num: true, render: (row) => `${n(row.dbAccessMs)} ms` }, { key: 'logicalCalls', label: 'Logical Calls', num: true }, { key: 'sequentialReads', label: 'Seq Reads', num: true }, { key: 'directReads', label: 'Direct Reads', num: true },
+  ]
+
+  return <section className="rca26Shell"><div className="rca26Inner">
+    <header className="rca26Head"><div><h1>ST03N Analysis</h1><p>Workload hierarchy and statistical-record drilldown.</p></div><div className="rca26TopActions"><button className="rca26Btn" disabled={!transactionViewRows.length} onClick={() => downloadCsv(`st03n-transactions-${packDate}.csv`, transactionColumns, transactionViewRows)}>Export CSV</button><button className="rca26Btn" onClick={() => window.print()}>Print / PDF</button><label className="rca26Upload"><input type="file" multiple accept=".zip,.xlsx,.xls,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Parsing…' : 'Upload ST03N Pack'}</label></div></header>
+
+    {(selectedInterval || selectedObject) && <div className="rca26ActiveFilters"><span>Linked drilldown</span>{selectedInterval && <button onClick={() => setSelectedInterval('')}>Hour {selectedInterval} ×</button>}{selectedObject && <button onClick={() => { setSelectedObject(''); setTxQuery('') }}>Object {selectedObject} ×</button>}<small>Hour filter applies to individual statistical records; aggregate workload remains full-pack data.</small></div>}
+
+    <section className="rca26MetricStrip st03nStrip"><Metric label="Evidence coverage" value={`${ok}/${REQUIRED_ST03N.length}`} meta={`${analysis?.totalRows || 0} normalized rows`} tone={ok === REQUIRED_ST03N.length ? 'good' : 'warn'} /><Metric label="Pack date" value={packDate} meta={files.length ? `${files.length} files` : status} /><Metric label="Peak hour avg response" value={peak ? `${n(peak.avgResponseMs, 1)} ms` : '—'} meta={peak?.interval || 'Time Profile'} /><Metric label="Top workload total response" value={topTx ? sh(topTx.object, 22) : '—'} meta={topTx ? `${n(topTx.totalResponseSec)} s · ${n(topTx.steps)} steps` : 'Transaction Standard'} /><Metric label="Top response record" value={topResp ? sh(topResp.label, 22) : '—'} meta={topResp ? `${n(topResp.responseMs)} ms · ${topResp.timestamp}` : 'Top Response'} /><Metric label="Source consistency" value={analysis ? `${analysis.consistencyCheckCount || 0} CHECK` : '—'} meta="Total response vs avg response × steps" tone={analysis?.consistencyCheckCount ? 'warn' : 'good'} /></section>
+
+    <div className="rca26Grid st03nMain"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Time Profile</h2><p>Click an interval to filter individual response/DB records to that hour.</p></div><span className="rca26Tag">24h workload</span></div>{analysis?.timeProfile?.length ? <div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={analysis.timeProfile} onClick={(state) => state?.activeLabel && setSelectedInterval((current) => current === state.activeLabel ? '' : state.activeLabel)} margin={{ top: 10, right: 20, left: 0, bottom: 28 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="interval" /><YAxis /><Tooltip content={<TimeTip />} /><Legend /><Line type="linear" dataKey="avgResponseMs" name="Avg Response" stroke="#4d8fff" strokeWidth={2.4} dot /><Line type="linear" dataKey="avgDbMs" name="Avg DB" stroke="#32c7cf" strokeWidth={2} dot /><Line type="linear" dataKey="avgCpuMs" name="Avg CPU" stroke="#f5a623" strokeWidth={2} dot /><Line type="linear" dataKey="avgWaitTotalMs" name="Wait + Roll" stroke="#9b72ff" strokeWidth={2} dot /><Brush dataKey="interval" height={20} /></LineChart></ResponsiveContainer></div> : <div className="rca26Empty">{status}</div>}</section><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Task Type Overview</h2><p>Aggregate task-type workload.</p></div></div><RcaDataTable rows={analysis?.taskTypes || []} columns={taskColumns} searchPlaceholder="Search task type…" pageSize={25} defaultSort={{ key: 'avgResponseMs', dir: 'desc' }} rowKey={(row) => row.taskType} /></section></div>
+
+    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>Average Response Decomposition — Top Workload</h2><p>{decompMode === 'percent' ? '100% composition of displayed response components; useful when one absolute outlier dominates the chart.' : 'Absolute source milliseconds. Unattributed is residual, not a root-cause classification.'}</p></div><div className="rca26ToggleGroup"><button data-active={decompMode === 'percent'} onClick={() => setDecompMode('percent')}>% Composition</button><button data-active={decompMode === 'absolute'} onClick={() => setDecompMode('absolute')}>Absolute</button></div></div>{decomposition.length ? <div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><BarChart data={decomposition} onClick={(state) => state?.activeLabel && selectObject(state.activeLabel)} margin={{ top: 8, right: 18, left: 0, bottom: 72 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="name" angle={-28} textAnchor="end" interval={0} height={82} tickFormatter={(value) => sh(value, 20)} /><YAxis domain={decompMode === 'percent' ? [0, 100] : undefined} tickFormatter={decompMode === 'percent' ? (value) => `${value}%` : undefined} /><Tooltip content={<DecompTip percent={decompMode === 'percent'} />} /><Legend /><Bar stackId="a" dataKey="db" name="DB" fill="#32c7cf" /><Bar stackId="a" dataKey="cpu" name="CPU" fill="#4d8fff" /><Bar stackId="a" dataKey="wait" name="Wait" fill="#9b72ff" /><Bar stackId="a" dataKey="rollWait" name="Roll Wait" fill="#7356b6" /><Bar stackId="a" dataKey="load" name="Load" fill="#f5a623" /><Bar stackId="a" dataKey="unattributed" name="Unattributed" fill="#60717b" /></BarChart></ResponsiveContainer></div> : <div className="rca26Empty compact">No transaction data.</div>}</section>
+
+    <div className="rca26Grid st03nWorkloadGrid rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Top Workload by Total Response</h2><p>Click a workload to filter linked tables and statistical records.</p></div></div><div className="rca26Bars">{workload.slice(0, 8).map((row) => <button className="rca26BarRow workload clickable" data-active={selectedObject === row.object} key={`${row.object}-${row.jobName}`} onClick={() => selectObject(row.object)}><label>{row.object}</label><div className="rca26BarTrack"><div className="rca26BarFill" style={{ width: `${Math.max(2, Number(row.totalResponseSec || 0) / max * 100)}%` }} /></div><strong>{n(row.totalResponseSec)}s</strong></button>)}</div></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Transaction / Program Details</h2><p>Sort/filter the full transaction-standard dataset; source values remain unchanged.</p></div></div><RcaDataTable rows={analysis?.transactions || []} columns={transactionColumns} query={txQuery} onQueryChange={setTxQuery} searchPlaceholder="Search object or background job…" filters={[{ key: 'scope', label: 'Scope', value: (row) => row.technical ? 'TECH' : 'WORKLOAD', options: ['WORKLOAD', 'TECH'] }, { key: 'responseConsistency', label: 'Consistency', options: ['OK', 'CHECK'] }]} pageSize={50} defaultSort={{ key: 'totalResponseSec', dir: 'desc' }} rowKey={(row, index) => `${row.object}-${row.jobName}-${index}`} onRowClick={(row) => selectObject(row.object)} onViewChange={setTransactionViewRows} /></section></div>
+
+    <div className="rca26Grid two rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Top Response Statistical Records</h2><p>{selectedInterval || selectedObject ? 'Filtered by linked Time Profile/workload selection.' : 'Individual response-time records.'}</p></div></div><RcaDataTable rows={filteredResponse} columns={responseColumns} searchPlaceholder="Search program, transaction, user…" filters={[{ key: 'taskType', label: 'Task' }, { key: 'user', label: 'User' }]} pageSize={50} defaultSort={{ key: 'responseMs', dir: 'desc' }} rowKey={(row, index) => `${row.timestamp}-${row.label}-${index}`} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Top DB Access Records</h2><p>{selectedInterval || selectedObject ? 'Filtered by linked Time Profile/workload selection.' : 'Sequential/direct/change access time and logical-call volume.'}</p></div></div><RcaDataTable rows={filteredDb} columns={dbColumns} searchPlaceholder="Search program or transaction…" filters={[{ key: 'taskType', label: 'Task' }]} pageSize={50} defaultSort={{ key: 'dbAccessMs', dir: 'desc' }} rowKey={(row, index) => `${row.timestamp}-${row.label}-${index}`} /></section></div>
+
+    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>Evidence Coverage</h2><p>Parser status for the five expected ST03N exports.</p></div></div><div className="rca26Coverage">{REQUIRED_ST03N.map((required) => { const item = (analysis?.coverage || []).find((row) => row.kind === required.key); return <div key={required.key} data-ok={item?.ok}><span>{required.label}</span><b>{item?.ok ? 'Parsed' : 'Missing'}</b><small>{item?.fileName || '—'}{item?.ok ? ` · ${item.rows} rows` : ''}</small></div> })}</div></section>
+  </div></section>
 }
