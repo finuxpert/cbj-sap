@@ -35,6 +35,7 @@ export default function RcaDataTable({
   const [sort, setSort] = React.useState(defaultSort)
   const [filterState, setFilterState] = React.useState({})
   const [page, setPage] = React.useState(1)
+  const lastViewSignature = React.useRef('')
 
   React.useEffect(() => { setPage(1) }, [query, filterState, rows])
 
@@ -67,7 +68,12 @@ export default function RcaDataTable({
     })
   }, [filtered, sort, columns])
 
-  React.useEffect(() => { onViewChange?.(sorted) }, [sorted, onViewChange])
+  const viewSignature = sorted.map((row, index) => String(rowKey(row, index))).join('|')
+  React.useEffect(() => {
+    if (!onViewChange || viewSignature === lastViewSignature.current) return
+    lastViewSignature.current = viewSignature
+    onViewChange(sorted)
+  }, [viewSignature, onViewChange, sorted])
 
   const pages = Math.max(1, Math.ceil(sorted.length / pageSize))
   const safePage = Math.min(page, pages)
