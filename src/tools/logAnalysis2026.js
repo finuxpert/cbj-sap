@@ -1,0 +1,493 @@
+const UNKNOWN = '?'
+
+function num(value, fallback = 0) {
+  const parsed = Number(String(value ?? '').replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function text(value) {
+  return String(value ?? '').trim()
+}
+
+export function hhmm(value = '') {
+  const match = String(value || '').match(/\b(\d{1,2}:\d{2})(?::\d{2})?\b/)
+  return match ? match[1].padStart(5, '0') : ''
+}
+
+function snapshotSortKey(value = '') {
+  const input = String(value || '')
+  const match = input.match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+  if (!match) {
+    const time = hhmm(input)
+    return time ? Number(time.replace(':', '')) : Number.MAX_SAFE_INTEGER
+  }
+  return Number(`${match[1]}${match[2]}${match[3]}${String(match[4]).padStart(2, '0')}${match[5]}${match[6] || '00'}`)
+}
+
+function severityRank(value = '') {
+  return ({ OK: 0, NORMAL: 0, WARN: 1, CRIT: 2 })[String(value || '').toUpperCase()] ?? 0
+}
+
+function worseSeverity(a = 'OK', b = 'OK') {
+  return severityRank(b) > severityRank(a) ? b : a
+}
+
+function processIdentity(row = {}) {
+  return [row.snapshot, row.host, row.instance, row.pid, row.wp].join('|')
+}
+
+function workloadName(row = {}) {
+  if (row.jobName && row.jobName !== UNKNOWN) return row.jobName
+  if (row.program && row.program !== UNKNOWN) return row.program
+  return row.pid ? `PID ${row.pid}` : 'Unknown process'
+}
+
+function parseProcessRow(line, context = {}, section = '') {
+  const rx = /^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+([\d.]+)\s+(\S+)\s+([\d.]+)\s+(\S+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(CRIT|WARN|OK)\s+(\S+)\s+(\S+)\s+(.*)$/
+  const match = text(line).match(rx)
+  if (!match) return null
+
+  const rest = text(match[17])
+  const pathMatch = rest.match(/\s+(\/\S+)\s*$/)
+  const logPath = pathMatch?.[1] || ''
+  const noPath = pathMatch ? rest.slice(0, pathMatch.index).trim() : rest
+  const parts = noPath.split(/\s+/).filter(Boolean)
+  const jobName = parts.pop() || UNKNOWN
+  const errorCode = parts.pop() || UNKNOWN
+  const program = parts.join(' ') || UNKNOWN
+
+  return {
+    fileName: context.fileName || '',
+    snapshot: context.snapshot || '',
+    sortKey: snapshotSortKey(context.snapshot),
+    timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
+    host: context.host || 'UNKNOWN',
+    sid: match[15] || context.sid || '',
+    instance: match[2] || context.instance || '',
+    pid: match[1],
+    wp: match[3],
+    type: match[4],
+    cpu: num(match[5]),
+    memRaw: match[6],
+    rssGb: num(match[7]),
+    state: match[8],
+    age: match[9],
+    rabax: num(match[10]),
+    sxpg: num(match[11]),
+    jobCounter: num(match[12]),
+    rxmsg: num(match[13]),
+    className: match[14],
+    program,
+    errorCode,
+    jobName,
+    logPath,
+    section,
+    source: 'WP-SCOUT',
+  }
+}
+
+function parseRabaxRow(line, context = {}, section = '') {
+  if (section !== 'RABAX') return null
+  const rx = /^(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(CRIT|WARN|OK)\s+(.*)$/
+  const match = text(line).match(rx)
+  if (!match) return null
+  const rest = text(match[10])
+  const pathMatch = rest.match(/\s+(\/\S+)\s*$/)
+  const logPath = pathMatch?.[1] || ''
+  const noPath = pathMatch ? rest.slice(0, pathMatch.index).trim() : rest
+  const parts = noPath.split(/\s+/).filter(Boolean)
+  const jobName = parts.pop() || UNKNOWN
+  const errorCode = parts.pop() || UNKNOWN
+  const program = parts.join(' ') || UNKNOWN
+  return {
+    fileName: context.fileName || '',
+    snapshot: context.snapshot || '',
+    sortKey: snapshotSortKey(context.snapshot),
+    timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
+    host: context.host || 'UNKNOWN',
+    sid: context.sid || '',
+    instance: match[2] || context.instance || '',
+    pid: match[1],
+    wp: match[3],
+    type: match[4],
+    cpu: 0,
+    memRaw: '',
+    rssGb: 0,
+    state: '',
+    age: '',
+    rabax: num(match[5]),
+    sxpg: num(match[6]),
+    rxmsg: num(match[7]),
+    jobCounter: num(match[8]),
+    className: match[9],
+    program,
+    errorCode,
+    jobName,
+    logPath,
+    section,
+    source: 'WP-SCOUT',
+  }
+}
+
+function mergeProcessRows(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const key = processIdentity(row)
+    const current = map.get(key)
+    if (!current) {
+      map.set(key, { ...row, sections: new Set(row.section ? [row.section] : []) })
+      return
+    }
+    current.cpu = Math.max(current.cpu, row.cpu)
+    current.rssGb = Math.max(current.rssGb, row.rssGb)
+    current.rabax = Math.max(current.rabax, row.rabax)
+    current.sxpg = Math.max(current.sxpg, row.sxpg)
+    current.jobCounter = Math.max(current.jobCounter, row.jobCounter)
+    current.rxmsg = Math.max(current.rxmsg, row.rxmsg)
+    current.className = worseSeverity(current.className, row.className)
+    if ((!current.program || current.program === UNKNOWN) && row.program && row.program !== UNKNOWN) current.program = row.program
+    if ((!current.jobName || current.jobName === UNKNOWN) && row.jobName && row.jobName !== UNKNOWN) current.jobName = row.jobName
+    if ((!current.errorCode || current.errorCode === UNKNOWN) && row.errorCode && row.errorCode !== UNKNOWN) current.errorCode = row.errorCode
+    if ((!current.type || current.type === UNKNOWN) && row.type && row.type !== UNKNOWN) current.type = row.type
+    if ((!current.state || current.state === UNKNOWN) && row.state && row.state !== UNKNOWN) current.state = row.state
+    if ((!current.age || current.age === UNKNOWN) && row.age && row.age !== UNKNOWN) current.age = row.age
+    if (row.section) current.sections.add(row.section)
+  })
+  return Array.from(map.values()).map((row) => ({ ...row, sections: Array.from(row.sections) }))
+}
+
+function newTelemetry(context = {}) {
+  return {
+    fileName: context.fileName || '',
+    snapshot: context.snapshot || '',
+    sortKey: snapshotSortKey(context.snapshot),
+    timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
+    host: context.host || 'UNKNOWN',
+    sid: context.sid || '',
+    instance: context.instance || '',
+    os: '',
+    uptime: '',
+    ip: '',
+    vcpu: 0,
+    cpuPct: 0,
+    load1: 0,
+    load5: 0,
+    load15: 0,
+    loadRatio: 0,
+    memoryUsedGb: 0,
+    memoryFreeGb: 0,
+    memoryTotalGb: 0,
+    memoryPct: 0,
+    swapIn: 0,
+    swapOut: 0,
+    wpRunning: 0,
+    wpStandby: 0,
+    wpCritical: 0,
+    wpOk: 0,
+    wpDialog: 0,
+    wpBtc: 0,
+    wpUpd: 0,
+  }
+}
+
+function telemetryHasData(row = {}) {
+  return Boolean(row.snapshot && row.host && row.host !== 'UNKNOWN' && (row.vcpu || row.cpuPct || row.memoryTotalGb || row.load15 || row.swapIn || row.wpRunning || row.wpStandby || row.wpCritical || row.wpOk))
+}
+
+function parseTelemetryLine(line, current) {
+  if (!current) return
+  let match
+  if ((match = line.match(/^OS\s*:\s*(.+)$/i))) current.os = match[1].trim()
+  else if ((match = line.match(/^Uptime\s*:\s*(.+)$/i))) current.uptime = match[1].trim()
+  else if ((match = line.match(/^vCPU\s*:\s*(\d+)/i))) current.vcpu = num(match[1])
+  else if ((match = line.match(/^IP address\s*:\s*(.+)$/i))) current.ip = match[1].trim()
+  else if ((match = line.match(/CPU\s+usage\s*:\s*([\d.,]+)\s*%/i))) current.cpuPct = num(match[1])
+  else if ((match = line.match(/Load\s*\(15m\)\s*:\s*L15=([\d.,]+),\s*vCPU=(\d+),\s*r=([\d.,]+).*?LA\s+([\d.,]+)\/([\d.,]+)\/([\d.,]+)/i))) {
+    current.load15 = num(match[1])
+    current.vcpu = num(match[2], current.vcpu)
+    current.loadRatio = num(match[3])
+    current.load1 = num(match[4])
+    current.load5 = num(match[5])
+    current.load15 = num(match[6], current.load15)
+  } else if ((match = line.match(/Memory\s*:\s*used\s+([\d.,]+)G\s*\(([\d.,]+)%\),\s*free\s+([\d.,]+)G\s*\/\s*([\d.,]+)G/i))) {
+    current.memoryUsedGb = num(match[1])
+    current.memoryPct = num(match[2])
+    current.memoryFreeGb = num(match[3])
+    current.memoryTotalGb = num(match[4])
+  } else if ((match = line.match(/Swap\s+IO\s*:\s*si\/so\s+([\d.,]+)\/([\d.,]+)\s*p\/s/i))) {
+    current.swapIn = num(match[1])
+    current.swapOut = num(match[2])
+  } else if ((match = line.match(/Total\s+WP\s+Running\s*:\s*(\d+)/i))) current.wpRunning = num(match[1])
+  else if ((match = line.match(/Total\s+WP\s+Standby\s*:\s*(\d+)/i))) current.wpStandby = num(match[1])
+  else if ((match = line.match(/Total\s+WP\s+Critical\s*:\s*(\d+)/i))) current.wpCritical = num(match[1])
+  else if ((match = line.match(/Total\s+WP\s+OK\s*:\s*(\d+)/i))) current.wpOk = num(match[1])
+  else if ((match = line.match(/Total\s+WP\s+Dialog\s*:\s*(\d+)/i))) current.wpDialog = num(match[1])
+  else if ((match = line.match(/Total\s+WP\s+BTC\s*:\s*(\d+)/i))) current.wpBtc = num(match[1])
+  else if ((match = line.match(/Total\s+WP\s+UPD\s*:\s*(\d+)/i))) current.wpUpd = num(match[1])
+}
+
+export function parseLogText(rawText = '', fileName = '') {
+  const lines = String(rawText || '').replace(/\r/g, '').split('\n')
+  const telemetry = []
+  const processRows = []
+  const context = { fileName, snapshot: '', host: 'UNKNOWN', sid: '', instance: '' }
+  let currentTelemetry = null
+  let section = ''
+
+  const flushTelemetry = () => {
+    if (currentTelemetry && telemetryHasData(currentTelemetry)) telemetry.push({ ...currentTelemetry })
+    currentTelemetry = null
+  }
+
+  lines.forEach((rawLine) => {
+    const line = text(rawLine)
+    if (!line) return
+
+    let match = line.match(/^snapshot\s*@\s*(.+)$/i)
+    if (match) {
+      flushTelemetry()
+      context.snapshot = match[1].trim()
+      context.host = 'UNKNOWN'
+      context.sid = ''
+      context.instance = ''
+      section = ''
+      currentTelemetry = newTelemetry(context)
+      return
+    }
+
+    match = line.match(/^Hostname\s*:\s*(\S+)/i)
+    if (match) {
+      context.host = match[1].trim()
+      if (!currentTelemetry) currentTelemetry = newTelemetry(context)
+      currentTelemetry.host = context.host
+      return
+    }
+
+    match = line.match(/^##\s*WP-SCOUT\s*@\s*(\S+)\s+SID=(\S+)\s+INSTS=(\S+)\s+TS=(.+)$/i)
+    if (match) {
+      context.host = match[1].trim()
+      context.sid = match[2].trim()
+      context.instance = match[3].trim()
+      if (!context.snapshot) context.snapshot = match[4].trim()
+      if (!currentTelemetry) currentTelemetry = newTelemetry(context)
+      Object.assign(currentTelemetry, { host: context.host, sid: context.sid, instance: context.instance, snapshot: context.snapshot, timeLabel: hhmm(context.snapshot), sortKey: snapshotSortKey(context.snapshot) })
+      return
+    }
+
+    if (/^CPU\s+Tertinggi/i.test(line)) { section = 'CPU'; return }
+    if (/^Memory\s+Tertinggi/i.test(line)) { section = 'MEMORY'; return }
+    if (/^Running\s+Terlama/i.test(line)) { section = 'AGE'; return }
+    if (/^RABAX\s+Terbanyak/i.test(line)) { section = 'RABAX'; return }
+
+    if (currentTelemetry) parseTelemetryLine(line, currentTelemetry)
+
+    const process = parseProcessRow(line, context, section) || parseRabaxRow(line, context, section)
+    if (process) processRows.push(process)
+  })
+
+  flushTelemetry()
+  return { telemetry, processes: mergeProcessRows(processRows) }
+}
+
+function mergeTelemetry(rows = []) {
+  const map = new Map()
+  rows.forEach((row) => {
+    const key = `${row.snapshot}|${row.host}`
+    const current = map.get(key)
+    if (!current) {
+      map.set(key, { ...row })
+      return
+    }
+    Object.keys(row).forEach((keyName) => {
+      const value = row[keyName]
+      if (typeof value === 'number') current[keyName] = Math.max(num(current[keyName]), value)
+      else if ((!current[keyName] || current[keyName] === 'UNKNOWN') && value) current[keyName] = value
+    })
+  })
+  return Array.from(map.values()).sort((a, b) => a.sortKey - b.sortKey || a.host.localeCompare(b.host))
+}
+
+export function snapshotSeverity(snapshot = {}) {
+  const cpu = num(snapshot.cpuPct)
+  const ram = num(snapshot.memoryPct)
+  const load = num(snapshot.loadRatio)
+  const swapIn = num(snapshot.swapIn)
+  if (load >= 1.5 || ram >= 85 || cpu >= 90 || swapIn >= 1000) return 'CRIT'
+  if (load >= 1 || ram >= 75 || cpu >= 75 || swapIn >= 100) return 'WARN'
+  return 'NORMAL'
+}
+
+function pressureScore(snapshot = {}) {
+  const cpu = Math.min(1, num(snapshot.cpuPct) / 90)
+  const ram = Math.min(1, num(snapshot.memoryPct) / 85)
+  const load = Math.min(1, num(snapshot.loadRatio) / 1.5)
+  const swap = Math.min(1, num(snapshot.swapIn) / 1000)
+  return Math.round(((cpu + ram + load + swap) / 4) * 100)
+}
+
+function peak(rows = [], key = '') {
+  return rows.reduce((best, row) => num(row[key]) > num(best.value) ? { value: num(row[key]), time: row.timeLabel, row } : best, { value: 0, time: '', row: null })
+}
+
+function choosePrimaryHost(telemetry = []) {
+  const map = new Map()
+  telemetry.forEach((row) => {
+    const current = map.get(row.host) || { host: row.host, maxPressure: 0, maxLoad: 0, maxRam: 0, maxCpu: 0, maxSwap: 0 }
+    current.maxPressure = Math.max(current.maxPressure, pressureScore(row))
+    current.maxLoad = Math.max(current.maxLoad, num(row.loadRatio))
+    current.maxRam = Math.max(current.maxRam, num(row.memoryPct))
+    current.maxCpu = Math.max(current.maxCpu, num(row.cpuPct))
+    current.maxSwap = Math.max(current.maxSwap, num(row.swapIn))
+    map.set(row.host, current)
+  })
+  return Array.from(map.values()).sort((a, b) => b.maxPressure - a.maxPressure || b.maxLoad - a.maxLoad || b.maxRam - a.maxRam || b.maxCpu - a.maxCpu)[0]?.host || telemetry[0]?.host || 'UNKNOWN'
+}
+
+function recordTimeInWindow(row, timeSet) {
+  return !timeSet.size || timeSet.has(row.timeLabel)
+}
+
+function buildJobGroups(processes = [], incidentTimes = new Set(), totalIncidentSnapshots = 0) {
+  const map = new Map()
+  processes.filter((row) => recordTimeInWindow(row, incidentTimes)).forEach((row) => {
+    const name = workloadName(row)
+    const key = `${row.host}|${name}`
+    const current = map.get(key) || {
+      key,
+      name,
+      host: row.host,
+      programs: new Set(),
+      pids: new Set(),
+      wps: new Set(),
+      types: new Set(),
+      states: new Set(),
+      times: new Set(),
+      errors: new Set(),
+      records: [],
+      cpuTotal: 0,
+      cpuCount: 0,
+      peakCpu: 0,
+      peakRss: 0,
+    }
+    if (row.program && row.program !== UNKNOWN) current.programs.add(row.program)
+    if (row.pid) current.pids.add(row.pid)
+    if (row.wp) current.wps.add(row.wp)
+    if (row.type && row.type !== UNKNOWN) current.types.add(row.type)
+    if (row.state && row.state !== UNKNOWN) current.states.add(row.state)
+    if (row.timeLabel) current.times.add(row.timeLabel)
+    if (row.errorCode && row.errorCode !== UNKNOWN) current.errors.add(row.errorCode)
+    current.records.push(row)
+    current.cpuTotal += num(row.cpu)
+    current.cpuCount += 1
+    current.peakCpu = Math.max(current.peakCpu, num(row.cpu))
+    current.peakRss = Math.max(current.peakRss, num(row.rssGb))
+    map.set(key, current)
+  })
+
+  return Array.from(map.values()).map((item) => {
+    const records = item.records.sort((a, b) => a.sortKey - b.sortKey)
+    const peakCpuRecord = records.reduce((best, row) => num(row.cpu) > num(best?.cpu) ? row : best, records[0] || null)
+    const peakRssRecord = records.reduce((best, row) => num(row.rssGb) > num(best?.rssGb) ? row : best, records[0] || null)
+    const first = records[0]
+    const last = records[records.length - 1]
+    return {
+      ...item,
+      programs: Array.from(item.programs),
+      pids: Array.from(item.pids),
+      wps: Array.from(item.wps),
+      types: Array.from(item.types),
+      states: Array.from(item.states),
+      times: Array.from(item.times),
+      errors: Array.from(item.errors),
+      avgCpu: item.cpuCount ? item.cpuTotal / item.cpuCount : 0,
+      peakCpuRecord,
+      peakRssRecord,
+      firstSeen: first?.timeLabel || '—',
+      lastSeen: last?.timeLabel || '—',
+      persistenceCount: item.times.size,
+      persistenceText: totalIncidentSnapshots ? `${item.times.size}/${totalIncidentSnapshots}` : `${item.times.size}`,
+      topPid: peakRssRecord?.pid || peakCpuRecord?.pid || item.pids.values().next().value || '',
+      topWp: peakRssRecord?.wp || peakCpuRecord?.wp || item.wps.values().next().value || '',
+      topType: peakRssRecord?.type || peakCpuRecord?.type || item.types.values().next().value || '',
+      topState: peakRssRecord?.state || peakCpuRecord?.state || item.states.values().next().value || '',
+      program: peakRssRecord?.program !== UNKNOWN ? peakRssRecord?.program : peakCpuRecord?.program || item.programs[0] || UNKNOWN,
+    }
+  })
+}
+
+function buildErrorSummary(processes = [], incidentTimes = new Set()) {
+  const map = new Map()
+  processes.filter((row) => recordTimeInWindow(row, incidentTimes) && row.errorCode && row.errorCode !== UNKNOWN).forEach((row) => {
+    const current = map.get(row.errorCode) || { errorCode: row.errorCode, snapshots: new Set(), processes: new Set(), jobs: new Set(), records: [] }
+    current.snapshots.add(`${row.host}|${row.timeLabel}`)
+    current.processes.add(`${row.host}|${row.instance}|${row.pid}|${row.wp}`)
+    current.jobs.add(workloadName(row))
+    current.records.push(row)
+    map.set(row.errorCode, current)
+  })
+  return Array.from(map.values()).map((item) => {
+    const records = item.records.sort((a, b) => a.sortKey - b.sortKey)
+    return {
+      errorCode: item.errorCode,
+      snapshotRecords: item.snapshots.size,
+      uniqueProcesses: item.processes.size,
+      affectedJobs: item.jobs.size,
+      firstSeen: records[0]?.timeLabel || '—',
+      lastSeen: records[records.length - 1]?.timeLabel || '—',
+    }
+  }).sort((a, b) => b.uniqueProcesses - a.uniqueProcesses || b.snapshotRecords - a.snapshotRecords)
+}
+
+export function buildLogAnalysis(parsedFiles = []) {
+  const telemetry = mergeTelemetry(parsedFiles.flatMap((item) => item.telemetry || []))
+  const processes = mergeProcessRows(parsedFiles.flatMap((item) => item.processes || []))
+  const primaryHost = choosePrimaryHost(telemetry)
+  const primarySnapshots = telemetry.filter((row) => row.host === primaryHost).map((row) => ({ ...row, severity: snapshotSeverity(row), pressureScore: pressureScore(row) }))
+  const analysisStart = primarySnapshots[0]?.timeLabel || '—'
+  const analysisEnd = primarySnapshots[primarySnapshots.length - 1]?.timeLabel || '—'
+  let incidentSnapshots = primarySnapshots.filter((row) => row.severity === 'CRIT')
+  if (!incidentSnapshots.length) incidentSnapshots = primarySnapshots.filter((row) => row.severity === 'WARN')
+  const incidentTimes = new Set(incidentSnapshots.map((row) => row.timeLabel))
+  const incidentStart = incidentSnapshots[0]?.timeLabel || '—'
+  const incidentEnd = incidentSnapshots[incidentSnapshots.length - 1]?.timeLabel || '—'
+  const peakSnapshot = primarySnapshots.reduce((best, row) => row.pressureScore > (best?.pressureScore ?? -1) ? row : best, null)
+  const peaks = {
+    cpu: peak(primarySnapshots, 'cpuPct'),
+    ram: peak(primarySnapshots, 'memoryPct'),
+    load: peak(primarySnapshots, 'loadRatio'),
+    swapIn: peak(primarySnapshots, 'swapIn'),
+    swapOut: peak(primarySnapshots, 'swapOut'),
+    wpCritical: peak(primarySnapshots, 'wpCritical'),
+  }
+  const peakTime = peakSnapshot?.timeLabel || peaks.cpu.time || analysisEnd
+  const hostComparison = telemetry.filter((row) => peakSnapshot?.fileName ? row.fileName === peakSnapshot.fileName : row.timeLabel === peakTime).map((row) => ({ ...row, severity: snapshotSeverity(row), pressureScore: pressureScore(row) })).sort((a, b) => b.pressureScore - a.pressureScore)
+  const primaryProcesses = processes.filter((row) => row.host === primaryHost)
+  const jobs = buildJobGroups(primaryProcesses, incidentTimes, incidentSnapshots.length)
+  const jobsAll = buildJobGroups(primaryProcesses, new Set(), primarySnapshots.length)
+  const errors = buildErrorSummary(primaryProcesses, incidentTimes)
+
+  return {
+    telemetry,
+    processes,
+    primaryHost,
+    primarySnapshots,
+    analysisWindow: { start: analysisStart, end: analysisEnd, count: primarySnapshots.length },
+    incidentWindow: { start: incidentStart, end: incidentEnd, count: incidentSnapshots.length, times: Array.from(incidentTimes) },
+    incidentSnapshots,
+    peakSnapshot,
+    peakTime,
+    peaks,
+    hostComparison,
+    jobs,
+    jobsAll,
+    errors,
+  }
+}
+
+export function sortJobs(jobs = [], metric = 'rss') {
+  const copy = [...jobs]
+  if (metric === 'cpu') return copy.sort((a, b) => b.peakCpu - a.peakCpu || b.avgCpu - a.avgCpu)
+  if (metric === 'persistence') return copy.sort((a, b) => b.persistenceCount - a.persistenceCount || b.peakRss - a.peakRss)
+  if (metric === 'errors') return copy.sort((a, b) => b.errors.length - a.errors.length || b.persistenceCount - a.persistenceCount)
+  return copy.sort((a, b) => b.peakRss - a.peakRss || b.peakCpu - a.peakCpu)
+}
