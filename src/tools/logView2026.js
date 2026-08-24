@@ -16,8 +16,9 @@ function peak(rows = [], key = '') {
 }
 
 function errorSummary(processes = [], times = new Set()) {
+  if (!times.size) return []
   const map = new Map()
-  processes.filter((row) => (!times.size || times.has(row.timeLabel)) && row.errorCode && row.errorCode !== '?').forEach((row) => {
+  processes.filter((row) => times.has(row.timeLabel) && row.errorCode && row.errorCode !== '?').forEach((row) => {
     const current = map.get(row.errorCode) || { errorCode: row.errorCode, snapshots: new Set(), processes: new Set(), jobs: new Set(), records: [] }
     current.snapshots.add(`${row.host}|${row.timeLabel}`)
     current.processes.add(`${row.host}|${row.instance}|${row.pid}|${row.wp}`)
@@ -37,18 +38,40 @@ function timestampMs(value = '') {
 }
 
 function completeness(rows = []) {
-  if (rows.length < 2) return { intervalMinutes: 0, expected: rows.length, received: rows.length, missing: [] }
+  if (rows.length < 2) return { received: rows.length, intervalMinutes: 0, isRegular: true, observedIntervals: [] }
   const stamps = rows.map((row) => timestampMs(row.snapshot)).filter(Number.isFinite).sort((a, b) => a - b)
-  if (stamps.length < 2) return { intervalMinutes: 0, expected: rows.length, received: rows.length, missing: [] }
-  const diffs = stamps.slice(1).map((stamp, index) => Math.round((stamp - stamps[index]) / 60000)).filter((value) => value > 0 && value < 240).sort((a, b) => a - b)
-  const interval = diffs[Math.floor(diffs.length / 2)] || 0
-  if (!interval) return { intervalMinutes: 0, expected: rows.length, received: rows.length, missing: [] }
-  const set = new Set(stamps)
-  const missing = []
-  for (let stamp = stamps[0]; stamp <= stamps.at(-1); stamp += interval * 60000) {
-    if (!set.has(stamp)) missing.push(new Date(stamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }))
-  }
-  return { intervalMinutes: interval, expected: Math.round((stamps.at(-1) - stamps[0]) / (interval * 60000)) + 1, received: stamps.length, missing }
+  if (stamps.length < 2) return { received: rows.length, intervalMinutes: 0, isRegular: false, observedIntervals: [] }
+  const diffs = stamps.slice(1).map((stamp, index) => Math.round((stamp - stamps[index]) / 60000)).filter((value) => value > 0 && value < 1440)
+  const observedIntervals = Array.from(new Set(diffs)).sort((a, b) => a - b)
+  const isRegular = observedIntervals.length === 1
+  return { received: stamps.length, intervalMinutes: isRegular ? observedIntervals[0] : 0, isRegular, observedIntervals }
+}
+
+export function hostRole(host = '') {
+  const normalized = String(host || '').toUpperCase()
+  const primary = /H1PAPP|APP0?1\b/.test(normalized)
+  return { role: primary ? 'PRIMARY' : 'SECONDARY', impact: primary ? 'LANDSCAPE' : 'HOST', priority: primary ? 2 : 1 }
+}
+
+function severityRank(value = '') {
+  return ({ NORMAL: 0, WARN: 1, CRIT: 2 })[String(value || '').toUpperCase()] ?? 0
+}
+
+function hostOverview(analysis, start = '', end = '') {
+  const grouped = new Map()
+  ;(analysis?.telemetry || []).forEach((row) => {
+    if (start && row.timeLabel < start) return
+    if (end && row.timeLabel > end) return
+    if (!grouped.has(row.host)) grouped.set(row.host, [])
+    grouped.get(row.host).push({ ...row, severity: snapshotSeverity(row), pressureScore: pressureScore(row) })
+  })
+  return Array.from(grouped.entries()).map(([host, rows]) => {
+    const ordered = rows.sort((a, b) => a.sortKey - b.sortKey)
+    const severity = ordered.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
+    const role = hostRole(host)
+    const cpu = peak(ordered, 'cpuPct'), ram = peak(ordered, 'memoryPct'), load = peak(ordered, 'loadRatio'), swap = peak(ordered, 'swapIn'), wp = peak(ordered, 'wpCritical')
+    return { host, ...role, severity, snapshots: ordered.length, peakCpu: cpu.value, peakRam: ram.value, peakLoad: load.value, peakSwap: swap.value, peakWpCritical: wp.value, peakTime: [cpu, ram, load, swap].sort((a, b) => b.value - a.value)[0]?.time || ordered.at(-1)?.timeLabel || '—' }
+  }).sort((a, b) => b.priority - a.priority || severityRank(b.severity) - severityRank(a.severity) || b.peakLoad - a.peakLoad)
 }
 
 export function buildLogView(analysis, options = {}) {
@@ -75,13 +98,16 @@ export function buildLogView(analysis, options = {}) {
   const jobsWindow = buildJobGroups(processes, windowTimes, snapshots.length)
   const jobsIncident = incidentTimes.size ? buildJobGroups(processes, incidentTimes, incidentSnapshots.length) : []
   const jobsFocus = focusTime ? buildJobGroups(processes, focusTimes, 1) : []
-  const hostComparison = (analysis.telemetry || []).filter((row) => peakSnapshot?.fileName ? row.fileName === peakSnapshot.fileName : row.timeLabel === peakSnapshot?.timeLabel).map((row) => ({ ...row, severity: snapshotSeverity(row), pressureScore: pressureScore(row) })).sort((a, b) => b.pressureScore - a.pressureScore)
+  const role = hostRole(host)
   return {
-    hosts, host, allHostSnapshots, snapshots, processes, labels,
+    hosts, host, role, allHostSnapshots, snapshots, processes, labels,
     analysisWindow: { start: snapshots[0]?.timeLabel || '—', end: snapshots.at(-1)?.timeLabel || '—', count: snapshots.length },
-    incidentWindow: { start: incidentSnapshots[0]?.timeLabel || '—', end: incidentSnapshots.at(-1)?.timeLabel || '—', count: incidentSnapshots.length, severity },
-    severity, peakSnapshot, peakTime: peakSnapshot?.timeLabel || '—', peaks, hostComparison,
-    jobsWindow, jobsIncident, jobsFocus, errorsIncident: incidentTimes.size ? errorSummary(processes, incidentTimes) : [], errorsWindow: errorSummary(processes, windowTimes),
+    incidentWindow: { start: incidentSnapshots[0]?.timeLabel || '—', end: incidentSnapshots.at(-1)?.timeLabel || '—', count: incidentSnapshots.length, severity, times: Array.from(incidentTimes) },
+    severity, peakSnapshot, peakTime: peakSnapshot?.timeLabel || '—', peaks,
+    hostOverview: hostOverview(analysis, snapshots[0]?.timeLabel || '', snapshots.at(-1)?.timeLabel || ''),
+    jobsWindow, jobsIncident, jobsFocus,
+    errorsIncident: incidentTimes.size ? errorSummary(processes, incidentTimes) : [],
+    errorsWindow: windowTimes.size ? errorSummary(processes, windowTimes) : [],
     completeness: completeness(snapshots), focusTime,
   }
 }
