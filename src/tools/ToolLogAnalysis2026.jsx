@@ -12,6 +12,7 @@ import './RcaWorkspaceV133.css'
 const hasMetric = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
 const f = (value, digits = 0) => hasMetric(value) ? Number(value).toLocaleString('en-US', { maximumFractionDigits: digits }) : '—'
 const metricText = (value, digits = 0, suffix = '') => hasMetric(value) ? `${f(value, digits)}${suffix}` : '—'
+const deltaText = (value, digits = 1, suffix = '') => hasMetric(value) ? `${Number(value) > 0 ? '+' : ''}${f(value, digits)}${suffix}` : '—'
 const dateOf = (value = '') => String(value).match(/\d{4}-\d{2}-\d{2}/)?.[0] || '—'
 const displayState = (value) => value && value !== '?' ? value : 'Unavailable'
 const stateClass = (value) => ['r', 's', 'd', 'z'].includes(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'unknown'
@@ -46,8 +47,8 @@ function JobDetail({ job, incidentJob, incidentCount = 0 }) {
   const peakRss = hasMetric(job.peakRss) && rss.timeLabel ? `${f(job.peakRss, 2)} GB @ ${rss.timeLabel}` : '—'
   const items = [
     ['Program', job.program], ['Host', job.host], ['Instance', rss.instance || cpu.instance], ['WP', job.topWp], ['WP Type', job.topType], ['PID', job.topPid], ['OS State', displayState(job.topState)],
-    ['Peak CPU', peakCpu], ['Peak RSS', peakRss], ['First Seen', job.firstSeen], ['Last Seen', job.lastSeen],
-    ['Incident Presence', incidentCount ? (incidentJob?.persistenceText || `0/${incidentCount}`) : 'No incident'], ['Analysis Presence', job.persistenceText], ['Errors', job.errors?.join(', ') || '—'],
+    ['Peak CPU', peakCpu], ['Peak RSS', peakRss], ['CPU Change', deltaText(job.cpuDelta, 1, '%')], ['RSS Change', deltaText(job.rssDelta, 2, ' GB')],
+    ['Incident Presence', incidentCount ? (incidentJob?.persistenceText || `0/${incidentCount}`) : 'No incident'], ['Analysis Presence', job.persistenceText], ['First Seen', job.firstSeen], ['Last Seen', job.lastSeen], ['Errors', job.errors?.join(', ') || '—'],
   ]
   return <div className="rca26Detail"><div className="rca26DetailTitle"><span>Selected {job.identityType?.toLowerCase()}</span><strong>{job.name}</strong></div><dl>{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl><div className="rca26SapLookup"><b>SAP lookup</b><span>SM37 by job name. SM50 and SM66 by WP, PID, program and instance.</span></div></div>
 }
@@ -61,12 +62,37 @@ function JobResourceCharts({ rows = [], pid = '' }) {
   </div>
 }
 
+function IncidentAnalyticsPanel({ analytics }) {
+  if (!analytics?.baselineAvailable || !analytics.metrics?.length) return null
+  const rows = analytics.metrics.map((item) => ({
+    ...item,
+    beforeMedian: item.before?.median,
+    incidentMedian: item.during?.median,
+    incidentPeak: item.during?.max,
+    afterMedian: item.after?.median,
+  }))
+  const columns = [
+    { key: 'label', label: 'Metric' },
+    { key: 'beforeMedian', label: 'Before', num: true, render: (row) => metricText(row.beforeMedian, row.digits, row.unit) },
+    { key: 'incidentMedian', label: 'Incident', num: true, render: (row) => metricText(row.incidentMedian, row.digits, row.unit) },
+    { key: 'incidentPeak', label: 'Peak', num: true, render: (row) => metricText(row.incidentPeak, row.digits, row.unit) },
+    { key: 'afterMedian', label: 'After', num: true, render: (row) => metricText(row.afterMedian, row.digits, row.unit) },
+    { key: 'deltaMedian', label: 'Change', num: true, render: (row) => deltaText(row.deltaMedian, row.digits, row.unit) },
+    { key: 'anomaly', label: 'Signal', render: (row) => <span className={`rca26Status ${row.anomaly === 'HIGH' ? 'crit' : row.anomaly === 'ELEVATED' ? 'warn' : 'normal'}`}>{row.anomaly}</span> },
+  ]
+  const topSignal = analytics.concurrentSignals?.[0]
+  const topWorkload = analytics.topWorkload
+  return <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>Incident Comparison</h2><p>Robust baseline from nearby snapshots. No automatic root-cause decision.</p></div><div className="rca26Tag">{analytics.engine}</div></div><RcaDataTable rows={rows} columns={columns} compact search={false} pageSize={10} defaultSort={{ key: 'label', dir: 'asc' }} rowKey={(row) => row.key} /><div className="rca26Snapshot">{topSignal ? <div><span>Strongest aligned timestamp</span><b>{topSignal.timeLabel} · {topSignal.count} signals</b></div> : null}{topWorkload ? <div><span>Highest workload change</span><b>{topWorkload.name} · score {f(topWorkload.score, 1)}</b></div> : null}<div><span>Baseline window</span><b>{analytics.windows.before.start} – {analytics.windows.before.end}</b></div><div><span>Recovery window</span><b>{analytics.windows.after.count ? `${analytics.windows.after.start} – ${analytics.windows.after.end}` : 'Not available'}</b></div></div></section>
+}
+
 const jobColumns = [
   { key: 'identityType', label: 'Scope', render: (row) => <span className={`rca26Scope ${row.identityType?.toLowerCase()}`}>{row.identityType}</span> },
   { key: 'name', label: 'Workload' }, { key: 'program', label: 'Program' }, { key: 'topType', label: 'Type' },
   { key: 'topWp', label: 'WP', num: true, value: (row) => Number(row.topWp || 0) }, { key: 'topPid', label: 'PID', num: true, value: (row) => Number(row.topPid || 0) }, { key: 'topState', label: 'OS State', render: (row) => row.topState && row.topState !== '?' ? row.topState : '—' },
   { key: 'avgCpu', label: 'Avg CPU', num: true, render: (row) => metricText(row.avgCpu, 1, '%') }, { key: 'peakCpu', label: 'Peak CPU', num: true, render: (row) => metricText(row.peakCpu, 1, '%') },
   { key: 'peakRss', label: 'Peak RSS', num: true, render: (row) => metricText(row.peakRss, 2, ' GB') }, { key: 'persistenceCount', label: 'Presence', num: true, render: (row) => row.persistenceText },
+  { key: 'anomalyScore', label: 'Incident Score', num: true, render: (row) => hasMetric(row.anomalyScore) ? f(row.anomalyScore, 1) : '—' },
+  { key: 'analyticsSignals', label: 'Signal', value: (row) => row.analyticsSignals || [], render: (row) => row.analyticsSignals?.join(' · ') || '—' },
   { key: 'errors', label: 'Errors', value: (row) => row.errors || [], render: (row) => row.errors?.join(', ') || '—' },
 ]
 
@@ -178,9 +204,11 @@ export default function ToolLogAnalysis2026() {
       <aside className="rca26Stack"><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Resource Peaks</h2><p data-pdf-ignore="true">Select a metric to focus its timestamp.</p></div></div>{[['CPU', `${f(peaks.cpu?.value, 1)}%`, peaks.cpu?.time], ['RAM', `${f(peaks.ram?.value, 1)}%`, peaks.ram?.time], ['Load per vCPU', f(peaks.load?.value, 2), peaks.load?.time], ['Swap In', `${f(peaks.swapIn?.value)} p/s`, peaks.swapIn?.time], ['WP Critical', f(peaks.wpCritical?.value), peaks.wpCritical?.time]].map(([label, value, time]) => <button className="rca26KeyValue clickable" key={label} onClick={() => setPeakFocus(time)}><span>{label}</span><b>{value}</b><small>{time || '—'}</small></button>)}</section><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Peak Host Snapshot · {view?.peakTime || '—'}</h2></div></div>{peak ? <div className="rca26Snapshot">{[['Host', peak.host], ['Role', view?.role?.role || '—'], ['Impact', view?.role?.impact || '—'], ['CPU', `${f(peak.cpuPct, 1)}%`], ['RAM', `${f(peak.memoryPct, 1)}%`], ['Load Average', `${f(peak.load1, 2)} · ${f(peak.load5, 2)} · ${f(peak.load15, 2)}`], ['Load per vCPU', f(peak.loadRatio, 2)], ['Swap In', `${f(peak.swapIn)} p/s`], ['Swap Out', `${f(peak.swapOut)} p/s`], ['WP Running', peak.wpRunning], ['WP Standby', peak.wpStandby], ['WP Critical', peak.wpCritical]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div> : <div className="rca26Empty compact">No snapshot.</div>}</section></aside>
     </div>
 
+    <IncidentAnalyticsPanel analytics={view?.analytics} />
+
     <div className="rca26Grid two rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Application Server Overview</h2></div></div><RcaDataTable rows={view?.hostOverview || []} columns={hostColumns} compact search={false} pageSize={20} defaultSort={{ key: 'role', dir: 'asc' }} rowKey={(row) => row.host} onRowClick={(row) => { setHost(row.host); setRangeStart(''); setRangeEnd(''); setFocusTime(''); setSelected('') }} selectedKey={view?.host || ''} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Resource Snapshots</h2></div></div><RcaDataTable rows={snapshots} columns={snapshotColumns} compact search={false} pageSize={100} defaultSort={{ key: 'timeLabel', dir: 'asc' }} rowKey={(row) => `${row.host}-${row.snapshot}`} onRowClick={(row) => setFocusTime(row.timeLabel)} selectedKey={focusTime ? `${view?.host}-${snapshots.find((row) => row.timeLabel === focusTime)?.snapshot}` : ''} /></section></div>
 
-    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>{jobsTitle}</h2>{focusTime ? <p>Snapshot {focusTime}</p> : null}</div>{focusTime && <button className="rca26TextBtn" onClick={() => setFocusTime('')}>Clear snapshot</button>}</div><RcaDataTable rows={jobs} columns={jobColumns} filters={jobFilters} searchPlaceholder="Search workload, program, PID, WP, error…" pageSize={50} defaultSort={{ key: 'peakRss', dir: 'desc' }} rowKey={(row) => row.key} onRowClick={(row) => setSelected(row.key)} selectedKey={selectedJob?.key || ''} onViewChange={setJobViewRows} emptyText={focusTime ? `No processes captured at ${focusTime}.` : jobScope === 'full' ? 'No processes in the selected window.' : 'No incident workloads in this window.'} /></section>
+    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>{jobsTitle}</h2>{focusTime ? <p>Snapshot {focusTime}</p> : view?.analytics?.topWorkload ? <p>Highest change: {view.analytics.topWorkload.name} · score {f(view.analytics.topWorkload.score, 1)}</p> : null}</div>{focusTime && <button className="rca26TextBtn" onClick={() => setFocusTime('')}>Clear snapshot</button>}</div><RcaDataTable rows={jobs} columns={jobColumns} filters={jobFilters} searchPlaceholder="Search workload, program, PID, WP, error…" pageSize={50} defaultSort={{ key: 'peakRss', dir: 'desc' }} rowKey={(row) => row.key} onRowClick={(row) => setSelected(row.key)} selectedKey={selectedJob?.key || ''} onViewChange={setJobViewRows} emptyText={focusTime ? `No processes captured at ${focusTime}.` : jobScope === 'full' ? 'No processes in the selected window.' : 'No incident workloads in this window.'} /></section>
 
     <div className="rca26Grid logDetail rca26Deferred"><section className="rca26Panel"><JobDetail job={detailJob} incidentJob={incidentJob} incidentCount={incident.count} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Job Resource Trend</h2><p>CPU and memory history for the selected PID.</p></div>{pids.length > 1 ? <label className="rca26Control compact"><span>PID</span><select value={selectedPid} onChange={(event) => setSelectedPid(event.target.value)}>{pids.map((pid) => <option value={pid} key={pid}>{pid}</option>)}</select></label> : null}</div><JobResourceCharts rows={chartHistory} pid={selectedPid} /></section></div>
 
