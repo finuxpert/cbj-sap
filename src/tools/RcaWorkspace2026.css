@@ -1,7 +1,88 @@
-/* SAP RCA Workspace v1.1 — data-first engineering console */
-.rca26Shell{--bg:#071116;--surface:#0b171d;--surface2:#0d1b22;--surface3:#0a1419;--line:rgba(148,163,184,.16);--line2:rgba(148,163,184,.09);--muted:#8fa3ad;--text:#eaf3f6;--cyan:#31d0c8;--blue:#4d8fff;--green:#42d889;--amber:#f5a623;--red:#ff5964;--purple:#9b72ff;min-height:calc(100dvh - 58px);padding:12px clamp(8px,1.4vw,20px) 88px;background:#071116;color:var(--text)}
-.rca26Inner{width:min(100%,1760px);margin:0 auto}.rca26Head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:9px}.rca26Head h1{margin:0 0 3px;font-size:clamp(24px,2.15vw,34px);font-weight:760;letter-spacing:-.035em}.rca26Head p{margin:0;color:var(--muted);font-size:12px}.rca26Upload{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 15px;border:1px solid rgba(49,208,200,.55);border-radius:7px;background:#0b7776;color:#f4ffff;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}.rca26Upload:hover{background:#0d8886}.rca26Upload input{display:none}
-.rca26Tabs{display:flex;gap:2px;margin-bottom:9px;padding:3px;border:1px solid var(--line);border-radius:7px;background:var(--surface3);overflow:auto}.rca26Tabs.compact{width:max-content;max-width:100%}.rca26Tabs a,.rca26Tabs button{flex:0 0 auto;min-height:29px;padding:0 10px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:10px;font-weight:700;text-decoration:none;cursor:pointer}.rca26Tabs [data-active='true'],.rca26Tabs a:hover,.rca26Tabs button:hover{background:#10242b;color:#eaffff}
-.rca26MetricStrip{display:grid;grid-template-columns:1.1fr 1.35fr repeat(6,minmax(110px,1fr));margin-bottom:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}.rca26MetricStrip.st03nStrip{grid-template-columns:repeat(6,minmax(0,1fr))}.rca26Metric{min-width:0;padding:10px 12px;border-right:1px solid var(--line2)}.rca26Metric:last-child{border-right:0}.rca26Metric span{display:block;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}.rca26Metric strong{display:block;overflow:hidden;margin-top:4px;color:#f4fafc;font-size:clamp(15px,1.45vw,21px);line-height:1.05;text-overflow:ellipsis;white-space:nowrap}.rca26Metric small{display:block;overflow:hidden;margin-top:4px;color:var(--muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.rca26Metric.critical strong{color:var(--red)}.rca26Metric.warn strong{color:var(--amber)}.rca26Metric.good strong{color:var(--green)}
-.rca26Grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.55fr);gap:8px;margin-bottom:8px}.rca26Grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.rca26Grid.logMain{grid-template-columns:minmax(0,1.65fr) minmax(300px,.62fr)}.rca26Grid.logDetail{grid-template-columns:minmax(310px,.58fr) minmax(0,1.42fr)}.rca26Grid.st03nMain{grid-template-columns:minmax(0,1.55fr) minmax(360px,.7fr)}.rca26Grid.st03nWorkloadGrid{grid-template-columns:minmax(310px,.55fr) minmax(0,1.45fr)}.rca26Stack{display:grid;gap:8px;align-content:start}
-.rca26Panel{min-width:0;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}.rca26Panel.compactPanel{padding:10px}.rca26PanelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:7px}.rca26Panel H2{margin:0;color:#f0f7f9;font-size:13px;font-weight:760}.rca26Panel p{margin:2px 0 0;color:var(--muted);font-size:10px;line-height:1.4}.rca26Tag
+/* SAP RCA Workspace v1.2 — data-first engineering console */
+.rca26Shell{
+  --bg:#071116;--surface:#0b171d;--surface2:#0d1b22;--surface3:#0a1419;
+  --line:rgba(148,163,184,.18);--line2:rgba(148,163,184,.1);--muted:#8fa3ad;--text:#eaf3f6;
+  --cyan:#31d0c8;--blue:#4d8fff;--green:#42d889;--amber:#f5a623;--red:#ff5964;--purple:#9b72ff;
+  min-height:calc(100dvh - 58px);padding:12px clamp(8px,1.4vw,20px) 92px;background:var(--bg);color:var(--text)
+}
+.rca26Inner{width:min(100%,1760px);margin:0 auto}
+.rca26Head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:9px}
+.rca26Head h1{margin:0 0 3px;font-size:clamp(24px,2.15vw,34px);font-weight:760;letter-spacing:-.035em}
+.rca26Head p{margin:0;color:var(--muted);font-size:12px}
+.rca26Upload{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 15px;border:1px solid rgba(49,208,200,.55);border-radius:7px;background:#0b7776;color:#f4ffff;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+.rca26Upload:hover{background:#0d8886}.rca26Upload input{display:none}
+.rca26Tabs{display:flex;gap:2px;margin-bottom:9px;padding:3px;border:1px solid var(--line);border-radius:7px;background:var(--surface3);overflow:auto;scrollbar-width:thin}
+.rca26Tabs.compact{width:max-content;max-width:100%}
+.rca26Tabs a,.rca26Tabs button{flex:0 0 auto;min-height:29px;padding:0 10px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:10px;font-weight:700;text-decoration:none;cursor:pointer}
+.rca26Tabs [data-active='true'],.rca26Tabs a:hover,.rca26Tabs button:hover{background:#10242b;color:#eaffff}
+
+.rca26MetricStrip{display:grid;grid-template-columns:1.1fr 1.35fr repeat(6,minmax(110px,1fr));margin-bottom:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.rca26MetricStrip.st03nStrip{grid-template-columns:repeat(6,minmax(0,1fr))}
+.rca26Metric{min-width:0;padding:10px 12px;border-right:1px solid var(--line2)}.rca26Metric:last-child{border-right:0}
+.rca26Metric span{display:block;color:var(--muted);font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.rca26Metric strong{display:block;overflow:hidden;margin-top:4px;color:#f4fafc;font-size:clamp(15px,1.45vw,21px);line-height:1.05;text-overflow:ellipsis;white-space:nowrap}
+.rca26Metric small{display:block;overflow:hidden;margin-top:4px;color:var(--muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.rca26Metric.critical strong{color:var(--red)}.rca26Metric.warn strong{color:var(--amber)}.rca26Metric.good strong{color:var(--green)}
+
+.rca26Grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.55fr);gap:8px;margin-bottom:8px}
+.rca26Grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.rca26Grid.logMain{grid-template-columns:minmax(0,1.65fr) minmax(300px,.62fr)}
+.rca26Grid.logDetail{grid-template-columns:minmax(310px,.58fr) minmax(0,1.42fr)}.rca26Grid.st03nMain{grid-template-columns:minmax(0,1.55fr) minmax(360px,.7fr)}
+.rca26Grid.st03nWorkloadGrid{grid-template-columns:minmax(310px,.55fr) minmax(0,1.45fr)}.rca26Stack{display:grid;gap:8px;align-content:start}
+.rca26Panel{container-type:inline-size;min-width:0;padding:11px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.rca26Panel.compactPanel{padding:10px}.rca26Deferred{content-visibility:auto;contain-intrinsic-size:auto 520px}
+.rca26PanelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:7px}.rca26Panel h2{margin:0;color:#f0f7f9;font-size:13px;font-weight:760}
+.rca26Panel p{margin:2px 0 0;color:var(--muted);font-size:10px;line-height:1.4}.rca26Tag{display:inline-flex;align-items:center;min-height:24px;padding:0 7px;border:1px solid var(--line);border-radius:5px;color:#b7c8cf;font-size:9px;white-space:nowrap}
+
+/* Explicit chart dimensions fix ResponsiveContainer zero-height regressions. */
+.rca26Chart{position:relative;width:100%;height:320px;min-height:320px;min-width:0;overflow:hidden}.rca26Chart.tall{height:390px;min-height:390px}.rca26Chart.compact{height:260px;min-height:260px}
+.rca26Chart.wideChart{width:100%}.rca26Chart .recharts-responsive-container{width:100%!important;height:100%!important;min-height:inherit}
+.rca26Chart .recharts-cartesian-axis-tick-value,.rca26Chart .recharts-legend-item-text{fill:#9fb1b9!important;color:#9fb1b9!important;font-size:10px}
+.rca26Chart .recharts-cartesian-grid line{stroke:rgba(148,163,184,.14)}.rca26Chart .recharts-brush{font-size:9px}
+.rca26Tooltip{display:grid;gap:4px;min-width:150px;padding:9px 10px;border:1px solid rgba(49,208,200,.3);border-radius:7px;background:#071116;box-shadow:0 12px 34px rgba(0,0,0,.28);font-size:10px}
+.rca26Tooltip strong{color:#fff}.rca26Tooltip span{color:#b8cad1}
+.rca26StatusLine{display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));gap:5px;margin-top:7px}
+.rca26StatusLine span{display:flex;align-items:center;justify-content:space-between;gap:5px;padding:6px 8px;border:1px solid var(--line2);border-radius:5px;color:#a9bac2;font-size:9px}.rca26StatusLine span b{color:#e5eef1}
+.rca26StatusLine .crit{border-color:rgba(255,89,100,.35);background:rgba(255,89,100,.06);color:#ff8d95}.rca26StatusLine .warn{border-color:rgba(245,166,35,.3);color:#ffc665}.rca26StatusLine .normal,.rca26StatusLine .ok{color:#67df9a}
+
+.rca26KeyValue{display:grid;grid-template-columns:minmax(88px,1fr) auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line2);font-size:10px}.rca26KeyValue:last-child{border-bottom:0}.rca26KeyValue span{color:var(--muted)}.rca26KeyValue b{color:#edf6f8}.rca26KeyValue small{color:#94a9b2}
+.rca26Snapshot{display:grid;gap:0}.rca26Snapshot>div{display:grid;grid-template-columns:minmax(110px,.9fr) 1.2fr;gap:10px;padding:6px 0;border-bottom:1px solid var(--line2);font-size:10px}.rca26Snapshot>div:last-child{border-bottom:0}.rca26Snapshot span{color:var(--muted)}.rca26Snapshot b{color:#e9f2f5;font-weight:680}
+
+.rca26TableWrap{position:relative;overflow:auto;max-width:100%;max-height:380px;border:1px solid var(--line2);border-radius:6px;background:#081318;scrollbar-width:thin}
+.rca26TableWrap.short{max-height:245px}.rca26TableWrap.jobs{max-height:440px}.rca26Table{width:100%;min-width:max-content;border-collapse:separate;border-spacing:0;font-size:10px;font-variant-numeric:tabular-nums}
+.rca26Table th,.rca26Table td{height:31px;padding:6px 9px;border-right:1px solid rgba(148,163,184,.06);border-bottom:1px solid rgba(148,163,184,.09);text-align:left;vertical-align:middle;white-space:nowrap}
+.rca26Table th:last-child,.rca26Table td:last-child{border-right:0}.rca26Table tr:last-child td{border-bottom:0}
+.rca26Table th{position:sticky;top:0;z-index:2;background:#0d1b22;color:#91a6af;font-size:8px;font-weight:800;letter-spacing:.045em;text-transform:uppercase;box-shadow:0 1px 0 rgba(148,163,184,.14)}
+.rca26Table td{color:#d7e4e8}.rca26Table tbody tr:hover td{background:#0d2027}.rca26Table.selectable tbody tr{cursor:pointer}.rca26Table.selectable tbody tr[data-selected='true'] td{background:rgba(49,208,200,.075);color:#f2ffff}
+.rca26Table th.num,.rca26Table td.num{text-align:right;font-variant-numeric:tabular-nums}
+.rca26Status{display:inline-flex;align-items:center;min-height:19px;padding:0 5px;border-radius:4px;font-size:8px;font-weight:800}.rca26Status.crit{background:rgba(255,89,100,.11);color:#ff7f88}.rca26Status.warn{background:rgba(245,166,35,.1);color:#ffc15a}.rca26Status.normal,.rca26Status.ok{background:rgba(66,216,137,.08);color:#67df9a}
+.rca26ToggleGroup{display:flex;flex-wrap:wrap;gap:3px}.rca26ToggleGroup button{min-height:27px;padding:0 8px;border:1px solid var(--line);border-radius:5px;background:#0a151a;color:#9fb0b8;font-size:9px;cursor:pointer}.rca26ToggleGroup button[data-active='true']{border-color:rgba(49,208,200,.45);background:rgba(49,208,200,.1);color:#78e7e0}.rca26ShowMore{display:block;margin:7px 0 0 auto;min-height:29px;padding:0 10px;border:1px solid var(--line);border-radius:5px;background:#0a151a;color:#b8c8ce;font-size:9px;cursor:pointer}.rca26ShowMore:hover{border-color:rgba(49,208,200,.35);color:#e9ffff}
+.rca26Scope{display:inline-flex;align-items:center;min-height:18px;padding:0 5px;border:1px solid var(--line);border-radius:4px;color:#9fb0b8;font-size:7px;font-weight:850;letter-spacing:.04em}.rca26Scope.job,.rca26Scope.workload{border-color:rgba(49,208,200,.28);color:#65dfd8}.rca26Scope.program{border-color:rgba(77,143,255,.28);color:#82adff}.rca26Scope.pid,.rca26Scope.technical{border-color:rgba(148,163,184,.2);color:#96a8b0}
+.rca26Table tr[data-extreme='true'] td{background:rgba(245,166,35,.035)}
+
+.rca26Detail{display:grid;gap:9px}.rca26DetailTitle{display:grid;gap:2px;padding-bottom:7px;border-bottom:1px solid var(--line2)}.rca26DetailTitle span{color:var(--muted);font-size:8px;text-transform:uppercase}.rca26DetailTitle strong{overflow-wrap:anywhere;color:#f2fafc;font-size:15px}.rca26Detail dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0}.rca26Detail dl>div{display:grid;grid-template-columns:90px 1fr;gap:7px;padding:6px 0;border-bottom:1px solid var(--line2);font-size:10px}.rca26Detail dt{color:var(--muted)}.rca26Detail dd{margin:0;overflow-wrap:anywhere;color:#e2ecef}.rca26SapLookup{display:grid;gap:2px;padding:8px 9px;border-left:2px solid var(--cyan);background:rgba(49,208,200,.04);font-size:10px}.rca26SapLookup span{color:#aabdc5}
+.rca26Empty{display:grid;place-items:center;min-height:230px;color:var(--muted);font-size:11px;text-align:center}.rca26Empty.compact{min-height:100px}
+
+.rca26Bars{display:grid;gap:7px}.rca26BarRow{display:grid;grid-template-columns:minmax(120px,.85fr) minmax(100px,1.35fr) 70px;gap:8px;align-items:center;font-size:10px}.rca26BarRow.workload{grid-template-columns:minmax(135px,.95fr) minmax(110px,1.35fr) 82px}.rca26BarRow label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rca26BarTrack{height:8px;border-radius:999px;background:rgba(148,163,184,.12);overflow:hidden}.rca26BarFill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#31d0c8,#4d8fff)}.rca26BarRow strong{text-align:right;font-variant-numeric:tabular-nums}
+.rca26Coverage{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}.rca26Coverage>div{display:grid;grid-template-columns:auto auto;gap:3px 8px;padding:8px;border:1px solid var(--line2);border-radius:5px}.rca26Coverage span{color:#dbe7ea;font-size:10px}.rca26Coverage b{justify-self:end;color:#ff8b93;font-size:9px}.rca26Coverage small{grid-column:1/-1;overflow:hidden;color:var(--muted);font-size:8px;text-overflow:ellipsis;white-space:nowrap}.rca26Coverage>div[data-ok='true'] b{color:#5ce197}
+
+.rca26Case{display:flex;align-items:center;gap:10px;margin-top:8px;padding:9px 10px;border:1px solid var(--line);border-radius:7px;background:#081318}.rca26Case>div:first-child{display:grid;gap:2px;min-width:0}.rca26Case span{color:var(--muted);font-size:8px;text-transform:uppercase}.rca26Case strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.rca26Case small{overflow:hidden;color:var(--muted);font-size:9px;text-overflow:ellipsis;white-space:nowrap}.rca26CaseActions{display:flex;gap:5px;margin-left:auto}.rca26Btn,.rca26Link{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 9px;border:1px solid var(--line);border-radius:5px;background:#0a151a;color:#c8d6db;font-size:9px;text-decoration:none;cursor:pointer}
+.rca26Disclosure{margin-top:6px;border:1px solid var(--line);border-radius:7px;background:#081318}.rca26Disclosure>summary{padding:8px 10px;cursor:pointer;color:#aebfc6;font-size:10px}.rca26DisclosureBody{padding:0 9px 9px}
+
+/* 2026 responsive foundation: element-driven layout, not only viewport breakpoints. */
+@container (max-width:620px){
+  .rca26PanelHead{align-items:stretch;flex-direction:column}.rca26KeyValue{grid-template-columns:1fr auto}.rca26KeyValue small{grid-column:1/-1}.rca26Detail dl{grid-template-columns:1fr}.rca26Coverage{grid-template-columns:1fr 1fr}
+}
+@media(max-width:1260px){
+  .rca26MetricStrip{grid-template-columns:repeat(4,minmax(0,1fr))}.rca26MetricStrip.st03nStrip{grid-template-columns:repeat(3,minmax(0,1fr))}.rca26Metric:nth-child(4n){border-right:0}
+  .rca26Grid.logMain,.rca26Grid.st03nMain{grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr)}
+}
+@media(max-width:980px){
+  .rca26Grid,.rca26Grid.two,.rca26Grid.logMain,.rca26Grid.logDetail,.rca26Grid.st03nMain,.rca26Grid.st03nWorkloadGrid{grid-template-columns:1fr}
+  .rca26MetricStrip{grid-template-columns:repeat(3,minmax(0,1fr))}.rca26MetricStrip.st03nStrip{grid-template-columns:repeat(2,minmax(0,1fr))}.rca26Coverage{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:680px){
+  .rca26Shell{padding:8px 8px 88px}.rca26Head{align-items:stretch;flex-direction:column}.rca26Upload{width:100%}.rca26MetricStrip,.rca26MetricStrip.st03nStrip{grid-template-columns:repeat(2,minmax(0,1fr))}.rca26Metric{border-bottom:1px solid var(--line2)}
+  .rca26Panel{padding:9px}.rca26Chart,.rca26Chart.tall{height:310px;min-height:310px}.rca26Chart.wideChart{min-width:680px}.rca26Panel:has(.wideChart){overflow-x:auto}.rca26Coverage{grid-template-columns:1fr 1fr}.rca26Case{align-items:stretch;flex-direction:column}.rca26CaseActions{margin-left:0}.rca26CaseActions>*{flex:1}.rca26BarRow,.rca26BarRow.workload{grid-template-columns:minmax(105px,.8fr) minmax(100px,1.2fr) 62px}
+}
+@media(max-width:420px){.rca26MetricStrip,.rca26MetricStrip.st03nStrip{grid-template-columns:1fr}.rca26Coverage{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.rca26Shell *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
