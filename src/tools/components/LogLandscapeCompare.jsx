@@ -4,8 +4,8 @@ import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tool
 const METRICS = {
   cpuPct: { label: 'CPU', unit: '%', digits: 1, domain: [0, 100] },
   memoryPct: { label: 'RAM', unit: '%', digits: 1, domain: [0, 100] },
-  loadRatio: { label: 'Load per vCPU', unit: '', digits: 2 },
-  swapIn: { label: 'Swap In', unit: ' p/s', digits: 0 },
+  loadRatio: { label: 'Load', unit: '', digits: 2 },
+  swapIn: { label: 'Swap', unit: ' p/s', digits: 0 },
   wpCritical: { label: 'WP Critical', unit: '', digits: 0 },
 }
 
@@ -44,7 +44,9 @@ export default function LogLandscapeCompare({ view, metric = 'memoryPct', onMetr
   return <section className="rca26Panel rca26LandscapePanel">
     <div className="rca26PanelHead">
       <div><h2>Landscape Compare</h2><p data-pdf-ignore="true">Compare application servers on the same timeline.</p></div>
-      <label className="rca26Control compact"><span>Metric</span><select value={metric} onChange={(event) => onMetricChange?.(event.target.value)}>{Object.entries(METRICS).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label>
+      <div className="rca26MetricSwitch" role="group" aria-label="Landscape metric">
+        {Object.entries(METRICS).map(([key, item]) => <button type="button" key={key} data-active={metric === key} onClick={() => onMetricChange?.(key)}>{item.label}</button>)}
+      </div>
     </div>
     <div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} onClick={(state) => state?.activeLabel && onFocusTime?.(state.activeLabel)} margin={{ top: 10, right: 24, left: 0, bottom: rows.length > 12 ? 28 : 8 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="timeLabel" /><YAxis domain={config.domain} tickFormatter={config.unit === '%' ? (value) => `${value}%` : undefined} /><Tooltip content={<LandscapeTip metric={metric} />} /><Legend />{hosts.map((host, index) => <Line key={host} type="linear" dataKey={host} name={host} stroke={SERIES_COLORS[index % SERIES_COLORS.length]} strokeWidth={host === view?.host ? 2.8 : 1.8} dot={false} connectNulls={false} />)}</LineChart></ResponsiveContainer></div>
     <div className="rca26PressureMatrix" data-pdf-ignore="true">
