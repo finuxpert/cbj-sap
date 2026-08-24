@@ -1,0 +1,100 @@
+/* v1.3.2 header treatment: left-aligned workspace nav, no pill-switch look. */
+.rcaNavInner {
+  min-height: 56px;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.rcaBrand {
+  min-width: 0;
+  flex: 0 0 auto;
+  gap: 9px;
+}
+
+.rcaBrand .brandTitle {
+  font-size: 14px;
+  letter-spacing: -0.018em;
+}
+
+.rcaBrand .brandSub {
+  margin-top: 2px;
+  font-size: 9px;
+  color: rgba(180, 197, 204, .56);
+}
+
+.rcaToolTabs {
+  flex: 0 0 auto;
+  justify-content: flex-start;
+  gap: 1px;
+  margin-left: 22px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(145, 164, 173, .18);
+}
+
+.rcaToolTabs a,
+.appShell.isTool .rcaToolTabs a {
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(183, 199, 205, .68);
+  font-size: 11px;
+  font-weight: 760;
+  transform: none;
+}
+
+.rcaToolTabs a:hover,
+.appShell.isTool .rcaToolTabs a:hover {
+  color: #e7eef2;
+  border: 0;
+  background: rgba(255, 255, 255, .035);
+  box-shadow: none;
+  transform: none;
+}
+
+.rcaToolTabs a[data-active="true"],
+.appShell.isTool .rcaToolTabs a[data-active="true"] {
+  color: #f3f7f8;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rcaToolTabs a[data-active="true"]::after {
+  left: 10px;
+  right: 10px;
+  bottom: -4px;
+  height: 2px;
+  border-radius: 1px;
+  background: #32c7cf;
+}
+
+.mobileVersionBadge {
+  margin-left: auto;
+}
+
+@media (max-width: 980px) {
+  .rcaToolTabs {
+    margin-left: 14px;
+    padding-left: 12px;
+  }
+}
+
+@media (max-width: 860px) {
+  .rcaNavInner {
+    min-height: 54px;
+  }
+
+  .rcaToolTabs {
+    display: none;
+  }
+}
+
+@media print {
+  .navbar,
+  .mobileAnalysisNav {
+    display: none !important;
+  }
+}

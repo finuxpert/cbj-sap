@@ -1,37 +1,47 @@
-/* Custom SAP RCA brand mark. This is an internal SAP RCA Workspace badge, not an official SAP logo asset. */
+/* v1.3.2 flat RCA wordmark. Intentionally text-first: no gradient badge or pseudo-SAP mark. */
 .sapRcaLogo {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 92px;
-  height: 44px;
+  justify-content: flex-start;
   flex: 0 0 auto;
-  filter: drop-shadow(0 12px 24px rgba(45, 212, 191, 0.18));
+  min-width: 44px;
+  height: 28px;
+  padding-left: 9px;
+  border-left: 2px solid #32c7cf;
 }
 
-.sapRcaLogo svg {
+.sapRcaWordmark {
   display: block;
-  width: 100%;
-  height: 100%;
+  color: #e7eef2;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .10em;
 }
 
 .sapRcaLogo.compact {
-  width: 74px;
-  height: 36px;
+  min-width: 40px;
+  height: 26px;
+  padding-left: 8px;
 }
 
 .rcaBrand .sapRcaLogo {
-  margin-right: 2px;
+  margin-right: 0;
 }
 
-.rcaBrand:hover .sapRcaLogo {
-  filter: drop-shadow(0 14px 30px rgba(45, 212, 191, 0.24));
+.rcaBrand:hover .sapRcaWordmark {
+  color: #ffffff;
 }
 
 @media (max-width: 720px) {
   .sapRcaLogo {
-    width: 76px;
-    height: 36px;
+    min-width: 38px;
+    height: 25px;
+    padding-left: 7px;
+  }
+
+  .sapRcaWordmark {
+    font-size: 11px;
   }
 
   .rcaBrand .brandTitle {
@@ -41,7 +51,11 @@
 
 @media (max-width: 460px) {
   .sapRcaLogo {
-    width: 68px;
-    height: 32px;
+    min-width: 34px;
+    padding-left: 6px;
+  }
+
+  .sapRcaWordmark {
+    font-size: 10px;
   }
 }

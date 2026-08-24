@@ -1,5 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SAP RCA Workspace">
-  <rect width="64" height="64" rx="14" fill="#071013"/>
-  <path d="M12 17h40v8H22v7h26v8H22v7h30v8H12z" fill="#2dd4bf"/>
-  <circle cx="49" cy="15" r="6" fill="#38bdf8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="RCA Workspace">
+  <rect width="64" height="64" rx="14" fill="#0b141a"/>
+  <path d="M18 49V15h16c8.2 0 13 4.6 13 11.2S42.2 37.4 34 37.4H18M33 37.4 47 49" fill="none" stroke="#32c7cf" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

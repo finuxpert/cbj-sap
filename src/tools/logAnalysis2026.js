@@ -5,6 +5,19 @@ function num(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function metric(value) {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(String(value).replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function maxMetric(a, b) {
+  const left = metric(a); const right = metric(b)
+  if (left === null) return right
+  if (right === null) return left
+  return Math.max(left, right)
+}
+
 function text(value) {
   return String(value ?? '').trim()
 }
@@ -85,7 +98,7 @@ function parseProcessRow(line, context = {}, section = '') {
     fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot), timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
     host: context.host || 'UNKNOWN', sid: match[15] || context.sid || '', instance: match[2] || context.instance || '', pid: match[1], wp: match[3], type: cleanSapField(match[4]),
     cpu: num(match[5]), memRaw: match[6], rssGb: num(match[7]), state: cleanSapField(match[8]), age: cleanSapField(match[9]), rabax: num(match[10]), sxpg: num(match[11]), jobCounter: num(match[12]), rxmsg: num(match[13]),
-    className: match[14], ...trailing, section, source: 'WP-SCOUT',
+    className: match[14], ...trailing, section, source: 'WP-SCOUT', resourceSample: true,
   }
 }
 
@@ -98,8 +111,8 @@ function parseRabaxRow(line, context = {}, section = '') {
   return {
     fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot), timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
     host: context.host || 'UNKNOWN', sid: context.sid || '', instance: match[2] || context.instance || '', pid: match[1], wp: match[3], type: cleanSapField(match[4]),
-    cpu: 0, memRaw: '', rssGb: 0, state: UNKNOWN, age: UNKNOWN, rabax: num(match[5]), sxpg: num(match[6]), rxmsg: num(match[7]), jobCounter: num(match[8]),
-    className: match[9], ...trailing, section, source: 'WP-SCOUT',
+    cpu: null, memRaw: '', rssGb: null, state: UNKNOWN, age: UNKNOWN, rabax: num(match[5]), sxpg: num(match[6]), rxmsg: num(match[7]), jobCounter: num(match[8]),
+    className: match[9], ...trailing, section, source: 'WP-SCOUT', resourceSample: false,
   }
 }
 
@@ -112,8 +125,9 @@ function mergeProcessRows(rows = []) {
       map.set(key, { ...row, sections: new Set(row.section ? [row.section] : []) })
       return
     }
-    current.cpu = Math.max(num(current.cpu), num(row.cpu))
-    current.rssGb = Math.max(num(current.rssGb), num(row.rssGb))
+    current.cpu = maxMetric(current.cpu, row.cpu)
+    current.rssGb = maxMetric(current.rssGb, row.rssGb)
+    current.resourceSample = Boolean(current.resourceSample || row.resourceSample)
     current.rabax = Math.max(num(current.rabax), num(row.rabax))
     current.sxpg = Math.max(num(current.sxpg), num(row.sxpg))
     current.jobCounter = Math.max(num(current.jobCounter), num(row.jobCounter))
@@ -240,18 +254,25 @@ export function buildJobGroups(processes = [], incidentTimes = new Set(), totalI
   const map = new Map()
   processes.filter((row) => recordTimeInWindow(row, incidentTimes, includeAll)).forEach((row) => {
     const name = workloadName(row); const key = `${row.host}|${name}`
-    const current = map.get(key) || { key, name, host: row.host, programs: new Set(), pids: new Set(), wps: new Set(), types: new Set(), states: new Set(), times: new Set(), errors: new Set(), records: [], cpuTotal: 0, cpuCount: 0, peakCpu: 0, peakRss: 0 }
+    const current = map.get(key) || { key, name, host: row.host, programs: new Set(), pids: new Set(), wps: new Set(), types: new Set(), states: new Set(), times: new Set(), errors: new Set(), records: [], cpuTotal: 0, cpuCount: 0, peakCpu: null, peakRss: null, resourceSampleCount: 0 }
     if (row.program && row.program !== UNKNOWN) current.programs.add(row.program); if (row.pid) current.pids.add(row.pid); if (row.wp) current.wps.add(row.wp); if (row.type && row.type !== UNKNOWN) current.types.add(row.type); if (row.state && row.state !== UNKNOWN) current.states.add(row.state); if (row.timeLabel) current.times.add(row.timeLabel); if (row.errorCode && row.errorCode !== UNKNOWN) current.errors.add(row.errorCode)
-    current.records.push(row); current.cpuTotal += num(row.cpu); current.cpuCount += 1; current.peakCpu = Math.max(current.peakCpu, num(row.cpu)); current.peakRss = Math.max(current.peakRss, num(row.rssGb)); map.set(key, current)
+    current.records.push(row)
+    const cpuValue = metric(row.cpu); const rssValue = metric(row.rssGb)
+    if (cpuValue !== null) { current.cpuTotal += cpuValue; current.cpuCount += 1; current.peakCpu = current.peakCpu === null ? cpuValue : Math.max(current.peakCpu, cpuValue) }
+    if (rssValue !== null) current.peakRss = current.peakRss === null ? rssValue : Math.max(current.peakRss, rssValue)
+    if (row.resourceSample || cpuValue !== null || rssValue !== null) current.resourceSampleCount += 1
+    map.set(key, current)
   })
   return Array.from(map.values()).map((item) => {
     const records = item.records.sort((a, b) => a.sortKey - b.sortKey)
-    const peakCpuRecord = records.reduce((best, row) => num(row.cpu) > num(best?.cpu) ? row : best, records[0] || null)
-    const peakRssRecord = records.reduce((best, row) => num(row.rssGb) > num(best?.rssGb) ? row : best, records[0] || null)
+    const cpuRecords = records.filter((row) => metric(row.cpu) !== null)
+    const rssRecords = records.filter((row) => metric(row.rssGb) !== null)
+    const peakCpuRecord = cpuRecords.reduce((best, row) => metric(row.cpu) > metric(best?.cpu) ? row : best, null)
+    const peakRssRecord = rssRecords.reduce((best, row) => metric(row.rssGb) > metric(best?.rssGb) ? row : best, null)
     const first = records[0], last = records[records.length - 1]
-    const program = cleanSapField(peakRssRecord?.program !== UNKNOWN ? peakRssRecord?.program : peakCpuRecord?.program || Array.from(item.programs)[0] || UNKNOWN)
+    const program = cleanSapField((peakRssRecord?.program && peakRssRecord.program !== UNKNOWN) ? peakRssRecord.program : (peakCpuRecord?.program || Array.from(item.programs)[0] || UNKNOWN))
     const identityType = isUsefulJobName(item.name, program) ? 'JOB' : item.name.startsWith('PID ') ? 'PID' : 'PROGRAM'
-    return { ...item, programs: Array.from(item.programs), pids: Array.from(item.pids), wps: Array.from(item.wps), types: Array.from(item.types), states: Array.from(item.states), times: Array.from(item.times), errors: Array.from(item.errors), avgCpu: item.cpuCount ? item.cpuTotal / item.cpuCount : 0, peakCpuRecord, peakRssRecord, firstSeen: first?.timeLabel || '—', lastSeen: last?.timeLabel || '—', persistenceCount: item.times.size, persistenceText: totalIncidentSnapshots ? `${item.times.size}/${totalIncidentSnapshots}` : `${item.times.size}`, topPid: peakRssRecord?.pid || peakCpuRecord?.pid || Array.from(item.pids)[0] || '', topWp: peakRssRecord?.wp || peakCpuRecord?.wp || Array.from(item.wps)[0] || '', topType: peakRssRecord?.type || peakCpuRecord?.type || Array.from(item.types)[0] || '', topState: peakRssRecord?.state || peakCpuRecord?.state || Array.from(item.states)[0] || '', program, identityType }
+    return { ...item, programs: Array.from(item.programs), pids: Array.from(item.pids), wps: Array.from(item.wps), types: Array.from(item.types), states: Array.from(item.states), times: Array.from(item.times), errors: Array.from(item.errors), avgCpu: item.cpuCount ? item.cpuTotal / item.cpuCount : null, peakCpuRecord, peakRssRecord, firstSeen: first?.timeLabel || '—', lastSeen: last?.timeLabel || '—', persistenceCount: item.times.size, persistenceText: totalIncidentSnapshots ? `${item.times.size}/${totalIncidentSnapshots}` : `${item.times.size}`, topPid: peakRssRecord?.pid || peakCpuRecord?.pid || Array.from(item.pids)[0] || '', topWp: peakRssRecord?.wp || peakCpuRecord?.wp || Array.from(item.wps)[0] || '', topType: peakRssRecord?.type || peakCpuRecord?.type || Array.from(item.types)[0] || '', topState: peakRssRecord?.state || peakCpuRecord?.state || Array.from(item.states)[0] || UNKNOWN, program, identityType }
   })
 }
 
@@ -286,8 +307,8 @@ export function buildLogAnalysis(parsedFiles = []) {
 
 export function sortJobs(jobs = [], metric = 'rss') {
   const copy = [...jobs]
-  if (metric === 'cpu') return copy.sort((a, b) => b.peakCpu - a.peakCpu || b.avgCpu - a.avgCpu)
-  if (metric === 'persistence') return copy.sort((a, b) => b.persistenceCount - a.persistenceCount || b.peakRss - a.peakRss)
+  if (metric === 'cpu') return copy.sort((a, b) => num(b.peakCpu) - num(a.peakCpu) || num(b.avgCpu) - num(a.avgCpu))
+  if (metric === 'persistence') return copy.sort((a, b) => b.persistenceCount - a.persistenceCount || num(b.peakRss) - num(a.peakRss))
   if (metric === 'errors') return copy.sort((a, b) => b.errors.length - a.errors.length || b.persistenceCount - a.persistenceCount)
-  return copy.sort((a, b) => b.peakRss - a.peakRss || b.peakCpu - a.peakCpu)
+  return copy.sort((a, b) => num(b.peakRss) - num(a.peakRss) || num(b.peakCpu) - num(a.peakCpu))
 }

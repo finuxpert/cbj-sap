@@ -8,8 +8,12 @@ import { downloadCsv } from './rcaExport.js'
 import './RcaWorkspace2026.css'
 import './RcaWorkspaceV13.css'
 
-const f = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
+const hasMetric = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
+const f = (value, digits = 0) => hasMetric(value) ? Number(value).toLocaleString('en-US', { maximumFractionDigits: digits }) : '—'
+const metricText = (value, digits = 0, suffix = '') => hasMetric(value) ? `${f(value, digits)}${suffix}` : '—'
 const dateOf = (value = '') => String(value).match(/\d{4}-\d{2}-\d{2}/)?.[0] || '—'
+const displayState = (value) => value && value !== '?' ? value : 'Unavailable'
+const stateClass = (value) => ['r', 's', 'd', 'z'].includes(String(value || '').toLowerCase()) ? String(value).toLowerCase() : 'unknown'
 const Metric = ({ label, value, meta, tone = '', onClick }) => <button type="button" className={`rca26Metric ${tone} ${onClick ? 'clickable' : ''}`} onClick={onClick}><span>{label}</span><strong title={String(value)}>{value}</strong><small>{meta || '—'}</small></button>
 
 function workerParse(files) {
@@ -31,15 +35,17 @@ function Tip({ active, payload, label }) {
 function JobTip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   const row = payload[0].payload
-  return <div className="rca26Tooltip"><strong>{label}</strong><span>PID {row.pid} · WP {row.wp}</span><span>OS State {row.state || '—'}</span><span>CPU {f(row.cpu, 1)}%</span><span>RSS {f(row.rssGb, 2)} GB</span><span>RABAX {f(row.rabax)}</span>{row.errorCode && row.errorCode !== '?' ? <span>Error {row.errorCode}</span> : null}</div>
+  return <div className="rca26Tooltip"><strong>{label}</strong><span>PID {row.pid} · WP {row.wp}</span><span>OS State {displayState(row.state)}</span><span>CPU {metricText(row.cpu, 1, '%')}</span><span>RSS {metricText(row.rssGb, 2, ' GB')}</span><span>RABAX {f(row.rabax)}</span>{row.errorCode && row.errorCode !== '?' ? <span>Error {row.errorCode}</span> : null}</div>
 }
 
 function JobDetail({ job, incidentJob, incidentCount = 0 }) {
   if (!job) return <div className="rca26Empty compact">Select a job or process.</div>
   const rss = job.peakRssRecord || {}, cpu = job.peakCpuRecord || {}
+  const peakCpu = hasMetric(job.peakCpu) && cpu.timeLabel ? `${f(job.peakCpu, 1)}% @ ${cpu.timeLabel}` : '—'
+  const peakRss = hasMetric(job.peakRss) && rss.timeLabel ? `${f(job.peakRss, 2)} GB @ ${rss.timeLabel}` : '—'
   const items = [
-    ['Program', job.program], ['Host', job.host], ['Instance', rss.instance || cpu.instance], ['WP / Type', `${job.topWp || '—'} / ${job.topType || '—'}`], ['PID', job.topPid], ['OS State', job.topState],
-    ['Peak CPU', `${f(job.peakCpu, 1)}% @ ${cpu.timeLabel || '—'}`], ['Peak RSS', `${f(job.peakRss, 2)} GB @ ${rss.timeLabel || '—'}`], ['First / Last', `${job.firstSeen} / ${job.lastSeen}`],
+    ['Program', job.program], ['Host', job.host], ['Instance', rss.instance || cpu.instance], ['WP / Type', `${job.topWp || '—'} / ${job.topType || '—'}`], ['PID', job.topPid], ['OS State', displayState(job.topState)],
+    ['Peak CPU', peakCpu], ['Peak RSS', peakRss], ['First / Last', `${job.firstSeen} / ${job.lastSeen}`],
     ['Incident Presence', incidentCount ? (incidentJob?.persistenceText || `0/${incidentCount}`) : 'No incident window'], ['Analysis Presence', job.persistenceText], ['Errors', job.errors?.join(', ') || '—'],
   ]
   return <div className="rca26Detail"><div className="rca26DetailTitle"><span>Selected {job.identityType?.toLowerCase()}</span><strong>{job.name}</strong></div><dl>{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl><div className="rca26SapLookup"><b>SAP lookup</b><span>SM37 by Job Name · SM50/SM66 by WP, PID, program and instance.</span></div></div>
@@ -48,18 +54,18 @@ function JobDetail({ job, incidentJob, incidentCount = 0 }) {
 function JobResourceCharts({ rows = [], pid = '' }) {
   if (!rows.length) return <div className="rca26Empty compact">No resource history for the selected PID.</div>
   return <div className="rca26JobCharts">
-    <section><div className="rca26MiniHead"><b>CPU Trend</b><span>{pid ? `PID ${pid}` : 'Selected process'}</span></div><div className="rca26MiniChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="timeLabel" /><YAxis unit="%" /><Tooltip content={<JobTip />} /><Line type="linear" dataKey="cpu" name="CPU %" stroke="#32c7cf" strokeWidth={2.2} dot /></LineChart></ResponsiveContainer></div></section>
-    <section><div className="rca26MiniHead"><b>RSS Memory Trend</b><span>GB</span></div><div className="rca26MiniChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="timeLabel" /><YAxis unit="G" /><Tooltip content={<JobTip />} /><Line type="linear" dataKey="rssGb" name="RSS GB" stroke="#4d8fff" strokeWidth={2.2} dot /></LineChart></ResponsiveContainer></div></section>
-    <div className="rca26StateTimeline"><div className="rca26MiniHead"><b>OS State Timeline</b><span>R = running/runnable · S = interruptible sleep · D = uninterruptible sleep</span></div><div className="rca26StateTrack">{rows.map((row) => <div key={`${row.snapshot}-${row.pid}-${row.wp}`} className={`rca26StatePoint state-${String(row.state || 'unknown').toLowerCase()}`} title={`${row.timeLabel} · State ${row.state || '—'} · RABAX ${row.rabax || 0}${row.errorCode && row.errorCode !== '?' ? ` · ${row.errorCode}` : ''}`}><b>{row.state || '?'}</b><small>{row.timeLabel}</small></div>)}</div></div>
+    <section><div className="rca26MiniHead"><b>CPU Trend</b><span>{pid ? `PID ${pid}` : 'Selected process'}</span></div><div className="rca26MiniChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="timeLabel" /><YAxis unit="%" /><Tooltip content={<JobTip />} /><Line type="linear" dataKey="cpu" name="CPU %" stroke="#32c7cf" strokeWidth={2.2} dot connectNulls={false} /></LineChart></ResponsiveContainer></div></section>
+    <section><div className="rca26MiniHead"><b>RSS Memory Trend</b><span>GB</span></div><div className="rca26MiniChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} margin={{ top: 8, right: 12, left: -12, bottom: 4 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="timeLabel" /><YAxis unit="G" /><Tooltip content={<JobTip />} /><Line type="linear" dataKey="rssGb" name="RSS GB" stroke="#4d8fff" strokeWidth={2.2} dot connectNulls={false} /></LineChart></ResponsiveContainer></div></section>
+    <div className="rca26StateTimeline"><div className="rca26MiniHead"><b>OS State Timeline</b><span>R = running/runnable · S = interruptible sleep · D = uninterruptible sleep · ? = unavailable</span></div><div className="rca26StateTrack">{rows.map((row) => <div key={`${row.snapshot}-${row.pid}-${row.wp}`} className={`rca26StatePoint state-${stateClass(row.state)}`} title={`${row.timeLabel} · State ${displayState(row.state)} · RABAX ${row.rabax || 0}${row.errorCode && row.errorCode !== '?' ? ` · ${row.errorCode}` : ''}`}><b>{row.state && row.state !== '?' ? row.state : '?'}</b><small>{row.timeLabel}</small></div>)}</div></div>
   </div>
 }
 
 const jobColumns = [
   { key: 'identityType', label: 'Scope', render: (row) => <span className={`rca26Scope ${row.identityType?.toLowerCase()}`}>{row.identityType}</span> },
   { key: 'name', label: 'Job / Process' }, { key: 'program', label: 'Program' }, { key: 'topType', label: 'Type' },
-  { key: 'topWp', label: 'WP', num: true, value: (row) => Number(row.topWp || 0) }, { key: 'topPid', label: 'PID', num: true, value: (row) => Number(row.topPid || 0) }, { key: 'topState', label: 'OS State' },
-  { key: 'avgCpu', label: 'Avg CPU', num: true, render: (row) => `${f(row.avgCpu, 1)}%` }, { key: 'peakCpu', label: 'Peak CPU', num: true, render: (row) => `${f(row.peakCpu, 1)}%` },
-  { key: 'peakRss', label: 'Peak RSS', num: true, render: (row) => `${f(row.peakRss, 2)} GB` }, { key: 'persistenceCount', label: 'Seen', num: true, render: (row) => row.persistenceText },
+  { key: 'topWp', label: 'WP', num: true, value: (row) => Number(row.topWp || 0) }, { key: 'topPid', label: 'PID', num: true, value: (row) => Number(row.topPid || 0) }, { key: 'topState', label: 'OS State', render: (row) => row.topState && row.topState !== '?' ? row.topState : '—' },
+  { key: 'avgCpu', label: 'Avg CPU', num: true, render: (row) => metricText(row.avgCpu, 1, '%') }, { key: 'peakCpu', label: 'Peak CPU', num: true, render: (row) => metricText(row.peakCpu, 1, '%') },
+  { key: 'peakRss', label: 'Peak RSS', num: true, render: (row) => metricText(row.peakRss, 2, ' GB') }, { key: 'persistenceCount', label: 'Seen', num: true, render: (row) => row.persistenceText },
   { key: 'errors', label: 'Errors', value: (row) => row.errors || [], render: (row) => row.errors?.join(', ') || '—' },
 ]
 
@@ -130,8 +136,8 @@ export default function ToolLogAnalysis2026() {
     { key: 'severity', label: 'Status', render: (row) => <span className={`rca26Status ${row.severity.toLowerCase()}`}>{row.severity}</span> },
   ]
   const historyColumns = [
-    { key: 'timeLabel', label: 'Time' }, { key: 'pid', label: 'PID', num: true }, { key: 'wp', label: 'WP', num: true }, { key: 'type', label: 'Type' }, { key: 'state', label: 'OS State' },
-    { key: 'cpu', label: 'CPU', num: true, render: (row) => `${f(row.cpu, 1)}%` }, { key: 'rssGb', label: 'RSS', num: true, render: (row) => `${f(row.rssGb, 2)} GB` }, { key: 'rabax', label: 'RABAX', num: true }, { key: 'errorCode', label: 'Error', render: (row) => row.errorCode !== '?' ? row.errorCode : '—' },
+    { key: 'timeLabel', label: 'Time' }, { key: 'pid', label: 'PID', num: true }, { key: 'wp', label: 'WP', num: true }, { key: 'type', label: 'Type' }, { key: 'state', label: 'OS State', render: (row) => row.state && row.state !== '?' ? row.state : '—' },
+    { key: 'cpu', label: 'CPU', num: true, render: (row) => metricText(row.cpu, 1, '%') }, { key: 'rssGb', label: 'RSS', num: true, render: (row) => metricText(row.rssGb, 2, ' GB') }, { key: 'rabax', label: 'RABAX', num: true }, { key: 'errorCode', label: 'Error', render: (row) => row.errorCode !== '?' ? row.errorCode : '—' },
   ]
   const errorColumns = [
     { key: 'errorCode', label: 'Error Code' }, { key: 'snapshotRecords', label: 'Snapshot Records', num: true }, { key: 'uniqueProcesses', label: 'Unique WP/PID', num: true }, { key: 'affectedJobs', label: 'Affected Jobs', num: true }, { key: 'firstSeen', label: 'First Seen' }, { key: 'lastSeen', label: 'Last Seen' },
@@ -173,9 +179,9 @@ export default function ToolLogAnalysis2026() {
 
     <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>{jobsTitle}</h2><p>{focusTime ? 'Snapshot-focused job/process evidence.' : jobScope === 'full' ? 'All workloads observed in the selected analysis window.' : 'Only workloads observed inside the selected host WARN/CRIT window.'}</p></div>{focusTime && <button className="rca26TextBtn" onClick={() => setFocusTime('')}>Clear snapshot focus</button>}</div><RcaDataTable rows={jobs} columns={jobColumns} filters={jobFilters} searchPlaceholder="Search job, program, PID, WP, error…" pageSize={50} defaultSort={{ key: 'peakRss', dir: 'desc' }} rowKey={(row) => row.key} onRowClick={(row) => setSelected(row.key)} selectedKey={selectedJob?.key || ''} onViewChange={setJobViewRows} emptyText={focusTime ? `No processes captured at ${focusTime}.` : jobScope === 'full' ? 'No processes in the selected window.' : 'No WARN/CRIT incident jobs in this window.'} /></section>
 
-    <div className="rca26Grid logDetail rca26Deferred"><section className="rca26Panel"><JobDetail job={detailJob} incidentJob={incidentJob} incidentCount={incident.count} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Selected Job Resource Trend</h2><p>CPU and RSS are shown for one PID at a time to avoid misleading aggregation across multiple processes.</p></div>{pids.length > 1 ? <label className="rca26Control compact"><span>PID</span><select value={selectedPid} onChange={(event) => setSelectedPid(event.target.value)}>{pids.map((pid) => <option value={pid} key={pid}>{pid}</option>)}</select></label> : null}</div><JobResourceCharts rows={chartHistory} pid={selectedPid} /></section></div>
+    <div className="rca26Grid logDetail rca26Deferred"><section className="rca26Panel"><JobDetail job={detailJob} incidentJob={incidentJob} incidentCount={incident.count} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Selected Job Resource Trend</h2><p>CPU and RSS use actual process samples only. Missing resource samples are shown as gaps, never as zero.</p></div>{pids.length > 1 ? <label className="rca26Control compact"><span>PID</span><select value={selectedPid} onChange={(event) => setSelectedPid(event.target.value)}>{pids.map((pid) => <option value={pid} key={pid}>{pid}</option>)}</select></label> : null}</div><JobResourceCharts rows={chartHistory} pid={selectedPid} /></section></div>
 
-    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>Job Resource History</h2><p>Raw process evidence across the selected analysis window. OS State is the Linux process state, not SAP SM50 status.</p></div></div><RcaDataTable rows={history} columns={historyColumns} search={false} filters={[{ key: 'type', label: 'Type' }, { key: 'state', label: 'OS State' }]} pageSize={50} defaultSort={{ key: 'timeLabel', dir: 'asc' }} rowKey={(row) => `${row.snapshot}-${row.pid}-${row.wp}`} /></section>
+    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>Job Resource History</h2><p>Raw process evidence across the selected analysis window. OS State is the Linux process state, not SAP SM50 status; “—” means the resource sample was unavailable.</p></div></div><RcaDataTable rows={history} columns={historyColumns} search={false} filters={[{ key: 'type', label: 'Type' }, { key: 'state', label: 'OS State' }]} pageSize={50} defaultSort={{ key: 'timeLabel', dir: 'asc' }} rowKey={(row) => `${row.snapshot}-${row.pid}-${row.wp}`} /></section>
 
     <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>{jobScope === 'full' ? 'Error Evidence in Analysis Window' : 'Error Evidence During Incident'}</h2><p>Error is supporting evidence, deduplicated by snapshot and unique WP/PID.</p></div></div><RcaDataTable rows={currentErrors} columns={errorColumns} searchPlaceholder="Search error code…" pageSize={50} defaultSort={{ key: 'uniqueProcesses', dir: 'desc' }} rowKey={(row) => row.errorCode} /></section>
   </div></section>
