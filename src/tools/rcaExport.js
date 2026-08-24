@@ -36,6 +36,27 @@ function blockNodes(root) {
   return visibleBlockNodes(root)
 }
 
+function reportSectionRowCount(reportRoot, heading) {
+  const section = Array.from(reportRoot?.querySelectorAll?.('.rca26Panel') || []).find((node) => node.querySelector('h2')?.textContent?.trim() === heading)
+  if (!section) return 0
+  return Array.from(section.querySelectorAll('tbody tr')).filter((row) => !row.querySelector('.rca26NoRows')).length
+}
+
+function syncLogEvidenceScope(root) {
+  if (root?.getAttribute?.('data-report-kind') !== 'log') return () => {}
+  const reportRoot = root.querySelector('.rca26IncidentReportOnly')
+  if (!(reportRoot instanceof HTMLElement)) return () => {}
+  const finding = Array.from(reportRoot.querySelectorAll('.rca26ReportFinding')).find((node) => node.querySelector('span')?.textContent?.trim() === 'Evidence Scope')
+  const value = finding?.querySelector('b')
+  if (!value) return () => {}
+  const original = value.textContent
+  const servers = reportSectionRowCount(reportRoot, 'Affected Application Servers')
+  const workloads = reportSectionRowCount(reportRoot, 'Incident Workloads')
+  const errors = reportSectionRowCount(reportRoot, 'Incident Errors')
+  value.textContent = `${servers} affected server${servers === 1 ? '' : 's'} · ${workloads} reported workload${workloads === 1 ? '' : 's'} · ${errors} reported error${errors === 1 ? '' : 's'}`
+  return () => { value.textContent = original }
+}
+
 function sliceCanvas(source, startY, height) {
   const canvas = document.createElement('canvas')
   canvas.width = source.width
@@ -52,6 +73,7 @@ export async function downloadWorkspacePdf(root, options = {}) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   document.body.classList.add('rcaPdfExportMode')
   root.setAttribute('data-pdf-export', 'true')
+  const restoreEvidenceScope = syncLogEvidenceScope(root)
   try {
     if (document.fonts?.ready) await document.fonts.ready
     await nextFrame()
@@ -128,6 +150,7 @@ export async function downloadWorkspacePdf(root, options = {}) {
     }
     pdf.save(filename)
   } finally {
+    restoreEvidenceScope()
     root.removeAttribute('data-pdf-export')
     document.body.classList.remove('rcaPdfExportMode')
   }
