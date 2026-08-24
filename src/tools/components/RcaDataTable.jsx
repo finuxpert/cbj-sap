@@ -23,8 +23,29 @@ function filterOptions(rows, filter) {
   return Array.from(values).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 }
 
+function repeatedNewErrorSnapshots(row = {}) {
+  const newErrors = new Set((row.newErrors || []).filter(Boolean))
+  if (!newErrors.size) return 0
+  const occurrences = new Set()
+  ;(row.records || []).forEach((record) => {
+    const code = record?.errorCode
+    if (!newErrors.has(code)) return
+    occurrences.add(`${code}|${record?.timeLabel || record?.snapshot || ''}`)
+  })
+  return occurrences.size
+}
+
 function isEvidenceCandidate(row) {
-  return Number(row?.anomalyScore || 0) >= 60 || Number(row?.dStateIncrease || 0) > 0 || (row?.newErrors?.length || 0) > 0
+  const score = Number(row?.anomalyScore || 0)
+  if (score >= 60) return true
+  if (score < 40) return false
+
+  const dStateIncrease = Number(row?.dStateIncrease || 0)
+  const cpuIncrease = Number(row?.cpuDelta || 0)
+  const rssIncrease = Number(row?.rssDelta || 0)
+  const repeatedNewError = repeatedNewErrorSnapshots(row) >= 2
+
+  return dStateIncrease > 0 || cpuIncrease >= 5 || rssIncrease >= 1 || repeatedNewError
 }
 
 export default function RcaDataTable({
@@ -42,7 +63,9 @@ export default function RcaDataTable({
   const [evidenceScope, setEvidenceScope] = React.useState('candidates')
   const lastViewSignature = React.useRef('')
 
+  const hasEvidenceScore = columns.some((column) => column.key === 'anomalyScore')
   const supportsEvidenceScope = search && String(searchPlaceholder || '').startsWith('Search workload, host, program') && rows.length > 20
+  const compactCandidateReport = compact && !search && hasEvidenceScore
   const deferredQuery = React.useDeferredValue(query)
   const deferredFilterState = React.useDeferredValue(filterState)
   const deferredSort = React.useDeferredValue(sort)
@@ -52,9 +75,10 @@ export default function RcaDataTable({
   React.useEffect(() => { setPage(1) }, [query, filterState, rows, evidenceScope])
 
   const evidenceRows = React.useMemo(() => {
+    if (compactCandidateReport) return rows.filter(isEvidenceCandidate)
     if (!supportsEvidenceScope || deferredEvidenceScope === 'all') return rows
     return rows.filter(isEvidenceCandidate)
-  }, [rows, supportsEvidenceScope, deferredEvidenceScope])
+  }, [rows, supportsEvidenceScope, compactCandidateReport, deferredEvidenceScope])
 
   const availableFilterOptions = React.useMemo(() => {
     const options = new Map()
@@ -116,7 +140,7 @@ export default function RcaDataTable({
   return <div className={`rca26DataTable ${className}`} aria-busy={pending ? 'true' : 'false'} data-pending={pending ? 'true' : 'false'}>
     {hasToolbar && <div className="rca26TableToolbar">
       {search && <input className="rca26Search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholder} />}
-      {supportsEvidenceScope && <div className="rca26EvidenceScope" role="group" aria-label="Workload evidence scope" data-pdf-ignore="true"><button type="button" data-active={evidenceScope === 'candidates'} onClick={() => setEvidenceScope('candidates')}>RCA Candidates</button><button type="button" data-active={evidenceScope === 'all'} onClick={() => setEvidenceScope('all')}>All Workloads</button></div>}
+      {supportsEvidenceScope && <div className="rca26EvidenceScope" role="group" aria-label="Workload evidence scope" data-pdf-ignore="true" title="Candidates: score 60+, or score 40–59 with D-state increase, significant CPU/RSS increase, or a new error repeated across timestamps."><button type="button" data-active={evidenceScope === 'candidates'} onClick={() => setEvidenceScope('candidates')}>RCA Candidates</button><button type="button" data-active={evidenceScope === 'all'} onClick={() => setEvidenceScope('all')}>All Workloads</button></div>}
       {filters.map((filter) => <label className="rca26Filter" key={filter.key}><span>{filter.label}</span><select value={filterState[filter.key] || '__all__'} onChange={(event) => setFilterState((current) => ({ ...current, [filter.key]: event.target.value }))}><option value="__all__">All</option>{(availableFilterOptions.get(filter.key) || []).map((option) => <option value={option} key={option}>{option}</option>)}</select></label>)}
       {(query || Object.values(filterState).some((value) => value && value !== '__all__')) && <button className="rca26TextBtn" onClick={() => { setQuery(''); setFilterState({}) }}>Clear</button>}
       <span className="rca26ResultCount">{supportsEvidenceScope && evidenceScope === 'candidates' ? `${sorted.length.toLocaleString()} of ${rows.length.toLocaleString()} rows` : `${sorted.length.toLocaleString()} rows`}</span>
