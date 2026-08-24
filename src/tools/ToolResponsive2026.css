@@ -1,5 +1,19 @@
 /* Loaded after ToolEvidenceSpecialist.css inside ST03N / LOG chunks. */
 
+/* The old localStorage session banner is stale context, not current evidence. */
+.evidenceToolShell.refinedTool .sessionContext {
+  display: none !important;
+}
+
+/* Case already has a dedicated strip below the analysis; do not duplicate it in Log KPIs. */
+.evidenceToolShell.refinedTool .incidentCockpitStrip {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip > div:nth-of-type(5) {
+  display: none !important;
+}
+
 .evidenceToolShell.refinedTool {
   width: 100%;
   min-width: 0;
@@ -31,9 +45,15 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.evidenceToolShell.refinedTool .toolActionRow {
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+}
+
 @media (max-width: 1180px) {
-  .evidenceToolShell.refinedTool .decisionBoard {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .evidenceToolShell.refinedTool .decisionBoard,
+  .evidenceToolShell.refinedTool .incidentCockpitStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
   .evidenceToolShell.refinedTool .evidenceGrid.triple {
@@ -77,8 +97,9 @@
     font-size: 11px;
   }
 
-  .evidenceToolShell.refinedTool .decisionBoard {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .evidenceToolShell.refinedTool .decisionBoard,
+  .evidenceToolShell.refinedTool .incidentCockpitStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 6px;
   }
 
@@ -157,8 +178,9 @@
 
 @media (max-width: 340px) {
   .evidenceToolShell.refinedTool .decisionBoard,
+  .evidenceToolShell.refinedTool .incidentCockpitStrip,
   .evidenceToolShell.refinedTool .rcaPrimaryFinding .findingMetrics,
   .evidenceToolShell.refinedTool .confidenceRows {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 }
