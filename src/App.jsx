@@ -12,12 +12,11 @@ import { APP_VERSION, formatAppTitle } from './app/version.js'
 import CaseHistory from './app/pages/CaseHistory.jsx'
 import CaseDetailWithAnalytics from './app/pages/CaseDetailWithAnalytics.jsx'
 import NotFound from './app/pages/NotFound.jsx'
-import ToolExportDock from './features/pdf/ToolExportDock.jsx'
 
 function routeTitle(route, tool) {
   if (route.name === 'cases') return 'Analysis History'
   if (route.name === 'caseDetail') return `Case ${route.caseId || ''}`.trim()
-  if (route.name === 'tool' && route.slug === 'logs' && route.view === 'process') return 'Log Analysis · Process Evidence'
+  if (route.name === 'tool' && route.slug === 'logs' && route.view === 'process') return 'Log Analysis · Jobs & Processes'
   if (route.name === 'tool') return tool?.title || 'SAP Analysis'
   return 'Not Found'
 }
@@ -26,9 +25,6 @@ export default function App() {
   const route = useRoute()
   const tool = route.name === 'tool' ? tools.find((item) => item.slug === route.slug) : null
   const ActiveTool = tool ? tool.Component : null
-  const exportSlug = route.name === 'tool' && route.slug === 'logs' && route.view === 'process'
-    ? 'comparer'
-    : route.slug
 
   React.useEffect(() => {
     document.title = formatAppTitle(routeTitle(route, tool))
@@ -43,7 +39,6 @@ export default function App() {
         {route.name === 'tool' && ActiveTool && (
           <React.Suspense fallback={<section className="container section"><div className="card">Loading SAP analysis module…</div></section>}>
             <div className="fullBleed"><ActiveTool route={route} /></div>
-            <ToolExportDock slug={exportSlug} />
           </React.Suspense>
         )}
         {route.name === 'tool' && !ActiveTool && <section className="container section"><div className="card">Analysis workspace unavailable.</div></section>}
