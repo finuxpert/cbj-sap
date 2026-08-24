@@ -119,15 +119,30 @@ function enrichJobs(jobs = [], analytics = null) {
       cpuDelta: signal.cpuDelta,
       rssDelta: signal.rssDelta,
       anomalyScore: signal.score,
+      rawIncidentScore: signal.rawScore,
       analyticsSignals: signal.signals,
       newErrors: signal.newErrors,
       dStateDuring: signal.dStateDuring,
+      dStateIncrease: signal.dStateIncrease,
       beforeCpu: signal.beforeCpu,
       duringCpu: signal.duringCpu,
       beforeRss: signal.beforeRss,
       duringRss: signal.duringRss,
-    } : job
+      pidCount: signal.pidCount || job.pids?.length || 0,
+      processCount: signal.processCount || 0,
+    } : {
+      ...job,
+      pidCount: job.pids?.length || 0,
+      processCount: new Set((job.records || []).map((row) => `${row.host}|${row.instance || ''}|${row.pid || ''}|${row.wp || ''}`)).size,
+    }
   })
+}
+
+function landscapeTelemetry(analysis, windowTimes = new Set()) {
+  return (analysis?.telemetry || [])
+    .filter((row) => windowTimes.has(row.timeLabel))
+    .map((row) => ({ ...row, severity: snapshotSeverity(row), pressureScore: pressureScore(row) }))
+    .sort((a, b) => a.sortKey - b.sortKey || a.host.localeCompare(b.host))
 }
 
 export function buildLogView(analysis, options = {}) {
@@ -142,6 +157,8 @@ export function buildLogView(analysis, options = {}) {
   const snapshots = allHostSnapshots.slice(startIndex, endIndex + 1)
   const windowTimes = new Set(snapshots.map((row) => row.timeLabel))
   const processes = (analysis.processes || []).filter((row) => row.host === host && windowTimes.has(row.timeLabel))
+  const allProcesses = (analysis.processes || []).filter((row) => windowTimes.has(row.timeLabel))
+  const landscape = landscapeTelemetry(analysis, windowTimes)
   const critical = snapshots.filter((row) => row.severity === 'CRIT')
   const warning = snapshots.filter((row) => row.severity === 'WARN')
   const incidentSnapshots = critical.length ? critical : warning
@@ -151,20 +168,31 @@ export function buildLogView(analysis, options = {}) {
   const peaks = { cpu: peak(snapshots, 'cpuPct'), ram: peak(snapshots, 'memoryPct'), load: peak(snapshots, 'loadRatio'), swapIn: peak(snapshots, 'swapIn'), wpCritical: peak(snapshots, 'wpCritical') }
   const focusTime = options.focusTime && windowTimes.has(options.focusTime) ? options.focusTime : ''
   const focusTimes = focusTime ? new Set([focusTime]) : new Set()
+
   const analytics = buildIncidentAnalytics({ snapshots, processes, incidentTimes })
+  const landscapeAnalytics = buildIncidentAnalytics({ snapshots, processes: allProcesses, incidentTimes })
+
   const jobsWindow = enrichJobs(buildJobGroups(processes, windowTimes, snapshots.length), analytics)
   const jobsIncident = enrichJobs(incidentTimes.size ? buildJobGroups(processes, incidentTimes, incidentSnapshots.length) : [], analytics)
   const jobsFocus = enrichJobs(focusTime ? buildJobGroups(processes, focusTimes, 1) : [], analytics)
+
+  const landscapeJobsWindow = enrichJobs(buildJobGroups(allProcesses, windowTimes, snapshots.length), landscapeAnalytics)
+  const landscapeJobsIncident = enrichJobs(incidentTimes.size ? buildJobGroups(allProcesses, incidentTimes, incidentSnapshots.length) : [], landscapeAnalytics)
+  const landscapeJobsFocus = enrichJobs(focusTime ? buildJobGroups(allProcesses, focusTimes, 1) : [], landscapeAnalytics)
+
   const role = hostRole(host)
   return {
-    hosts, host, role, allHostSnapshots, snapshots, processes, labels,
+    hosts, host, role, allHostSnapshots, snapshots, processes, allProcesses, landscapeTelemetry: landscape, labels,
     analysisWindow: { start: snapshots[0]?.timeLabel || '—', end: snapshots.at(-1)?.timeLabel || '—', count: snapshots.length },
     incidentWindow: { start: incidentSnapshots[0]?.timeLabel || '—', end: incidentSnapshots.at(-1)?.timeLabel || '—', count: incidentSnapshots.length, severity, times: Array.from(incidentTimes) },
     severity, peakSnapshot, peakTime: peakSnapshot?.timeLabel || '—', peaks,
     hostOverview: hostOverview(analysis, snapshots[0]?.timeLabel || '', snapshots.at(-1)?.timeLabel || ''),
     jobsWindow, jobsIncident, jobsFocus,
+    landscapeJobsWindow, landscapeJobsIncident, landscapeJobsFocus,
     errorsIncident: incidentTimes.size ? errorSummary(processes, incidentTimes) : [],
     errorsWindow: windowTimes.size ? errorSummary(processes, windowTimes) : [],
-    completeness: completeness(snapshots), focusTime, analytics,
+    landscapeErrorsIncident: incidentTimes.size ? errorSummary(allProcesses, incidentTimes) : [],
+    landscapeErrorsWindow: windowTimes.size ? errorSummary(allProcesses, windowTimes) : [],
+    completeness: completeness(snapshots), focusTime, analytics, landscapeAnalytics,
   }
 }
