@@ -9,14 +9,14 @@ const meta = [
   {
     slug: 'analyzer',
     title: 'ST03N Analysis',
-    short: 'Workload contribution, response decomposition, completeness, and top SAP offenders',
-    icon: '📊',
+    short: 'SAP workload and response-time analysis',
+    icon: '',
   },
   {
     slug: 'logs',
     title: 'LOG Analysis',
-    short: 'CPU, RAM, swap, jobs, work processes, errors, and incident correlation',
-    icon: '🧾',
+    short: 'Host resources and SAP workload analysis',
+    icon: '',
   },
 ]
 

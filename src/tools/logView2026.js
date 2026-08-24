@@ -1,6 +1,7 @@
 import { buildJobGroups, snapshotSeverity } from './logAnalysis2026.js'
 
 const num = (value) => Number(value || 0)
+const fmt = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
 
 function pressureScore(snapshot = {}) {
   const cpu = Math.min(1, num(snapshot.cpuPct) / 90)
@@ -13,6 +14,28 @@ function pressureScore(snapshot = {}) {
 
 function peak(rows = [], key = '') {
   return rows.reduce((best, row) => num(row[key]) > num(best.value) ? { value: num(row[key]), time: row.timeLabel, row } : best, { value: 0, time: '', row: null })
+}
+
+function triggerReason(severity, peaks = {}) {
+  const rules = severity === 'CRIT'
+    ? [
+        [peaks.ram?.value >= 85, `RAM ${fmt(peaks.ram?.value, 1)}%`],
+        [peaks.cpu?.value >= 90, `CPU ${fmt(peaks.cpu?.value, 1)}%`],
+        [peaks.load?.value >= 1.5, `Load ${fmt(peaks.load?.value, 2)}`],
+        [peaks.swap?.value >= 1000, `Swap ${fmt(peaks.swap?.value)} p/s`],
+        [peaks.wp?.value >= 3, `WP Critical ${fmt(peaks.wp?.value)}`],
+      ]
+    : severity === 'WARN'
+      ? [
+          [peaks.ram?.value >= 75, `RAM ${fmt(peaks.ram?.value, 1)}%`],
+          [peaks.cpu?.value >= 75, `CPU ${fmt(peaks.cpu?.value, 1)}%`],
+          [peaks.load?.value >= 1, `Load ${fmt(peaks.load?.value, 2)}`],
+          [peaks.swap?.value >= 100, `Swap ${fmt(peaks.swap?.value)} p/s`],
+          [peaks.wp?.value >= 1, `WP Critical ${fmt(peaks.wp?.value)}`],
+        ]
+      : []
+  const reasons = rules.filter(([match]) => match).map(([, label]) => label)
+  return reasons.join(' · ') || 'Within thresholds'
 }
 
 function errorSummary(processes = [], times = new Set()) {
@@ -70,7 +93,19 @@ function hostOverview(analysis, start = '', end = '') {
     const severity = ordered.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
     const role = hostRole(host)
     const cpu = peak(ordered, 'cpuPct'), ram = peak(ordered, 'memoryPct'), load = peak(ordered, 'loadRatio'), swap = peak(ordered, 'swapIn'), wp = peak(ordered, 'wpCritical')
-    return { host, ...role, severity, snapshots: ordered.length, peakCpu: cpu.value, peakRam: ram.value, peakLoad: load.value, peakSwap: swap.value, peakWpCritical: wp.value, peakTime: [cpu, ram, load, swap].sort((a, b) => b.value - a.value)[0]?.time || ordered.at(-1)?.timeLabel || '—' }
+    return {
+      host,
+      ...role,
+      severity,
+      trigger: triggerReason(severity, { cpu, ram, load, swap, wp }),
+      snapshots: ordered.length,
+      peakCpu: cpu.value,
+      peakRam: ram.value,
+      peakLoad: load.value,
+      peakSwap: swap.value,
+      peakWpCritical: wp.value,
+      peakTime: [cpu, ram, load, swap].sort((a, b) => b.value - a.value)[0]?.time || ordered.at(-1)?.timeLabel || '—',
+    }
   }).sort((a, b) => b.priority - a.priority || severityRank(b.severity) - severityRank(a.severity) || b.peakLoad - a.peakLoad)
 }
 
