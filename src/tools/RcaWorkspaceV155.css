@@ -1,0 +1,15 @@
+/* v1.5.5 LOG RCA qualification and final incident-report polish */
+
+.rca26EvidenceScope{position:relative}
+.rca26EvidenceScope::after{content:'Qualified';display:none;position:absolute;top:-16px;right:2px;color:#6f8992;font-size:7px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.rca26EvidenceScope:focus-within::after{display:block}
+
+/* Keep the PDF's second page visually balanced without re-introducing raw evidence. */
+.rcaPdfExportMode .rca26IncidentReportOnly .rca26ReportTopWorkload .rca26MiniChart{height:132px}
+.rcaPdfExportMode .rca26IncidentReportOnly .rca26ReportTopWorkload .rca26AggregateTrack{display:none!important}
+.rcaPdfExportMode .rca26IncidentReportOnly .rca26ReportFindings{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.rcaPdfExportMode .rca26IncidentReportOnly .rca26ReportFinding{min-height:38px;padding:7px 9px}
+
+@media (max-width:700px){
+  .rca26EvidenceScope::after{display:none!important}
+}
