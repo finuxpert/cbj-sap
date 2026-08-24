@@ -18,6 +18,14 @@ function dateTimeLabel(row, dateKey, timeKey) {
 
 function technicalObject(name = '') { return /^<.*>$/.test(String(name || '').trim()) }
 
+function consistency(totalResponseSec = 0, avgResponseMs = 0, steps = 0) {
+  const total = Number(totalResponseSec || 0), avg = Number(avgResponseMs || 0), count = Number(steps || 0)
+  if (!(total > 0 && avg > 0 && count > 0)) return { expectedTotalResponseSec: 0, responseConsistencyPct: 0, responseConsistency: 'N/A' }
+  const expected = (avg * count) / 1000
+  const pct = Math.abs(total - expected) / Math.max(total, expected) * 100
+  return { expectedTotalResponseSec: expected, responseConsistencyPct: pct, responseConsistency: pct <= 5 ? 'OK' : 'CHECK' }
+}
+
 function parseTimeProfile(objects = [], fileName = '') {
   const keys = Object.keys(objects[0] || {}), cInterval = pick(keys, [/^time interval$/]), cSteps = pick(keys, [/number of dialog steps/]), cTotalResponse = pick(keys, [/total response time/]), cResponse = pick(keys, [/average response time/]), cCpu = pick(keys, [/average cpu time/]), cDb = pick(keys, [/ø db time/, /average db time/]), cWait = pick(keys, [/average wait time/]), cRollWait = pick(keys, [/ø roll wait time/, /average roll wait/]), cLoad = pick(keys, [/average load and generation/])
   return objects.map((row) => ({ kind:'timeProfile', fileName, interval:stringValue(row,cInterval), steps:value(row,cSteps), totalResponseSec:value(row,cTotalResponse), avgResponseMs:value(row,cResponse), avgCpuMs:value(row,cCpu), avgDbMs:value(row,cDb), avgWaitMs:value(row,cWait), avgRollWaitMs:value(row,cRollWait), avgWaitTotalMs:value(row,cWait)+value(row,cRollWait), avgLoadMs:value(row,cLoad) })).filter((row)=>row.interval && (row.avgResponseMs || row.totalResponseSec || row.steps))
@@ -30,7 +38,10 @@ function parseWorkload(objects = [], fileName = '') {
 
 function parseTransactions(objects = [], fileName = '') {
   const keys=Object.keys(objects[0]||{}), cObject=pick(keys,[/report or transaction name/]), cJob=pick(keys,[/name of background job/]), cSteps=pick(keys,[/number of dialog steps/]), cTotalResponse=pick(keys,[/total response time/]), cResponse=pick(keys,[/average response time/]), cCpu=pick(keys,[/average cpu time/]), cDb=pick(keys,[/ø db time/,/average db time/]), cWait=pick(keys,[/average wait time/]), cLoad=pick(keys,[/average load and generation/]), cRollWait=pick(keys,[/ø roll wait time/,/average roll wait/])
-  return objects.map((row)=>{ const object=stringValue(row,cObject); return { kind:'transaction',fileName,object,technical:technicalObject(object),jobName:stringValue(row,cJob),steps:value(row,cSteps),totalResponseSec:value(row,cTotalResponse),avgResponseMs:value(row,cResponse),avgCpuMs:value(row,cCpu),avgDbMs:value(row,cDb),avgWaitMs:value(row,cWait),avgRollWaitMs:value(row,cRollWait),avgWaitTotalMs:value(row,cWait)+value(row,cRollWait),avgLoadMs:value(row,cLoad) } }).filter((row)=>row.object&&(row.totalResponseSec||row.avgResponseMs||row.steps))
+  return objects.map((row)=>{
+    const object=stringValue(row,cObject), steps=value(row,cSteps), totalResponseSec=value(row,cTotalResponse), avgResponseMs=value(row,cResponse)
+    return { kind:'transaction',fileName,object,technical:technicalObject(object),jobName:stringValue(row,cJob),steps,totalResponseSec,avgResponseMs,avgCpuMs:value(row,cCpu),avgDbMs:value(row,cDb),avgWaitMs:value(row,cWait),avgRollWaitMs:value(row,cRollWait),avgWaitTotalMs:value(row,cWait)+value(row,cRollWait),avgLoadMs:value(row,cLoad),...consistency(totalResponseSec,avgResponseMs,steps) }
+  }).filter((row)=>row.object&&(row.totalResponseSec||row.avgResponseMs||row.steps))
 }
 
 function parseTopResponse(objects = [], fileName = '') {
@@ -56,7 +67,8 @@ export async function analyzeSt03nFiles(files=[]) {
   const transactions=[...(byKind.transactionStandard||[])].sort((a,b)=>b.totalResponseSec-a.totalResponseSec||b.avgResponseMs-a.avgResponseMs); const workloadTransactions=transactions.filter((row)=>!row.technical)
   const responseRecords=[...(byKind.topResponse||[])].sort((a,b)=>b.responseMs-a.responseMs); const dbRecords=[...(byKind.topDb||[])].sort((a,b)=>b.dbAccessMs-a.dbAccessMs||b.logicalCalls-a.logicalCalls)
   const coverage=parsed.map((item)=>({kind:item.kind,fileName:item.fileName,rows:item.rows.length,ok:item.rows.length>0,headerRow:item.headerIdx+1})); const totalRows=parsed.reduce((sum,item)=>sum+item.rows.length,0)
-  return{files:files.map((file)=>({name:file.name,size:file.size})),coverage,totalRows,timeProfile,taskTypes,transactions,workloadTransactions,responseRecords,dbRecords,peakInterval:peak(timeProfile,'avgResponseMs'),topTransaction:workloadTransactions[0]||transactions[0]||null,topResponseRecord:responseRecords[0]||null,topDbRecord:dbRecords[0]||null}
+  const consistencyCheckCount=transactions.filter((row)=>row.responseConsistency==='CHECK').length
+  return{files:files.map((file)=>({name:file.name,size:file.size})),coverage,totalRows,timeProfile,taskTypes,transactions,workloadTransactions,responseRecords,dbRecords,consistencyCheckCount,peakInterval:peak(timeProfile,'avgResponseMs'),topTransaction:workloadTransactions[0]||transactions[0]||null,topResponseRecord:responseRecords[0]||null,topDbRecord:dbRecords[0]||null}
 }
 
-export function transactionDecomposition(rows=[],limit=8){return rows.slice(0,limit).map((row)=>{const response=Math.max(0,Number(row.avgResponseMs||0)),db=Math.max(0,Number(row.avgDbMs||0)),cpu=Math.max(0,Number(row.avgCpuMs||0)),wait=Math.max(0,Number(row.avgWaitMs||0)),rollWait=Math.max(0,Number(row.avgRollWaitMs||0)),load=Math.max(0,Number(row.avgLoadMs||0));return{name:row.object,db,cpu,wait,rollWait,load,residual:Math.max(0,response-db-cpu-wait-rollWait-load),response,totalResponseSec:row.totalResponseSec,steps:row.steps,jobName:row.jobName}})}
+export function transactionDecomposition(rows=[],limit=8){return rows.slice(0,limit).map((row)=>{const response=Math.max(0,Number(row.avgResponseMs||0)),db=Math.max(0,Number(row.avgDbMs||0)),cpu=Math.max(0,Number(row.avgCpuMs||0)),wait=Math.max(0,Number(row.avgWaitMs||0)),rollWait=Math.max(0,Number(row.avgRollWaitMs||0)),load=Math.max(0,Number(row.avgLoadMs||0));return{name:row.object,db,cpu,wait,rollWait,load,unattributed:Math.max(0,response-db-cpu-wait-rollWait-load),response,totalResponseSec:row.totalResponseSec,steps:row.steps,jobName:row.jobName}})}

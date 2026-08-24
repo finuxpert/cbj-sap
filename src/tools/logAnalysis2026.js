@@ -206,9 +206,9 @@ function mergeTelemetry(rows = []) {
 }
 
 export function snapshotSeverity(snapshot = {}) {
-  const cpu = num(snapshot.cpuPct), ram = num(snapshot.memoryPct), load = num(snapshot.loadRatio), swapIn = num(snapshot.swapIn)
-  if (load >= 1.5 || ram >= 85 || cpu >= 90 || swapIn >= 1000) return 'CRIT'
-  if (load >= 1 || ram >= 75 || cpu >= 75 || swapIn >= 100) return 'WARN'
+  const cpu = num(snapshot.cpuPct), ram = num(snapshot.memoryPct), load = num(snapshot.loadRatio), swapIn = num(snapshot.swapIn), wpCritical = num(snapshot.wpCritical)
+  if (load >= 1.5 || ram >= 85 || cpu >= 90 || swapIn >= 1000 || wpCritical >= 3) return 'CRIT'
+  if (load >= 1 || ram >= 75 || cpu >= 75 || swapIn >= 100 || wpCritical >= 1) return 'WARN'
   return 'NORMAL'
 }
 
@@ -230,11 +230,15 @@ function choosePrimaryHost(telemetry = []) {
   return Array.from(map.values()).sort((a, b) => b.maxPressure - a.maxPressure || b.maxLoad - a.maxLoad || b.maxRam - a.maxRam || b.maxCpu - a.maxCpu)[0]?.host || telemetry[0]?.host || 'UNKNOWN'
 }
 
-function recordTimeInWindow(row, timeSet) { return !timeSet.size || timeSet.has(row.timeLabel) }
+function recordTimeInWindow(row, timeSet, includeAll = false) {
+  if (includeAll) return true
+  if (!timeSet?.size) return false
+  return timeSet.has(row.timeLabel)
+}
 
-export function buildJobGroups(processes = [], incidentTimes = new Set(), totalIncidentSnapshots = 0) {
+export function buildJobGroups(processes = [], incidentTimes = new Set(), totalIncidentSnapshots = 0, includeAll = false) {
   const map = new Map()
-  processes.filter((row) => recordTimeInWindow(row, incidentTimes)).forEach((row) => {
+  processes.filter((row) => recordTimeInWindow(row, incidentTimes, includeAll)).forEach((row) => {
     const name = workloadName(row); const key = `${row.host}|${name}`
     const current = map.get(key) || { key, name, host: row.host, programs: new Set(), pids: new Set(), wps: new Set(), types: new Set(), states: new Set(), times: new Set(), errors: new Set(), records: [], cpuTotal: 0, cpuCount: 0, peakCpu: 0, peakRss: 0 }
     if (row.program && row.program !== UNKNOWN) current.programs.add(row.program); if (row.pid) current.pids.add(row.pid); if (row.wp) current.wps.add(row.wp); if (row.type && row.type !== UNKNOWN) current.types.add(row.type); if (row.state && row.state !== UNKNOWN) current.states.add(row.state); if (row.timeLabel) current.times.add(row.timeLabel); if (row.errorCode && row.errorCode !== UNKNOWN) current.errors.add(row.errorCode)
@@ -251,9 +255,9 @@ export function buildJobGroups(processes = [], incidentTimes = new Set(), totalI
   })
 }
 
-function buildErrorSummary(processes = [], incidentTimes = new Set()) {
+function buildErrorSummary(processes = [], incidentTimes = new Set(), includeAll = false) {
   const map = new Map()
-  processes.filter((row) => recordTimeInWindow(row, incidentTimes) && row.errorCode && row.errorCode !== UNKNOWN).forEach((row) => {
+  processes.filter((row) => recordTimeInWindow(row, incidentTimes, includeAll) && row.errorCode && row.errorCode !== UNKNOWN).forEach((row) => {
     const current = map.get(row.errorCode) || { errorCode: row.errorCode, snapshots: new Set(), processes: new Set(), jobs: new Set(), records: [] }
     current.snapshots.add(`${row.host}|${row.timeLabel}`); current.processes.add(`${row.host}|${row.instance}|${row.pid}|${row.wp}`); current.jobs.add(workloadName(row)); current.records.push(row); map.set(row.errorCode, current)
   })
@@ -269,12 +273,14 @@ export function buildLogAnalysis(parsedFiles = []) {
   const peakSnapshot = primarySnapshots.reduce((best, row) => row.pressureScore > (best?.pressureScore ?? -1) ? row : best, null)
   const peaks = { cpu: peak(primarySnapshots, 'cpuPct'), ram: peak(primarySnapshots, 'memoryPct'), load: peak(primarySnapshots, 'loadRatio'), swapIn: peak(primarySnapshots, 'swapIn'), swapOut: peak(primarySnapshots, 'swapOut'), wpCritical: peak(primarySnapshots, 'wpCritical') }
   const primaryProcesses = processes.filter((row) => row.host === primaryHost)
+  const maxSeverity = primarySnapshots.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
   return {
     telemetry, processes, primaryHost, primarySnapshots,
-    analysisWindow: { start: analysisStart, end: analysisEnd, count: primarySnapshots.length }, incidentWindow: { start: incidentStart, end: incidentEnd, count: incidentSnapshots.length, times: Array.from(incidentTimes) }, incidentSnapshots,
-    peakSnapshot, peakTime: peakSnapshot?.timeLabel || peaks.cpu.time || analysisEnd, peaks,
+    analysisWindow: { start: analysisStart, end: analysisEnd, count: primarySnapshots.length }, incidentWindow: { start: incidentStart, end: incidentEnd, count: incidentSnapshots.length, times: Array.from(incidentTimes), severity: incidentSnapshots.length ? maxSeverity : 'NORMAL' }, incidentSnapshots,
+    peakSnapshot, peakTime: peakSnapshot?.timeLabel || peaks.cpu.time || analysisEnd, peaks, severity: maxSeverity,
     hostComparison: telemetry.filter((row) => peakSnapshot?.fileName ? row.fileName === peakSnapshot.fileName : row.timeLabel === (peakSnapshot?.timeLabel || '')).map((row) => ({ ...row, severity: snapshotSeverity(row), pressureScore: pressureScore(row) })).sort((a, b) => b.pressureScore - a.pressureScore),
-    jobs: buildJobGroups(primaryProcesses, incidentTimes, incidentSnapshots.length), jobsAll: buildJobGroups(primaryProcesses, new Set(), primarySnapshots.length), errors: buildErrorSummary(primaryProcesses, incidentTimes),
+    jobs: buildJobGroups(primaryProcesses, incidentTimes, incidentSnapshots.length, false), jobsAll: buildJobGroups(primaryProcesses, new Set(), primarySnapshots.length, true),
+    errors: buildErrorSummary(primaryProcesses, incidentTimes, false), errorsAll: buildErrorSummary(primaryProcesses, new Set(), true),
   }
 }
 
