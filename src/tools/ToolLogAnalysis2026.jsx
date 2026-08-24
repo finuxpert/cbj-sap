@@ -1,47 +1,156 @@
 import React from 'react'
-import {ResponsiveContainer,LineChart,Line,CartesianGrid,XAxis,YAxis,Tooltip,Legend,ReferenceArea,Brush} from 'recharts'
-import CaseLinkPanel from '../features/cases/CaseLinkPanel.jsx'
-import useCaseHistoryLink from '../features/cases/useCaseHistoryLink.js'
-import {expandZipAwareFiles,fileExt,loadJson,saveJson} from './evidence-utils.js'
-import {buildLogAnalysis,parseLogText,sortJobs} from './logAnalysis2026.js'
+import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ReferenceArea, Brush } from 'recharts'
+import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
+import { buildLogAnalysis, parseLogText } from './logAnalysis2026.js'
+import { buildLogView } from './logView2026.js'
+import RcaDataTable from './components/RcaDataTable.jsx'
+import { downloadCsv } from './rcaExport.js'
 import './RcaWorkspace2026.css'
+import './RcaWorkspaceV13.css'
 
-const CASE_KEY='sap_rca_log_v121_case'
-const SORTS=[['rss','By RAM (RSS)'],['cpu','By CPU'],['persistence','By persistence'],['errors','By errors']]
-const f=(v,d=0)=>Number(v||0).toLocaleString('en-US',{maximumFractionDigits:d})
-const dateOf=(v='')=>String(v).match(/\d{4}-\d{2}-\d{2}/)?.[0]||'—'
-const Metric=({label,value,meta,tone=''})=><div className={`rca26Metric ${tone}`}><span>{label}</span><strong title={String(value)}>{value}</strong><small>{meta||'—'}</small></div>
-function workerParse(files){return new Promise((resolve,reject)=>{if(typeof Worker==='undefined')return reject(new Error('Worker unavailable'));const w=new Worker(new URL('./workers/logParser.worker.js',import.meta.url),{type:'module'});w.onmessage=e=>{w.terminate();e.data?.ok?resolve(e.data.analysis):reject(new Error(e.data?.error||'Worker failed'))};w.onerror=e=>{w.terminate();reject(new Error(e.message||'Worker failed'))};w.postMessage({files})})}
-function Tip({active,payload,label}){if(!active||!payload?.length)return null;const r=payload[0].payload;return <div className="rca26Tooltip"><strong>{label}</strong><span>CPU {f(r.cpuPct,1)}%</span><span>RAM {f(r.memoryPct,1)}%</span><span>Load/vCPU {f(r.loadRatio,2)}</span><span>Swap In {f(r.swapIn)} p/s</span><span>WP Critical {r.wpCritical}</span></div>}
-function Table({heads,rows,className=''}){return <div className={`rca26TableWrap ${className}`}><table className="rca26Table"><thead><tr>{heads.map((h,i)=><th key={i} className={h.num?'num':''}>{h.label||h}</th>)}</tr></thead><tbody>{rows}</tbody></table></div>}
-function JobDetail({job}){if(!job)return <div className="rca26Empty compact">Select a row.</div>;const rss=job.peakRssRecord||{},cpu=job.peakCpuRecord||{};const items=[['Program',job.program],['Host',job.host],['Instance',rss.instance||cpu.instance],['WP / Type',`${job.topWp||'—'} / ${job.topType||'—'}`],['PID',job.topPid],['State',job.topState],['Peak CPU',`${f(job.peakCpu,1)}% @ ${cpu.timeLabel||'—'}`],['Peak RSS',`${f(job.peakRss,2)} GB @ ${rss.timeLabel||'—'}`],['First / Last',`${job.firstSeen} / ${job.lastSeen}`],['Seen',job.persistenceText],['Errors',job.errors?.join(', ')||'—']];return <div className="rca26Detail"><div className="rca26DetailTitle"><span>Selected {job.identityType?.toLowerCase()}</span><strong>{job.name}</strong></div><dl>{items.map(([a,b])=><div key={a}><dt>{a}</dt><dd>{b||'—'}</dd></div>)}</dl><div className="rca26SapLookup"><b>SAP lookup</b><span>SM37 by Job Name · SM50/SM66 by WP, PID, program and instance.</span></div></div>}
-function buildCasePayload(a,title){const top=a?.jobs?.[0];return{title,severity:a?.severity==='CRIT'?'CRIT':a?.severity==='WARN'?'WARN':'INFO',summary:a?`LOG ${a.analysisWindow.start}-${a.analysisWindow.end}; incident ${a.incidentWindow.count?`${a.incidentWindow.start}-${a.incidentWindow.end}`:'none'}.`:'',top_anomaly:top?.name||a?.primaryHost||'',top_suspect:top?.program||'',status:'OPEN',created_by:'sap-rca-workspace-v1.2.1'}}
-function buildParsedPayload(a){return{tool:'LOG Analysis v1.2.1',verdict:a?.incidentSnapshots?.length?`${a.severity} window detected`:'No incident window detected',severity:a?.severity==='CRIT'?'CRIT':a?.severity==='WARN'?'WARN':'INFO',confidence:0,top_anomaly:a?.jobs?.[0]?.name||'',top_suspect:a?.jobs?.[0]?.program||'',summary:a?`Analysis window ${a.analysisWindow.start}-${a.analysisWindow.end}`:'',result_json:{primaryHost:a?.primaryHost,analysisWindow:a?.analysisWindow,incidentWindow:a?.incidentWindow,severity:a?.severity,peaks:a?.peaks,hostComparison:a?.hostComparison,jobs:(a?.jobs||[]).slice(0,50),errors:a?.errors,primarySnapshots:a?.primarySnapshots}}}
+const f = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
+const dateOf = (value = '') => String(value).match(/\d{4}-\d{2}-\d{2}/)?.[0] || '—'
+const Metric = ({ label, value, meta, tone = '', onClick }) => <button type="button" className={`rca26Metric ${tone} ${onClick ? 'clickable' : ''}`} onClick={onClick}><span>{label}</span><strong title={String(value)}>{value}</strong><small>{meta || '—'}</small></button>
 
-export default function ToolLogAnalysis2026({processMode=false}){
- const [files,setFiles]=React.useState([]),[busy,setBusy]=React.useState(false),[status,setStatus]=React.useState('Upload multiple OS/WP-SCOUT log snapshots.'),[analysis,setAnalysis]=React.useState(null),[sort,setSort]=React.useState('rss'),[selected,setSelected]=React.useState(''),[all,setAll]=React.useState(false)
- const caseLink=useCaseHistoryLink({storageKey:CASE_KEY,buildCasePayload,buildParsedPayload,defaultCaseTitle:'LOG RCA Case',toolName:'LOG Analysis v1.2.1',uploadTags:['log','wp-scout','rca-v1.2.1'],requireExplicitSaveIntent:true,loadJson,saveJson})
- const analyze=React.useCallback(async fs=>{setBusy(true);setStatus('Parsing snapshots and SAP processes…');try{const input=[];for(const file of fs)input.push({name:file.name,text:await file.text()});let a;try{a=await workerParse(input)}catch{a=buildLogAnalysis(input.map(x=>parseLogText(x.text,x.name)))}setAnalysis(a);setAll(false);setStatus(`Parsed ${a.primarySnapshots.length} primary-host snapshot(s) across ${new Set(a.telemetry.map(x=>x.host)).size} host(s).`)}catch(e){setStatus(e?.message||'LOG parse failed.')}finally{setBusy(false)}},[])
- const upload=React.useCallback(async list=>{setBusy(true);try{const fs=(await expandZipAwareFiles(list,['log','txt','csv'])).filter(x=>['log','txt','csv'].includes(fileExt(x.name)));setFiles(fs);await analyze(fs)}catch(e){setStatus(e?.message||'Upload failed.');setBusy(false)}},[analyze])
- const jobs=React.useMemo(()=>sortJobs(processMode?(analysis?.jobsAll||[]):(analysis?.jobs||[]),sort),[analysis,processMode,sort]),shown=all?jobs:jobs.slice(0,15),job=jobs.find(x=>x.key===selected)||jobs[0]||null
- React.useEffect(()=>{if(jobs.length&&!jobs.some(x=>x.key===selected))setSelected(jobs[0].key)},[jobs,selected])
- const s=analysis?.primarySnapshots||[],p=analysis?.peaks||{},inc=analysis?.incidentWindow||{start:'—',end:'—',count:0,severity:'NORMAL'},aw=analysis?.analysisWindow||{start:'—',end:'—',count:0},peak=analysis?.peakSnapshot,severity=analysis?.severity||'WAITING',hist=[...(job?.records||[])].sort((a,b)=>a.sortKey-b.sortKey)
- const numH=x=>({label:x,num:true})
- const incidentLabel=inc.count?`${inc.severity} window ${inc.start} – ${inc.end}`:'No WARN/CRIT window'
- const jobsTitle=processMode?'Jobs / Programs in Analysis Window':inc.count?`Jobs / Programs During ${inc.severity} Window (${inc.start} – ${inc.end})`:'No Incident Window Detected'
- const jobsHelp=processMode?'Full analysis-window process inventory.':'Only jobs observed inside the detected WARN/CRIT window. Use Jobs & Processes for full-window data.'
- const errorTitle=inc.count?'Error Evidence During Incident':'No Incident Error Window'
- return <section className="rca26Shell"><div className="rca26Inner">
-  <header className="rca26Head"><div><h1>{processMode?'LOG Processes & Jobs':'LOG Analysis'}</h1><p>Time-window troubleshooting from OS resource snapshots to SAP job, program, WP and PID.</p></div><label className="rca26Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={e=>upload(e.target.files)}/>{busy?'Parsing…':'Upload Logs'}</label></header>
-  <nav className="rca26Tabs compact"><a href="#/log" data-active={!processMode}>Overview</a><a href="#/tool/logs/process" data-active={processMode}>Jobs & Processes</a><a href="#log-errors">Errors</a><a href="#log-evidence">Evidence</a></nav>
-  <section className="rca26MetricStrip"><Metric label="Analysis window" value={`${aw.start} – ${aw.end}`} meta={`${dateOf(peak?.snapshot||s[0]?.snapshot)} · ${aw.count} snapshots`}/><Metric label="System / Host" value={analysis?.primaryHost||'—'} meta={peak?`SID ${peak.sid||'—'} · Inst ${peak.instance||'—'} · vCPU ${peak.vcpu||'—'}`:status}/><Metric label="Incident" value={severity} meta={incidentLabel} tone={severity==='CRIT'?'critical':severity==='WARN'?'warn':'good'}/><Metric label="Peak CPU" value={`${f(p.cpu?.value,1)}%`} meta={`at ${p.cpu?.time||'—'}`}/><Metric label="Peak RAM" value={`${f(p.ram?.value,1)}%`} meta={`at ${p.ram?.time||'—'}`} tone={p.ram?.value>=85?'critical':''}/><Metric label="Peak Load / vCPU" value={f(p.load?.value,2)} meta={`at ${p.load?.time||'—'}`} tone={p.load?.value>=1.5?'critical':''}/><Metric label="Peak Swap In" value={f(p.swapIn?.value)} meta={`p/s at ${p.swapIn?.time||'—'}`} tone={p.swapIn?.value>=1000?'warn':''}/><Metric label="WP Critical (peak)" value={f(p.wpCritical?.value)} meta={`at ${p.wpCritical?.time||'—'}`} tone={p.wpCritical?.value>=3?'critical':p.wpCritical?.value>=1?'warn':''}/></section>
-  <div className="rca26Grid logMain"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Resource Timeline</h2><p>Actual snapshot points; each resource keeps its own peak timestamp.</p></div><span className="rca26Tag">10-min snapshots</span></div>{s.length?<><div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={s} margin={{top:10,right:45,left:0,bottom:s.length>12?28:8}}><CartesianGrid strokeDasharray="3 6" vertical={false}/><XAxis dataKey="timeLabel"/><YAxis yAxisId="pct" domain={[0,100]} tickFormatter={v=>`${v}%`}/><YAxis yAxisId="load" orientation="right"/><YAxis yAxisId="swap" orientation="right" hide/>{inc.count?<ReferenceArea yAxisId="pct" x1={inc.start} x2={inc.end} fill="#10b9a8" fillOpacity={.08} stroke="#20d8c8"/>:null}<Tooltip content={<Tip/>}/><Legend/><Line yAxisId="pct" type="linear" dataKey="cpuPct" name="CPU %" stroke="#35d4cf" strokeWidth={2.2} dot/><Line yAxisId="pct" type="linear" dataKey="memoryPct" name="RAM %" stroke="#4d8fff" strokeWidth={2.2} dot/><Line yAxisId="load" type="linear" dataKey="loadRatio" name="Load / vCPU" stroke="#ff6b57" strokeWidth={2} dot/><Line yAxisId="swap" type="linear" dataKey="swapIn" name="Swap In (p/s)" stroke="#f5a623" strokeWidth={2} dot/>{s.length>12?<Brush dataKey="timeLabel" height={20}/>:null}</LineChart></ResponsiveContainer></div><div className="rca26StatusLine">{s.map(r=><span key={`${r.snapshot}-${r.host}`} className={r.severity.toLowerCase()}><b>{r.timeLabel}</b>{r.severity}</span>)}</div></>:<div className="rca26Empty">{status}</div>}</section>
-   <aside className="rca26Stack"><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Resource Peaks</h2><p>Peak time can differ per metric.</p></div></div>{[['CPU',`${f(p.cpu?.value,1)}%`,p.cpu?.time],['RAM',`${f(p.ram?.value,1)}%`,p.ram?.time],['Load/vCPU',f(p.load?.value,2),p.load?.time],['Swap In',`${f(p.swapIn?.value)} p/s`,p.swapIn?.time],['WP Critical',f(p.wpCritical?.value),p.wpCritical?.time]].map(x=><div className="rca26KeyValue" key={x[0]}><span>{x[0]}</span><b>{x[1]}</b><small>{x[2]||'—'}</small></div>)}</section><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Peak pressure snapshot ({analysis?.peakTime||'—'})</h2><p>Combined host-pressure point, not a universal resource peak.</p></div></div>{peak?<div className="rca26Snapshot">{[['Host',peak.host],['CPU',`${f(peak.cpuPct,1)}%`],['RAM',`${f(peak.memoryPct,1)}%`],['Load 1/5/15',`${f(peak.load1,2)} / ${f(peak.load5,2)} / ${f(peak.load15,2)}`],['Load/vCPU',f(peak.loadRatio,2)],['Swap In/Out',`${f(peak.swapIn)} / ${f(peak.swapOut)} p/s`],['WP Run/Standby/Crit',`${peak.wpRunning} / ${peak.wpStandby} / ${peak.wpCritical}`]].map(x=><div key={x[0]}><span>{x[0]}</span><b>{x[1]}</b></div>)}</div>:<div className="rca26Empty compact">No snapshot.</div>}</section></aside>
-  </div>
-  <div className="rca26Grid two rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Host Comparison — peak collector batch</h2><p>Hosts captured in the same collector batch.</p></div></div><Table className="short" heads={['Host',numH('CPU'),numH('RAM'),numH('Load/vCPU'),numH('Swap In'),numH('WP Crit')]} rows={(analysis?.hostComparison||[]).map(r=><tr key={`${r.host}-${r.timeLabel}`}><td>{r.host}</td><td className="num">{f(r.cpuPct,1)}%</td><td className="num">{f(r.memoryPct,1)}%</td><td className="num">{f(r.loadRatio,2)}</td><td className="num">{f(r.swapIn)}</td><td className="num">{r.wpCritical}</td></tr>)}/></section><section className="rca26Panel" id="log-evidence"><div className="rca26PanelHead"><div><h2>Raw Snapshot List</h2><p>Primary-host values exactly as collected.</p></div></div><Table className="short" heads={['Time',numH('CPU'),numH('RAM'),numH('Load/vCPU'),numH('Swap In'),numH('WP Crit'),'Status']} rows={s.map(r=><tr key={`${r.snapshot}-${r.host}`}><td>{r.timeLabel}</td><td className="num">{f(r.cpuPct,2)}%</td><td className="num">{f(r.memoryPct,1)}%</td><td className="num">{f(r.loadRatio,2)}</td><td className="num">{f(r.swapIn)}</td><td className="num">{r.wpCritical}</td><td><span className={`rca26Status ${r.severity.toLowerCase()}`}>{r.severity}</span></td></tr>)}/></section></div>
-  <section className="rca26Panel rca26Deferred" id="log-jobs"><div className="rca26PanelHead"><div><h2>{jobsTitle}</h2><p>{jobsHelp}</p></div><div className="rca26ToggleGroup">{SORTS.map(([id,label])=><button key={id} data-active={sort===id} onClick={()=>setSort(id)}>{label}</button>)}</div></div>{jobs.length?<><Table className="jobs" heads={['Scope','Job / Process','Program','Type','WP','PID','State',numH('Avg CPU'),numH('Peak CPU'),numH('Peak RSS'),numH('Seen'),'Errors']} rows={shown.map(x=><tr key={x.key} data-selected={x.key===job?.key} onClick={()=>setSelected(x.key)}><td><span className={`rca26Scope ${x.identityType?.toLowerCase()}`}>{x.identityType}</span></td><td>{x.name}</td><td>{x.program}</td><td>{x.topType}</td><td>{x.topWp}</td><td>{x.topPid}</td><td>{x.topState}</td><td className="num">{f(x.avgCpu,1)}%</td><td className="num">{f(x.peakCpu,1)}%</td><td className="num">{f(x.peakRss,2)} GB</td><td className="num">{x.persistenceText}</td><td>{x.errors.join(', ')||'—'}</td></tr>)}/>{jobs.length>15?<button className="rca26ShowMore" onClick={()=>setAll(v=>!v)}>{all?'Show top 15':`Show all ${jobs.length}`}</button>:null}</>:<div className="rca26Empty compact">No WARN/CRIT window. Open Jobs &amp; Processes to inspect the full analysis window.</div>}</section>
-  {job?<div className="rca26Grid logDetail rca26Deferred"><section className="rca26Panel"><JobDetail job={job}/></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Job Resource History</h2><p>Same job/program across actual uploaded snapshots.</p></div></div><Table heads={['Time','PID','WP','Type','State',numH('CPU'),numH('RSS'),numH('RABAX'),'Error']} rows={hist.map(r=><tr key={`${r.snapshot}-${r.pid}-${r.wp}`}><td>{r.timeLabel}</td><td>{r.pid}</td><td>{r.wp}</td><td>{r.type}</td><td>{r.state}</td><td className="num">{f(r.cpu,1)}%</td><td className="num">{f(r.rssGb,2)} GB</td><td className="num">{f(r.rabax)}</td><td>{r.errorCode!=='?'?r.errorCode:'—'}</td></tr>)}/></section></div>:null}
-  <section className="rca26Panel rca26Deferred" id="log-errors"><div className="rca26PanelHead"><div><h2>{errorTitle}</h2><p>{inc.count?'Secondary evidence, deduplicated by snapshot and WP/PID.':'No error rows are promoted to incident evidence without a WARN/CRIT window.'}</p></div></div>{(analysis?.errors||[]).length?<Table className="short" heads={['Error Code',numH('Snapshot records'),numH('Unique WP/PID'),numH('Affected jobs'),'First seen','Last seen']} rows={(analysis?.errors||[]).map(x=><tr key={x.errorCode}><td>{x.errorCode}</td><td className="num">{x.snapshotRecords}</td><td className="num">{x.uniqueProcesses}</td><td className="num">{x.affectedJobs}</td><td>{x.firstSeen}</td><td>{x.lastSeen}</td></tr>)}/>:<div className="rca26Empty compact">No incident-scoped errors.</div>}</section>
-  <section className="rca26Case rca26Deferred"><div><span>Evidence</span><strong>{files.length} uploaded file(s)</strong><small>{status}</small></div><div className="rca26CaseActions"><a className="rca26Link" href="#/cases">History</a><button className="rca26Btn" onClick={()=>document.getElementById('log-case-v121')?.toggleAttribute('open')}>Case</button></div></section><details className="rca26Disclosure" id="log-case-v121"><summary>Case persistence</summary><div className="rca26DisclosureBody"><CaseLinkPanel title="LOG case" description="Persist only after reviewing resource and job/PID evidence." caseId={caseLink.caseId} caseTitle={caseLink.caseTitle} recentCases={caseLink.recentCases} savingCase={caseLink.savingCase} creatingCase={caseLink.creatingCase} saveStatus={caseLink.saveStatus} onCaseIdChange={caseLink.setCaseId} onCaseTitleChange={caseLink.setCaseTitle} onCreateCase={()=>caseLink.createLinkedCase(analysis)} onSaveCurrent={o=>caseLink.persistAnalysis(analysis,files,{},o)} hasAnalysis={Boolean(analysis)} saveLabel="Save LOG analysis"/></div></details>
- </div></section>
+function workerParse(files) {
+  return new Promise((resolve, reject) => {
+    if (typeof Worker === 'undefined') return reject(new Error('Worker unavailable'))
+    const worker = new Worker(new URL('./workers/logParser.worker.js', import.meta.url), { type: 'module' })
+    worker.onmessage = (event) => { worker.terminate(); event.data?.ok ? resolve(event.data.analysis) : reject(new Error(event.data?.error || 'Worker failed')) }
+    worker.onerror = (event) => { worker.terminate(); reject(new Error(event.message || 'Worker failed')) }
+    worker.postMessage({ files })
+  })
+}
+
+function Tip({ active, payload, label }) {
+  if (!active || !payload?.length) return null
+  const row = payload[0].payload
+  return <div className="rca26Tooltip"><strong>{label}</strong><span>CPU {f(row.cpuPct, 1)}%</span><span>RAM {f(row.memoryPct, 1)}%</span><span>Load/vCPU {f(row.loadRatio, 2)}</span><span>Swap In {f(row.swapIn)} p/s</span><span>WP Critical {row.wpCritical}</span></div>
+}
+
+function JobDetail({ job }) {
+  if (!job) return <div className="rca26Empty compact">Select a job or process.</div>
+  const rss = job.peakRssRecord || {}, cpu = job.peakCpuRecord || {}
+  const items = [['Program', job.program], ['Host', job.host], ['Instance', rss.instance || cpu.instance], ['WP / Type', `${job.topWp || '—'} / ${job.topType || '—'}`], ['PID', job.topPid], ['State', job.topState], ['Peak CPU', `${f(job.peakCpu, 1)}% @ ${cpu.timeLabel || '—'}`], ['Peak RSS', `${f(job.peakRss, 2)} GB @ ${rss.timeLabel || '—'}`], ['First / Last', `${job.firstSeen} / ${job.lastSeen}`], ['Seen', job.persistenceText], ['Errors', job.errors?.join(', ') || '—']]
+  return <div className="rca26Detail"><div className="rca26DetailTitle"><span>Selected {job.identityType?.toLowerCase()}</span><strong>{job.name}</strong></div><dl>{items.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value || '—'}</dd></div>)}</dl><div className="rca26SapLookup"><b>SAP lookup</b><span>SM37 by Job Name · SM50/SM66 by WP, PID, program and instance.</span></div></div>
+}
+
+const jobColumns = [
+  { key: 'identityType', label: 'Scope', render: (row) => <span className={`rca26Scope ${row.identityType?.toLowerCase()}`}>{row.identityType}</span> },
+  { key: 'name', label: 'Job / Process' }, { key: 'program', label: 'Program' }, { key: 'topType', label: 'Type' },
+  { key: 'topWp', label: 'WP', num: true, value: (row) => Number(row.topWp || 0) }, { key: 'topPid', label: 'PID', num: true, value: (row) => Number(row.topPid || 0) }, { key: 'topState', label: 'State' },
+  { key: 'avgCpu', label: 'Avg CPU', num: true, render: (row) => `${f(row.avgCpu, 1)}%` }, { key: 'peakCpu', label: 'Peak CPU', num: true, render: (row) => `${f(row.peakCpu, 1)}%` },
+  { key: 'peakRss', label: 'Peak RSS', num: true, render: (row) => `${f(row.peakRss, 2)} GB` }, { key: 'persistenceCount', label: 'Seen', num: true, render: (row) => row.persistenceText },
+  { key: 'errors', label: 'Errors', value: (row) => row.errors || [], render: (row) => row.errors?.join(', ') || '—' },
+]
+
+export default function ToolLogAnalysis2026({ processMode = false }) {
+  const [files, setFiles] = React.useState([])
+  const [busy, setBusy] = React.useState(false)
+  const [status, setStatus] = React.useState('Upload multiple OS/WP-SCOUT log snapshots.')
+  const [analysis, setAnalysis] = React.useState(null)
+  const [host, setHost] = React.useState('')
+  const [rangeStart, setRangeStart] = React.useState('')
+  const [rangeEnd, setRangeEnd] = React.useState('')
+  const [focusTime, setFocusTime] = React.useState('')
+  const [selected, setSelected] = React.useState('')
+  const [jobViewRows, setJobViewRows] = React.useState([])
+
+  const analyze = React.useCallback(async (inputFiles) => {
+    setBusy(true); setStatus('Parsing snapshots and SAP processes…')
+    try {
+      const input = []; for (const file of inputFiles) input.push({ name: file.name, text: await file.text() })
+      let result; try { result = await workerParse(input) } catch { result = buildLogAnalysis(input.map((item) => parseLogText(item.text, item.name))) }
+      setAnalysis(result); setHost(result.primaryHost || ''); setRangeStart(''); setRangeEnd(''); setFocusTime(''); setSelected('')
+      setStatus(`Parsed ${result.primarySnapshots.length} primary-host snapshot(s) across ${new Set(result.telemetry.map((item) => item.host)).size} host(s).`)
+    } catch (error) { setStatus(error?.message || 'LOG parse failed.') } finally { setBusy(false) }
+  }, [])
+
+  const upload = React.useCallback(async (list) => {
+    setBusy(true)
+    try {
+      const expanded = (await expandZipAwareFiles(list, ['log', 'txt', 'csv'])).filter((file) => ['log', 'txt', 'csv'].includes(fileExt(file.name)))
+      setFiles(expanded); await analyze(expanded)
+    } catch (error) { setStatus(error?.message || 'Upload failed.'); setBusy(false) }
+  }, [analyze])
+
+  const baseView = React.useMemo(() => buildLogView(analysis, { host: host || analysis?.primaryHost, start: rangeStart, end: rangeEnd, focusTime }), [analysis, host, rangeStart, rangeEnd, focusTime])
+  React.useEffect(() => {
+    if (!baseView) return
+    if (!host) setHost(baseView.host)
+    if (!rangeStart && baseView.allHostSnapshots.length) setRangeStart(baseView.allHostSnapshots[0].timeLabel)
+    if (!rangeEnd && baseView.allHostSnapshots.length) setRangeEnd(baseView.allHostSnapshots.at(-1).timeLabel)
+  }, [baseView, host, rangeStart, rangeEnd])
+
+  const view = React.useMemo(() => buildLogView(analysis, { host, start: rangeStart, end: rangeEnd, focusTime }), [analysis, host, rangeStart, rangeEnd, focusTime])
+  const snapshots = view?.snapshots || [], peaks = view?.peaks || {}, incident = view?.incidentWindow || { start: '—', end: '—', count: 0, severity: 'NORMAL' }
+  const jobs = focusTime ? (view?.jobsFocus || []) : processMode ? (view?.jobsWindow || []) : (view?.jobsIncident || [])
+  const selectedJob = jobs.find((item) => item.key === selected) || jobs[0] || null
+  const detailJob = selectedJob ? (view?.jobsWindow || []).find((item) => item.key === selectedJob.key) || selectedJob : null
+  React.useEffect(() => { if (jobs.length && !jobs.some((item) => item.key === selected)) setSelected(jobs[0].key) }, [jobs, selected])
+  const history = [...(detailJob?.records || [])].sort((a, b) => a.sortKey - b.sortKey)
+  const severity = view?.severity || 'WAITING'
+  const peak = view?.peakSnapshot
+  const completeness = view?.completeness || { expected: 0, received: 0, missing: [], intervalMinutes: 0 }
+
+  const jobFilters = [
+    { key: 'identityType', label: 'Scope' }, { key: 'topType', label: 'Type' }, { key: 'topState', label: 'State' }, { key: 'errors', label: 'Error', value: (row) => row.errors || [] },
+  ]
+  const hostColumns = [
+    { key: 'host', label: 'Host' }, { key: 'cpuPct', label: 'CPU', num: true, render: (row) => `${f(row.cpuPct, 1)}%` }, { key: 'memoryPct', label: 'RAM', num: true, render: (row) => `${f(row.memoryPct, 1)}%` },
+    { key: 'loadRatio', label: 'Load/vCPU', num: true, render: (row) => f(row.loadRatio, 2) }, { key: 'swapIn', label: 'Swap In', num: true, render: (row) => f(row.swapIn) }, { key: 'wpCritical', label: 'WP Crit', num: true },
+  ]
+  const snapshotColumns = [
+    { key: 'timeLabel', label: 'Time' }, { key: 'cpuPct', label: 'CPU', num: true, render: (row) => `${f(row.cpuPct, 2)}%` }, { key: 'memoryPct', label: 'RAM', num: true, render: (row) => `${f(row.memoryPct, 1)}%` },
+    { key: 'loadRatio', label: 'Load/vCPU', num: true, render: (row) => f(row.loadRatio, 2) }, { key: 'swapIn', label: 'Swap In', num: true, render: (row) => f(row.swapIn) }, { key: 'wpCritical', label: 'WP Crit', num: true },
+    { key: 'severity', label: 'Status', render: (row) => <span className={`rca26Status ${row.severity.toLowerCase()}`}>{row.severity}</span> },
+  ]
+  const historyColumns = [
+    { key: 'timeLabel', label: 'Time' }, { key: 'pid', label: 'PID', num: true }, { key: 'wp', label: 'WP', num: true }, { key: 'type', label: 'Type' }, { key: 'state', label: 'State' },
+    { key: 'cpu', label: 'CPU', num: true, render: (row) => `${f(row.cpu, 1)}%` }, { key: 'rssGb', label: 'RSS', num: true, render: (row) => `${f(row.rssGb, 2)} GB` }, { key: 'rabax', label: 'RABAX', num: true }, { key: 'errorCode', label: 'Error', render: (row) => row.errorCode !== '?' ? row.errorCode : '—' },
+  ]
+  const errorColumns = [
+    { key: 'errorCode', label: 'Error Code' }, { key: 'snapshotRecords', label: 'Snapshot Records', num: true }, { key: 'uniqueProcesses', label: 'Unique WP/PID', num: true }, { key: 'affectedJobs', label: 'Affected Jobs', num: true }, { key: 'firstSeen', label: 'First Seen' }, { key: 'lastSeen', label: 'Last Seen' },
+  ]
+
+  const setPeakFocus = (time) => { if (time) setFocusTime((current) => current === time ? '' : time) }
+  const jobsTitle = focusTime ? `Jobs / Programs at ${focusTime}` : processMode ? 'Jobs / Programs in Analysis Window' : incident.count ? `Jobs / Programs During ${incident.severity} Window (${incident.start} – ${incident.end})` : 'No Incident Window Detected'
+  const currentErrors = processMode ? view?.errorsWindow || [] : view?.errorsIncident || []
+
+  return <section className="rca26Shell"><div className="rca26Inner">
+    <header className="rca26Head"><div><h1>{processMode ? 'LOG Processes & Jobs' : 'LOG Analysis'}</h1><p>Time → resource pressure → SAP job/program → WP/PID.</p></div><div className="rca26TopActions"><button className="rca26Btn" disabled={!jobViewRows.length} onClick={() => downloadCsv(`log-${view?.host || 'host'}-${view?.analysisWindow.start || 'start'}-${view?.analysisWindow.end || 'end'}.csv`, jobColumns, jobViewRows)}>Export CSV</button><button className="rca26Btn" onClick={() => window.print()}>Print / PDF</button><label className="rca26Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Parsing…' : 'Upload Logs'}</label></div></header>
+
+    <div className="rca26ModeSwitch"><a href="#/log" data-active={!processMode}>Overview</a><a href="#/tool/logs/process" data-active={processMode}>Jobs & Processes</a></div>
+
+    <section className="rca26ControlBar">
+      <label className="rca26Control"><span>Host</span><select value={host || ''} onChange={(event) => { setHost(event.target.value); setRangeStart(''); setRangeEnd(''); setFocusTime('') }}>{(view?.hosts || []).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
+      <label className="rca26Control"><span>From</span><select value={rangeStart || ''} onChange={(event) => { setRangeStart(event.target.value); setFocusTime('') }}>{(view?.allHostSnapshots || []).map((row) => <option key={`s-${row.snapshot}`} value={row.timeLabel}>{row.timeLabel}</option>)}</select></label>
+      <label className="rca26Control"><span>To</span><select value={rangeEnd || ''} onChange={(event) => { setRangeEnd(event.target.value); setFocusTime('') }}>{(view?.allHostSnapshots || []).map((row) => <option key={`e-${row.snapshot}`} value={row.timeLabel}>{row.timeLabel}</option>)}</select></label>
+      {focusTime && <button className="rca26FocusChip" onClick={() => setFocusTime('')}>Focused snapshot {focusTime} ×</button>}
+      <div className={`rca26Completeness ${completeness.missing.length ? 'warn' : 'ok'}`}><b>{completeness.received}/{completeness.expected || completeness.received}</b><span>{completeness.intervalMinutes ? `${completeness.intervalMinutes}-min interval` : 'interval unknown'}</span>{completeness.missing.length ? <small>Missing: {completeness.missing.slice(0, 6).join(', ')}{completeness.missing.length > 6 ? '…' : ''}</small> : <small>Snapshot sequence complete</small>}</div>
+    </section>
+
+    <section className="rca26MetricStrip">
+      <Metric label="Analysis window" value={`${view?.analysisWindow.start || '—'} – ${view?.analysisWindow.end || '—'}`} meta={`${dateOf(peak?.snapshot || snapshots[0]?.snapshot)} · ${view?.analysisWindow.count || 0} snapshots`} />
+      <Metric label="System / Host" value={view?.host || '—'} meta={peak ? `SID ${peak.sid || '—'} · Inst ${peak.instance || '—'} · vCPU ${peak.vcpu || '—'}` : status} />
+      <Metric label="Incident" value={severity} meta={incident.count ? `${incident.severity} ${incident.start} – ${incident.end}` : 'No WARN/CRIT window'} tone={severity === 'CRIT' ? 'critical' : severity === 'WARN' ? 'warn' : 'good'} />
+      <Metric label="Peak CPU" value={`${f(peaks.cpu?.value, 1)}%`} meta={`at ${peaks.cpu?.time || '—'}`} onClick={() => setPeakFocus(peaks.cpu?.time)} />
+      <Metric label="Peak RAM" value={`${f(peaks.ram?.value, 1)}%`} meta={`at ${peaks.ram?.time || '—'}`} tone={peaks.ram?.value >= 85 ? 'critical' : ''} onClick={() => setPeakFocus(peaks.ram?.time)} />
+      <Metric label="Peak Load / vCPU" value={f(peaks.load?.value, 2)} meta={`at ${peaks.load?.time || '—'}`} tone={peaks.load?.value >= 1.5 ? 'critical' : ''} onClick={() => setPeakFocus(peaks.load?.time)} />
+      <Metric label="Peak Swap In" value={f(peaks.swapIn?.value)} meta={`p/s at ${peaks.swapIn?.time || '—'}`} tone={peaks.swapIn?.value >= 1000 ? 'warn' : ''} onClick={() => setPeakFocus(peaks.swapIn?.time)} />
+      <Metric label="WP Critical (peak)" value={f(peaks.wpCritical?.value)} meta={`at ${peaks.wpCritical?.time || '—'}`} tone={peaks.wpCritical?.value >= 3 ? 'critical' : peaks.wpCritical?.value >= 1 ? 'warn' : ''} onClick={() => setPeakFocus(peaks.wpCritical?.time)} />
+    </section>
+
+    <div className="rca26Grid logMain"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Resource Timeline</h2><p>Drag the lower range selector or click a point to focus the job/process view.</p></div><span className="rca26Tag">Actual snapshots</span></div>{snapshots.length ? <><div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={snapshots} onClick={(state) => state?.activeLabel && setFocusTime(state.activeLabel)} margin={{ top: 10, right: 45, left: 0, bottom: snapshots.length > 12 ? 28 : 8 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="timeLabel" /><YAxis yAxisId="pct" domain={[0, 100]} tickFormatter={(value) => `${value}%`} /><YAxis yAxisId="load" orientation="right" /><YAxis yAxisId="swap" orientation="right" hide />{incident.count ? <ReferenceArea yAxisId="pct" x1={incident.start} x2={incident.end} fill="#8aa0ad" fillOpacity={0.08} stroke="#748b97" /> : null}<Tooltip content={<Tip />} /><Legend /><Line yAxisId="pct" type="linear" dataKey="cpuPct" name="CPU %" stroke="#32c7cf" strokeWidth={2.2} dot /><Line yAxisId="pct" type="linear" dataKey="memoryPct" name="RAM %" stroke="#4d8fff" strokeWidth={2.2} dot /><Line yAxisId="load" type="linear" dataKey="loadRatio" name="Load / vCPU" stroke="#f5a623" strokeWidth={2} dot /><Line yAxisId="swap" type="linear" dataKey="swapIn" name="Swap In (p/s)" stroke="#9b72ff" strokeWidth={2} dot />{snapshots.length > 4 ? <Brush dataKey="timeLabel" height={20} onChange={(range) => { if (range?.startIndex != null && range?.endIndex != null) { setRangeStart(snapshots[range.startIndex]?.timeLabel || rangeStart); setRangeEnd(snapshots[range.endIndex]?.timeLabel || rangeEnd); setFocusTime('') } }} /> : null}</LineChart></ResponsiveContainer></div><div className="rca26StatusLine">{snapshots.map((row) => <button key={`${row.snapshot}-${row.host}`} onClick={() => setFocusTime(row.timeLabel)} className={row.severity.toLowerCase()} data-active={focusTime === row.timeLabel}><b>{row.timeLabel}</b>{row.severity}</button>)}</div></> : <div className="rca26Empty">{status}</div>}</section>
+      <aside className="rca26Stack"><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Resource Peaks</h2><p>Click a peak to inspect jobs active at that timestamp.</p></div></div>{[['CPU', `${f(peaks.cpu?.value, 1)}%`, peaks.cpu?.time], ['RAM', `${f(peaks.ram?.value, 1)}%`, peaks.ram?.time], ['Load/vCPU', f(peaks.load?.value, 2), peaks.load?.time], ['Swap In', `${f(peaks.swapIn?.value)} p/s`, peaks.swapIn?.time], ['WP Critical', f(peaks.wpCritical?.value), peaks.wpCritical?.time]].map(([label, value, time]) => <button className="rca26KeyValue clickable" key={label} onClick={() => setPeakFocus(time)}><span>{label}</span><b>{value}</b><small>{time || '—'}</small></button>)}</section><section className="rca26Panel compactPanel"><div className="rca26PanelHead"><div><h2>Peak pressure snapshot ({view?.peakTime || '—'})</h2><p>Combined pressure point; individual resources keep their own peaks.</p></div></div>{peak ? <div className="rca26Snapshot">{[['Host', peak.host], ['CPU', `${f(peak.cpuPct, 1)}%`], ['RAM', `${f(peak.memoryPct, 1)}%`], ['Load 1/5/15', `${f(peak.load1, 2)} / ${f(peak.load5, 2)} / ${f(peak.load15, 2)}`], ['Load/vCPU', f(peak.loadRatio, 2)], ['Swap In/Out', `${f(peak.swapIn)} / ${f(peak.swapOut)} p/s`], ['WP Run/Standby/Crit', `${peak.wpRunning} / ${peak.wpStandby} / ${peak.wpCritical}`]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div> : <div className="rca26Empty compact">No snapshot.</div>}</section></aside>
+    </div>
+
+    <div className="rca26Grid two rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Host Comparison — peak collector batch</h2><p>Confirms whether pressure is host-specific or landscape-wide.</p></div></div><RcaDataTable rows={view?.hostComparison || []} columns={hostColumns} compact search={false} pageSize={20} defaultSort={{ key: 'loadRatio', dir: 'desc' }} rowKey={(row) => `${row.host}-${row.timeLabel}`} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Raw Snapshot List</h2><p>Current host and selected time range.</p></div></div><RcaDataTable rows={snapshots} columns={snapshotColumns} compact search={false} pageSize={100} defaultSort={{ key: 'timeLabel', dir: 'asc' }} rowKey={(row) => `${row.host}-${row.snapshot}`} onRowClick={(row) => setFocusTime(row.timeLabel)} selectedKey={focusTime ? `${view?.host}-${snapshots.find((row) => row.timeLabel === focusTime)?.snapshot}` : ''} /></section></div>
+
+    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>{jobsTitle}</h2><p>{focusTime ? 'Snapshot-focused job/process evidence.' : processMode ? 'Full selected analysis-window inventory.' : 'Only workloads observed inside the detected WARN/CRIT window.'}</p></div>{focusTime && <button className="rca26TextBtn" onClick={() => setFocusTime('')}>Clear snapshot focus</button>}</div><RcaDataTable rows={jobs} columns={jobColumns} filters={jobFilters} searchPlaceholder="Search job, program, PID, WP, error…" pageSize={50} defaultSort={{ key: 'peakRss', dir: 'desc' }} rowKey={(row) => row.key} onRowClick={(row) => setSelected(row.key)} selectedKey={selectedJob?.key || ''} onViewChange={setJobViewRows} emptyText={focusTime ? `No processes captured at ${focusTime}.` : processMode ? 'No processes in the selected window.' : 'No WARN/CRIT incident jobs in this window.'} /></section>
+
+    <div className="rca26Grid logDetail rca26Deferred"><section className="rca26Panel"><JobDetail job={detailJob} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Job Resource History</h2><p>Same job/program across the selected analysis window.</p></div></div><RcaDataTable rows={history} columns={historyColumns} search={false} filters={[{ key: 'type', label: 'Type' }, { key: 'state', label: 'State' }]} pageSize={50} defaultSort={{ key: 'timeLabel', dir: 'asc' }} rowKey={(row) => `${row.snapshot}-${row.pid}-${row.wp}`} /></section></div>
+
+    <section className="rca26Panel rca26Deferred"><div className="rca26PanelHead"><div><h2>{processMode ? 'Error Evidence in Analysis Window' : 'Error Evidence During Incident'}</h2><p>Error is supporting evidence, deduplicated by snapshot and unique WP/PID.</p></div></div><RcaDataTable rows={currentErrors} columns={errorColumns} searchPlaceholder="Search error code…" pageSize={50} defaultSort={{ key: 'uniqueProcesses', dir: 'desc' }} rowKey={(row) => row.errorCode} /></section>
+  </div></section>
 }
