@@ -1,9 +1,9 @@
 const METRICS = [
-  { key: 'cpuPct', label: 'CPU', unit: '%', digits: 1, warn: 75, crit: 90 },
-  { key: 'memoryPct', label: 'RAM', unit: '%', digits: 1, warn: 75, crit: 85 },
-  { key: 'loadRatio', label: 'Load per vCPU', unit: '', digits: 2, warn: 1, crit: 1.5 },
-  { key: 'swapIn', label: 'Swap In', unit: ' p/s', digits: 0, warn: 100, crit: 1000 },
-  { key: 'wpCritical', label: 'WP Critical', unit: '', digits: 0, warn: 1, crit: 3 },
+  { key: 'cpuPct', label: 'CPU', unit: '%', changeUnit: ' pp', digits: 1, warn: 75, crit: 90 },
+  { key: 'memoryPct', label: 'RAM', unit: '%', changeUnit: ' pp', digits: 1, warn: 75, crit: 85 },
+  { key: 'loadRatio', label: 'Load per vCPU', unit: '', changeUnit: '', digits: 2, warn: 1, crit: 1.5 },
+  { key: 'swapIn', label: 'Swap In', unit: ' p/s', changeUnit: ' p/s', digits: 0, warn: 100, crit: 1000 },
+  { key: 'wpCritical', label: 'WP Critical', unit: '', changeUnit: '', digits: 0, warn: 1, crit: 3 },
 ]
 
 const finite = (value) => Number.isFinite(Number(value))
@@ -48,6 +48,11 @@ function robustScore(value, baseline = {}) {
   return round((current - median) / denominator, 2)
 }
 
+function normalizedIncidentScore(rawScore = 0) {
+  const raw = Math.max(0, Number(rawScore) || 0)
+  return round(100 * (1 - Math.exp(-raw / 80)), 1)
+}
+
 function windowSlices(snapshots = [], incidentTimes = new Set()) {
   if (!snapshots.length || !incidentTimes.size) return { before: [], during: [], after: [], beforeTimes: new Set(), duringTimes: new Set(), afterTimes: new Set() }
   const incidentIndexes = snapshots.map((row, index) => incidentTimes.has(row.timeLabel) ? index : -1).filter((index) => index >= 0)
@@ -90,6 +95,8 @@ function metricComparison(slices) {
       robustScore: score,
       threshold,
       anomaly,
+      anomalyPeak: during.max,
+      anomalyBaselineP95: baseline.p95,
     }
   })
 }
@@ -141,9 +148,27 @@ function aggregateWorkloads(processes = [], slices) {
   const map = new Map()
   processes.filter((row) => windowTimes.has(row.timeLabel)).forEach((row) => {
     const key = workloadKey(row)
-    const current = map.get(key) || { key, name: key.split('|').slice(1).join('|'), host: row.host, program: row.program, before: [], during: [], after: [], errorsBefore: new Set(), errorsDuring: new Set(), errorsAfter: new Set(), dStateBefore: 0, dStateDuring: 0, dStateAfter: 0 }
+    const current = map.get(key) || {
+      key,
+      name: key.split('|').slice(1).join('|'),
+      host: row.host,
+      program: row.program,
+      before: [],
+      during: [],
+      after: [],
+      errorsBefore: new Set(),
+      errorsDuring: new Set(),
+      errorsAfter: new Set(),
+      dStateBefore: 0,
+      dStateDuring: 0,
+      dStateAfter: 0,
+      pids: new Set(),
+      processKeys: new Set(),
+    }
     const bucket = slices.duringTimes.has(row.timeLabel) ? 'during' : slices.beforeTimes.has(row.timeLabel) ? 'before' : 'after'
     current[bucket].push(row)
+    if (row.pid) current.pids.add(row.pid)
+    current.processKeys.add(`${row.host}|${row.instance || ''}|${row.pid || ''}|${row.wp || ''}`)
     if (row.errorCode && row.errorCode !== '?') current[`errors${bucket[0].toUpperCase()}${bucket.slice(1)}`].add(row.errorCode)
     if (String(row.state || '').toUpperCase() === 'D') current[`dState${bucket[0].toUpperCase()}${bucket.slice(1)}`] += 1
     map.set(key, current)
@@ -159,19 +184,21 @@ function aggregateWorkloads(processes = [], slices) {
     const cpuDelta = duringCpu.mean !== null && beforeCpu.mean !== null ? round(duringCpu.mean - beforeCpu.mean, 2) : null
     const rssDelta = duringRss.max !== null && beforeRss.max !== null ? round(duringRss.max - beforeRss.max, 2) : null
     const newErrors = Array.from(item.errorsDuring).filter((error) => !item.errorsBefore.has(error))
-    const signals = []
-    if (cpuDelta !== null && cpuDelta >= 5) signals.push(`CPU +${cpuDelta}%`)
-    if (rssDelta !== null && rssDelta >= 1) signals.push(`RSS +${rssDelta} GB`)
-    if (item.dStateDuring > item.dStateBefore) signals.push(`D-state ${item.dStateDuring}`)
-    if (newErrors.length) signals.push(`New error ${newErrors.slice(0, 2).join(', ')}`)
-    const score = round(
+    const dStateIncrease = Math.max(0, item.dStateDuring - item.dStateBefore)
+    const rawScore = round(
       Math.max(0, cpuDelta || 0) * 1.5 +
       Math.max(0, rssDelta || 0) * 8 +
-      item.dStateDuring * 8 +
+      dStateIncrease * 8 +
       newErrors.length * 10 +
       item.during.length,
       2,
     )
+    const score = normalizedIncidentScore(rawScore)
+    const signals = []
+    if (cpuDelta !== null && cpuDelta >= 5) signals.push(`CPU +${cpuDelta} pp`)
+    if (rssDelta !== null && rssDelta >= 1) signals.push(`RSS +${rssDelta} GB`)
+    if (dStateIncrease) signals.push(`D-state +${dStateIncrease}`)
+    if (newErrors.length) signals.push(`New error ${newErrors.slice(0, 2).join(', ')}`)
     return {
       key: item.key,
       name: item.name,
@@ -188,13 +215,17 @@ function aggregateWorkloads(processes = [], slices) {
       dStateBefore: item.dStateBefore,
       dStateDuring: item.dStateDuring,
       dStateAfter: item.dStateAfter,
+      dStateIncrease,
       errorsBefore: Array.from(item.errorsBefore),
       errorsDuring: Array.from(item.errorsDuring),
       errorsAfter: Array.from(item.errorsAfter),
       newErrors,
       signals,
+      rawScore,
       score,
       incidentSamples: item.during.length,
+      pidCount: item.pids.size,
+      processCount: item.processKeys.size,
     }
   }).filter((item) => item.incidentSamples).sort((a, b) => b.score - a.score || (b.duringRss.max || 0) - (a.duringRss.max || 0) || (b.duringCpu.max || 0) - (a.duringCpu.max || 0))
 }
@@ -207,7 +238,7 @@ export function buildIncidentAnalytics({ snapshots = [], processes = [], inciden
   const workloads = aggregateWorkloads(processes, slices)
   const baselineAvailable = slices.before.length > 0
   return {
-    engine: 'deterministic-v1',
+    engine: 'deterministic-v1.1',
     baselineAvailable,
     windows: {
       before: { start: slices.before[0]?.timeLabel || '—', end: slices.before.at(-1)?.timeLabel || '—', count: slices.before.length },
