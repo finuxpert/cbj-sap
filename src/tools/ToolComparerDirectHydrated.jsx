@@ -1,10 +1,10 @@
 import React from 'react'
-import RcaInsightPanel from './RcaInsightPanel.jsx'
 
 // Keep WP-SCOUT-specific visual layers with the comparer route wrapper,
 // not src/main.jsx, so global app pages do not load cockpit/chart overrides.
 import '../app/wp-scout-rca-cockpit-polish.css'
 import '../app/wp-scout-chart-readability.css'
+import './ToolProcessCleanup.css'
 
 const DIRECT_UPLOAD_CACHE_KEY = 'sap_rca_wpscout_direct_upload_payload_v1'
 
@@ -83,10 +83,5 @@ export default function ToolComparerDirectHydrated() {
     )
   }
 
-  return (
-    <>
-      <ToolComparerClean />
-      <RcaInsightPanel />
-    </>
-  )
+  return <ToolComparerClean />
 }
