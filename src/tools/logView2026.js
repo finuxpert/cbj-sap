@@ -61,9 +61,38 @@ function timestampMs(value = '') {
   return Number.isFinite(parsed) ? parsed : NaN
 }
 
+function rowTimestampMs(row = {}) {
+  const parsed = timestampMs(row.snapshot || row.timeLabel)
+  if (Number.isFinite(parsed)) return parsed
+  const key = Number(row.sortKey)
+  if (!Number.isFinite(key)) return NaN
+  const raw = String(Math.trunc(key)).padStart(14, '0')
+  const iso = `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}T${raw.slice(8, 10)}:${raw.slice(10, 12)}:${raw.slice(12, 14)}`
+  return timestampMs(iso)
+}
+
+function minutesBetween(left, right) {
+  const a = rowTimestampMs(left), b = rowTimestampMs(right)
+  return Number.isFinite(a) && Number.isFinite(b) ? Math.max(0, Math.round((b - a) / 60000)) : Number.POSITIVE_INFINITY
+}
+
+function median(values = []) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b)
+  if (!sorted.length) return 0
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
+}
+
+function cadenceOf(rows = []) {
+  const diffs = rows.slice(1).map((row, index) => minutesBetween(rows[index], row)).filter((value) => value > 0 && value <= 180)
+  const nominal = median(diffs)
+  const gapThresholdMinutes = Math.max(30, nominal ? Math.round(nominal * 2.5) : 30)
+  return { nominalMinutes: nominal || 0, gapThresholdMinutes: Math.min(gapThresholdMinutes, 180) }
+}
+
 function completeness(rows = []) {
   if (rows.length < 2) return { received: rows.length, intervalMinutes: 0, isRegular: true, observedIntervals: [] }
-  const stamps = rows.map((row) => timestampMs(row.snapshot)).filter(Number.isFinite).sort((a, b) => a - b)
+  const stamps = rows.map((row) => rowTimestampMs(row)).filter(Number.isFinite).sort((a, b) => a - b)
   if (stamps.length < 2) return { received: rows.length, intervalMinutes: 0, isRegular: false, observedIntervals: [] }
   const diffs = stamps.slice(1).map((stamp, index) => Math.round((stamp - stamps[index]) / 60000)).filter((value) => value > 0 && value < 1440)
   const observedIntervals = Array.from(new Set(diffs)).sort((a, b) => a - b)
@@ -81,6 +110,82 @@ function severityRank(value = '') {
   return ({ NORMAL: 0, WARN: 1, CRIT: 2 })[String(value || '').toUpperCase()] ?? 0
 }
 
+function maxSeverity(rows = []) {
+  return rows.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
+}
+
+function episodeSummary(rows = [], index = 0) {
+  const ordered = [...rows].sort((a, b) => a.sortKey - b.sortKey)
+  const severity = maxSeverity(ordered)
+  const peakRow = ordered.reduce((best, row) => row.pressureScore > (best?.pressureScore ?? -1) ? row : best, null)
+  const start = ordered[0]?.timeLabel || '—'
+  const end = ordered.at(-1)?.timeLabel || '—'
+  const startMs = rowTimestampMs(ordered[0])
+  const endMs = rowTimestampMs(ordered.at(-1))
+  const durationMinutes = Number.isFinite(startMs) && Number.isFinite(endMs) ? Math.max(0, Math.round((endMs - startMs) / 60000)) : 0
+  return {
+    key: `episode-${ordered[0]?.sortKey || index}-${ordered.at(-1)?.sortKey || index}`,
+    index,
+    label: `Episode ${index + 1}`,
+    severity,
+    start,
+    end,
+    count: ordered.length,
+    times: ordered.map((row) => row.timeLabel),
+    rows: ordered,
+    peakPressure: peakRow?.pressureScore || 0,
+    peakTime: peakRow?.timeLabel || end,
+    durationMinutes,
+  }
+}
+
+export function buildIncidentEpisodes(rows = []) {
+  const ordered = [...rows].sort((a, b) => a.sortKey - b.sortKey)
+  const cadence = cadenceOf(ordered)
+  const episodes = []
+  let current = []
+  const flush = () => {
+    if (!current.length) return
+    episodes.push(episodeSummary(current, episodes.length))
+    current = []
+  }
+  ordered.forEach((row) => {
+    const isIncident = row.severity === 'CRIT' || row.severity === 'WARN'
+    if (!isIncident) { flush(); return }
+    const previous = current.at(-1)
+    if (previous && minutesBetween(previous, row) > cadence.gapThresholdMinutes) flush()
+    current.push(row)
+  })
+  flush()
+  return { episodes, cadence }
+}
+
+function selectIncident(episodes = [], focus = 'latest') {
+  if (!episodes.length) return null
+  if (focus === 'all') {
+    const rows = episodes.flatMap((episode) => episode.rows).sort((a, b) => a.sortKey - b.sortKey)
+    return {
+      key: 'all', mode: 'all', label: 'All Evidence', isAggregate: true, episodeCount: episodes.length,
+      severity: maxSeverity(rows), start: rows[0]?.timeLabel || '—', end: rows.at(-1)?.timeLabel || '—', count: rows.length,
+      times: rows.map((row) => row.timeLabel), rows, peakPressure: Math.max(0, ...episodes.map((episode) => episode.peakPressure || 0)),
+    }
+  }
+  if (focus === 'peak') return [...episodes].sort((a, b) => b.peakPressure - a.peakPressure || severityRank(b.severity) - severityRank(a.severity) || b.index - a.index)[0]
+  if (focus === 'latest') return episodes.at(-1)
+  return episodes.find((episode) => episode.key === focus) || episodes.at(-1)
+}
+
+function chartRows(rows = [], gapThresholdMinutes = 30) {
+  const output = []
+  rows.forEach((row, index) => {
+    if (index > 0 && minutesBetween(rows[index - 1], row) > gapThresholdMinutes) {
+      output.push({ chartGap: true, chartKey: `__gap-${index}`, timeLabel: '', cpuPct: null, memoryPct: null, loadRatio: null, swapIn: null, wpCritical: null })
+    }
+    output.push({ ...row, chartGap: false, chartKey: row.timeLabel })
+  })
+  return output
+}
+
 function hostOverview(analysis, start = '', end = '') {
   const grouped = new Map()
   ;(analysis?.telemetry || []).forEach((row) => {
@@ -91,7 +196,7 @@ function hostOverview(analysis, start = '', end = '') {
   })
   return Array.from(grouped.entries()).map(([host, rows]) => {
     const ordered = rows.sort((a, b) => a.sortKey - b.sortKey)
-    const severity = ordered.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
+    const severity = maxSeverity(ordered)
     const role = hostRole(host)
     const cpu = peak(ordered, 'cpuPct'), ram = peak(ordered, 'memoryPct'), load = peak(ordered, 'loadRatio'), swap = peak(ordered, 'swapIn'), wp = peak(ordered, 'wpCritical')
     return {
@@ -154,45 +259,61 @@ export function buildLogView(analysis, options = {}) {
   const startIndex = Math.max(0, options.start ? labels.indexOf(options.start) : 0)
   const requestedEnd = options.end ? labels.lastIndexOf(options.end) : labels.length - 1
   const endIndex = requestedEnd >= startIndex ? requestedEnd : labels.length - 1
-  const snapshots = allHostSnapshots.slice(startIndex, endIndex + 1)
-  const windowTimes = new Set(snapshots.map((row) => row.timeLabel))
-  const processes = (analysis.processes || []).filter((row) => row.host === host && windowTimes.has(row.timeLabel))
-  const allProcesses = (analysis.processes || []).filter((row) => windowTimes.has(row.timeLabel))
-  const landscape = landscapeTelemetry(analysis, windowTimes)
-  const critical = snapshots.filter((row) => row.severity === 'CRIT')
-  const warning = snapshots.filter((row) => row.severity === 'WARN')
-  const incidentSnapshots = critical.length ? critical : warning
-  const incidentTimes = new Set(incidentSnapshots.map((row) => row.timeLabel))
-  const severity = critical.length ? 'CRIT' : warning.length ? 'WARN' : 'NORMAL'
-  const peakSnapshot = snapshots.reduce((best, row) => row.pressureScore > (best?.pressureScore ?? -1) ? row : best, null)
-  const peaks = { cpu: peak(snapshots, 'cpuPct'), ram: peak(snapshots, 'memoryPct'), load: peak(snapshots, 'loadRatio'), swapIn: peak(snapshots, 'swapIn'), wpCritical: peak(snapshots, 'wpCritical') }
-  const focusTime = options.focusTime && windowTimes.has(options.focusTime) ? options.focusTime : ''
+  const evidenceSnapshots = allHostSnapshots.slice(startIndex, endIndex + 1)
+  const evidenceTimes = new Set(evidenceSnapshots.map((row) => row.timeLabel))
+  const evidenceProcesses = (analysis.processes || []).filter((row) => row.host === host && evidenceTimes.has(row.timeLabel))
+  const allEvidenceProcesses = (analysis.processes || []).filter((row) => evidenceTimes.has(row.timeLabel))
+
+  const { episodes: incidentEpisodes, cadence } = buildIncidentEpisodes(evidenceSnapshots)
+  const incidentFocus = options.incidentFocus || 'latest'
+  const selectedIncident = selectIncident(incidentEpisodes, incidentFocus)
+  const activeIncidentTimes = new Set(selectedIncident?.times || [])
+  const displaySnapshots = selectedIncident && !selectedIncident.isAggregate ? selectedIncident.rows : evidenceSnapshots
+  const displayTimes = new Set(displaySnapshots.map((row) => row.timeLabel))
+  const displayProcesses = (analysis.processes || []).filter((row) => row.host === host && displayTimes.has(row.timeLabel))
+  const allDisplayProcesses = (analysis.processes || []).filter((row) => displayTimes.has(row.timeLabel))
+  const landscape = landscapeTelemetry(analysis, displayTimes)
+
+  const evidenceSeverity = maxSeverity(evidenceSnapshots)
+  const severity = selectedIncident?.severity || 'NORMAL'
+  const peakScope = selectedIncident && !selectedIncident.isAggregate ? selectedIncident.rows : evidenceSnapshots
+  const peakSnapshot = peakScope.reduce((best, row) => row.pressureScore > (best?.pressureScore ?? -1) ? row : best, null)
+  const peaks = { cpu: peak(peakScope, 'cpuPct'), ram: peak(peakScope, 'memoryPct'), load: peak(peakScope, 'loadRatio'), swapIn: peak(peakScope, 'swapIn'), wpCritical: peak(peakScope, 'wpCritical') }
+  const focusTime = options.focusTime && displayTimes.has(options.focusTime) ? options.focusTime : ''
   const focusTimes = focusTime ? new Set([focusTime]) : new Set()
 
-  const analytics = buildIncidentAnalytics({ snapshots, processes, incidentTimes })
-  const landscapeAnalytics = buildIncidentAnalytics({ snapshots, processes: allProcesses, incidentTimes })
+  const analytics = selectedIncident && !selectedIncident.isAggregate ? buildIncidentAnalytics({ snapshots: evidenceSnapshots, processes: evidenceProcesses, incidentTimes: activeIncidentTimes }) : null
+  const landscapeAnalytics = selectedIncident && !selectedIncident.isAggregate ? buildIncidentAnalytics({ snapshots: evidenceSnapshots, processes: allEvidenceProcesses, incidentTimes: activeIncidentTimes }) : null
 
-  const jobsWindow = enrichJobs(buildJobGroups(processes, windowTimes, snapshots.length), analytics)
-  const jobsIncident = enrichJobs(incidentTimes.size ? buildJobGroups(processes, incidentTimes, incidentSnapshots.length) : [], analytics)
-  const jobsFocus = enrichJobs(focusTime ? buildJobGroups(processes, focusTimes, 1) : [], analytics)
+  const jobsWindow = enrichJobs(buildJobGroups(evidenceProcesses, evidenceTimes, evidenceSnapshots.length), analytics)
+  const jobsIncident = enrichJobs(activeIncidentTimes.size ? buildJobGroups(evidenceProcesses, activeIncidentTimes, selectedIncident?.count || 0) : [], analytics)
+  const jobsFocus = enrichJobs(focusTime ? buildJobGroups(displayProcesses, focusTimes, 1) : [], analytics)
 
-  const landscapeJobsWindow = enrichJobs(buildJobGroups(allProcesses, windowTimes, snapshots.length), landscapeAnalytics)
-  const landscapeJobsIncident = enrichJobs(incidentTimes.size ? buildJobGroups(allProcesses, incidentTimes, incidentSnapshots.length) : [], landscapeAnalytics)
-  const landscapeJobsFocus = enrichJobs(focusTime ? buildJobGroups(allProcesses, focusTimes, 1) : [], landscapeAnalytics)
+  const landscapeJobsWindow = enrichJobs(buildJobGroups(allEvidenceProcesses, evidenceTimes, evidenceSnapshots.length), landscapeAnalytics)
+  const landscapeJobsIncident = enrichJobs(activeIncidentTimes.size ? buildJobGroups(allEvidenceProcesses, activeIncidentTimes, selectedIncident?.count || 0) : [], landscapeAnalytics)
+  const landscapeJobsFocus = enrichJobs(focusTime ? buildJobGroups(allDisplayProcesses, focusTimes, 1) : [], landscapeAnalytics)
 
   const role = hostRole(host)
+  const overviewStart = selectedIncident && !selectedIncident.isAggregate ? selectedIncident.start : evidenceSnapshots[0]?.timeLabel || ''
+  const overviewEnd = selectedIncident && !selectedIncident.isAggregate ? selectedIncident.end : evidenceSnapshots.at(-1)?.timeLabel || ''
+  const episodeCounts = incidentEpisodes.reduce((acc, episode) => { acc[episode.severity] = (acc[episode.severity] || 0) + 1; return acc }, { CRIT: 0, WARN: 0 })
+
   return {
-    hosts, host, role, allHostSnapshots, snapshots, processes, allProcesses, landscapeTelemetry: landscape, labels,
-    analysisWindow: { start: snapshots[0]?.timeLabel || '—', end: snapshots.at(-1)?.timeLabel || '—', count: snapshots.length },
-    incidentWindow: { start: incidentSnapshots[0]?.timeLabel || '—', end: incidentSnapshots.at(-1)?.timeLabel || '—', count: incidentSnapshots.length, severity, times: Array.from(incidentTimes) },
-    severity, peakSnapshot, peakTime: peakSnapshot?.timeLabel || '—', peaks,
-    hostOverview: hostOverview(analysis, snapshots[0]?.timeLabel || '', snapshots.at(-1)?.timeLabel || ''),
+    hosts, host, role, allHostSnapshots,
+    evidenceSnapshots, snapshots: displaySnapshots, chartSnapshots: chartRows(displaySnapshots, cadence.gapThresholdMinutes),
+    processes: displayProcesses, allProcesses: allDisplayProcesses, landscapeTelemetry: landscape, labels: displaySnapshots.map((row) => row.timeLabel),
+    analysisWindow: { start: evidenceSnapshots[0]?.timeLabel || '—', end: evidenceSnapshots.at(-1)?.timeLabel || '—', count: evidenceSnapshots.length },
+    evidenceWindow: { start: evidenceSnapshots[0]?.timeLabel || '—', end: evidenceSnapshots.at(-1)?.timeLabel || '—', count: evidenceSnapshots.length, severity: evidenceSeverity },
+    incidentWindow: selectedIncident ? { ...selectedIncident } : { key: '', label: 'No Incident', start: '—', end: '—', count: 0, severity: 'NORMAL', times: [], episodeCount: incidentEpisodes.length },
+    incidentEpisodes, incidentFocus, incidentCadence: cadence, incidentEpisodeCounts: episodeCounts,
+    severity, evidenceSeverity, peakSnapshot, peakTime: peakSnapshot?.timeLabel || '—', peaks,
+    hostOverview: hostOverview(analysis, overviewStart, overviewEnd),
     jobsWindow, jobsIncident, jobsFocus,
     landscapeJobsWindow, landscapeJobsIncident, landscapeJobsFocus,
-    errorsIncident: incidentTimes.size ? errorSummary(processes, incidentTimes) : [],
-    errorsWindow: windowTimes.size ? errorSummary(processes, windowTimes) : [],
-    landscapeErrorsIncident: incidentTimes.size ? errorSummary(allProcesses, incidentTimes) : [],
-    landscapeErrorsWindow: windowTimes.size ? errorSummary(allProcesses, windowTimes) : [],
-    completeness: completeness(snapshots), focusTime, analytics, landscapeAnalytics,
+    errorsIncident: activeIncidentTimes.size ? errorSummary(evidenceProcesses, activeIncidentTimes) : [],
+    errorsWindow: evidenceTimes.size ? errorSummary(evidenceProcesses, evidenceTimes) : [],
+    landscapeErrorsIncident: activeIncidentTimes.size ? errorSummary(allEvidenceProcesses, activeIncidentTimes) : [],
+    landscapeErrorsWindow: evidenceTimes.size ? errorSummary(allEvidenceProcesses, evidenceTimes) : [],
+    completeness: completeness(evidenceSnapshots), focusTime, analytics, landscapeAnalytics,
   }
 }
