@@ -5,6 +5,7 @@ import { buildLogAnalysis, parseLogText } from './logAnalysis2026.js'
 import { buildLogView } from './logView2026.js'
 import RcaDataTable from './components/RcaDataTable.jsx'
 import LogLandscapeCompare from './components/LogLandscapeCompare.jsx'
+import IncidentLifecycleInsights from './components/IncidentLifecycleInsights.jsx'
 import { downloadCsv, downloadWorkspacePdf } from './rcaExport.js'
 import './RcaWorkspace2026.css'
 import './RcaWorkspaceV13.css'
@@ -288,7 +289,7 @@ export default function ToolLogAnalysis2026() {
     Number(reportTopJob.dStateIncrease || 0) > 0 ? `D-state +${f(reportTopJob.dStateIncrease)}` : '',
     ...(reportTopJob.newErrors || []).slice(0, 2),
   ].filter(Boolean).join(' · ') || 'No strong workload-side delta' : 'No qualifying workload'
-  const recoveryText = view?.analytics?.windows?.after?.count ? `${view.analytics.windows.after.count} post-incident samples` : incident.isAggregate ? 'All-evidence mode' : 'No post-incident data'
+  const recoveryText = incident.isAggregate ? 'All-evidence mode' : view?.analytics?.recovery?.detail || (view?.analytics?.windows?.after?.count ? `${view.analytics.windows.after.count} post-incident samples` : 'No post-incident data')
 
   return <section className="rca26Shell"><div className="rca26Inner" ref={reportRef} data-report-kind="log">
     <header className="rca26Head"><div><h1>LOG Analysis</h1><p>Host resources and SAP workload analysis.</p></div><div className="rca26TopActions"><button className="rca26Btn" disabled={!jobViewRows.length} onClick={() => downloadCsv(`log-landscape-${view?.analysisWindow.start || 'start'}-${view?.analysisWindow.end || 'end'}.csv`, jobColumns, jobViewRows)}>Export CSV</button><button className="rca26Btn" onClick={() => downloadWorkspacePdf(reportRef.current, { filename: `sap-rca-log-${view?.host || 'host'}-${view?.analysisWindow.start || 'start'}-${view?.analysisWindow.end || 'end'}.pdf`, title: 'SAP RCA Workspace · LOG Incident Report' })}>Export PDF</button><label className="rca26Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Parsing…' : 'Upload Logs'}</label></div></header>
@@ -309,11 +310,11 @@ export default function ToolLogAnalysis2026() {
       <Metric label="System Host" value={view?.host || '—'} meta={peak ? `${view?.role?.role || '—'} · ${view?.role?.impact || '—'} · SID ${peak.sid || '—'} · Instance ${peak.instance || '—'}` : status} />
       <Metric label="Incident Episodes" value={episodes.length} meta={`${episodeCounts.CRIT || 0} CRIT · ${episodeCounts.WARN || 0} WARN`} tone={(episodeCounts.CRIT || 0) > 0 ? 'critical' : (episodeCounts.WARN || 0) > 0 ? 'warn' : 'good'} />
       <Metric label="Selected Incident" value={incident.isAggregate ? 'ALL' : severity} meta={incident.count ? incident.isAggregate ? `${episodes.length} episodes · ${incident.count} flagged snapshots` : `${incident.start} – ${incident.end}` : 'No incident episode'} tone={severity === 'CRIT' ? 'critical' : severity === 'WARN' ? 'warn' : 'good'} />
-      <Metric label="Peak CPU" value={`${f(peaks.cpu?.value, 1)}%`} meta={`at ${peaks.cpu?.time || '—'}`} onClick={() => setPeakFocus(peaks.cpu?.time)} />
-      <Metric label="Peak RAM" value={`${f(peaks.ram?.value, 1)}%`} meta={`at ${peaks.ram?.time || '—'}`} tone={peaks.ram?.value >= 85 ? 'critical' : ''} onClick={() => setPeakFocus(peaks.ram?.time)} />
-      <Metric label="Peak Load" value={f(peaks.load?.value, 2)} meta={`per vCPU · ${peaks.load?.time || '—'}`} tone={peaks.load?.value >= 1.5 ? 'critical' : ''} onClick={() => setPeakFocus(peaks.load?.time)} />
-      <Metric label="Peak Swap In" value={f(peaks.swapIn?.value)} meta={`p/s at ${peaks.swapIn?.time || '—'}`} tone={peaks.swapIn?.value >= 1000 ? 'warn' : ''} onClick={() => setPeakFocus(peaks.swapIn?.time)} />
-      <Metric label="Peak WP Critical" value={f(peaks.wpCritical?.value)} meta={`at ${peaks.wpCritical?.time || '—'}`} tone={peaks.wpCritical?.value >= 3 ? 'critical' : peaks.wpCritical?.value >= 1 ? 'warn' : ''} onClick={() => setPeakFocus(peaks.wpCritical?.time)} />
+      <Metric label={incident.isAggregate ? 'Evidence Peak CPU' : 'Incident Peak CPU'} value={`${f(peaks.cpu?.value, 1)}%`} meta={`at ${peaks.cpu?.time || '—'}`} onClick={() => setPeakFocus(peaks.cpu?.time)} />
+      <Metric label={incident.isAggregate ? 'Evidence Peak RAM' : 'Incident Peak RAM'} value={`${f(peaks.ram?.value, 1)}%`} meta={`at ${peaks.ram?.time || '—'}`} tone={peaks.ram?.value >= 85 ? 'critical' : ''} onClick={() => setPeakFocus(peaks.ram?.time)} />
+      <Metric label={incident.isAggregate ? 'Evidence Peak Load' : 'Incident Peak Load'} value={f(peaks.load?.value, 2)} meta={`per vCPU · ${peaks.load?.time || '—'}`} tone={peaks.load?.value >= 1.5 ? 'critical' : ''} onClick={() => setPeakFocus(peaks.load?.time)} />
+      <Metric label={incident.isAggregate ? 'Evidence Peak Swap In' : 'Incident Peak Swap In'} value={f(peaks.swapIn?.value)} meta={`p/s at ${peaks.swapIn?.time || '—'}`} tone={peaks.swapIn?.value >= 1000 ? 'warn' : ''} onClick={() => setPeakFocus(peaks.swapIn?.time)} />
+      <Metric label={incident.isAggregate ? 'Evidence Peak WP Critical' : 'Incident Peak WP Critical'} value={f(peaks.wpCritical?.value)} meta={`at ${peaks.wpCritical?.time || '—'}`} tone={peaks.wpCritical?.value >= 3 ? 'critical' : peaks.wpCritical?.value >= 1 ? 'warn' : ''} onClick={() => setPeakFocus(peaks.wpCritical?.time)} />
     </section>
 
     <div className="rca26Grid logMain">
@@ -322,6 +323,7 @@ export default function ToolLogAnalysis2026() {
     </div>
 
     <IncidentAnalyticsPanel analytics={view?.analytics} workloadAnalytics={view?.landscapeAnalytics} hostLabel={view?.host || ''} />
+    <IncidentLifecycleInsights analytics={view?.analytics} workloadAnalytics={view?.landscapeAnalytics} hostLabel={view?.host || ''} />
 
     <div className="rca26Grid two rca26Deferred"><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Application Server Overview</h2></div></div><RcaDataTable rows={view?.hostOverview || []} columns={hostColumns} compact search={false} pageSize={20} defaultSort={{ key: 'role', dir: 'asc' }} rowKey={(row) => row.host} onRowClick={(row) => { setHost(row.host); setRangeStart(''); setRangeEnd(''); setFocusTime(''); setIncidentFocus('latest'); clearSelection(); setTimelineMode('host') }} selectedKey={view?.host || ''} /></section><section className="rca26Panel"><div className="rca26PanelHead"><div><h2>{incident.isAggregate ? 'Evidence Resource Snapshots' : 'Selected Incident Snapshots'}</h2></div></div><RcaDataTable rows={snapshots} columns={snapshotColumns} compact search={false} pageSize={100} defaultSort={{ key: 'timeLabel', dir: 'asc' }} rowKey={(row) => `${row.host}-${row.snapshot}`} onRowClick={(row) => { setFocusTime(row.timeLabel); clearSelection() }} selectedKey={focusTime ? `${view?.host}-${snapshots.find((row) => row.timeLabel === focusTime)?.snapshot}` : ''} /></section></div>
 
@@ -337,6 +339,7 @@ export default function ToolLogAnalysis2026() {
       <div className="rca26IncidentReportHead"><div><h1>LOG Incident Report</h1><p>Host and workload evidence for the selected incident scope.</p></div><strong>{incident.isAggregate ? `${episodes.length} incident episodes` : incident.count ? `${incident.start}–${incident.end}` : 'No incident detected'}</strong></div>
       <div className="rca26IncidentReportGrid"><div className="reportMetric"><span>Host</span><b>{view?.host || '—'}</b></div><div className="reportMetric crit"><span>Incident</span><b>{incident.isAggregate ? 'ALL' : severity}</b></div><div className="reportMetric"><span>Peak CPU</span><b>{metricText(peaks.cpu?.value, 1, '%')}</b></div><div className="reportMetric"><span>Peak RAM</span><b>{metricText(peaks.ram?.value, 1, '%')}</b></div><div className="reportMetric"><span>Peak Load</span><b>{metricText(peaks.load?.value, 2)}</b></div><div className="reportMetric"><span>Peak Swap In</span><b>{metricText(peaks.swapIn?.value, 0, ' p/s')}</b></div><div className="reportMetric"><span>Peak WP Critical</span><b>{metricText(peaks.wpCritical?.value, 0)}</b></div><div className="reportMetric"><span>Affected Servers</span><b>{reportHosts.length}</b></div></div>
       <IncidentAnalyticsPanel analytics={view?.analytics} workloadAnalytics={view?.landscapeAnalytics} hostLabel={view?.host || ''} />
+      <IncidentLifecycleInsights analytics={view?.analytics} workloadAnalytics={view?.landscapeAnalytics} hostLabel={view?.host || ''} />
       <section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Affected Application Servers</h2><p>Hosts that reached CRIT in the selected incident scope; impact distinguishes landscape and host scope.</p></div></div><RcaDataTable rows={reportHosts} columns={hostColumns} compact search={false} pageSize={10} defaultSort={{ key: 'role', dir: 'asc' }} rowKey={(row) => row.host} emptyText="No affected application server." /></section>
       <section className="rca26Panel"><div className="rca26PanelHead"><div><h2>Incident Workloads</h2><p>Top evidence-ranked workloads with D-state increase or new incident errors.</p></div></div><RcaDataTable rows={reportJobs} columns={reportJobColumns} compact search={false} pageSize={12} defaultSort={{ key: 'anomalyScore', dir: 'desc' }} rowKey={(row) => row.key} emptyText="No incident workload met the report threshold." /></section>
       {reportTopJob ? <section className="rca26Panel rca26ReportTopWorkload"><div className="rca26PanelHead"><div><h2>Top Workload Detail · {reportTopJob.name}</h2><p>{reportTopJob.host} · PID {reportTopJob.topPid || '—'} · WP {reportTopJob.topWp || '—'} · Evidence {metricText(reportTopJob.anomalyScore, 1, '/100')}</p></div></div><WorkloadResourceCharts rows={reportTopHistory} mode="aggregate" coverage={reportTopCoverage} /></section> : null}
