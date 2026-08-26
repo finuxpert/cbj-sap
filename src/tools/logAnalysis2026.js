@@ -44,8 +44,15 @@ export function hhmm(value = '') {
   return match ? match[1].padStart(5, '0') : ''
 }
 
-function snapshotSortKey(value = '') {
+function timelineLabel(value = '') {
   const input = String(value || '')
+  const match = input.match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{1,2}):(\d{2})(?::(\d{2}))?/)
+  if (!match) return hhmm(input)
+  return `${match[1]}-${match[2]}-${match[3]} ${String(match[4]).padStart(2, '0')}:${match[5]}`
+}
+
+function snapshotSortKey(value = '', fallback = '') {
+  const input = String(value || fallback || '')
   const match = input.match(/(\d{4})-(\d{2})-(\d{2}).*?(\d{1,2}):(\d{2})(?::(\d{2}))?/)
   if (!match) {
     const time = hhmm(input)
@@ -95,7 +102,7 @@ function parseProcessRow(line, context = {}, section = '') {
   if (!match) return null
   const trailing = parseTrailingFields(match[17])
   return {
-    fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot), timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
+    fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot, context.fileName), timeLabel: timelineLabel(context.snapshot) || timelineLabel(context.fileName),
     host: context.host || 'UNKNOWN', sid: match[15] || context.sid || '', instance: match[2] || context.instance || '', pid: match[1], wp: match[3], type: cleanSapField(match[4]),
     cpu: num(match[5]), memRaw: match[6], rssGb: num(match[7]), state: cleanSapField(match[8]), age: cleanSapField(match[9]), rabax: num(match[10]), sxpg: num(match[11]), jobCounter: num(match[12]), rxmsg: num(match[13]),
     className: match[14], ...trailing, section, source: 'WP-SCOUT', resourceSample: true,
@@ -109,7 +116,7 @@ function parseRabaxRow(line, context = {}, section = '') {
   if (!match) return null
   const trailing = parseTrailingFields(match[10])
   return {
-    fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot), timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
+    fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot, context.fileName), timeLabel: timelineLabel(context.snapshot) || timelineLabel(context.fileName),
     host: context.host || 'UNKNOWN', sid: context.sid || '', instance: match[2] || context.instance || '', pid: match[1], wp: match[3], type: cleanSapField(match[4]),
     cpu: null, memRaw: '', rssGb: null, state: UNKNOWN, age: UNKNOWN, rabax: num(match[5]), sxpg: num(match[6]), rxmsg: num(match[7]), jobCounter: num(match[8]),
     className: match[9], ...trailing, section, source: 'WP-SCOUT', resourceSample: false,
@@ -143,7 +150,7 @@ function mergeProcessRows(rows = []) {
 
 function newTelemetry(context = {}) {
   return {
-    fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot), timeLabel: hhmm(context.snapshot) || hhmm(context.fileName),
+    fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot, context.fileName), timeLabel: timelineLabel(context.snapshot) || timelineLabel(context.fileName),
     host: context.host || 'UNKNOWN', sid: context.sid || '', instance: context.instance || '', os: '', uptime: '', ip: '', vcpu: 0, cpuPct: 0,
     load1: 0, load5: 0, load15: 0, loadRatio: 0, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, memoryPct: 0, swapIn: 0, swapOut: 0,
     wpRunning: 0, wpStandby: 0, wpCritical: 0, wpOk: 0, wpDialog: 0, wpBtc: 0, wpUpd: 0,
@@ -195,7 +202,7 @@ export function parseLogText(rawText = '', fileName = '') {
     if (match) {
       context.host = match[1].trim(); context.sid = match[2].trim(); context.instance = match[3].trim(); if (!context.snapshot) context.snapshot = match[4].trim()
       if (!currentTelemetry) currentTelemetry = newTelemetry(context)
-      Object.assign(currentTelemetry, { host: context.host, sid: context.sid, instance: context.instance, snapshot: context.snapshot, timeLabel: hhmm(context.snapshot), sortKey: snapshotSortKey(context.snapshot) }); return
+      Object.assign(currentTelemetry, { host: context.host, sid: context.sid, instance: context.instance, snapshot: context.snapshot, timeLabel: timelineLabel(context.snapshot) || timelineLabel(context.fileName), sortKey: snapshotSortKey(context.snapshot, context.fileName) }); return
     }
     if (/^CPU\s+Tertinggi/i.test(line)) { section = 'CPU'; return }
     if (/^Memory\s+Tertinggi/i.test(line)) { section = 'MEMORY'; return }
@@ -216,7 +223,7 @@ function mergeTelemetry(rows = []) {
     if (!current) { map.set(key, { ...row }); return }
     Object.keys(row).forEach((field) => { const value = row[field]; if (typeof value === 'number') current[field] = Math.max(num(current[field]), value); else if ((!current[field] || current[field] === 'UNKNOWN') && value) current[field] = value })
   })
-  return Array.from(map.values()).sort((a, b) => a.sortKey - b.sortKey || a.host.localeCompare(b.host))
+  return Array.from(map.values()).sort((a, b) => a.sortKey - b.sortKey || a.timeLabel.localeCompare(b.timeLabel) || a.host.localeCompare(b.host))
 }
 
 export function snapshotSeverity(snapshot = {}) {
@@ -264,7 +271,7 @@ export function buildJobGroups(processes = [], incidentTimes = new Set(), totalI
     map.set(key, current)
   })
   return Array.from(map.values()).map((item) => {
-    const records = item.records.sort((a, b) => a.sortKey - b.sortKey)
+    const records = item.records.sort((a, b) => a.sortKey - b.sortKey || a.timeLabel.localeCompare(b.timeLabel))
     const cpuRecords = records.filter((row) => metric(row.cpu) !== null)
     const rssRecords = records.filter((row) => metric(row.rssGb) !== null)
     const peakCpuRecord = cpuRecords.reduce((best, row) => metric(row.cpu) > metric(best?.cpu) ? row : best, null)
@@ -282,7 +289,7 @@ function buildErrorSummary(processes = [], incidentTimes = new Set(), includeAll
     const current = map.get(row.errorCode) || { errorCode: row.errorCode, snapshots: new Set(), processes: new Set(), jobs: new Set(), records: [] }
     current.snapshots.add(`${row.host}|${row.timeLabel}`); current.processes.add(`${row.host}|${row.instance}|${row.pid}|${row.wp}`); current.jobs.add(workloadName(row)); current.records.push(row); map.set(row.errorCode, current)
   })
-  return Array.from(map.values()).map((item) => { const records = item.records.sort((a, b) => a.sortKey - b.sortKey); return { errorCode: item.errorCode, snapshotRecords: item.snapshots.size, uniqueProcesses: item.processes.size, affectedJobs: item.jobs.size, firstSeen: records[0]?.timeLabel || '—', lastSeen: records[records.length - 1]?.timeLabel || '—' } }).sort((a, b) => b.uniqueProcesses - a.uniqueProcesses || b.snapshotRecords - a.snapshotRecords)
+  return Array.from(map.values()).map((item) => { const records = item.records.sort((a, b) => a.sortKey - b.sortKey || a.timeLabel.localeCompare(b.timeLabel)); return { errorCode: item.errorCode, snapshotRecords: item.snapshots.size, uniqueProcesses: item.processes.size, affectedJobs: item.jobs.size, firstSeen: records[0]?.timeLabel || '—', lastSeen: records[records.length - 1]?.timeLabel || '—' } }).sort((a, b) => b.uniqueProcesses - a.uniqueProcesses || b.snapshotRecords - a.snapshotRecords)
 }
 
 export function buildLogAnalysis(parsedFiles = []) {
