@@ -1,0 +1,72 @@
+/* v1.5.6 — incident episode UX and multi-day timeline density */
+
+.rca26MetricStrip{
+  grid-template-columns:1.2fr 1.25fr .72fr 1.15fr repeat(5,minmax(105px,1fr));
+}
+
+.rca26IncidentControl select{
+  min-width:220px;
+}
+
+.rca26StatusLine button{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:6px;
+  min-width:0;
+  padding:6px 8px;
+  border:1px solid var(--line2);
+  border-radius:5px;
+  background:transparent;
+  color:#a9bac2;
+  font:inherit;
+  font-size:9px;
+  cursor:pointer;
+}
+
+.rca26StatusLine button b{
+  overflow:hidden;
+  color:#e5eef1;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.rca26StatusLine button.crit{
+  border-color:rgba(255,89,100,.35);
+  background:rgba(255,89,100,.06);
+  color:#ff8d95;
+}
+
+.rca26StatusLine button.warn{
+  border-color:rgba(245,166,35,.3);
+  color:#ffc665;
+}
+
+.rca26StatusLine button.normal,
+.rca26StatusLine button.ok{
+  color:#67df9a;
+}
+
+.rca26StatusLine button[data-active='true']{
+  outline:1px solid rgba(49,208,200,.72);
+  outline-offset:1px;
+}
+
+@media(max-width:1400px){
+  .rca26MetricStrip{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+
+@media(max-width:1260px){
+  .rca26MetricStrip{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .rca26Metric:nth-child(4n){border-right:1px solid var(--line2)}
+  .rca26Metric:nth-child(3n){border-right:0}
+}
+
+@media(max-width:980px){
+  .rca26MetricStrip{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rca26IncidentControl select{min-width:0}
+}
+
+@media(max-width:520px){
+  .rca26MetricStrip{grid-template-columns:minmax(0,1fr)}
+}
