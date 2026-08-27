@@ -73,7 +73,7 @@ export default function LogLandscapeCompare({ view, metric = 'memoryPct', onMetr
     </div>
     <div className="rca26LandscapeScopeBar">
       <div><span>Selected Host</span><b>{view?.host || '—'}</b><em className={String(impact.selectedHostSeverity).toLowerCase()}>{impact.selectedHostSeverity}</em></div>
-      <div><span>Landscape Impact</span><b>{impact.severity}</b><small>{impact.critHosts.length} CRIT · {impact.warnHosts.length} WARN · {impact.sampledHosts} sampled</small></div>
+      <div><span>Landscape Impact</span><b>{impact.severity}</b><small>Worst status in host incident window · {impact.critHosts.length} CRIT · {impact.warnHosts.length} WARN · {impact.sampledHosts} sampled</small></div>
       <div><span>CRIT Hosts</span><b>{impact.critHosts.length ? impact.critHosts.join(', ') : 'None'}</b></div>
     </div>
     <div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} onClick={(state) => state?.activeLabel && !String(state.activeLabel).startsWith('__gap-') && onFocusTime?.(state.activeLabel)} margin={{ top: 10, right: 24, left: 0, bottom: rows.length > 12 ? 28 : 8 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="chartKey" tickFormatter={(value) => String(value).startsWith('__gap-') ? '' : compactLabel(value)} /><YAxis domain={config.domain} tickFormatter={config.unit === '%' ? (value) => `${value}%` : undefined} /><Tooltip content={<LandscapeTip metric={metric} />} /><Legend />{hosts.map((host, index) => <Line key={host} type="linear" dataKey={host} name={host} stroke={SERIES_COLORS[index % SERIES_COLORS.length]} strokeWidth={host === view?.host ? 2.8 : 1.8} dot={false} connectNulls={false} />)}</LineChart></ResponsiveContainer></div>
