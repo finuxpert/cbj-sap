@@ -75,7 +75,7 @@ export default function IncidentLifecycleInsights({ analytics, workloadAnalytics
 
     <div className="rca26LifecycleWindows">
       <div className={analytics.windows.before.count ? '' : 'missing'}><span>Before</span><b>{windowText(analytics.windows.before)}</b><small>{analytics.baselineNote || 'Contiguous pre-incident baseline.'}</small></div>
-      <div className="incident"><span>Incident</span><b>{windowText(analytics.windows.incident)}</b><small>Selected host incident episode.</small></div>
+      <div className="incident"><span>Incident</span><b>{windowText(analytics.windows.incident)}</b><small>Selected incident window.</small></div>
       <div className={analytics.windows.after.count ? 'after' : 'missing'}><span>After</span><b>{windowText(analytics.windows.after)}</b><small>{recovery.detail}</small></div>
       <div className={`recovery ${recoveryClass(recovery.tone)}`}><span>Selected host recovery</span><b>{recovery.label}</b><small>{recovery.normalizedMetrics || 0}/{recovery.totalMetrics || metrics.length} resource metrics below warning median{recovery.time ? ` · from ${recovery.time}` : ''}. Landscape recovery is not evaluated here.</small></div>
     </div>

@@ -100,6 +100,54 @@ function completeness(rows = []) {
   return { received: stamps.length, intervalMinutes: isRegular ? observedIntervals[0] : 0, isRegular, observedIntervals }
 }
 
+
+function evidenceGapSummary(rows = [], allTelemetry = [], host = '', gapThresholdMinutes = 30) {
+  const ordered = [...rows].sort((a, b) => a.sortKey - b.sortKey)
+  const foreign = (allTelemetry || []).filter((row) => row.host !== host).map((row) => ({ row, ms: rowTimestampMs(row) })).filter((item) => Number.isFinite(item.ms))
+  const gaps = []
+  ordered.slice(1).forEach((row, index) => {
+    const previous = ordered[index]
+    const minutes = minutesBetween(previous, row)
+    if (!Number.isFinite(minutes) || minutes <= gapThresholdMinutes) return
+    const startMs = rowTimestampMs(previous)
+    const endMs = rowTimestampMs(row)
+    const otherSamples = foreign.filter((item) => item.ms > startMs && item.ms < endMs)
+    const otherHosts = Array.from(new Set(otherSamples.map((item) => item.row.host)))
+    const type = otherSamples.length ? 'HOST_SPECIFIC' : 'COLLECTION'
+    gaps.push({
+      type,
+      start: previous.timeLabel,
+      end: row.timeLabel,
+      minutes,
+      otherHostSamples: otherSamples.length,
+      otherHosts,
+    })
+  })
+  return {
+    count: gaps.length,
+    collectionCount: gaps.filter((gap) => gap.type === 'COLLECTION').length,
+    hostSpecificCount: gaps.filter((gap) => gap.type === 'HOST_SPECIFIC').length,
+    longestMinutes: gaps.reduce((max, gap) => Math.max(max, gap.minutes), 0),
+    gaps,
+  }
+}
+
+function maxConcurrentImpact(rows = []) {
+  const grouped = new Map()
+  ;(rows || []).forEach((row) => {
+    if (!grouped.has(row.timeLabel)) grouped.set(row.timeLabel, new Map())
+    grouped.get(row.timeLabel).set(row.host, row)
+  })
+  const samples = Array.from(grouped.entries()).map(([timeLabel, byHost]) => {
+    const values = Array.from(byHost.values())
+    const crit = values.filter((row) => row.severity === 'CRIT').length
+    const warn = values.filter((row) => row.severity === 'WARN').length
+    const normal = values.filter((row) => row.severity === 'NORMAL').length
+    return { timeLabel, crit, warn, normal, sampled: values.length, severity: crit ? 'CRIT' : warn ? 'WARN' : 'NORMAL' }
+  }).sort((a, b) => b.crit - a.crit || b.warn - a.warn || b.sampled - a.sampled || String(a.timeLabel).localeCompare(String(b.timeLabel)))
+  return samples[0] || { timeLabel: '—', crit: 0, warn: 0, normal: 0, sampled: 0, severity: 'NORMAL' }
+}
+
 export function hostRole(host = '') {
   const normalized = String(host || '').toUpperCase()
   const primary = /H1PAPP|APP0?1\b/.test(normalized)
@@ -126,7 +174,7 @@ function episodeSummary(rows = [], index = 0) {
   return {
     key: `episode-${ordered[0]?.sortKey || index}-${ordered.at(-1)?.sortKey || index}`,
     index,
-    label: `Episode ${index + 1}`,
+    label: `Window ${index + 1}`,
     severity,
     start,
     end,
@@ -265,6 +313,7 @@ export function buildLogView(analysis, options = {}) {
   const allEvidenceProcesses = (analysis.processes || []).filter((row) => evidenceTimes.has(row.timeLabel))
 
   const { episodes: incidentEpisodes, cadence } = buildIncidentEpisodes(evidenceSnapshots)
+  const evidenceGaps = evidenceGapSummary(evidenceSnapshots, analysis.telemetry || [], host, cadence.gapThresholdMinutes)
   const incidentFocus = options.incidentFocus || 'latest'
   const selectedIncident = selectIncident(incidentEpisodes, incidentFocus)
   const activeIncidentTimes = new Set(selectedIncident?.times || [])
@@ -273,6 +322,7 @@ export function buildLogView(analysis, options = {}) {
   const displayProcesses = (analysis.processes || []).filter((row) => row.host === host && displayTimes.has(row.timeLabel))
   const allDisplayProcesses = (analysis.processes || []).filter((row) => displayTimes.has(row.timeLabel))
   const landscape = landscapeTelemetry(analysis, displayTimes)
+  const landscapeConcurrent = maxConcurrentImpact(landscape)
 
   const evidenceSeverity = maxSeverity(evidenceSnapshots)
   const severity = selectedIncident?.severity || 'NORMAL'
@@ -304,8 +354,8 @@ export function buildLogView(analysis, options = {}) {
     processes: displayProcesses, allProcesses: allDisplayProcesses, landscapeTelemetry: landscape, labels: displaySnapshots.map((row) => row.timeLabel),
     analysisWindow: { start: evidenceSnapshots[0]?.timeLabel || '—', end: evidenceSnapshots.at(-1)?.timeLabel || '—', count: evidenceSnapshots.length },
     evidenceWindow: { start: evidenceSnapshots[0]?.timeLabel || '—', end: evidenceSnapshots.at(-1)?.timeLabel || '—', count: evidenceSnapshots.length, severity: evidenceSeverity },
-    incidentWindow: selectedIncident ? { ...selectedIncident } : { key: '', label: 'No Incident', start: '—', end: '—', count: 0, severity: 'NORMAL', times: [], episodeCount: incidentEpisodes.length },
-    incidentEpisodes, incidentFocus, incidentCadence: cadence, incidentEpisodeCounts: episodeCounts,
+    incidentWindow: selectedIncident ? { ...selectedIncident } : { key: '', label: 'No Incident Window', start: '—', end: '—', count: 0, severity: 'NORMAL', times: [], episodeCount: incidentEpisodes.length },
+    incidentEpisodes, incidentFocus, incidentCadence: cadence, incidentEpisodeCounts: episodeCounts, evidenceGaps, landscapeConcurrent,
     severity, evidenceSeverity, peakSnapshot, peakTime: peakSnapshot?.timeLabel || '—', peaks,
     hostOverview: hostOverview(analysis, overviewStart, overviewEnd),
     jobsWindow, jobsIncident, jobsFocus,

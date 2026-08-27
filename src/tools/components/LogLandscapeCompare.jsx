@@ -51,29 +51,30 @@ export default function LogLandscapeCompare({ view, metric = 'memoryPct', onMetr
   }, [view?.landscapeTelemetry])
 
   const impact = React.useMemo(() => {
-    const byHost = new Map()
-    ;(view?.landscapeTelemetry || []).forEach((row) => {
-      const current = byHost.get(row.host)
-      if (!current || severityRank(row.severity) > severityRank(current.severity)) byHost.set(row.host, row)
-    })
-    const values = Array.from(byHost.values())
-    const critHosts = values.filter((row) => row.severity === 'CRIT').map((row) => row.host)
-    const warnHosts = values.filter((row) => row.severity === 'WARN').map((row) => row.host)
-    const severity = critHosts.length ? 'CRIT' : warnHosts.length ? 'WARN' : 'NORMAL'
-    const selectedHostSeverity = values.find((row) => row.host === view?.host)?.severity || view?.severity || 'NORMAL'
-    return { severity, selectedHostSeverity, critHosts, warnHosts, sampledHosts: values.length }
-  }, [view?.landscapeTelemetry, view?.host, view?.severity])
+    const concurrent = view?.landscapeConcurrent || { timeLabel: '—', crit: 0, warn: 0, normal: 0, sampled: 0, severity: 'NORMAL' }
+    const atPeak = (view?.landscapeTelemetry || []).filter((row) => row.timeLabel === concurrent.timeLabel)
+    const critHosts = atPeak.filter((row) => row.severity === 'CRIT').map((row) => row.host)
+    const warnHosts = atPeak.filter((row) => row.severity === 'WARN').map((row) => row.host)
+    return {
+      severity: concurrent.severity || 'NORMAL',
+      selectedHostSeverity: view?.severity || 'NORMAL',
+      critHosts,
+      warnHosts,
+      sampledHosts: concurrent.sampled || atPeak.length,
+      timeLabel: concurrent.timeLabel || '—',
+    }
+  }, [view?.landscapeConcurrent, view?.landscapeTelemetry, view?.severity])
 
   return <section className="rca26Panel rca26LandscapePanel">
     <div className="rca26PanelHead">
-      <div><h2>Landscape Compare</h2><p data-pdf-ignore="true">Selected-host incident timing overlaid across application servers. Large evidence gaps are not connected.</p></div>
+      <div><h2>Landscape Compare</h2><p data-pdf-ignore="true">Selected incident-window timing across application servers. Line breaks are evidence gaps, not downtime proof.</p></div>
       <div className="rca26MetricSwitch" role="group" aria-label="Landscape metric">
         {Object.entries(METRICS).map(([key, item]) => <button type="button" key={key} data-active={metric === key} onClick={() => onMetricChange?.(key)}>{item.label}</button>)}
       </div>
     </div>
     <div className="rca26LandscapeScopeBar">
       <div><span>Selected Host</span><b>{view?.host || '—'}</b><em className={String(impact.selectedHostSeverity).toLowerCase()}>{impact.selectedHostSeverity}</em></div>
-      <div><span>Landscape Impact</span><b>{impact.severity}</b><small>Worst status in host incident window · {impact.critHosts.length} CRIT · {impact.warnHosts.length} WARN · {impact.sampledHosts} sampled</small></div>
+      <div><span>Landscape Concurrency</span><b>{impact.severity}</b><small>Maximum simultaneous status at {compactLabel(impact.timeLabel)} · {impact.critHosts.length} CRIT · {impact.warnHosts.length} WARN · {impact.sampledHosts} sampled</small></div>
       <div><span>CRIT Hosts</span><b>{impact.critHosts.length ? impact.critHosts.join(', ') : 'None'}</b></div>
     </div>
     <div className="rca26Chart tall wideChart"><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} onClick={(state) => state?.activeLabel && !String(state.activeLabel).startsWith('__gap-') && onFocusTime?.(state.activeLabel)} margin={{ top: 10, right: 24, left: 0, bottom: rows.length > 12 ? 28 : 8 }}><CartesianGrid strokeDasharray="3 6" vertical={false} /><XAxis dataKey="chartKey" tickFormatter={(value) => String(value).startsWith('__gap-') ? '' : compactLabel(value)} /><YAxis domain={config.domain} tickFormatter={config.unit === '%' ? (value) => `${value}%` : undefined} /><Tooltip content={<LandscapeTip metric={metric} />} /><Legend />{hosts.map((host, index) => <Line key={host} type="linear" dataKey={host} name={host} stroke={SERIES_COLORS[index % SERIES_COLORS.length]} strokeWidth={host === view?.host ? 2.8 : 1.8} dot={false} connectNulls={false} />)}</LineChart></ResponsiveContainer></div>
