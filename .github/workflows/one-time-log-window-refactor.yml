@@ -5,18 +5,14 @@ on:
     branches:
       - dev
 
-permissions:
-  contents: write
-
 jobs:
   patch-log-window:
-    if: ${{ github.event.head_commit.message == 'ops: run LOG incident-window refactor' }}
     runs-on:
       - self-hosted
       - sapdev
     timeout-minutes: 20
     steps:
-      - name: Clone DEV in isolated workspace
+      - name: Patch DEV in isolated workspace
         shell: bash
         run: |
           set -euo pipefail
@@ -27,29 +23,17 @@ jobs:
           cd "$WORK"
           git checkout dev
           git reset --hard origin/dev
-          echo "WORK=$WORK" >> "$GITHUB_ENV"
 
-      - name: Apply refactor
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$WORK"
+          if grep -q "APP_VERSION = '1.6.0'" src/app/version.js; then
+            echo "Refactor already applied."
+            exit 0
+          fi
+
           python3 scripts/log-window-refactor.py
-
-      - name: Validate build
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$WORK"
           npm ci
           npm run build
           test -f dist/index.html
 
-      - name: Commit refactor to DEV
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd "$WORK"
           git config user.name "Zactos-lab"
           git config user.email "fikrirtc12@gmail.com"
           git add src/tools/logView2026.js src/tools/ToolLogAnalysis2026.jsx src/tools/components/LogLandscapeCompare.jsx src/tools/components/IncidentLifecycleInsights.jsx src/app/version.js
