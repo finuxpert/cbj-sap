@@ -72,8 +72,46 @@
 .rcaPdfExportMode .rca26IncidentReportOnly .rca26IncidentMeta b{color:#17212a}
 .rcaPdfExportMode .rca26Deviation.strong{color:#ad2532!important;border-color:#d56b74!important;background:#fdebed!important}.rcaPdfExportMode .rca26Deviation.moderate{color:#8d5b00!important;border-color:#d1a14a!important;background:#fff3dc!important}.rcaPdfExportMode .rca26Deviation.stable{color:#13713e!important;border-color:#8ac5a3!important;background:#e8f7ee!important}
 
+/* v1.5.8 scope semantics and visual balance. */
+.rca26IncidentControl>span{font-size:0}
+.rca26IncidentControl>span::after{content:'Host Incident';font-size:8px}
+.rca26MetricStrip{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.rca26Metric{min-width:0!important}
+.rca26Metric strong{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;line-height:1.05}
+.rca26Metric:nth-child(3)>span{font-size:0}
+.rca26Metric:nth-child(3)>span::after{content:'Host Incident Episodes';font-size:8px}
+.rca26Metric:nth-child(4)>span{font-size:0}
+.rca26Metric:nth-child(4)>span::after{content:'Selected Host Incident';font-size:8px}
+.rca26LandscapeScopeBar{display:grid;grid-template-columns:minmax(180px,.8fr) minmax(220px,1fr) minmax(260px,1.4fr);gap:6px;margin:0 0 8px}
+.rca26LandscapeScopeBar>div{min-width:0;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:6px;padding:6px 8px;border:1px solid rgba(115,145,160,.17);border-radius:6px;background:rgba(7,17,21,.45)}
+.rca26LandscapeScopeBar span{color:#718790;font-size:8px;text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+.rca26LandscapeScopeBar b{min-width:0;color:#e7f0f3;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rca26LandscapeScopeBar small{color:#8fa3ab;font-size:9px;white-space:nowrap}
+.rca26LandscapeScopeBar em{font-style:normal;font-size:9px;font-weight:850;padding:2px 5px;border-radius:4px;border:1px solid rgba(115,145,160,.2)}
+.rca26LandscapeScopeBar em.normal{color:#46d69a;border-color:rgba(70,214,154,.28)}
+.rca26LandscapeScopeBar em.warn{color:#f4bc48;border-color:rgba(244,188,72,.30)}
+.rca26LandscapeScopeBar em.crit{color:#ff7180;border-color:rgba(255,113,128,.34)}
+.rca26PressureLegend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 5px 112px;color:#81959e;font-size:8px}
+.rca26PressureLegend span{display:inline-flex;gap:4px;align-items:center}
+.rca26PressureLegend i{display:inline-grid;place-items:center;width:17px;height:15px;border-radius:4px;font-style:normal;font-weight:900;border:1px solid rgba(115,145,160,.20);background:#09161b}
+.rca26PressureLegend i.normal{color:#42d392;border-color:rgba(66,211,146,.25)}
+.rca26PressureLegend i.warn{color:#f5ba45;border-color:rgba(245,186,69,.28)}
+.rca26PressureLegend i.crit{color:#ff6b78;border-color:rgba(255,107,120,.30)}
+.rca26PressureLegend i.missing{color:#657982}
+.rca26Stack .compactPanel:first-child .rca26PanelHead h2{font-size:0}
+.rca26Stack .compactPanel:first-child .rca26PanelHead h2::after{content:'Incident Signal Peaks';font-size:14px}
+.rca26Stack .compactPanel:first-child .rca26PanelHead p{font-size:0}
+.rca26Stack .compactPanel:first-child .rca26PanelHead p::after{content:'Threshold signals inside the selected host incident scope.';font-size:9px}
+
+@media (max-width:1100px){
+  .rca26MetricStrip{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .rca26LandscapeScopeBar{grid-template-columns:1fr}
+  .rca26PressureLegend{margin-left:0}
+}
+
 @media (max-width:900px){
   .rcaNav .rcaNavInner{padding-inline:12px}.rcaNav .rcaToolTabs{margin-left:auto}
   .rca26ControlBar{align-items:stretch}.rca26Control{flex:1 1 120px}.rca26Control select{width:100%}.rca26Completeness{width:100%;margin-left:0}
   .rca26MetricSwitch{width:100%}.rca26ResourceHeadActions{width:100%;justify-content:flex-start}.rca26JobCharts{grid-template-columns:1fr}
+  .rca26MetricStrip{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
