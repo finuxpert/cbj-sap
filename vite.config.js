@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import logSemanticsV160 from './scripts/vite-log-v160-plugin.js'
 
 // https://vite.dev/config/
 export default defineConfig({
   base: '/sap/',
-  plugins: [react()],
+  plugins: [logSemanticsV160(), react()],
   build: {
     // keep the warning, but make it less noisy for dashboards with charts
     chunkSizeWarningLimit: 800,
