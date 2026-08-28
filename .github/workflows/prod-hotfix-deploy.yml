@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: sap-production-hotfix-deploy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy-production:
@@ -37,6 +37,7 @@ jobs:
           test -f /home/sadmin/sap/package.json
           test -f /home/sadmin/sap/sap-deploy.sh
           test -f /home/sadmin/sap/sap-backup.sh
+          test -f /home/sadmin/sap/backend/requirements.txt
           sudo -n true
 
       - name: Sync production hotfix branch
@@ -61,10 +62,21 @@ jobs:
           grep -q '/sap/assets/' dist/index.html
           grep -R -q 'AUTOMATIC PEAK CORRELATION' dist/assets
 
+      - name: Prepare backend QA environment
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          python3 -m venv .venv-github-actions
+          . .venv-github-actions/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install -r backend/requirements.txt
+          echo "/home/sadmin/sap/.venv-github-actions/bin" >> "$GITHUB_PATH"
+
       - name: Run non-mutating QA
         working-directory: /home/sadmin/sap
         run: |
           set -euo pipefail
+          . .venv-github-actions/bin/activate
           bash scripts/qa-backend-syntax.sh
           bash scripts/qa-case-flow-contracts.sh
 
