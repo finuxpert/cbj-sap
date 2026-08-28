@@ -5,6 +5,8 @@ import duckdbMvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.
 import duckdbEhWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'
 
 const UNKNOWN = '?'
+const DUCKDB_THRESHOLD = 8000
+const DUCKDB_TIMEOUT_MS = 3500
 
 const MANUAL_BUNDLES = {
   mvp: { mainModule: duckdbMvpWasm, mainWorker: duckdbMvpWorker },
@@ -21,6 +23,14 @@ const identity = (row = {}) => row.workloadName && row.workloadName !== UNKNOWN
       : row.pid ? `PID ${row.pid}` : 'Unknown workload'
 
 const clean = (value) => String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim()
+
+function withTimeout(promise, ms = DUCKDB_TIMEOUT_MS, label = 'DuckDB operation') {
+  let timer
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms} ms`)), ms)
+  })
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+}
 
 function minuteStamp(value = '') {
   const match = String(value || '').match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2})/)
@@ -134,15 +144,19 @@ function fallbackRows(processes = []) {
 
 export async function rankResourceConsumers(processes = [], hostPeaks = [], cadenceMinutes = 10, collectionCount = 1) {
   if (!processes.length) return { rows: [], engine: 'NO_PROCESS_DATA' }
+
+  const fallback = enrichRows(fallbackRows(processes), processes, hostPeaks, cadenceMinutes, collectionCount)
+  if (processes.length < DUCKDB_THRESHOLD) return { rows: fallback, engine: 'JS_FAST_PATH' }
+
   let worker
   let db
   let conn
   try {
-    const bundle = await duckdb.selectBundle(MANUAL_BUNDLES)
+    const bundle = await withTimeout(duckdb.selectBundle(MANUAL_BUNDLES), 1500, 'DuckDB bundle selection')
     worker = new Worker(bundle.mainWorker)
     db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), worker)
-    await db.instantiate(bundle.mainModule, bundle.pthreadWorker)
-    conn = await db.connect()
+    await withTimeout(db.instantiate(bundle.mainModule, bundle.pthreadWorker), DUCKDB_TIMEOUT_MS, 'DuckDB instantiate')
+    conn = await withTimeout(db.connect(), 1500, 'DuckDB connect')
     const header = ['host', 'workload', 'program', 'type', 'state', 'pid', 'time_label', 'cpu', 'rss']
     const lines = [header.join('\t')]
     processes.forEach((row) => lines.push([
@@ -150,8 +164,8 @@ export async function rankResourceConsumers(processes = [], hostPeaks = [], cade
       Number.isFinite(Number(row.cpu)) ? Number(row.cpu) : '', Number.isFinite(Number(row.rssGb)) ? Number(row.rssGb) : '',
     ].join('\t')))
     const fileName = `log-processes-${Date.now()}.tsv`
-    await db.registerFileText(fileName, lines.join('\n'))
-    const result = await conn.query(`
+    await withTimeout(db.registerFileText(fileName, lines.join('\n')), 1500, 'DuckDB file registration')
+    const result = await withTimeout(conn.query(`
       SELECT
         host,
         workload,
@@ -166,15 +180,14 @@ export async function rankResourceConsumers(processes = [], hostPeaks = [], cade
         count(*) AS record_count
       FROM read_csv('${fileName}', delim='\\t', header=true, all_varchar=true)
       GROUP BY host, workload
-    `)
+    `), DUCKDB_TIMEOUT_MS, 'DuckDB resource query')
     const rows = result.toArray().map((row) => row.toJSON ? row.toJSON() : { ...row })
     return { rows: enrichRows(rows, processes, hostPeaks, cadenceMinutes, collectionCount), engine: 'DUCKDB_WASM' }
   } catch (error) {
-    const rows = fallbackRows(processes)
-    return { rows: enrichRows(rows, processes, hostPeaks, cadenceMinutes, collectionCount), engine: `JS_FALLBACK: ${error?.message || 'DuckDB unavailable'}` }
+    return { rows: fallback, engine: `JS_FALLBACK: ${error?.message || 'DuckDB unavailable'}` }
   } finally {
-    try { await conn?.close() } catch {}
-    try { await db?.terminate() } catch {}
+    try { conn?.close?.().catch?.(() => {}) } catch {}
+    try { db?.terminate?.().catch?.(() => {}) } catch {}
     try { worker?.terminate() } catch {}
   }
 }
