@@ -1,0 +1,131 @@
+name: HOTFIX - SAP Production Deploy
+
+on:
+  push:
+    branches:
+      - prod-hotfix-auto-peak
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sap-production-hotfix-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    name: Build hotfix and deploy production /sap
+    runs-on:
+      - self-hosted
+      - sapdev
+    timeout-minutes: 25
+
+    steps:
+      - name: Show runner context
+        run: |
+          set -euo pipefail
+          echo "Runner: $(hostname)"
+          echo "User: $(whoami)"
+          echo "Workflow commit: ${GITHUB_SHA}"
+          echo "Source branch: prod-hotfix-auto-peak"
+          echo "Target: https://cbj-kontruksi.com/sap/"
+
+      - name: Validate production deploy prerequisites
+        run: |
+          set -euo pipefail
+          test -d /home/sadmin/sap
+          test -f /home/sadmin/sap/package.json
+          test -f /home/sadmin/sap/sap-deploy.sh
+          test -f /home/sadmin/sap/sap-backup.sh
+          sudo -n true
+
+      - name: Sync production hotfix branch
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          git fetch origin prod-hotfix-auto-peak
+          git checkout prod-hotfix-auto-peak
+          git reset --hard origin/prod-hotfix-auto-peak
+          echo "Local HEAD: $(git rev-parse --short HEAD)"
+          git log --oneline -7
+
+      - name: Validate production build
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          rm -rf dist 2>/dev/null || sudo rm -rf dist
+          npm ci
+          npm run build -- --base=/sap/
+          test -f dist/index.html
+          test -d dist/assets
+          grep -q '/sap/assets/' dist/index.html
+          grep -R -q 'AUTOMATIC PEAK CORRELATION' dist/assets
+
+      - name: Run non-mutating QA
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          bash scripts/qa-backend-syntax.sh
+          bash scripts/qa-case-flow-contracts.sh
+
+      - name: Backup and deploy production
+        working-directory: /home/sadmin/sap
+        run: |
+          set -euo pipefail
+          sudo -n env DO_BACKUP=1 SRC_DIR=/home/sadmin/sap DEPLOY_DIR=/var/www/html/sap BASE_PATH=/sap/ BUILD_USER=sadmin /home/sadmin/sap/sap-deploy.sh
+
+      - name: Validate production web
+        run: |
+          set -euo pipefail
+          URL="https://cbj-kontruksi.com/sap/"
+          for i in 1 2 3 4 5; do
+            if curl -fsSL --connect-timeout 10 --max-time 30 "$URL" -o /tmp/sap-prod-index.html; then
+              break
+            fi
+            sleep 3
+          done
+          test -s /tmp/sap-prod-index.html
+          grep -q '/sap/assets/' /tmp/sap-prod-index.html
+          ASSET=$(grep -o '/sap/assets/index-[^" ]*\.js' /tmp/sap-prod-index.html | head -1)
+          test -n "$ASSET"
+          curl -fsSL "https://cbj-kontruksi.com${ASSET}" -o /tmp/sap-prod-index.js
+          grep -q '1.7.0' /tmp/sap-prod-index.js
+          echo "Production /sap reachable with v1.7.0 bundle"
+
+      - name: Check production API if available
+        run: |
+          set -euo pipefail
+          if curl -fsS --connect-timeout 10 --max-time 20 https://cbj-kontruksi.com/sap-api/health -o /tmp/sap-prod-health.json; then
+            jq '{status:.status, case_history:.case_history, database:.database}' /tmp/sap-prod-health.json || cat /tmp/sap-prod-health.json
+          else
+            echo "Production sap-api health endpoint not available; frontend deployment is still valid."
+          fi
+
+      - name: Workflow success summary
+        if: success()
+        run: |
+          {
+            echo "# SAP Production Hotfix Deploy Success"
+            echo
+            echo "- Source branch: prod-hotfix-auto-peak"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Runner: $(hostname)"
+            echo "- Target: https://cbj-kontruksi.com/sap/"
+            echo "- Webroot: /var/www/html/sap"
+            echo "- Backup: enabled"
+            echo "- Version: 1.7.0"
+            echo "- Status: SUCCESS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Workflow failure summary
+        if: failure()
+        run: |
+          {
+            echo "# SAP Production Hotfix Deploy Failed"
+            echo
+            echo "- Source branch: prod-hotfix-auto-peak"
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Target: https://cbj-kontruksi.com/sap/"
+            echo "- Status: FAILED"
+            echo "- Production deploy uses sap-deploy.sh with backup enabled."
+          } >> "$GITHUB_STEP_SUMMARY"
