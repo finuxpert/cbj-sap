@@ -1,0 +1,72 @@
+name: ONCE - Fix LOG v2 host scope
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - .github/workflows/fix-log-v2-host-scope-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-build-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Fix undefined host in auto peak RCA
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('src/tools/logAutoPeak2026.js')
+          text = path.read_text()
+          old = "return groupWorkloads(processes, host).map((group) => {"
+          new = "return groupWorkloads(processes, hostPeak.host).map((group) => {"
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected exactly one buggy host reference, found {count}')
+          path.write_text(text.replace(old, new))
+          PY
+          grep -n "groupWorkloads(processes, hostPeak.host)" src/tools/logAutoPeak2026.js
+          ! grep -n "groupWorkloads(processes, host).map" src/tools/logAutoPeak2026.js
+      - name: Install dependencies
+        run: npm ci
+      - name: Runtime regression test
+        run: |
+          node --input-type=module <<'NODE'
+          import { buildAutoPeakRca } from './src/tools/logAutoPeak2026.js'
+          const analysis = {
+            telemetry: [
+              { host: 'APP1', fileName: 'a.log', snapshot: '2026-01-01 08:00', timeLabel: '2026-01-01 08:00', sortKey: 20260101080000, cpuPct: 10, memoryPct: 20, loadRatio: 0.1, swapIn: 0, wpCritical: 0 },
+              { host: 'APP1', fileName: 'b.log', snapshot: '2026-01-01 08:10', timeLabel: '2026-01-01 08:10', sortKey: 20260101081000, cpuPct: 50, memoryPct: 80, loadRatio: 1.1, swapIn: 0, wpCritical: 1 }
+            ],
+            processes: [
+              { host: 'APP1', fileName: 'a.log', snapshot: '2026-01-01 08:00', timeLabel: '2026-01-01 08:00', sortKey: 20260101080000, workloadName: 'TEST_JOB', program: 'ZTEST', type: 'BTC', pid: '1', cpu: 1, rssGb: 1, state: 'S', errorCode: '?' },
+              { host: 'APP1', fileName: 'b.log', snapshot: '2026-01-01 08:10', timeLabel: '2026-01-01 08:10', sortKey: 20260101081000, workloadName: 'TEST_JOB', program: 'ZTEST', type: 'BTC', pid: '1', cpu: 20, rssGb: 2, state: 'R', errorCode: '?' }
+            ]
+          }
+          const rca = buildAutoPeakRca(analysis)
+          if (!rca || rca.hostPeaks?.[0]?.host !== 'APP1') throw new Error('auto peak regression failed')
+          if (!rca.hostCandidates?.get('APP1')?.length) throw new Error('host candidates regression failed')
+          console.log('LOG v2 host-scope regression PASS')
+          NODE
+      - name: Build production bundle
+        run: npm run build -- --base=/sap/
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/tools/logAutoPeak2026.js
+          git commit -m "fix: resolve LOG v2 host peak scope"
+          git push origin HEAD:dev
