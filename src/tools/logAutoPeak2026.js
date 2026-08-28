@@ -228,7 +228,7 @@ function buildHostCandidates(processes = [], collections = [], hostPeak = null) 
   const duringKeys = duringCollections.map((item) => item.key)
   const afterKeys = afterCollections.map((item) => item.key)
 
-  return groupWorkloads(processes, host).map((group) => {
+  return groupWorkloads(processes, hostPeak.host).map((group) => {
     const before = seriesForWorkload(group.records, baselineKeys)
     const during = seriesForWorkload(group.records, duringKeys)
     const after = seriesForWorkload(group.records, afterKeys)
