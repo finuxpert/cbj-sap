@@ -9,6 +9,12 @@ const METRICS = {
   wpCritical: { label: 'WP Critical', suffix: '', digits: 0 },
 }
 
+const metricValue = (value) => {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function useEChart(option, onClick) {
   const ref = React.useRef(null)
   React.useEffect(() => {
@@ -45,8 +51,7 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
       emphasis: { focus: 'series' },
       data: (rca?.collections || []).map((collection) => {
         const row = collection.byHost?.get?.(host)
-        const value = row?.[metric]
-        return Number.isFinite(Number(value)) ? Number(value) : null
+        return metricValue(row?.[metric])
       }),
       markPoint: {
         symbol: 'pin',
@@ -97,8 +102,10 @@ export function WorkloadTrendEChart({ records = [], hostPeakTime = '' }) {
       const key = row.timeLabel || row.snapshot
       if (!key) return
       const current = grouped.get(key) || { time: key, cpu: 0, rss: 0, pids: new Set(), d: 0, errors: new Set() }
-      if (Number.isFinite(Number(row.cpu))) current.cpu += Number(row.cpu)
-      if (Number.isFinite(Number(row.rssGb))) current.rss += Number(row.rssGb)
+      const cpu = metricValue(row.cpu)
+      const rss = metricValue(row.rssGb)
+      if (cpu !== null) current.cpu += cpu
+      if (rss !== null) current.rss += rss
       if (row.pid) current.pids.add(row.pid)
       if (String(row.state || '').toUpperCase() === 'D') current.d += 1
       if (row.errorCode && row.errorCode !== '?') current.errors.add(row.errorCode)
