@@ -39,6 +39,16 @@ function uplift(current, values = [], absoluteFloor = 0.25) {
   return { current: observed, median: med, delta, z, score, count: values.length, scale }
 }
 
+function enhancedQuality(records = []) {
+  const deltas = records.map((row) => metric(row.enhancedDeltaMinutes)).filter((value) => value !== null)
+  if (!deltas.length) return { usable: false, grade: 'UNAVAILABLE', deltaMinutes: null }
+  const nearest = Math.min(...deltas.map((value) => Math.abs(value)))
+  if (nearest <= 1) return { usable: true, grade: 'EXACT', deltaMinutes: nearest }
+  if (nearest <= 2) return { usable: true, grade: 'NEAR', deltaMinutes: nearest }
+  if (nearest <= 5) return { usable: false, grade: 'CONTEXT_ONLY', deltaMinutes: nearest }
+  return { usable: false, grade: 'STALE', deltaMinutes: nearest }
+}
+
 function uniquePidSnapshot(records = []) {
   const map = new Map()
   records.forEach((row) => {
@@ -84,17 +94,19 @@ export function classifyWchan(wchan = '') {
 }
 
 function topWchan(records = []) {
+  const candidates = records.filter((row) => String(row.wchan || '').trim())
+  const blocked = candidates.filter((row) => String(row.procState || row.state || '').toUpperCase() === 'D')
+  const source = blocked.length ? blocked : candidates
   const counts = new Map()
-  records.forEach((row) => {
+  source.forEach((row) => {
     const value = String(row.wchan || '').trim()
-    if (!value) return
     const key = `${classifyWchan(value)}|${value}`
     counts.set(key, (counts.get(key) || 0) + 1)
   })
   const best = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0]
-  if (!best) return { wchan: '', className: 'NONE', count: 0 }
+  if (!best) return { wchan: '', className: 'NONE', count: 0, scope: 'NONE', dStatePids: 0 }
   const [className, wchan] = best[0].split('|')
-  return { wchan, className, count: best[1] }
+  return { wchan, className, count: best[1], scope: blocked.length ? 'D_STATE' : 'ALL_STATE', dStatePids: blocked.length }
 }
 
 function nearestPrevious(records = [], current = {}) {
@@ -113,6 +125,7 @@ function ioRatesAtTarget(allRecords = [], targetRecords = []) {
   let writeBps = 0
   let majfltPerMin = 0
   let observed = 0
+  const windows = []
   uniquePidSnapshot(targetRecords).forEach((current) => {
     const previous = nearestPrevious(allRecords, current)
     if (!previous) return
@@ -130,13 +143,14 @@ function ioRatesAtTarget(allRecords = [], targetRecords = []) {
     if (curRead !== null && prevRead !== null && curRead >= prevRead) { readBps += (curRead - prevRead) / seconds; used = true }
     if (curWrite !== null && prevWrite !== null && curWrite >= prevWrite) { writeBps += (curWrite - prevWrite) / seconds; used = true }
     if (curFault !== null && prevFault !== null && curFault >= prevFault) { majfltPerMin += (curFault - prevFault) / (seconds / 60); used = true }
-    if (used) observed += 1
+    if (used) { observed += 1; windows.push(seconds / 60) }
   })
   return {
     readMiBps: observed ? readBps / MIB : null,
     writeMiBps: observed ? writeBps / MIB : null,
     majorFaultsPerMin: observed ? majfltPerMin : null,
     observedPids: observed,
+    windowMinutes: windows.length ? median(windows) : null,
   }
 }
 
@@ -145,43 +159,64 @@ function recordsForCollection(records = [], collectionKey = '') {
 }
 
 function baselinePss(records = [], targetCollectionKey = '') {
+  const targetIndex = records.find((row) => row.collectionKey === targetCollectionKey)?.collectionIndex
   const byCollection = new Map()
   records.forEach((row) => {
     if (!row.collectionKey || row.collectionKey === targetCollectionKey) return
+    if (Number.isFinite(Number(targetIndex)) && Number.isFinite(Number(row.collectionIndex)) && Math.abs(Number(row.collectionIndex) - Number(targetIndex)) <= 1) return
     if (!byCollection.has(row.collectionKey)) byCollection.set(row.collectionKey, [])
     byCollection.get(row.collectionKey).push(row)
   })
-  return Array.from(byCollection.values()).map((rows) => snapshotMemory(rows).pssGb).filter((value) => value !== null)
+  let values = Array.from(byCollection.values()).map((rows) => snapshotMemory(rows).pssGb).filter((value) => value !== null)
+  if (values.length < 3) {
+    const fallback = new Map()
+    records.forEach((row) => {
+      if (!row.collectionKey || row.collectionKey === targetCollectionKey) return
+      if (!fallback.has(row.collectionKey)) fallback.set(row.collectionKey, [])
+      fallback.get(row.collectionKey).push(row)
+    })
+    values = Array.from(fallback.values()).map((rows) => snapshotMemory(rows).pssGb).filter((value) => value !== null)
+  }
+  return values
 }
 
 function hostEvidence(row = {}, rca = {}) {
   const collection = rca.resourceLandscapePeak || rca.landscapePeak || null
   const host = collection?.byHost?.get?.(row.host) || null
+  const delta = metric(host?.enhancedDeltaMinutes)
+  const usable = delta !== null && Math.abs(delta) <= 2
   return {
-    iowaitPct: metric(host?.iowaitPct),
-    psiCpuSome10: metric(host?.psiCpuSome10),
-    psiCpuFull10: metric(host?.psiCpuFull10),
-    psiMemorySome10: metric(host?.psiMemorySome10),
-    psiMemoryFull10: metric(host?.psiMemoryFull10),
-    psiIoSome10: metric(host?.psiIoSome10),
-    psiIoFull10: metric(host?.psiIoFull10),
-    enhancedSampleSeconds: metric(host?.enhancedSampleSeconds),
+    iowaitPct: usable ? metric(host?.iowaitPct) : null,
+    psiCpuSome10: usable ? metric(host?.psiCpuSome10) : null,
+    psiCpuFull10: usable ? metric(host?.psiCpuFull10) : null,
+    psiMemorySome10: usable ? metric(host?.psiMemorySome10) : null,
+    psiMemoryFull10: usable ? metric(host?.psiMemoryFull10) : null,
+    psiIoSome10: usable ? metric(host?.psiIoSome10) : null,
+    psiIoFull10: usable ? metric(host?.psiIoFull10) : null,
+    enhancedSampleSeconds: usable ? metric(host?.enhancedSampleSeconds) : null,
+    enhancedSampleTime: host?.enhancedSampleTime || '',
+    enhancedDeltaMinutes: delta,
+    enhancedMapping: host?.enhancedMapping || 'UNAVAILABLE',
+    usable,
   }
 }
 
 export function enrichWorkloadRowV13(row = {}, rca = {}) {
   const targetCollectionKey = row.targetCollectionKey || rca.resourceLandscapePeak?.key || ''
-  const targetRecords = uniquePidSnapshot(recordsForCollection(row.records || [], targetCollectionKey))
+  const rawTargetRecords = uniquePidSnapshot(recordsForCollection(row.records || [], targetCollectionKey))
+  const quality = enhancedQuality(rawTargetRecords)
+  const targetRecords = quality.usable ? rawTargetRecords.filter((item) => {
+    const delta = metric(item.enhancedDeltaMinutes)
+    return delta !== null && Math.abs(delta) <= 2
+  }) : []
   const memory = snapshotMemory(targetRecords)
   const pssHistory = baselinePss(row.records || [], targetCollectionKey)
   const pssUplift = uplift(memory.pssGb, pssHistory, 0.25)
   const wchan = topWchan(targetRecords)
   const io = ioRatesAtTarget(row.records || [], targetRecords)
   const host = hostEvidence(row, rca)
-  const enhancedEvidence = [
-    memory.pssGb, memory.privateGb, memory.sharedGb, io.readMiBps, io.writeMiBps,
-    host.iowaitPct, host.psiMemorySome10, host.psiIoSome10,
-  ].some((value) => value !== null) || wchan.className !== 'NONE'
+  const processEnhanced = [memory.pssGb, memory.privateGb, memory.sharedGb, io.readMiBps, io.writeMiBps].some((value) => value !== null) || wchan.className !== 'NONE'
+  const enhancedEvidenceUsable = quality.usable && processEnhanced
 
   return {
     ...row,
@@ -193,10 +228,13 @@ export function enrichWorkloadRowV13(row = {}, rca = {}) {
     targetWchan: wchan.wchan,
     wchanClass: wchan.className,
     wchanCount: wchan.count,
+    wchanScope: wchan.scope,
+    wchanDStatePids: wchan.dStatePids,
     targetReadMiBps: io.readMiBps,
     targetWriteMiBps: io.writeMiBps,
     targetMajorFaultsPerMin: io.majorFaultsPerMin,
     targetIoObservedPids: io.observedPids,
+    targetIoWindowMinutes: io.windowMinutes,
     hostIowaitPct: host.iowaitPct,
     hostPsiCpuSome10: host.psiCpuSome10,
     hostPsiCpuFull10: host.psiCpuFull10,
@@ -204,7 +242,13 @@ export function enrichWorkloadRowV13(row = {}, rca = {}) {
     hostPsiMemoryFull10: host.psiMemoryFull10,
     hostPsiIoSome10: host.psiIoSome10,
     hostPsiIoFull10: host.psiIoFull10,
-    enhancedEvidence,
+    enhancedEvidence: processEnhanced || host.usable,
+    enhancedEvidenceUsable,
+    enhancedEvidenceQuality: quality.grade,
+    enhancedEvidenceDeltaMinutes: quality.deltaMinutes,
+    enhancedHostEvidenceUsable: host.usable,
+    enhancedHostMapping: host.enhancedMapping,
+    enhancedHostDeltaMinutes: host.enhancedDeltaMinutes,
   }
 }
 
@@ -217,4 +261,6 @@ export const __test = {
   ioRatesAtTarget,
   uplift,
   topWchan,
+  baselinePss,
+  enhancedQuality,
 }

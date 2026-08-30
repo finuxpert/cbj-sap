@@ -38,10 +38,6 @@ function gbFromKb(value) {
   return observed === null ? null : observed / KB_PER_GB
 }
 
-function numericOrNull(value) {
-  return metric(value)
-}
-
 function parseEnhancedBlocks(rawText = '', fileName = '') {
   const hostRows = []
   const processRows = []
@@ -59,14 +55,14 @@ function parseEnhancedBlocks(rawText = '', fileName = '') {
       const kv = kvTokens(line.replace(/^EXT_HOST\s+/i, ''))
       hostRows.push({
         ...ctx,
-        iowaitPct: numericOrNull(kv.iowait_pct),
-        psiCpuSome10: numericOrNull(kv.psi_cpu_some10),
-        psiCpuFull10: numericOrNull(kv.psi_cpu_full10),
-        psiMemorySome10: numericOrNull(kv.psi_mem_some10),
-        psiMemoryFull10: numericOrNull(kv.psi_mem_full10),
-        psiIoSome10: numericOrNull(kv.psi_io_some10),
-        psiIoFull10: numericOrNull(kv.psi_io_full10),
-        enhancedSampleSeconds: numericOrNull(kv.sample_seconds),
+        iowaitPct: metric(kv.iowait_pct),
+        psiCpuSome10: metric(kv.psi_cpu_some10),
+        psiCpuFull10: metric(kv.psi_cpu_full10),
+        psiMemorySome10: metric(kv.psi_mem_some10),
+        psiMemoryFull10: metric(kv.psi_mem_full10),
+        psiIoSome10: metric(kv.psi_io_some10),
+        psiIoFull10: metric(kv.psi_io_full10),
+        enhancedSampleSeconds: metric(kv.sample_seconds),
         enhancedTelemetryVersion: ctx.version,
       })
       return
@@ -82,13 +78,13 @@ function parseEnhancedBlocks(rawText = '', fileName = '') {
         pssGb: gbFromKb(kv.pss_kb),
         privateGb: gbFromKb(kv.private_kb),
         sharedGb: gbFromKb(kv.shared_kb),
-        readBytes: numericOrNull(kv.read_bytes),
-        writeBytes: numericOrNull(kv.write_bytes),
-        rchar: numericOrNull(kv.rchar),
-        wchar: numericOrNull(kv.wchar),
-        syscr: numericOrNull(kv.syscr),
-        syscw: numericOrNull(kv.syscw),
-        majflt: numericOrNull(kv.majflt),
+        readBytes: metric(kv.read_bytes),
+        writeBytes: metric(kv.write_bytes),
+        rchar: metric(kv.rchar),
+        wchar: metric(kv.wchar),
+        syscr: metric(kv.syscr),
+        syscw: metric(kv.syscw),
+        majflt: metric(kv.majflt),
         enhancedTelemetryVersion: ctx.version,
       })
     }
@@ -104,11 +100,21 @@ function nearest(rows = [], targetTime = '', predicate = () => true, maxMinutes 
     if (!predicate(row)) return
     const stamp = minuteStamp(row.actualTime)
     if (stamp === null) return
-    const distance = Math.abs(stamp - target)
+    const signedDistance = stamp - target
+    const distance = Math.abs(signedDistance)
     if (distance > maxMinutes) return
-    if (!best || distance < best.distance) best = { row, distance }
+    if (!best || distance < best.distance) best = { row, distance, signedDistance }
   })
-  return best?.row || null
+  return best
+}
+
+function mappingLabel(distance) {
+  if (distance === null || distance === undefined) return 'UNAVAILABLE'
+  if (distance === 0) return 'EXACT'
+  if (distance <= 1) return 'NEAR_1M'
+  if (distance <= 2) return 'NEAR_2M'
+  if (distance <= 5) return 'CONTEXT_5M'
+  return 'STALE'
 }
 
 const HOST_FIELDS = [
@@ -130,20 +136,27 @@ function copyFields(target, source, fields) {
   return next
 }
 
+function attachNearest(target, match, fields) {
+  if (!match?.row) return target
+  const next = copyFields(target, match.row, fields)
+  next.enhancedSampleTime = match.row.actualTime || ''
+  next.enhancedDeltaMinutes = match.signedDistance
+  next.enhancedMapping = mappingLabel(match.distance)
+  next.enhancedCausalUsable = match.distance <= 2
+  return next
+}
+
 function enrichParsed(legacy, ext) {
-  const telemetry = (legacy.telemetry || []).map((row) => {
-    const source = nearest(ext.hostRows, row.timeLabel || row.snapshot, (item) => item.host === row.host, 5)
-    return copyFields(row, source, HOST_FIELDS)
-  })
-  const processes = (legacy.processes || []).map((row) => {
-    const source = nearest(
-      ext.processRows,
-      row.timeLabel || row.snapshot,
-      (item) => item.host === row.host && String(item.pid) === String(row.pid),
-      5,
-    )
-    return copyFields(row, source, PROCESS_FIELDS)
-  })
+  const telemetry = (legacy.telemetry || []).map((row) => attachNearest(
+    row,
+    nearest(ext.hostRows, row.timeLabel || row.snapshot, (item) => item.host === row.host, 5),
+    HOST_FIELDS,
+  ))
+  const processes = (legacy.processes || []).map((row) => attachNearest(
+    row,
+    nearest(ext.processRows, row.timeLabel || row.snapshot, (item) => item.host === row.host && String(item.pid) === String(row.pid), 5),
+    PROCESS_FIELDS,
+  ))
   return { ...legacy, telemetry, processes, enhanced: ext }
 }
 
@@ -155,21 +168,19 @@ function telemetryIdentity(row = {}) {
   return [row.snapshot, row.host].join('|')
 }
 
+const PROVENANCE_FIELDS = ['enhancedSampleTime', 'enhancedDeltaMinutes', 'enhancedMapping', 'enhancedCausalUsable']
+
 function reattachEnhanced(analysis, parsedFiles = []) {
   const processMap = new Map()
   const telemetryMap = new Map()
   parsedFiles.flatMap((item) => item.processes || []).forEach((row) => {
-    if (PROCESS_FIELDS.some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) {
-      processMap.set(processIdentity(row), row)
-    }
+    if ([...PROCESS_FIELDS, ...PROVENANCE_FIELDS].some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) processMap.set(processIdentity(row), row)
   })
   parsedFiles.flatMap((item) => item.telemetry || []).forEach((row) => {
-    if (HOST_FIELDS.some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) {
-      telemetryMap.set(telemetryIdentity(row), row)
-    }
+    if ([...HOST_FIELDS, ...PROVENANCE_FIELDS].some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) telemetryMap.set(telemetryIdentity(row), row)
   })
-  const telemetry = (analysis.telemetry || []).map((row) => copyFields(row, telemetryMap.get(telemetryIdentity(row)), HOST_FIELDS))
-  const processes = (analysis.processes || []).map((row) => copyFields(row, processMap.get(processIdentity(row)), PROCESS_FIELDS))
+  const telemetry = (analysis.telemetry || []).map((row) => copyFields(row, telemetryMap.get(telemetryIdentity(row)), [...HOST_FIELDS, ...PROVENANCE_FIELDS]))
+  const processes = (analysis.processes || []).map((row) => copyFields(row, processMap.get(processIdentity(row)), [...PROCESS_FIELDS, ...PROVENANCE_FIELDS]))
   return { ...analysis, telemetry, processes }
 }
 
@@ -177,9 +188,18 @@ export function telemetryCapabilitiesV13(analysis = {}) {
   const telemetry = analysis.telemetry || []
   const processes = analysis.processes || []
   const count = (rows, field) => rows.filter((row) => row[field] !== null && row[field] !== undefined && row[field] !== '').length
+  const anyObserved = (row, fields) => fields.some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')
+  const hostEnhancedRows = telemetry.filter((row) => anyObserved(row, ['iowaitPct', 'psiCpuSome10', 'psiMemorySome10', 'psiIoSome10'])).length
+  const processEnhancedRows = processes.filter((row) => anyObserved(row, ['pssGb', 'privateGb', 'wchan', 'readBytes', 'writeBytes'])).length
+  const hostCoveragePct = telemetry.length ? hostEnhancedRows / telemetry.length * 100 : 0
+  const processCoveragePct = processes.length ? processEnhancedRows / processes.length * 100 : 0
   const caps = {
     hostSamples: telemetry.length,
     processSamples: processes.length,
+    hostEnhancedRows,
+    processEnhancedRows,
+    hostCoveragePct: Math.round(hostCoveragePct),
+    processCoveragePct: Math.round(processCoveragePct),
     iowait: count(telemetry, 'iowaitPct'),
     psiCpu: count(telemetry, 'psiCpuSome10') + count(telemetry, 'psiCpuFull10'),
     psiMemory: count(telemetry, 'psiMemorySome10') + count(telemetry, 'psiMemoryFull10'),
@@ -191,8 +211,12 @@ export function telemetryCapabilitiesV13(analysis = {}) {
     processIo: count(processes, 'readBytes') + count(processes, 'writeBytes'),
     majorFaults: count(processes, 'majflt'),
   }
-  caps.enhanced = caps.iowait + caps.psiCpu + caps.psiMemory + caps.psiIo + caps.pss + caps.wchan + caps.processIo > 0
-  caps.mode = caps.enhanced ? 'ENHANCED' : 'LEGACY'
+  const observed = hostEnhancedRows + processEnhancedRows
+  const fullEnough = hostCoveragePct >= 70 && processCoveragePct >= 50 && caps.pss > 0 && caps.wchan > 0 && caps.processIo > 0
+  caps.mode = observed === 0 ? 'LEGACY' : fullEnough ? 'ENHANCED' : 'PARTIAL'
+  caps.enhanced = caps.mode !== 'LEGACY'
+  caps.fullEnhanced = caps.mode === 'ENHANCED'
+  caps.coveragePct = Math.round((hostCoveragePct + processCoveragePct) / 2)
   return caps
 }
 
@@ -211,4 +235,6 @@ export const __test = {
   enrichParsed,
   minuteStamp,
   telemetryCapabilitiesV13,
+  nearest,
+  mappingLabel,
 }

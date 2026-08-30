@@ -9,7 +9,7 @@ export async function rankResourceConsumersV5(processes = [], rca = {}, analysis
   const anchor = base.incidentAnchor || rca.resourceIncidentAnchor || {}
   const enriched = enrichRankedRowsV13(base.rows || [], rca)
   const rows = enriched
-    .map((row) => refineWorkloadV14(row, anchor))
+    .map((row) => refineWorkloadV14(row, anchor, capabilities))
     .sort((a, b) => (
       b.causalScore - a.causalScore
       || b.incidentScore - a.incidentScore
@@ -19,11 +19,13 @@ export async function rankResourceConsumersV5(processes = [], rca = {}, analysis
   const verdict = verdictV14(rows, base.verdict || {}, anchor, capabilities)
   const engineDiagnostics = {
     ...(base.engineDiagnostics || {}),
+    rcaEngine: 'RCA v3.6.1',
+    coreAggregator: base.engineDiagnostics?.activeEngine || base.engine || 'JS core',
     telemetryMode: capabilities.mode,
     telemetryCapabilities: capabilities,
-    patternVersion: 'v2',
+    patternVersion: 'v2.1',
   }
-  const engine = `${base.engine || 'JS analytics'} · telemetry ${capabilities.mode.toLowerCase()} · pattern v2`
+  const engine = `RCA v3.6.1 · core ${base.engine || 'JS analytics'} · telemetry ${capabilities.mode.toLowerCase()} · pattern v2.1`
 
   rows.verdict = verdict
   rows.incidentAnchor = anchor

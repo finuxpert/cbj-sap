@@ -26,18 +26,24 @@ export function classifyErrorCode(errorCode = '') {
   return rule ? { code, category: rule.category, causalClass: rule.causalClass } : { code, category: 'OTHER', causalClass: 'UNKNOWN' }
 }
 
+function timingForError(row = {}, code = '') {
+  const match = (row.errorTimings || []).find((item) => String(item.error || '') === String(code || ''))
+  return match || { error: code, state: 'NONE', deltaMinutes: null, firstTime: '' }
+}
+
 export function errorTaxonomyForRow(row = {}) {
   const errors = Array.from(new Set([...(row.errors || []), ...(row.errorTimings || []).map((item) => item.error)].filter(Boolean)))
-  const classified = errors.map(classifyErrorCode)
   const rank = { NONE: 0, UNKNOWN: 1, SYMPTOM_LIKELY: 2, SUPPORTING: 3, CAUSAL_CAPABLE: 4 }
-  const strongest = classified.reduce((best, item) => rank[item.causalClass] > rank[best.causalClass] ? item : best, { code: '', category: 'NONE', causalClass: 'NONE' })
-  const timing = String(row.errorState || 'NONE')
-  const temporalCausal = timing === 'NEW_BEFORE_TARGET' || timing === 'NEW_AT_TARGET'
+  const classified = errors.map((code) => ({ ...classifyErrorCode(code), timing: timingForError(row, code) }))
+  const strongest = classified.reduce((best, item) => rank[item.causalClass] > rank[best.causalClass] ? item : best, { code: '', category: 'NONE', causalClass: 'NONE', timing: { state: 'NONE', deltaMinutes: null } })
+  const precursor = classified
+    .filter((item) => item.causalClass === 'CAUSAL_CAPABLE' && ['NEW_BEFORE_TARGET', 'NEW_AT_TARGET'].includes(item.timing?.state))
+    .sort((a, b) => Math.abs(a.timing?.deltaMinutes ?? 9999) - Math.abs(b.timing?.deltaMinutes ?? 9999))[0] || null
   let direction = 'CONTEXT'
-  if (strongest.causalClass === 'CAUSAL_CAPABLE' && temporalCausal) direction = 'POTENTIAL_PRECURSOR'
-  else if (strongest.causalClass === 'SYMPTOM_LIKELY' || timing === 'NEW_AFTER_TARGET') direction = 'LIKELY_SYMPTOM'
+  if (precursor) direction = 'POTENTIAL_PRECURSOR'
+  else if (strongest.causalClass === 'SYMPTOM_LIKELY' || strongest.timing?.state === 'NEW_AFTER_TARGET') direction = 'LIKELY_SYMPTOM'
   else if (strongest.causalClass === 'SUPPORTING') direction = 'SUPPORTING_SIGNAL'
-  return { classified, strongest, direction }
+  return { classified, strongest, precursor, direction }
 }
 
 function hostSignal(anchor = {}) {
@@ -46,13 +52,14 @@ function hostSignal(anchor = {}) {
   const ram = metric(row.memoryPct)
   const load = metric(row.resourceLoadRatio)
   const swapIn = metric(row.swapIn)
-  const iowait = metric(row.iowaitPct)
-  const psiCpuSome = metric(row.psiCpuSome10)
-  const psiCpuFull = metric(row.psiCpuFull10)
-  const psiMemSome = metric(row.psiMemorySome10)
-  const psiMemFull = metric(row.psiMemoryFull10)
-  const psiIoSome = metric(row.psiIoSome10)
-  const psiIoFull = metric(row.psiIoFull10)
+  const hostEnhancedUsable = row.enhancedDeltaMinutes === null || row.enhancedDeltaMinutes === undefined || Math.abs(Number(row.enhancedDeltaMinutes)) <= 2
+  const iowait = hostEnhancedUsable ? metric(row.iowaitPct) : null
+  const psiCpuSome = hostEnhancedUsable ? metric(row.psiCpuSome10) : null
+  const psiCpuFull = hostEnhancedUsable ? metric(row.psiCpuFull10) : null
+  const psiMemSome = hostEnhancedUsable ? metric(row.psiMemorySome10) : null
+  const psiMemFull = hostEnhancedUsable ? metric(row.psiMemoryFull10) : null
+  const psiIoSome = hostEnhancedUsable ? metric(row.psiIoSome10) : null
+  const psiIoFull = hostEnhancedUsable ? metric(row.psiIoFull10) : null
   return {
     cpu, ram, load, swapIn, iowait, psiCpuSome, psiCpuFull, psiMemSome, psiMemFull, psiIoSome, psiIoFull,
     cpuPressure: cpu !== null && cpu >= 90,
@@ -68,10 +75,10 @@ function hostSignal(anchor = {}) {
 export function incidentPatternV14(anchor = {}, rows = [], fallback = 'RESOURCE_CONTENTION') {
   const host = hostSignal(anchor)
   const targetRows = rows.filter((row) => ['EXACT_TARGET', 'NEAR_TARGET'].includes(row.targetEvidence))
-  const hasWchan = (name) => targetRows.some((row) => row.wchanClass === name)
+  const hasWchan = (name) => targetRows.some((row) => row.enhancedEvidenceUsable && row.wchanClass === name)
   const hasD = targetRows.some((row) => Number(row.targetDState || 0) > 0)
-  const highIoConsumer = targetRows.some((row) => (metric(row.targetReadMiBps) || 0) + (metric(row.targetWriteMiBps) || 0) >= 20)
-  const pssSpike = targetRows.some((row) => (row.pssUplift?.score || 0) >= 0.5)
+  const highIoConsumer = targetRows.some((row) => row.enhancedEvidenceUsable && (metric(row.targetReadMiBps) || 0) + (metric(row.targetWriteMiBps) || 0) >= 20)
+  const pssSpike = targetRows.some((row) => row.enhancedEvidenceUsable && (row.pssUplift?.score || 0) >= 0.5)
 
   if (hasWchan('NFS') && (host.ioPressure || host.loadPressure || hasD)) return 'NFS_IO_CONTENTION'
   if (hasWchan('MEMORY_RECLAIM') && (host.memoryPressure || host.memoryStall || host.swapPressure)) return 'MEMORY_RECLAIM_STALL'
@@ -87,56 +94,60 @@ export function incidentPatternV14(anchor = {}, rows = [], fallback = 'RESOURCE_
 }
 
 function pssCausalUnit(row = {}, anchor = {}) {
+  if (!row.enhancedEvidenceUsable) return 0
   const host = hostSignal(anchor)
   if (!host.memoryPressure) return 0
-  const score = clamp01(row.pssUplift?.score || 0)
   const target = metric(row.targetPssGb)
-  if (target === null) return 0
-  return score
+  return target === null ? 0 : clamp01(row.pssUplift?.score || 0)
 }
 
 function ioCausalUnit(row = {}, anchor = {}) {
+  if (!row.enhancedEvidenceUsable) return 0
   const host = hostSignal(anchor)
   if (!host.ioPressure) return 0
   const io = (metric(row.targetReadMiBps) || 0) + (metric(row.targetWriteMiBps) || 0)
   return clamp01(io / 50)
 }
 
-function blockingUnit(row = {}, anchor = {}) {
+function enhancedBlockingUnit(row = {}, anchor = {}) {
+  if (!row.enhancedEvidenceUsable) return 0
   const host = hostSignal(anchor)
   const blockedClass = ['NFS', 'BLOCK_IO', 'MEMORY_RECLAIM', 'LOCK', 'NETWORK'].includes(row.wchanClass)
-  const d = Number(row.targetDState || 0) > 0
-  if (!blockedClass && !d) return 0
+  if (!blockedClass) return 0
   const hostStress = host.ioPressure || host.memoryStall || host.loadPressure || host.memoryPressure
   return hostStress ? 1 : 0.5
 }
 
-export function refineWorkloadV14(row = {}, anchor = {}) {
+export function refineWorkloadV14(row = {}, anchor = {}, capabilities = {}) {
   const taxonomy = errorTaxonomyForRow(row)
-  const pss = pssCausalUnit(row, anchor)
-  const io = ioCausalUnit(row, anchor)
-  const blocked = blockingUnit(row, anchor)
-  const localHigh = row.localConfidence?.grade === 'HIGH'
+  const telemetryMode = capabilities.mode || 'LEGACY'
+  const rowEnhanced = telemetryMode !== 'LEGACY' && !!row.enhancedEvidenceUsable
+  const pss = rowEnhanced ? pssCausalUnit(row, anchor) : 0
+  const io = rowEnhanced ? ioCausalUnit(row, anchor) : 0
+  const blocked = rowEnhanced ? enhancedBlockingUnit(row, anchor) : 0
   const temporalGood = ['EXACT_TARGET', 'NEAR_TARGET'].includes(row.targetEvidence)
-  const errorSupport = taxonomy.strongest.causalClass === 'CAUSAL_CAPABLE' && ['NEW_BEFORE_TARGET', 'NEW_AT_TARGET'].includes(row.errorState) && localHigh ? 1 : 0
+  const errorSupport = taxonomy.precursor && row.localConfidence?.grade === 'HIGH' ? 1 : 0
 
   let causalScore = Number(row.causalScore || 0)
   let victimScore = Number(row.victimScore || 0)
-  causalScore += pss * 15
-  causalScore += io * 15
-  causalScore += errorSupport * 8
-  victimScore += blocked * 15
-  if (!temporalGood) {
-    causalScore *= 0.75
-    victimScore *= 0.85
+  let role = row.incidentRole || 'BACKGROUND'
+
+  if (rowEnhanced) {
+    causalScore += pss * 15
+    causalScore += io * 15
+    victimScore += blocked * 15
+    if (blocked >= 0.7 && Math.max(pss, io) < 0.45) role = 'BLOCKED_VICTIM'
+    else if (io >= 0.55 && blocked < 0.55) role = 'IO_CONSUMER'
+    else if (pss >= 0.55 && blocked < 0.55) role = 'MEMORY_CONSUMER'
+    else if ((io >= 0.4 || pss >= 0.4) && blocked >= 0.45) role = 'MIXED'
   }
 
-  let role = row.incidentRole || 'BACKGROUND'
-  if (blocked >= 0.7 && Math.max(pss, io) < 0.45) role = 'BLOCKED_VICTIM'
-  else if (io >= 0.55 && blocked < 0.55) role = 'IO_CONSUMER'
-  else if (pss >= 0.55 && blocked < 0.55) role = 'MEMORY_CONSUMER'
-  else if ((io >= 0.4 || pss >= 0.4) && blocked >= 0.45) role = 'MIXED'
-  else if (taxonomy.strongest.causalClass !== 'NONE' && ['ERROR_SIGNAL', 'BACKGROUND'].includes(role)) role = 'ERROR_SIGNAL'
+  if (errorSupport) causalScore += 8
+  if (!rowEnhanced && taxonomy.strongest.causalClass !== 'NONE' && ['ERROR_SIGNAL', 'BACKGROUND'].includes(role)) role = 'ERROR_SIGNAL'
+  if (!temporalGood) {
+    causalScore *= 0.75
+    if (rowEnhanced) victimScore *= 0.85
+  }
 
   const relevanceScore = clamp(Math.max(Number(row.incidentScore || 0), causalScore, victimScore * 0.85))
   return {
@@ -165,7 +176,8 @@ export function verdictV14(rows = [], baseVerdict = {}, anchor = {}, capabilitie
   const victimDominant = !!top && Number(top.victimScore || 0) > Number(top.causalScore || 0)
   const causalRole = !!top && ['RESOURCE_CONSUMER', 'MEMORY_CONSUMER', 'IO_CONSUMER', 'MIXED'].includes(top.incidentRole)
   const temporalGood = !!top && ['EXACT_TARGET', 'NEAR_TARGET'].includes(top.targetEvidence)
-  const threshold = capabilities.enhanced ? 65 : 70
+  const topEnhancedUsable = !!top?.enhancedEvidenceUsable
+  const threshold = capabilities.mode === 'ENHANCED' && topEnhancedUsable ? 65 : 70
   const singleSupported = !!top && Number(top.causalScore || 0) >= threshold && localGrade === 'HIGH' && !victimDominant && margin >= 10 && causalRole && temporalGood
   const reasons = []
   if (!top) reasons.push('NO_CANDIDATE')
@@ -176,13 +188,14 @@ export function verdictV14(rows = [], baseVerdict = {}, anchor = {}, capabilitie
     if (margin < 10) reasons.push('TOP_CANDIDATE_MARGIN_LT_10')
     if (!causalRole) reasons.push('TOP_ROLE_NOT_CAUSAL_CONSUMER')
     if (!temporalGood) reasons.push('TARGET_TIMING_NOT_EXACT_OR_NEAR')
+    if (capabilities.mode === 'PARTIAL') reasons.push('ENHANCED_TELEMETRY_PARTIAL')
   }
   const pattern = incidentPatternV14(anchor, rows, baseVerdict.pattern)
   return {
     ...baseVerdict,
     status: singleSupported ? 'SINGLE_CULPRIT_SUPPORTED' : 'NO_SINGLE_CULPRIT',
     pattern,
-    patternVersion: 'v2',
+    patternVersion: 'v2.1',
     topWorkload: top?.workload || '',
     topHost: top?.host || '',
     topCausalScore: Number(top?.causalScore || 0),
@@ -190,11 +203,11 @@ export function verdictV14(rows = [], baseVerdict = {}, anchor = {}, capabilitie
     topLocalConfidence: localGrade,
     topRole: top?.incidentRole || '',
     margin,
-    telemetryMode: capabilities.mode || (capabilities.enhanced ? 'ENHANCED' : 'LEGACY'),
+    telemetryMode: capabilities.mode || 'LEGACY',
     reasons,
     interpretation: singleSupported
-      ? 'One workload has a clear, high-confidence causal lead after temporal, role, and enhanced Linux telemetry checks.'
-      : 'Evidence does not establish one dominant initiating workload. Investigate the host-level incident pattern and treat workload ranking as supporting evidence.',
+      ? 'One workload has a clear causal lead with high-quality incident evidence.'
+      : 'No dominant initiating workload is confirmed by the available evidence.',
   }
 }
 
@@ -202,5 +215,6 @@ export const __test = {
   hostSignal,
   pssCausalUnit,
   ioCausalUnit,
-  blockingUnit,
+  enhancedBlockingUnit,
+  timingForError,
 }
