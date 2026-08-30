@@ -1,25 +1,61 @@
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
-import { buildAutoPeakRcaV3 } from '../logRcaEngineV3.js'
+import { buildAutoPeakRcaV3, resourcePressureScoreV3, resourceSeverityV3 } from '../logRcaEngineV3.js'
 import { validateEvidenceAnalysisV3 } from '../evidenceSchemaV3.js'
 import { __test } from '../workloadAnalyticsV3.js'
 
-function telemetryRow({ fileName, host, minute, cpuPct = 10, memoryPct = 20, wpCritical = 0, loadRatio = 0.1, swapIn = 0 }) {
+function timeForMinute(minute) {
   const hh = String(2 + Math.floor(minute / 60)).padStart(2, '0')
   const mm = String(minute % 60).padStart(2, '0')
-  const time = `2026-01-15 ${hh}:${mm}`
-  return { fileName, snapshot: time, timeLabel: time, sortKey: minute, host, vcpu: 8, cpuPct, memoryPct, memoryTotalGb: 64, loadRatio, swapIn, wpCritical }
+  return `2026-01-15 ${hh}:${mm}`
 }
 
-function workloadSample({ index, cpu = null, rssGb = null, maxPidRssGb = null, errors = [], pids = 1, dState = 0 }) {
-  const minute = index * 20
-  const hh = String(2 + Math.floor(minute / 60)).padStart(2, '0')
-  const mm = String(minute % 60).padStart(2, '0')
+function telemetryRow({ fileName, host, minute, cpuPct = 10, memoryPct = 20, wpCritical = 0, load1 = 0.8, load5 = 0.8, load15 = 0.8, loadRatio = 0.1, swapIn = 0, vcpu = 8 }) {
+  const time = timeForMinute(minute)
+  return { fileName, snapshot: time, timeLabel: time, sortKey: minute, host, vcpu, cpuPct, memoryPct, memoryTotalGb: 64, load1, load5, load15, loadRatio, swapIn, wpCritical }
+}
+
+function workloadSample({ host = 'APP1', workload = 'JOB_A', index, cpu = null, rssGb = null, maxPidRssGb = null, errors = [], pids = 1, dState = 0 }) {
   return {
-    host: 'APP1', workload: 'JOB_A', collectionKey: `c${index}`, collectionIndex: index,
-    collectionTime: `2026-01-15 ${hh}:${mm}`, cpu, rssGb, maxPidRssGb, concurrentPids: pids, dState, errors,
+    host, workload, collectionKey: `c${index}`, collectionIndex: index,
+    collectionTime: timeForMinute(index * 20), cpu, rssGb, maxPidRssGb, concurrentPids: pids, dState, errors,
     program: 'ZPROG', type: 'BTC', rawCount: pids,
   }
+}
+
+function incidentRca({ hosts = ['APP1'], targetIndex = 1, hostStates = {} } = {}) {
+  const collections = [0, 1, 2].map((index) => {
+    const byHost = new Map()
+    hosts.forEach((host) => {
+      const overrides = hostStates[host]?.[index] || {}
+      byHost.set(host, {
+        host,
+        fileName: `f${index}.log`,
+        snapshot: timeForMinute(index * 20),
+        timeLabel: timeForMinute(index * 20),
+        vcpu: 8,
+        cpuPct: 80,
+        memoryPct: 80,
+        memoryTotalGb: 64,
+        resourceLoadRatio: 1.2,
+        swapIn: 100,
+        resourceSeverity: index === targetIndex ? 'WARN' : 'NORMAL',
+        resourcePressure: index === targetIndex ? 80 : 30,
+        ...overrides,
+      })
+    })
+    return { key: `c${index}`, timeLabel: timeForMinute(index * 20), byHost, rows: [...byHost.values()] }
+  })
+  const target = collections[targetIndex]
+  const hostPeaks = hosts.map((host) => ({
+    host,
+    sampleCount: 3,
+    peakCollectionIndex: targetIndex,
+    peakCollectionKey: target.key,
+    peakTime: target.byHost.get(host).timeLabel,
+    resourcePeak: target.byHost.get(host),
+  }))
+  return { collections, resourceLandscapePeak: target, landscapePeak: target, hostPeaks, cadence: { nominalMinutes: 20 } }
 }
 
 describe('logical collection model', () => {
@@ -68,6 +104,21 @@ describe('schema and null semantics', () => {
   })
 })
 
+describe('Load1-calibrated host pressure', () => {
+  it('uses Load1/vCPU for instantaneous resource severity instead of lagging Load15', () => {
+    const fastSpike = telemetryRow({ fileName: 'a.log', host: 'APP1', minute: 0, cpuPct: 20, memoryPct: 30, load1: 16, load5: 4, load15: 0.8, loadRatio: 0.1, swapIn: 0, vcpu: 8 })
+    const lagOnly = telemetryRow({ fileName: 'b.log', host: 'APP1', minute: 20, cpuPct: 20, memoryPct: 30, load1: 2, load5: 4, load15: 16, loadRatio: 2, swapIn: 0, vcpu: 8 })
+    expect(resourceSeverityV3(fastSpike)).toBe('CRIT')
+    expect(resourceSeverityV3(lagOnly)).toBe('NORMAL')
+  })
+
+  it('does not inflate pressure merely because an unused metric is missing', () => {
+    const observedZero = telemetryRow({ fileName: 'a.log', host: 'APP1', minute: 0, cpuPct: 50, memoryPct: 70, load1: 4, swapIn: 0 })
+    const missingSwap = { ...observedZero, swapIn: null }
+    expect(Math.abs(resourcePressureScoreV3(observedZero) - resourcePressureScoreV3(missingSwap))).toBeLessThanOrEqual(1)
+  })
+})
+
 describe('bounded process-to-collection mapping', () => {
   it('classifies exact, <=2m, <=5m, and rejects farther evidence', () => {
     const rca = {
@@ -99,82 +150,107 @@ describe('resource vs operational peaks and sustained pressure', () => {
     expect(rca.operationalLandscapePeak.fileName).toBe('wp.log')
   })
 
-  it('measures the strongest consecutive resource-elevated run', () => {
-    const telemetry = [
+  it('labels two elevated points a short burst and three points sustained', () => {
+    const short = buildAutoPeakRcaV3({ telemetry: [
+      telemetryRow({ fileName: 's0.log', host: 'APP1', minute: 0, cpuPct: 80 }),
+      telemetryRow({ fileName: 's1.log', host: 'APP1', minute: 20, cpuPct: 82 }),
+      telemetryRow({ fileName: 's2.log', host: 'APP1', minute: 40, cpuPct: 10 }),
+    ] })
+    expect(short.hostPeaks[0].sustained.sustainedClass).toBe('SHORT_BURST')
+
+    const sustained = buildAutoPeakRcaV3({ telemetry: [
       telemetryRow({ fileName: 'f0.log', host: 'APP1', minute: 0, cpuPct: 80 }),
       telemetryRow({ fileName: 'f1.log', host: 'APP1', minute: 20, cpuPct: 82 }),
       telemetryRow({ fileName: 'f2.log', host: 'APP1', minute: 40, cpuPct: 84 }),
       telemetryRow({ fileName: 'f3.log', host: 'APP1', minute: 60, cpuPct: 10 }),
-    ]
-    const rca = buildAutoPeakRcaV3({ telemetry })
-    const host = rca.hostPeaks[0]
-    expect(rca.cadence.nominalMinutes).toBe(20)
-    expect(host.sustained.sustainedSamples).toBe(3)
-    expect(host.sustained.sustainedMinutes).toBe(40)
-    expect(host.sustained.sustainedScore).toBeGreaterThan(0)
-    expect(host.sustained.pressureAuc).toBeGreaterThan(0)
+    ] })
+    expect(sustained.hostPeaks[0].sustained.sustainedClass).toBe('SUSTAINED')
+    expect(sustained.hostPeaks[0].sustained.sustainedMinutes).toBe(40)
   })
 })
 
-describe('workload aggregation consistency', () => {
-  it('sums concurrent PID CPU/RSS, preserves max PID RSS, and uses peak concurrent PID count', () => {
+describe('incident-relative workload ranking', () => {
+  it('ranks a workload that spikes at the landscape incident above a heavier off-incident workload', () => {
+    const incident = [
+      workloadSample({ workload: 'INCIDENT', index: 0, cpu: 10, rssGb: 2, maxPidRssGb: 2 }),
+      workloadSample({ workload: 'INCIDENT', index: 1, cpu: 80, rssGb: 10, maxPidRssGb: 8, pids: 2, dState: 1 }),
+      workloadSample({ workload: 'INCIDENT', index: 2, cpu: 10, rssGb: 2, maxPidRssGb: 2 }),
+    ]
+    const offpeak = [
+      workloadSample({ workload: 'OFFPEAK', index: 0, cpu: 220, rssGb: 30, maxPidRssGb: 20, pids: 4 }),
+      workloadSample({ workload: 'OFFPEAK', index: 1, cpu: 2, rssGb: 2, maxPidRssGb: 2 }),
+      workloadSample({ workload: 'OFFPEAK', index: 2, cpu: 2, rssGb: 2, maxPidRssGb: 2 }),
+    ]
+    const ranked = __test.buildWindowRows([...incident, ...offpeak], [], incidentRca())
+    const incidentRow = ranked.find((row) => row.workload === 'INCIDENT')
+    const offpeakRow = ranked.find((row) => row.workload === 'OFFPEAK')
+    expect(offpeakRow.footprintScore).toBeGreaterThan(incidentRow.footprintScore)
+    expect(incidentRow.incidentScore).toBeGreaterThan(offpeakRow.incidentScore)
+    expect(ranked[0].workload).toBe('INCIDENT')
+  })
+
+  it('suppresses a stable baseline workload even when it is present in every sample', () => {
+    const stable = [0, 1, 2].map((index) => workloadSample({ workload: 'STABLE', index, cpu: 5, rssGb: 3, maxPidRssGb: 3, pids: 2 }))
+    const spike = [
+      workloadSample({ workload: 'SPIKE', index: 0, cpu: 5, rssGb: 3, maxPidRssGb: 3 }),
+      workloadSample({ workload: 'SPIKE', index: 1, cpu: 45, rssGb: 9, maxPidRssGb: 8 }),
+      workloadSample({ workload: 'SPIKE', index: 2, cpu: 5, rssGb: 3, maxPidRssGb: 3 }),
+    ]
+    const ranked = __test.buildWindowRows([...stable, ...spike], [], incidentRca())
+    const stableRow = ranked.find((row) => row.workload === 'STABLE')
+    const spikeRow = ranked.find((row) => row.workload === 'SPIKE')
+    expect(spikeRow.cpuUplift.score).toBeGreaterThan(stableRow.cpuUplift.score)
+    expect(spikeRow.incidentScore).toBeGreaterThan(stableRow.incidentScore)
+  })
+
+  it('down-weights identical workload evidence on a host that is resource-normal at the incident', () => {
+    const rca = incidentRca({
+      hosts: ['APP1', 'APP2'],
+      hostStates: {
+        APP1: { 1: { resourceSeverity: 'CRIT', resourcePressure: 100, cpuPct: 95, memoryPct: 90 } },
+        APP2: { 1: { resourceSeverity: 'NORMAL', resourcePressure: 35, cpuPct: 30, memoryPct: 50 } },
+      },
+    })
+    const samples = []
+    for (const host of ['APP1', 'APP2']) {
+      samples.push(workloadSample({ host, workload: 'SAME', index: 0, cpu: 5, rssGb: 2, maxPidRssGb: 2 }))
+      samples.push(workloadSample({ host, workload: 'SAME', index: 1, cpu: 40, rssGb: 8, maxPidRssGb: 7, dState: 1 }))
+      samples.push(workloadSample({ host, workload: 'SAME', index: 2, cpu: 5, rssGb: 2, maxPidRssGb: 2 }))
+    }
+    const ranked = __test.buildWindowRows(samples, [], rca)
+    const app1 = ranked.find((row) => row.host === 'APP1')
+    const app2 = ranked.find((row) => row.host === 'APP2')
+    expect(app1.incidentScore).toBeGreaterThan(app2.incidentScore)
+  })
+
+  it('preserves full-window aggregate invariants separately from incident score', () => {
     const rows = [
-      { host: 'APP1', workload: 'JOB_A', collectionKey: 'c1', collectionIndex: 0, collectionTime: '2026-01-15 02:00', pid: '101', cpu: 60, rssGb: 4, state: 'S', errorCode: '?' },
-      { host: 'APP1', workload: 'JOB_A', collectionKey: 'c1', collectionIndex: 0, collectionTime: '2026-01-15 02:00', pid: '102', cpu: 50, rssGb: 3, state: 'S', errorCode: '?' },
+      { host: 'APP1', workload: 'JOB_A', collectionKey: 'c1', collectionIndex: 1, collectionTime: timeForMinute(20), pid: '101', cpu: 60, rssGb: 4, state: 'S', errorCode: '?' },
+      { host: 'APP1', workload: 'JOB_A', collectionKey: 'c1', collectionIndex: 1, collectionTime: timeForMinute(20), pid: '102', cpu: 50, rssGb: 3, state: 'S', errorCode: '?' },
     ]
     const snapshots = __test.aggregateSnapshotsJs(rows)
     expect(snapshots[0].cpu).toBe(110)
     expect(snapshots[0].rssGb).toBe(7)
     expect(snapshots[0].maxPidRssGb).toBe(4)
     expect(snapshots[0].concurrentPids).toBe(2)
-
-    const rca = { collections: [{ key: 'c1' }], hostPeaks: [{ host: 'APP1', sampleCount: 1, peakCollectionIndex: 0, peakCollectionKey: 'c1', peakTime: '2026-01-15 02:00', resourcePeak: { memoryTotalGb: 64, vcpu: 8 } }] }
-    const ranked = __test.buildWindowRows(snapshots, rows, rca)
-    expect(ranked[0].peakCpu).toBe(110)
-    expect(ranked[0].peakRss).toBe(7)
-    expect(ranked[0].peakMaxPidRss).toBe(4)
-    expect(ranked[0].peakConcurrentPids).toBe(2)
-    expect(ranked[0].uniquePidCount).toBe(2)
-    expect(ranked[0].peakCorrelation).toBe(100)
-  })
-
-  it('does not let ΣRSS fan-out dominate the primary memory signal', () => {
-    const fanoutRaw = Array.from({ length: 10 }, (_, index) => ({ host: 'APP1', workload: 'FANOUT', collectionKey: 'c0', collectionIndex: 0, collectionTime: '2026-01-15 02:00', pid: String(index), cpu: 0, rssGb: 2, state: 'S', errorCode: '?' }))
-    const singleRaw = [{ host: 'APP1', workload: 'SINGLE', collectionKey: 'c0', collectionIndex: 0, collectionTime: '2026-01-15 02:00', pid: '99', cpu: 0, rssGb: 20, state: 'S', errorCode: '?' }]
-    const raw = [...fanoutRaw, ...singleRaw]
-    const snapshots = __test.aggregateSnapshotsJs(raw)
-    const rca = { collections: [{ key: 'c0' }], hostPeaks: [{ host: 'APP1', sampleCount: 1, peakCollectionIndex: 0, peakCollectionKey: 'c0', peakTime: '2026-01-15 02:00', resourcePeak: { memoryTotalGb: 64, vcpu: 8 } }] }
-    const ranked = __test.buildWindowRows(snapshots, raw, rca)
-    const fanout = ranked.find((row) => row.workload === 'FANOUT')
-    const single = ranked.find((row) => row.workload === 'SINGLE')
-    expect(fanout.peakRss).toBe(20)
-    expect(fanout.peakMaxPidRss).toBe(2)
-    expect(single.peakRss).toBe(20)
-    expect(single.peakMaxPidRss).toBe(20)
-    expect(single.resourceScore).toBeGreaterThan(fanout.resourceScore)
-  })
-
-  it('returns N/A alignment when no resource alignment signal exists', () => {
-    const samples = [workloadSample({ index: 0 }), workloadSample({ index: 1 })]
-    const rca = { collections: [{ key: 'c0' }, { key: 'c1' }], hostPeaks: [{ host: 'APP1', sampleCount: 2, peakCollectionIndex: 1, peakCollectionKey: 'c1', peakTime: '2026-01-15 02:20', resourcePeak: { memoryTotalGb: 64, vcpu: 8 } }] }
-    const ranked = __test.buildWindowRows(samples, [], rca)
-    expect(ranked[0].peakCorrelation).toBeNull()
   })
 })
 
-describe('error timing relative to host resource peak', () => {
-  it('distinguishes before, exact, and after peak first occurrence', () => {
-    const samples = [
-      workloadSample({ index: 0, cpu: 10, rssGb: 1, maxPidRssGb: 1, errors: ['ERR_BEFORE'] }),
-      workloadSample({ index: 1, cpu: 20, rssGb: 2, maxPidRssGb: 2, errors: ['ERR_AT'] }),
-      workloadSample({ index: 2, cpu: 10, rssGb: 1, maxPidRssGb: 1, errors: ['ERR_AFTER'] }),
+describe('error timing relative to landscape incident', () => {
+  it('uses actual minutes and distinguishes before, exact, after, and persistent-near-target', () => {
+    const raw = [
+      { errorCode: 'ERR_BEFORE', actualTime: '2026-01-15 02:00' },
+      { errorCode: 'ERR_AT', actualTime: '2026-01-15 02:20' },
+      { errorCode: 'ERR_AFTER', actualTime: '2026-01-15 02:40' },
+      { errorCode: 'ERR_PERSIST', actualTime: '2026-01-15 01:20' },
+      { errorCode: 'ERR_PERSIST', actualTime: '2026-01-15 02:20' },
     ]
-    const rca = { collections: [{ key: 'c0' }, { key: 'c1' }, { key: 'c2' }], hostPeaks: [{ host: 'APP1', sampleCount: 3, peakCollectionIndex: 1, peakCollectionKey: 'c1', peakTime: '2026-01-15 02:20', resourcePeak: { memoryTotalGb: 64, vcpu: 8 } }] }
-    const ranked = __test.buildWindowRows(samples, [], rca)[0]
-    const states = Object.fromEntries(ranked.errorTimings.map((item) => [item.error, item.state]))
-    expect(states.ERR_BEFORE).toBe('NEW_BEFORE_PEAK')
-    expect(states.ERR_AT).toBe('NEW_AT_PEAK')
-    expect(states.ERR_AFTER).toBe('NEW_AFTER_PEAK')
-    expect(ranked.errorState).toBe('NEW_AT_PEAK')
+    const result = __test.classifyErrorTimings(raw, '2026-01-15 02:20', 25)
+    const states = Object.fromEntries(result.timings.map((item) => [item.error, item.state]))
+    expect(states.ERR_BEFORE).toBe('NEW_BEFORE_TARGET')
+    expect(states.ERR_AT).toBe('NEW_AT_TARGET')
+    expect(states.ERR_AFTER).toBe('NEW_AFTER_TARGET')
+    expect(states.ERR_PERSIST).toBe('PERSISTENT_NEAR_TARGET')
+    expect(result.state).toBe('NEW_AT_TARGET')
   })
 })
