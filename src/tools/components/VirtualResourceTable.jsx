@@ -18,8 +18,8 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
     { accessorKey: 'host', header: 'Host', size: 120 },
     { accessorKey: 'workload', header: 'Workload / Job', size: 260 },
     { accessorKey: 'program', header: 'Program', size: 180 },
-    { accessorKey: 'resourceScore', header: 'Resource Score', size: 130, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
-    { accessorKey: 'peakCorrelation', header: 'Peak Corr.', size: 115, cell: ({ getValue }) => `${fmt(getValue(), 0)}%` },
+    { accessorKey: 'resourceScore', header: 'Investigation Score', size: 145, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
+    { accessorKey: 'peakCorrelation', header: 'Peak Align.', size: 115, cell: ({ getValue }) => `${fmt(getValue(), 0)}%` },
     { accessorKey: 'avgCpu', header: 'Avg CPU', size: 100, cell: ({ getValue }) => `${fmt(getValue(), 1)}%` },
     { accessorKey: 'peakCpu', header: 'Peak CPU', size: 100, cell: ({ getValue }) => `${fmt(getValue(), 1)}%` },
     { accessorKey: 'peakRss', header: 'Peak RSS', size: 105, cell: ({ getValue }) => `${fmt(getValue(), 2)} GB` },
@@ -61,7 +61,7 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
   return <div className="logV2TableShell">
     <div className="logV2TableToolbar">
       <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search job, host, program, error…" />
-      <span><b>{tableRows.length}</b> of {rows.length} workloads · virtualized</span>
+      <span><b>{tableRows.length}</b> of {rows.length} observed workloads · virtualized</span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
