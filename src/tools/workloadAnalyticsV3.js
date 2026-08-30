@@ -6,6 +6,7 @@ import duckdbEhWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js
 
 const UNKNOWN = '?'
 const DUCKDB_TIMEOUT_MS = 5000
+const MAX_MAPPING_DISTANCE_MINUTES = 5
 const BUNDLES = { mvp: { mainModule: duckdbMvpWasm, mainWorker: duckdbMvpWorker }, eh: { mainModule: duckdbEhWasm, mainWorker: duckdbEhWorker } }
 
 const metric = (value) => {
@@ -41,13 +42,33 @@ function collectionIndex(rca = {}) {
   ;(rca.collections || []).forEach((collection, index) => {
     collection.rows.forEach((row) => {
       const stamp = row.snapshot || row.timeLabel || ''
-      exact.set(`${row.fileName || collection.fileName}|${row.host}|${stamp}`, { key: collection.key, index, time: collection.timeLabel })
+      const sample = {
+        key: collection.key,
+        index,
+        time: collection.timeLabel,
+        sampleTime: row.timeLabel || row.snapshot || collection.timeLabel,
+        stamp: minuteStamp(row.timeLabel || row.snapshot || collection.timeLabel),
+      }
+      exact.set(`${row.fileName || collection.fileName}|${row.host}|${stamp}`, sample)
       const fh = `${row.fileName || collection.fileName}|${row.host}`
       if (!byFileHost.has(fh)) byFileHost.set(fh, [])
-      byFileHost.get(fh).push({ key: collection.key, index, time: collection.timeLabel, sampleTime: row.timeLabel || row.snapshot || collection.timeLabel, stamp: minuteStamp(row.timeLabel || row.snapshot || collection.timeLabel) })
+      byFileHost.get(fh).push(sample)
     })
   })
   return { exact, byFileHost }
+}
+
+function unmappedRow(row, actualTime, distance = null) {
+  return {
+    ...row,
+    workload: identity(row),
+    collectionKey: `unmapped:${row.fileName}:${actualTime}`,
+    collectionIndex: -1,
+    collectionTime: actualTime,
+    actualTime,
+    mappingConfidence: 'UNMAPPED',
+    mappingDistanceMinutes: distance,
+  }
 }
 
 function attachCollections(processes = [], rca = {}) {
@@ -55,19 +76,40 @@ function attachCollections(processes = [], rca = {}) {
   return processes.map((row) => {
     const actualTime = row.timeLabel || row.snapshot || ''
     const exact = index.exact.get(`${row.fileName}|${row.host}|${row.snapshot || actualTime}`)
-    if (exact) return { ...row, workload: identity(row), collectionKey: exact.key, collectionIndex: exact.index, collectionTime: exact.time, actualTime }
+    if (exact) {
+      return {
+        ...row,
+        workload: identity(row),
+        collectionKey: exact.key,
+        collectionIndex: exact.index,
+        collectionTime: exact.time,
+        actualTime,
+        mappingConfidence: 'EXACT',
+        mappingDistanceMinutes: 0,
+      }
+    }
+
     const candidates = index.byFileHost.get(`${row.fileName}|${row.host}`) || []
     const target = minuteStamp(actualTime)
-    let nearest = candidates.length === 1 ? candidates[0] : null
-    if (!nearest && target !== null && candidates.length) {
-      nearest = candidates.reduce((best, candidate) => {
-        if (candidate.stamp === null) return best
-        const distance = Math.abs(candidate.stamp - target)
-        return !best || distance < best.distance ? { ...candidate, distance } : best
-      }, null)
+    if (target === null || !candidates.length) return unmappedRow(row, actualTime)
+
+    const nearest = candidates.reduce((best, candidate) => {
+      if (candidate.stamp === null) return best
+      const distance = Math.abs(candidate.stamp - target)
+      return !best || distance < best.distance ? { ...candidate, distance } : best
+    }, null)
+    if (!nearest || nearest.distance > MAX_MAPPING_DISTANCE_MINUTES) return unmappedRow(row, actualTime, nearest?.distance ?? null)
+
+    return {
+      ...row,
+      workload: identity(row),
+      collectionKey: nearest.key,
+      collectionIndex: nearest.index,
+      collectionTime: nearest.time,
+      actualTime,
+      mappingConfidence: nearest.distance <= 2 ? 'NEAREST_2M' : 'NEAREST_5M',
+      mappingDistanceMinutes: nearest.distance,
     }
-    if (nearest) return { ...row, workload: identity(row), collectionKey: nearest.key, collectionIndex: nearest.index, collectionTime: nearest.time, actualTime }
-    return { ...row, workload: identity(row), collectionKey: `unmapped:${row.fileName}:${actualTime}`, collectionIndex: -1, collectionTime: actualTime, actualTime }
   })
 }
 
@@ -76,10 +118,22 @@ function aggregateSnapshotsJs(rows = []) {
   rows.forEach((row) => {
     const key = `${row.host}|${row.workload}|${row.collectionKey}`
     const current = groups.get(key) || {
-      host: row.host, workload: row.workload, collectionKey: row.collectionKey, collectionIndex: row.collectionIndex,
-      collectionTime: row.collectionTime, cpuValues: [], rssValues: [], pids: new Set(), dState: 0, errors: new Set(), programs: new Map(), types: new Map(), rawCount: 0,
+      host: row.host,
+      workload: row.workload,
+      collectionKey: row.collectionKey,
+      collectionIndex: row.collectionIndex,
+      collectionTime: row.collectionTime,
+      cpuValues: [],
+      rssValues: [],
+      pids: new Set(),
+      dState: 0,
+      errors: new Set(),
+      programs: new Map(),
+      types: new Map(),
+      rawCount: 0,
     }
-    const cpu = metric(row.cpu); const rss = metric(row.rssGb)
+    const cpu = metric(row.cpu)
+    const rss = metric(row.rssGb)
     if (cpu !== null) current.cpuValues.push(cpu)
     if (rss !== null) current.rssValues.push(rss)
     if (row.pid) current.pids.add(String(row.pid))
@@ -92,15 +146,27 @@ function aggregateSnapshotsJs(rows = []) {
   })
   const mode = (map) => [...map.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
   return Array.from(groups.values()).map((item) => ({
-    host: item.host, workload: item.workload, collectionKey: item.collectionKey, collectionIndex: item.collectionIndex, collectionTime: item.collectionTime,
+    host: item.host,
+    workload: item.workload,
+    collectionKey: item.collectionKey,
+    collectionIndex: item.collectionIndex,
+    collectionTime: item.collectionTime,
     cpu: item.cpuValues.length ? item.cpuValues.reduce((sum, value) => sum + value, 0) : null,
     rssGb: item.rssValues.length ? item.rssValues.reduce((sum, value) => sum + value, 0) : null,
-    concurrentPids: item.pids.size, dState: item.dState, errors: Array.from(item.errors), program: mode(item.programs), type: mode(item.types), rawCount: item.rawCount,
+    maxPidRssGb: item.rssValues.length ? Math.max(...item.rssValues) : null,
+    concurrentPids: item.pids.size,
+    dState: item.dState,
+    errors: Array.from(item.errors),
+    program: mode(item.programs),
+    type: mode(item.types),
+    rawCount: item.rawCount,
   })).sort((a, b) => a.collectionIndex - b.collectionIndex || a.collectionTime.localeCompare(b.collectionTime))
 }
 
 async function aggregateSnapshotsDuckDb(rows = []) {
-  let worker; let db; let conn
+  let worker
+  let db
+  let conn
   try {
     const bundle = await withTimeout(duckdb.selectBundle(BUNDLES), 1800, 'DuckDB bundle selection')
     worker = new Worker(bundle.mainWorker)
@@ -110,7 +176,8 @@ async function aggregateSnapshotsDuckDb(rows = []) {
     const header = ['host', 'workload', 'collection_key', 'collection_index', 'collection_time', 'program', 'type', 'state', 'pid', 'error_code', 'cpu', 'rss']
     const lines = [header.join('\t')]
     rows.forEach((row) => {
-      const cpu = metric(row.cpu); const rss = metric(row.rssGb)
+      const cpu = metric(row.cpu)
+      const rss = metric(row.rssGb)
       lines.push([
         clean(row.host), clean(row.workload), clean(row.collectionKey), row.collectionIndex, clean(row.collectionTime), clean(row.program), clean(row.type), clean(row.state), clean(row.pid), clean(row.errorCode),
         cpu === null ? '' : cpu, rss === null ? '' : rss,
@@ -127,6 +194,7 @@ async function aggregateSnapshotsDuckDb(rows = []) {
         any_value(nullif(type, '')) AS type,
         sum(try_cast(nullif(cpu, '') AS DOUBLE)) AS cpu,
         sum(try_cast(nullif(rss, '') AS DOUBLE)) AS rss_gb,
+        max(try_cast(nullif(rss, '') AS DOUBLE)) AS max_pid_rss_gb,
         count(DISTINCT nullif(pid, '')) AS concurrent_pids,
         sum(CASE WHEN upper(state) = 'D' THEN 1 ELSE 0 END) AS d_state,
         string_agg(DISTINCT nullif(error_code, ''), '||') FILTER (WHERE nullif(error_code, '') IS NOT NULL AND error_code <> '?') AS errors,
@@ -138,17 +206,59 @@ async function aggregateSnapshotsDuckDb(rows = []) {
     return result.toArray().map((row) => {
       const item = row.toJSON ? row.toJSON() : { ...row }
       return {
-        host: item.host, workload: item.workload, collectionKey: item.collection_key,
-        collectionIndex: numeric(item.collection_index), collectionTime: item.collection_time || '',
-        program: item.program || '—', type: item.type || '—',
-        cpu: metric(item.cpu), rssGb: metric(item.rss_gb), concurrentPids: numeric(item.concurrent_pids), dState: numeric(item.d_state),
-        errors: String(item.errors || '').split('||').filter(Boolean), rawCount: numeric(item.raw_count),
+        host: item.host,
+        workload: item.workload,
+        collectionKey: item.collection_key,
+        collectionIndex: numeric(item.collection_index),
+        collectionTime: item.collection_time || '',
+        program: item.program || '—',
+        type: item.type || '—',
+        cpu: metric(item.cpu),
+        rssGb: metric(item.rss_gb),
+        maxPidRssGb: metric(item.max_pid_rss_gb),
+        concurrentPids: numeric(item.concurrent_pids),
+        dState: numeric(item.d_state),
+        errors: String(item.errors || '').split('||').filter(Boolean),
+        rawCount: numeric(item.raw_count),
       }
     })
   } finally {
     try { await conn?.close?.() } catch {}
     try { await db?.terminate?.() } catch {}
     try { worker?.terminate() } catch {}
+  }
+}
+
+function classifyErrorTimings(samples = [], peakIndex = -1) {
+  const occurrences = new Map()
+  samples.forEach((sample) => {
+    ;(sample.errors || []).forEach((error) => {
+      if (!occurrences.has(error)) occurrences.set(error, [])
+      occurrences.get(error).push(sample)
+    })
+  })
+  if (!occurrences.size) return { state: 'NONE', timings: [], newPeakErrors: [] }
+
+  const timings = Array.from(occurrences.entries()).map(([error, rows]) => {
+    const ordered = [...rows].sort((a, b) => a.collectionIndex - b.collectionIndex)
+    const first = ordered[0]
+    const firstIndex = first?.collectionIndex ?? -1
+    const deltaCollections = peakIndex >= 0 && firstIndex >= 0 ? firstIndex - peakIndex : null
+    const appearsNearPeak = peakIndex >= 0 && ordered.some((row) => Math.abs(row.collectionIndex - peakIndex) <= 1)
+    let state = 'OFF_PEAK'
+    if (peakIndex >= 0 && firstIndex === peakIndex) state = 'NEW_AT_PEAK'
+    else if (peakIndex >= 0 && firstIndex === peakIndex - 1) state = 'NEW_BEFORE_PEAK'
+    else if (peakIndex >= 0 && firstIndex === peakIndex + 1) state = 'NEW_AFTER_PEAK'
+    else if (appearsNearPeak && firstIndex < peakIndex - 1) state = 'PERSISTENT_NEAR_PEAK'
+    return { error, state, deltaCollections, firstTime: first?.collectionTime || '—' }
+  })
+
+  const rank = { NONE: 0, OFF_PEAK: 1, NEW_AFTER_PEAK: 2, PERSISTENT_NEAR_PEAK: 3, NEW_BEFORE_PEAK: 4, NEW_AT_PEAK: 5 }
+  const state = timings.reduce((best, item) => rank[item.state] > rank[best] ? item.state : best, 'NONE')
+  return {
+    state,
+    timings,
+    newPeakErrors: timings.filter((item) => item.state === 'NEW_AT_PEAK').map((item) => item.error),
   }
 }
 
@@ -174,10 +284,12 @@ function buildWindowRows(snapshots = [], attachedRows = [], rca = {}) {
     const workload = samples[0]?.workload || ''
     const hostPeak = hostPeakMap.get(host) || null
     const cpuSamples = samples.map((row) => row.cpu).filter((value) => metric(value) !== null)
-    const rssSamples = samples.map((row) => row.rssGb).filter((value) => metric(value) !== null)
+    const rssUpperSamples = samples.map((row) => row.rssGb).filter((value) => metric(value) !== null)
+    const maxPidRssSamples = samples.map((row) => row.maxPidRssGb).filter((value) => metric(value) !== null)
     const avgCpu = cpuSamples.length ? cpuSamples.reduce((sum, value) => sum + value, 0) / cpuSamples.length : null
     const peakCpu = cpuSamples.length ? Math.max(...cpuSamples) : null
-    const peakRss = rssSamples.length ? Math.max(...rssSamples) : null
+    const peakRss = rssUpperSamples.length ? Math.max(...rssUpperSamples) : null
+    const peakMaxPidRss = maxPidRssSamples.length ? Math.max(...maxPidRssSamples) : null
     const peakConcurrentPids = samples.reduce((best, row) => Math.max(best, numeric(row.concurrentPids)), 0)
     const uniquePidCount = new Set(raw.map((row) => row.pid).filter(Boolean)).size
     const dStateHits = samples.reduce((sum, row) => sum + numeric(row.dState), 0)
@@ -185,53 +297,92 @@ function buildWindowRows(snapshots = [], attachedRows = [], rca = {}) {
     const peakIndex = hostPeak?.peakCollectionIndex ?? -1
     const near = peakIndex >= 0 ? samples.filter((row) => Math.abs(row.collectionIndex - peakIndex) <= 1) : []
     const nearCpu = near.map((row) => row.cpu).filter((value) => metric(value) !== null)
-    const nearRss = near.map((row) => row.rssGb).filter((value) => metric(value) !== null)
-    const cpuAlignment = peakCpu && nearCpu.length ? Math.min(1, Math.max(...nearCpu) / peakCpu) : 0
-    const rssAlignment = peakRss && nearRss.length ? Math.min(1, Math.max(...nearRss) / peakRss) : 0
-    const availableAlignmentSignals = Number(peakCpu !== null && nearCpu.length > 0) + Number(peakRss !== null && nearRss.length > 0)
-    const peakCorrelation = availableAlignmentSignals ? Math.round(((peakCpu !== null && nearCpu.length ? cpuAlignment : 0) + (peakRss !== null && nearRss.length ? rssAlignment : 0)) / availableAlignmentSignals * 100) : 0
-    const peakErrors = Array.from(new Set(near.flatMap((row) => row.errors || [])))
-    const beforeErrors = new Set(samples.filter((row) => peakIndex >= 0 && row.collectionIndex < peakIndex - 1).flatMap((row) => row.errors || []))
-    const newPeakErrors = peakErrors.filter((error) => !beforeErrors.has(error))
-    const errorState = newPeakErrors.length ? 'NEW_AT_PEAK' : peakErrors.length ? 'PERSISTENT_AT_PEAK' : allErrors.length ? 'OFF_PEAK' : 'NONE'
+    const nearMaxPidRss = near.map((row) => row.maxPidRssGb).filter((value) => metric(value) !== null)
+    const cpuAlignment = peakCpu && nearCpu.length ? Math.min(1, Math.max(...nearCpu) / peakCpu) : null
+    const rssAlignment = peakMaxPidRss && nearMaxPidRss.length ? Math.min(1, Math.max(...nearMaxPidRss) / peakMaxPidRss) : null
+    const alignmentSignals = [cpuAlignment, rssAlignment].filter((value) => value !== null)
+    const peakCorrelation = alignmentSignals.length ? Math.round(alignmentSignals.reduce((sum, value) => sum + value, 0) / alignmentSignals.length * 100) : null
+    const errorTiming = classifyErrorTimings(samples, peakIndex)
     const hostSampleCount = Math.max(1, numeric(hostPeak?.sampleCount) || rca.collections?.length || 1)
-    const persistence = Math.min(1, samples.filter((row) => row.collectionIndex >= 0).length / hostSampleCount)
+    const presenceCount = samples.filter((row) => row.collectionIndex >= 0).length
+    const persistence = Math.min(1, presenceCount / hostSampleCount)
     const hostMemoryGb = metric(hostPeak?.resourcePeak?.memoryTotalGb || hostPeak?.peak?.memoryTotalGb)
     const hostVcpu = metric(hostPeak?.resourcePeak?.vcpu || hostPeak?.peak?.vcpu)
     const cpuPressure = peakCpu === null ? 0 : hostVcpu && hostVcpu > 0 ? Math.min(1, peakCpu / Math.max(100, hostVcpu * 100 * 0.25)) : Math.min(1, peakCpu / 100)
-    const rssPressure = peakRss === null ? 0 : hostMemoryGb && hostMemoryGb > 0 ? Math.min(1, peakRss / Math.max(1, hostMemoryGb * 0.25)) : Math.min(1, peakRss / 16)
+    const maxPidRssPressure = peakMaxPidRss === null ? 0 : hostMemoryGb && hostMemoryGb > 0 ? Math.min(1, peakMaxPidRss / Math.max(1, hostMemoryGb * 0.15)) : Math.min(1, peakMaxPidRss / 8)
+    const sumRssPressure = peakRss === null ? 0 : hostMemoryGb && hostMemoryGb > 0 ? Math.min(1, peakRss / Math.max(1, hostMemoryGb * 0.5)) : Math.min(1, peakRss / 32)
     const resourceScore = Math.round(Math.min(100,
-      cpuPressure * 30 + rssPressure * 30 + Math.min(1, dStateHits / 3) * 18 + Math.min(1, peakConcurrentPids / 5) * 10 + persistence * 12
+      cpuPressure * 30 + maxPidRssPressure * 20 + sumRssPressure * 8 + Math.min(1, dStateHits / 3) * 20 + Math.min(1, peakConcurrentPids / 5) * 10 + persistence * 12
     ))
     const mode = (values) => {
-      const counts = new Map(); values.filter((value) => value && value !== UNKNOWN && value !== '—').forEach((value) => counts.set(value, (counts.get(value) || 0) + 1))
+      const counts = new Map()
+      values.filter((value) => value && value !== UNKNOWN && value !== '—').forEach((value) => counts.set(value, (counts.get(value) || 0) + 1))
       return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
     }
     return {
-      key, host, workload, program: mode(samples.map((row) => row.program)), type: mode(samples.map((row) => row.type)),
-      avgCpu, peakCpu, peakRss, dStateHits, peakConcurrentPids, uniquePidCount, pidCount: peakConcurrentPids,
-      presenceCount: samples.filter((row) => row.collectionIndex >= 0).length, hostSampleCount, persistence, resourceScore, peakCorrelation,
-      errorState, errors: allErrors, newPeakErrors, hostPeakTime: hostPeak?.peakTime || '', hostPeakCollectionKey: hostPeak?.peakCollectionKey || '',
-      firstSeen: samples[0]?.collectionTime || '—', lastSeen: samples.at(-1)?.collectionTime || '—', samples, records: raw,
+      key,
+      host,
+      workload,
+      program: mode(samples.map((row) => row.program)),
+      type: mode(samples.map((row) => row.type)),
+      avgCpu,
+      peakCpu,
+      peakRss,
+      peakRssUpperBound: peakRss,
+      peakMaxPidRss,
+      rssModel: 'RSS_SUM_UPPER_BOUND',
+      dStateHits,
+      peakConcurrentPids,
+      uniquePidCount,
+      pidCount: peakConcurrentPids,
+      presenceCount,
+      hostSampleCount,
+      persistence,
+      resourceScore,
+      peakCorrelation,
+      errorState: errorTiming.state,
+      errorTimings: errorTiming.timings,
+      errors: allErrors,
+      newPeakErrors: errorTiming.newPeakErrors,
+      hostPeakTime: hostPeak?.peakTime || '',
+      hostPeakCollectionKey: hostPeak?.peakCollectionKey || '',
+      firstSeen: samples[0]?.collectionTime || '—',
+      lastSeen: samples.at(-1)?.collectionTime || '—',
+      samples,
+      records: raw,
     }
-  }).sort((a, b) => b.resourceScore - a.resourceScore || b.peakCorrelation - a.peakCorrelation || numeric(b.peakRss) - numeric(a.peakRss) || numeric(b.peakCpu) - numeric(a.peakCpu))
+  }).sort((a, b) => b.resourceScore - a.resourceScore || numeric(b.peakCorrelation) - numeric(a.peakCorrelation) || numeric(b.peakMaxPidRss) - numeric(a.peakMaxPidRss) || numeric(b.peakCpu) - numeric(a.peakCpu))
+}
+
+function mappingCounts(rows = []) {
+  const counts = { EXACT: 0, NEAREST_2M: 0, NEAREST_5M: 0, UNMAPPED: 0 }
+  rows.forEach((row) => { counts[row.mappingConfidence] = (counts[row.mappingConfidence] || 0) + 1 })
+  return counts
 }
 
 export async function rankResourceConsumersV3(processes = [], rca = {}) {
-  if (!processes.length) return { rows: [], engine: 'NO_PROCESS_DATA', mappedRows: 0, unmappedRows: 0 }
-  const attached = attachCollections(processes, rca)
-  const mappedRows = attached.filter((row) => row.collectionIndex >= 0).length
-  const unmappedRows = attached.length - mappedRows
-  const fallbackSnapshots = aggregateSnapshotsJs(attached)
-  let snapshots = fallbackSnapshots
-  let engine = 'JS_FALLBACK_V3'
-  try {
-    snapshots = await aggregateSnapshotsDuckDb(attached)
-    engine = 'DUCKDB_WASM_V3'
-  } catch (error) {
-    engine = `JS_FALLBACK_V3: ${error?.message || 'DuckDB unavailable'}`
+  if (!processes.length) {
+    return { rows: [], engine: 'NO_PROCESS_DATA', mappedRows: 0, unmappedRows: 0, mappingCounts: mappingCounts([]), snapshots: [] }
   }
-  return { rows: buildWindowRows(snapshots, attached, rca), engine, mappedRows, unmappedRows, snapshots }
+  const attached = attachCollections(processes, rca)
+  const counts = mappingCounts(attached)
+  const mappedAttached = attached.filter((row) => row.collectionIndex >= 0)
+  const mappedRows = mappedAttached.length
+  const unmappedRows = attached.length - mappedRows
+  if (!mappedRows) {
+    return { rows: [], engine: 'NO_MAPPED_PROCESS_DATA', mappedRows, unmappedRows, mappingCounts: counts, snapshots: [] }
+  }
+
+  const fallbackSnapshots = aggregateSnapshotsJs(mappedAttached)
+  let snapshots = fallbackSnapshots
+  let engine = 'JS_FALLBACK_V3_1'
+  try {
+    snapshots = await aggregateSnapshotsDuckDb(mappedAttached)
+    engine = 'DUCKDB_WASM_V3_1'
+  } catch (error) {
+    engine = `JS_FALLBACK_V3_1: ${error?.message || 'DuckDB unavailable'}`
+  }
+  return { rows: buildWindowRows(snapshots, mappedAttached, rca), engine, mappedRows, unmappedRows, mappingCounts: counts, snapshots }
 }
 
-export const __test = { attachCollections, aggregateSnapshotsJs, buildWindowRows }
+export const __test = { attachCollections, aggregateSnapshotsJs, buildWindowRows, classifyErrorTimings, mappingCounts }
