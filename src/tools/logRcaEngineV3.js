@@ -28,16 +28,23 @@ function median(values = []) {
   return rows.length % 2 ? rows[mid] : (rows[mid - 1] + rows[mid]) / 2
 }
 
-export function snapshotSeverityV3(snapshot = {}) {
+export function resourceSeverityV3(snapshot = {}) {
   const cpu = metric(snapshot.cpuPct)
   const ram = metric(snapshot.memoryPct)
   const load = metric(snapshot.loadRatio)
   const swapIn = metric(snapshot.swapIn)
-  const wpCritical = metric(snapshot.wpCritical)
   const resourceCrit = (load !== null && load >= 1.5) || (ram !== null && ram >= 85) || (cpu !== null && cpu >= 90) || (swapIn !== null && swapIn >= 1000)
   const resourceWarn = (load !== null && load >= 1) || (ram !== null && ram >= 75) || (cpu !== null && cpu >= 75) || (swapIn !== null && swapIn >= 100)
   if (resourceCrit) return 'CRIT'
-  if (resourceWarn || (wpCritical !== null && wpCritical >= 1)) return 'WARN'
+  if (resourceWarn) return 'WARN'
+  return 'NORMAL'
+}
+
+export function snapshotSeverityV3(snapshot = {}) {
+  const resourceSeverity = resourceSeverityV3(snapshot)
+  const wpCritical = metric(snapshot.wpCritical)
+  if (resourceSeverity !== 'NORMAL') return resourceSeverity
+  if (wpCritical !== null && wpCritical >= 1) return 'WARN'
   return 'NORMAL'
 }
 
@@ -56,9 +63,12 @@ export function resourcePressureScoreV3(snapshot = {}) {
 
 function chooseBetterHostRow(previous, next) {
   if (!previous) return next
-  const severityDelta = severityRank(next.severity) - severityRank(previous.severity)
-  if (severityDelta > 0) return next
-  if (severityDelta < 0) return previous
+  const resourceDelta = severityRank(next.resourceSeverity) - severityRank(previous.resourceSeverity)
+  if (resourceDelta > 0) return next
+  if (resourceDelta < 0) return previous
+  const operationalDelta = severityRank(next.severity) - severityRank(previous.severity)
+  if (operationalDelta > 0) return next
+  if (operationalDelta < 0) return previous
   return next.resourcePressure > previous.resourcePressure ? next : previous
 }
 
@@ -67,7 +77,12 @@ function fileCycles(rows = []) {
   const cycles = []
   let current = null
   for (const raw of sorted) {
-    const row = { ...raw, severity: snapshotSeverityV3(raw), resourcePressure: resourcePressureScoreV3(raw) }
+    const row = {
+      ...raw,
+      resourceSeverity: resourceSeverityV3(raw),
+      severity: snapshotSeverityV3(raw),
+      resourcePressure: resourcePressureScoreV3(raw),
+    }
     const previous = current?.rows?.at(-1)
     const repeatedHost = current?.seenHosts?.has(row.host)
     const longGap = previous && gapMinutes(previous.timeLabel || previous.snapshot, row.timeLabel || row.snapshot) > 12 && current.seenHosts.size >= 2
@@ -99,6 +114,9 @@ export function buildLogicalCollectionsV3(telemetry = []) {
       const crit = hostRows.filter((row) => row.severity === 'CRIT').length
       const warn = hostRows.filter((row) => row.severity === 'WARN').length
       const elevated = crit + warn
+      const resourceCrit = hostRows.filter((row) => row.resourceSeverity === 'CRIT').length
+      const resourceWarn = hostRows.filter((row) => row.resourceSeverity === 'WARN').length
+      const resourceElevated = resourceCrit + resourceWarn
       const resourcePressure = hostRows.reduce((best, row) => Math.max(best, row.resourcePressure), 0)
       const averagePressure = hostRows.length ? Math.round(hostRows.reduce((sum, row) => sum + row.resourcePressure, 0) / hostRows.length) : 0
       const timeLabel = actualTimes[0] || cycle.rows[0]?.timeLabel || cycle.rows[0]?.snapshot || fileName
@@ -106,11 +124,34 @@ export function buildLogicalCollectionsV3(telemetry = []) {
       const sortKey = cycle.rows.reduce((best, row) => Math.min(best, num(row.sortKey, Number.MAX_SAFE_INTEGER)), Number.MAX_SAFE_INTEGER)
       const key = `${fileName}::cycle-${cycle.index + 1}`
       const severity = hostRows.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
+      const resourceSeverity = hostRows.reduce((best, row) => severityRank(row.resourceSeverity) > severityRank(best) ? row.resourceSeverity : best, 'NORMAL')
+      const resourceLandscapeScore = resourcePressure + averagePressure * 0.5 + resourceCrit * 20 + resourceWarn * 8
+      const operationalLandscapeScore = crit * 50 + warn * 20 + resourcePressure + averagePressure * 0.25
       collections.push({
-        key, fileName, cycle: cycle.index + 1, rows: hostRows, byHost, hostCount: hostRows.length,
-        timeLabel, endTime, sortKey, crit, warn, elevated, normal: Math.max(0, hostRows.length - elevated), severity,
-        resourcePressure, averagePressure,
-        landscapeScore: crit * 50 + warn * 20 + resourcePressure + averagePressure * 0.25,
+        key,
+        fileName,
+        cycle: cycle.index + 1,
+        rows: hostRows,
+        byHost,
+        hostCount: hostRows.length,
+        timeLabel,
+        endTime,
+        sortKey,
+        crit,
+        warn,
+        elevated,
+        normal: Math.max(0, hostRows.length - elevated),
+        resourceCrit,
+        resourceWarn,
+        resourceElevated,
+        resourceNormal: Math.max(0, hostRows.length - resourceElevated),
+        severity,
+        resourceSeverity,
+        resourcePressure,
+        averagePressure,
+        resourceLandscapeScore,
+        operationalLandscapeScore,
+        landscapeScore: resourceLandscapeScore,
       })
     }
   }
@@ -139,7 +180,56 @@ function peakMetric(samples = [], key = '') {
   return available.reduce((best, row) => metric(row[key]) > metric(best?.value) ? { value: metric(row[key]), timeLabel: row.timeLabel, fileName: row.fileName, row } : best, null)
 }
 
-function buildHostPeaks(collections = [], hosts = []) {
+function sustainedPressureMetrics(samples = [], cadenceMinutes = 0) {
+  const ordered = [...samples].sort((a, b) => a.collectionIndex - b.collectionIndex)
+  const runs = []
+  let current = []
+  ordered.forEach((row) => {
+    const elevated = row.resourceSeverity === 'WARN' || row.resourceSeverity === 'CRIT'
+    const previous = current.at(-1)
+    const consecutive = !previous || row.collectionIndex === previous.collectionIndex + 1
+    if (elevated && consecutive) current.push(row)
+    else if (elevated) {
+      if (current.length) runs.push(current)
+      current = [row]
+    } else {
+      if (current.length) runs.push(current)
+      current = []
+    }
+  })
+  if (current.length) runs.push(current)
+
+  const bestRun = runs.reduce((best, run) => {
+    if (!best) return run
+    if (run.length !== best.length) return run.length > best.length ? run : best
+    const avg = run.reduce((sum, row) => sum + row.resourcePressure, 0) / run.length
+    const bestAvg = best.reduce((sum, row) => sum + row.resourcePressure, 0) / best.length
+    return avg > bestAvg ? run : best
+  }, null) || []
+
+  const sustainedScore = bestRun.length ? Math.round(bestRun.reduce((sum, row) => sum + row.resourcePressure, 0) / bestRun.length) : 0
+  const sustainedMinutes = bestRun.length > 1 && cadenceMinutes > 0 ? (bestRun.length - 1) * cadenceMinutes : 0
+  let pressureAuc = 0
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1]
+    const currentRow = ordered[index]
+    if (currentRow.collectionIndex !== previous.collectionIndex + 1) continue
+    const minutes = gapMinutes(previous.collectionTime || previous.timeLabel, currentRow.collectionTime || currentRow.timeLabel) || cadenceMinutes
+    if (!minutes) continue
+    pressureAuc += ((previous.resourcePressure + currentRow.resourcePressure) / 2) * minutes
+  }
+
+  return {
+    sustainedScore,
+    sustainedSamples: bestRun.length,
+    sustainedMinutes,
+    pressureAuc: Math.round(pressureAuc),
+    startTime: bestRun[0]?.timeLabel || bestRun[0]?.collectionTime || '',
+    endTime: bestRun.at(-1)?.timeLabel || bestRun.at(-1)?.collectionTime || '',
+  }
+}
+
+function buildHostPeaks(collections = [], hosts = [], cadence = {}) {
   return hosts.map((host) => {
     const samples = collections.map((collection, collectionIndex) => {
       const row = collection.byHost.get(host)
@@ -154,41 +244,53 @@ function buildHostPeaks(collections = [], hosts = []) {
       return best
     }, null)
     const severity = samples.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
+    const resourceSeverity = samples.reduce((best, row) => severityRank(row.resourceSeverity) > severityRank(best) ? row.resourceSeverity : best, 'NORMAL')
+    const sustained = sustainedPressureMetrics(samples, cadence.nominalMinutes || 0)
     return {
       host,
       sampleCount: samples.length,
       severity,
+      resourceSeverity,
       peak: resourcePeak,
       resourcePeak,
       operationalPeak,
       peakTime: resourcePeak?.timeLabel || resourcePeak?.collectionTime || '—',
+      operationalPeakTime: operationalPeak?.timeLabel || operationalPeak?.collectionTime || '—',
       peakCollectionKey: resourcePeak?.collectionKey || '',
       peakCollectionIndex: resourcePeak?.collectionIndex ?? -1,
       peakPressure: resourcePeak?.resourcePressure || 0,
+      sustained,
       metrics: {
-        cpu: peakMetric(samples, 'cpuPct'), ram: peakMetric(samples, 'memoryPct'), load: peakMetric(samples, 'loadRatio'),
-        swapIn: peakMetric(samples, 'swapIn'), wpCritical: peakMetric(samples, 'wpCritical'),
+        cpu: peakMetric(samples, 'cpuPct'),
+        ram: peakMetric(samples, 'memoryPct'),
+        load: peakMetric(samples, 'loadRatio'),
+        swapIn: peakMetric(samples, 'swapIn'),
+        wpCritical: peakMetric(samples, 'wpCritical'),
       },
     }
-  }).sort((a, b) => b.peakPressure - a.peakPressure || severityRank(b.severity) - severityRank(a.severity) || a.host.localeCompare(b.host))
+  }).sort((a, b) => b.peakPressure - a.peakPressure || b.sustained.sustainedScore - a.sustained.sustainedScore || severityRank(b.severity) - severityRank(a.severity) || a.host.localeCompare(b.host))
 }
 
 export function buildAutoPeakRcaV3(analysis = {}) {
   const validated = validateEvidenceAnalysisV3(analysis)
   const telemetry = validated.analysis.telemetry
   const collections = buildLogicalCollectionsV3(telemetry)
-  const hosts = Array.from(new Set(telemetry.map((row) => row.host).filter((host) => host && host !== 'UNKNOWN'))).sort()
-  const hostPeaks = buildHostPeaks(collections, hosts)
-  const landscapePeak = collections.reduce((best, row) => !best || row.landscapeScore > best.landscapeScore ? row : best, null)
   const cadence = cadenceOf(collections)
+  const hosts = Array.from(new Set(telemetry.map((row) => row.host).filter((host) => host && host !== 'UNKNOWN'))).sort()
+  const hostPeaks = buildHostPeaks(collections, hosts, cadence)
+  const resourceLandscapePeak = collections.reduce((best, row) => !best || row.resourceLandscapeScore > best.resourceLandscapeScore ? row : best, null)
+  const operationalLandscapePeak = collections.reduce((best, row) => !best || row.operationalLandscapeScore > best.operationalLandscapeScore ? row : best, null)
   const files = Array.from(new Set(telemetry.map((row) => row.fileName).filter(Boolean)))
   return {
-    version: 3,
+    version: '3.1',
     quality: validated.quality,
+    validatedAnalysis: validated.analysis,
     hosts,
     collections,
     hostPeaks,
-    landscapePeak,
+    resourceLandscapePeak,
+    operationalLandscapePeak,
+    landscapePeak: resourceLandscapePeak,
     cadence,
     evidenceWindow: {
       start: collections[0]?.timeLabel || '',
