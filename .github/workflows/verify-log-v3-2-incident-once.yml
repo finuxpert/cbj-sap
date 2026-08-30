@@ -1,0 +1,32 @@
+name: ONCE - Verify LOG v3.2 incident-relative RCA
+
+on:
+  push:
+    branches:
+      - fix/log-incident-relevance-1.10.0-20260830
+    paths:
+      - .github/workflows/verify-log-v3-2-incident-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Run deterministic RCA tests
+        run: npm test
+      - name: Syntax check RCA engines
+        run: |
+          node --check src/tools/logRcaEngineV3.js
+          node --check src/tools/workloadAnalyticsV3.js
+          node --check src/tools/evidenceSchemaV3.js
+      - name: Build SAP bundle
+        run: npm run build -- --base=/sap/
