@@ -28,11 +28,51 @@ function median(values = []) {
   return rows.length % 2 ? rows[mid] : (rows[mid - 1] + rows[mid]) / 2
 }
 
+function ratio(load, vcpu) {
+  const left = metric(load)
+  const right = metric(vcpu)
+  return left !== null && right !== null && right > 0 ? left / right : null
+}
+
+export function enrichResourceTelemetryV3(snapshot = {}) {
+  const load1Ratio = ratio(snapshot.load1, snapshot.vcpu)
+  const load5Ratio = ratio(snapshot.load5, snapshot.vcpu)
+  const load15Ratio = ratio(snapshot.load15, snapshot.vcpu) ?? metric(snapshot.loadRatio)
+  return {
+    ...snapshot,
+    load1Ratio,
+    load5Ratio,
+    load15Ratio,
+    resourceLoadRatio: load1Ratio ?? load5Ratio ?? load15Ratio,
+  }
+}
+
+function piecewisePressure(value, soft, warn, crit) {
+  const observed = metric(value)
+  if (observed === null) return null
+  if (observed <= 0) return 0
+  if (observed <= soft) return Math.min(0.3, (observed / Math.max(soft, 0.0001)) * 0.3)
+  if (observed < warn) return 0.3 + ((observed - soft) / Math.max(warn - soft, 0.0001)) * 0.3
+  if (observed < crit) return 0.6 + ((observed - warn) / Math.max(crit - warn, 0.0001)) * 0.4
+  return 1
+}
+
+export function resourceSignalScoresV3(snapshot = {}) {
+  const row = enrichResourceTelemetryV3(snapshot)
+  return {
+    cpu: piecewisePressure(row.cpuPct, 50, 75, 90),
+    ram: piecewisePressure(row.memoryPct, 60, 75, 85),
+    load: piecewisePressure(row.resourceLoadRatio, 0.5, 1, 1.5),
+    swap: piecewisePressure(row.swapIn, 1, 100, 1000),
+  }
+}
+
 export function resourceSeverityV3(snapshot = {}) {
-  const cpu = metric(snapshot.cpuPct)
-  const ram = metric(snapshot.memoryPct)
-  const load = metric(snapshot.loadRatio)
-  const swapIn = metric(snapshot.swapIn)
+  const row = enrichResourceTelemetryV3(snapshot)
+  const cpu = metric(row.cpuPct)
+  const ram = metric(row.memoryPct)
+  const load = metric(row.resourceLoadRatio)
+  const swapIn = metric(row.swapIn)
   const resourceCrit = (load !== null && load >= 1.5) || (ram !== null && ram >= 85) || (cpu !== null && cpu >= 90) || (swapIn !== null && swapIn >= 1000)
   const resourceWarn = (load !== null && load >= 1) || (ram !== null && ram >= 75) || (cpu !== null && cpu >= 75) || (swapIn !== null && swapIn >= 100)
   if (resourceCrit) return 'CRIT'
@@ -49,16 +89,16 @@ export function snapshotSeverityV3(snapshot = {}) {
 }
 
 export function resourcePressureScoreV3(snapshot = {}) {
-  const signals = [
-    [metric(snapshot.cpuPct), 90],
-    [metric(snapshot.memoryPct), 85],
-    [metric(snapshot.loadRatio), 1.5],
-    [metric(snapshot.swapIn), 1000],
-  ].filter(([value]) => value !== null).map(([value, threshold]) => Math.max(0, value / threshold))
-  if (!signals.length) return 0
-  const maxSignal = Math.max(...signals)
-  const avgSignal = signals.reduce((sum, value) => sum + value, 0) / signals.length
-  return Math.round(Math.min(100, (maxSignal * 0.6 + avgSignal * 0.4) * 100))
+  const scores = Object.values(resourceSignalScoresV3(snapshot)).filter((value) => value !== null).sort((a, b) => b - a)
+  if (!scores.length) return 0
+  const combined = scores.length === 1 ? scores[0] : scores[0] * 0.72 + scores[1] * 0.28
+  return Math.round(Math.min(1, combined) * 100)
+}
+
+function resourceCoverageV3(snapshot = {}) {
+  const scores = resourceSignalScoresV3(snapshot)
+  const observed = Object.values(scores).filter((value) => value !== null).length
+  return { observed, total: 4, pct: Math.round((observed / 4) * 100) }
 }
 
 function chooseBetterHostRow(previous, next) {
@@ -77,11 +117,13 @@ function fileCycles(rows = []) {
   const cycles = []
   let current = null
   for (const raw of sorted) {
+    const enriched = enrichResourceTelemetryV3(raw)
     const row = {
-      ...raw,
-      resourceSeverity: resourceSeverityV3(raw),
-      severity: snapshotSeverityV3(raw),
-      resourcePressure: resourcePressureScoreV3(raw),
+      ...enriched,
+      resourceSeverity: resourceSeverityV3(enriched),
+      severity: snapshotSeverityV3(enriched),
+      resourcePressure: resourcePressureScoreV3(enriched),
+      resourceCoverage: resourceCoverageV3(enriched),
     }
     const previous = current?.rows?.at(-1)
     const repeatedHost = current?.seenHosts?.has(row.host)
@@ -125,8 +167,8 @@ export function buildLogicalCollectionsV3(telemetry = []) {
       const key = `${fileName}::cycle-${cycle.index + 1}`
       const severity = hostRows.reduce((best, row) => severityRank(row.severity) > severityRank(best) ? row.severity : best, 'NORMAL')
       const resourceSeverity = hostRows.reduce((best, row) => severityRank(row.resourceSeverity) > severityRank(best) ? row.resourceSeverity : best, 'NORMAL')
-      const resourceLandscapeScore = resourcePressure + averagePressure * 0.5 + resourceCrit * 20 + resourceWarn * 8
-      const operationalLandscapeScore = crit * 50 + warn * 20 + resourcePressure + averagePressure * 0.25
+      const resourceLandscapeScore = resourcePressure + averagePressure * 0.35 + resourceCrit * 25 + resourceWarn * 10
+      const operationalLandscapeScore = crit * 50 + warn * 20 + resourcePressure + averagePressure * 0.2
       collections.push({
         key,
         fileName,
@@ -208,7 +250,9 @@ function sustainedPressureMetrics(samples = [], cadenceMinutes = 0) {
   }, null) || []
 
   const sustainedScore = bestRun.length ? Math.round(bestRun.reduce((sum, row) => sum + row.resourcePressure, 0) / bestRun.length) : 0
-  const sustainedMinutes = bestRun.length > 1 && cadenceMinutes > 0 ? (bestRun.length - 1) * cadenceMinutes : 0
+  const actualSpan = bestRun.length > 1 ? gapMinutes(bestRun[0]?.timeLabel || bestRun[0]?.collectionTime, bestRun.at(-1)?.timeLabel || bestRun.at(-1)?.collectionTime) : 0
+  const sustainedMinutes = actualSpan || (bestRun.length > 1 && cadenceMinutes > 0 ? (bestRun.length - 1) * cadenceMinutes : 0)
+  const sustainedClass = bestRun.length >= 3 || sustainedMinutes >= Math.max(40, cadenceMinutes * 2) ? 'SUSTAINED' : bestRun.length === 2 ? 'SHORT_BURST' : bestRun.length === 1 ? 'POINT' : 'NONE'
   let pressureAuc = 0
   for (let index = 1; index < ordered.length; index += 1) {
     const previous = ordered[index - 1]
@@ -223,10 +267,19 @@ function sustainedPressureMetrics(samples = [], cadenceMinutes = 0) {
     sustainedScore,
     sustainedSamples: bestRun.length,
     sustainedMinutes,
+    sustainedClass,
     pressureAuc: Math.round(pressureAuc),
     startTime: bestRun[0]?.timeLabel || bestRun[0]?.collectionTime || '',
     endTime: bestRun.at(-1)?.timeLabel || bestRun.at(-1)?.collectionTime || '',
   }
+}
+
+function chooseResourcePeak(best, row) {
+  if (!best) return row
+  const severityDelta = severityRank(row.resourceSeverity) - severityRank(best.resourceSeverity)
+  if (severityDelta > 0) return row
+  if (severityDelta < 0) return best
+  return row.resourcePressure > best.resourcePressure ? row : best
 }
 
 function buildHostPeaks(collections = [], hosts = [], cadence = {}) {
@@ -235,7 +288,7 @@ function buildHostPeaks(collections = [], hosts = [], cadence = {}) {
       const row = collection.byHost.get(host)
       return row ? { ...row, collectionKey: collection.key, collectionIndex, collectionTime: collection.timeLabel } : null
     }).filter(Boolean)
-    const resourcePeak = samples.reduce((best, row) => !best || row.resourcePressure > best.resourcePressure ? row : best, null)
+    const resourcePeak = samples.reduce(chooseResourcePeak, null)
     const operationalPeak = samples.reduce((best, row) => {
       if (!best) return row
       const severityDelta = severityRank(row.severity) - severityRank(best.severity)
@@ -249,6 +302,7 @@ function buildHostPeaks(collections = [], hosts = [], cadence = {}) {
     return {
       host,
       sampleCount: samples.length,
+      samples,
       severity,
       resourceSeverity,
       peak: resourcePeak,
@@ -263,12 +317,13 @@ function buildHostPeaks(collections = [], hosts = [], cadence = {}) {
       metrics: {
         cpu: peakMetric(samples, 'cpuPct'),
         ram: peakMetric(samples, 'memoryPct'),
-        load: peakMetric(samples, 'loadRatio'),
+        load: peakMetric(samples, 'resourceLoadRatio'),
+        load15: peakMetric(samples, 'load15Ratio'),
         swapIn: peakMetric(samples, 'swapIn'),
         wpCritical: peakMetric(samples, 'wpCritical'),
       },
     }
-  }).sort((a, b) => b.peakPressure - a.peakPressure || b.sustained.sustainedScore - a.sustained.sustainedScore || severityRank(b.severity) - severityRank(a.severity) || a.host.localeCompare(b.host))
+  }).sort((a, b) => severityRank(b.resourceSeverity) - severityRank(a.resourceSeverity) || b.peakPressure - a.peakPressure || b.sustained.sustainedScore - a.sustained.sustainedScore || a.host.localeCompare(b.host))
 }
 
 export function buildAutoPeakRcaV3(analysis = {}) {
@@ -282,7 +337,7 @@ export function buildAutoPeakRcaV3(analysis = {}) {
   const operationalLandscapePeak = collections.reduce((best, row) => !best || row.operationalLandscapeScore > best.operationalLandscapeScore ? row : best, null)
   const files = Array.from(new Set(telemetry.map((row) => row.fileName).filter(Boolean)))
   return {
-    version: '3.1',
+    version: '3.2',
     quality: validated.quality,
     validatedAnalysis: validated.analysis,
     hosts,
