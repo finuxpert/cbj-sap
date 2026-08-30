@@ -121,9 +121,14 @@ export function confidenceFor(row = {}, targetCollection = {}, hostTarget = {}) 
   const coverageUnit = coveragePct === null ? 0.5 : clamp01(coveragePct / 100)
   const skewUnit = skew === 'HIGH' ? 1 : skew === 'MEDIUM' ? 0.72 : 0.4
   const score = Math.round(evidenceUnit * 35 + baselineUnit * 25 + coverageUnit * 20 + skewUnit * 20)
+  let grade = score >= 80 ? 'HIGH' : score >= 60 ? 'MEDIUM' : 'LOW'
+  // High confidence requires a sufficiently synchronous capture and exact target evidence.
+  if (skew === 'LOW' && grade === 'HIGH') grade = 'MEDIUM'
+  if (row.targetEvidence !== 'EXACT_TARGET' && grade === 'HIGH') grade = 'MEDIUM'
+  if (baselineCount < 3 && grade === 'HIGH') grade = 'MEDIUM'
   return {
     score,
-    grade: score >= 80 ? 'HIGH' : score >= 60 ? 'MEDIUM' : 'LOW',
+    grade,
     skewMinutes,
     skewGrade: skew,
     baselineCount,
