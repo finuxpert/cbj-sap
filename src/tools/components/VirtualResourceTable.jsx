@@ -14,6 +14,10 @@ function toneForError(value = '') {
 
 function evidenceLabel(value = '') {
   if (value === 'EXACT_TARGET') return 'EXACT'
+  if (value === 'NEAR_TARGET') return 'NEAR'
+  if (value === 'EARLY_TARGET') return 'EARLY'
+  if (value === 'LATE_TARGET') return 'LATE'
+  if (value === 'OFF_TARGET') return 'OFF'
   if (value === 'ADJACENT_TARGET') return 'ADJACENT'
   return 'NONE'
 }
@@ -33,12 +37,13 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
     { accessorKey: 'footprintScore', header: 'Footprint', size: 85, cell: ({ getValue }) => fmt(getValue(), 0) },
     { accessorKey: 'targetHostSeverity', header: 'Host @ Incident', size: 115 },
     { accessorKey: 'targetEvidence', header: 'Target Evidence', size: 110, cell: ({ getValue }) => evidenceLabel(getValue()) },
-    { accessorKey: 'targetCpu', header: 'CPU Σ @ Incident', size: 120, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
-    { accessorKey: 'targetMaxPidRss', header: 'Max PID RSS @ Incident', size: 145, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 2)} GB` : '—' },
-    { accessorKey: 'cpuContributionPct', header: 'CPU Contrib.', size: 100, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
+    { accessorKey: 'targetDeltaMinutes', header: 'Δ min', size: 70, cell: ({ getValue }) => hasMetric(getValue()) ? `${Number(getValue()) > 0 ? '+' : ''}${fmt(getValue(), 0)}` : '—' },
+    { accessorKey: 'targetCpu', header: 'CPU Σ @ Evidence', size: 120, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
+    { accessorKey: 'targetMaxPidRss', header: 'Max PID RSS @ Evidence', size: 145, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 2)} GB` : '—' },
+    { accessorKey: 'cpuContributionPct', header: 'CPU Contrib.', size: 115, cell: ({ getValue, row }) => row.original.cpuContributionValid === false ? 'scale mismatch' : hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
     { accessorKey: 'maxPidRssUsedRamIndicatorPct', header: 'Max PID RSS / Used RAM', size: 155, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
-    { accessorKey: 'targetDState', header: 'D @ Incident', size: 90 },
-    { accessorKey: 'targetConcurrentPids', header: 'PIDs @ Incident', size: 100 },
+    { accessorKey: 'targetDState', header: 'D @ Evidence', size: 90 },
+    { accessorKey: 'targetConcurrentPids', header: 'PIDs @ Evidence', size: 100 },
     { accessorKey: 'presenceCount', header: 'Observed', size: 78 },
     { accessorKey: 'errorState', header: 'Error Timing', size: 175, cell: ({ getValue }) => <span className={`logV2ErrorState ${toneForError(getValue())}`}>{getValue()}</span> },
     { accessorKey: 'errors', header: 'Errors', size: 280, cell: ({ getValue }) => (getValue() || []).join(', ') || '—' },
@@ -57,7 +62,7 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
       const needle = String(value || '').toLowerCase().trim()
       if (!needle) return true
       const item = row.original
-      return [item.host, item.workload, item.program, item.type, item.incidentRole, item.incidentConfidence, item.errorState, item.targetEvidence, item.targetHostSeverity, ...(item.errors || [])].join(' ').toLowerCase().includes(needle)
+      return [item.host, item.workload, item.program, item.type, item.incidentRole, item.incidentConfidence, item.errorState, item.targetEvidence, item.targetHostSeverity, item.cpuContributionStatus, ...(item.errors || [])].join(' ').toLowerCase().includes(needle)
     },
   })
 
@@ -69,7 +74,7 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
   return <div className="logV2TableShell">
     <div className="logV2TableToolbar">
       <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search job, role, host, program, error…" />
-      <span><b>{tableRows.length}</b> of {rows.length} workloads · primary sort = causal priority · relevance/victim/footprint are separate context</span>
+      <span><b>{tableRows.length}</b> of {rows.length} workloads · primary sort = causal priority · target evidence is actual-minute relative to the landscape incident</span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
