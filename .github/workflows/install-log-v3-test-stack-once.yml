@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/log-v3-deterministic-analytics-20260830
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -37,5 +38,6 @@ jobs:
             echo "No dependency changes"
           else
             git commit -m "build: add LOG v3 schema and property-test stack"
+            git pull --rebase origin fix/log-v3-deterministic-analytics-20260830
             git push origin HEAD:fix/log-v3-deterministic-analytics-20260830
           fi
