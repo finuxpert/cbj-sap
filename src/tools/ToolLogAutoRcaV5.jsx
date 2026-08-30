@@ -25,6 +25,19 @@ const robustZText = (value) => {
   return fmt(n, 1)
 }
 
+function qualityPresentation(local = {}) {
+  const score = hasMetric(local?.score) ? Number(local.score) : null
+  if (score === null) return { label: 'Unknown', meta: 'local data unavailable' }
+  const label = score >= 95 ? 'Complete' : score >= 80 ? 'Good' : score >= 60 ? 'Limited' : 'Low'
+  return { label, meta: `${fmt(score, 0)}% local data quality` }
+}
+
+function runPresentation(sustained = {}) {
+  const name = sustained?.sustainedClass || 'NONE'
+  if (name === 'NONE') return 'None'
+  return `${humanize(name)} · score ${fmt(sustained?.sustainedScore || 0, 0)}`
+}
+
 function patternPresentation(verdict, capabilities) {
   const raw = verdict?.pattern || 'RESOURCE_CONTENTION'
   const mode = capabilities?.mode || verdict?.telemetryMode || 'LEGACY'
@@ -78,16 +91,18 @@ function hostPeakAttributionValid(item = {}) {
   if (!item.host) return false
   if (item.resourcePeak?.host && item.resourcePeak.host !== item.host) return false
   if (item.operationalPeak?.host && item.operationalPeak.host !== item.host) return false
-  if ((item.samples || []).some((row) => row.host && row.host !== item.host)) return false
+  if (item.resourcePeak?.sourceHostStatus === 'MISMATCH' || item.operationalPeak?.sourceHostStatus === 'MISMATCH') return false
+  if ((item.samples || []).some((row) => (row.host && row.host !== item.host) || row.sourceHostStatus === 'MISMATCH')) return false
   const metricRows = Object.values(item.metrics || {}).map((entry) => entry?.row).filter(Boolean)
-  return !metricRows.some((row) => row.host && row.host !== item.host)
+  return !metricRows.some((row) => (row.host && row.host !== item.host) || row.sourceHostStatus === 'MISMATCH')
 }
 
-function IncidentSummary({ verdict, capabilities }) {
+function IncidentSummary({ verdict, capabilities, topRow }) {
   if (!verdict) return null
   const single = verdict.status === 'SINGLE_CULPRIT_SUPPORTED'
   const landscape = verdict.landscapeConfidence || {}
   const pattern = patternPresentation(verdict, capabilities)
+  const quality = qualityPresentation(topRow?.localConfidence)
   return <section className="logV2Panel logV141Summary">
     <div className="logV141SummaryTop">
       <div><span className="logV141Kicker">INCIDENT SUMMARY</span><h2>{single ? 'Dominant workload confirmed' : 'No dominant workload'}</h2></div>
@@ -97,7 +112,7 @@ function IncidentSummary({ verdict, capabilities }) {
       <div><span>Host / time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
       <div><span>Pattern</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
       <div><span>Top candidate</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>
-      <div><span>Data quality</span><strong>{verdict.topLocalConfidence || 'LOW'}</strong><small>local workload evidence</small></div>
+      <div><span>Data quality</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>
       <div><span>Cross-host</span><strong>{landscape.grade || 'LOW'} {hasMetric(landscape.score) ? `${landscape.score}/100` : ''}</strong><small>{landscape.skewMinutes ?? 0}m skew · exact {landscape.exactHosts ?? 0}/{landscape.hostCount ?? 0}</small></div>
       <div><span>Telemetry</span><strong>{capabilities?.mode || verdict.telemetryMode || 'LEGACY'}</strong><small>{capabilities?.coveragePct ?? 0}% enhanced coverage</small></div>
     </div>
@@ -130,7 +145,7 @@ function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
         const attributionOk = hostPeakAttributionValid(item)
         return <tr key={item.host} className={`${selectedHost === item.host ? 'active' : ''} ${attributionOk ? '' : 'attributionError'}`} onClick={() => onSelectHost?.(item.host)}>
           <td><b>{item.host}</b>{!attributionOk && <span className="logV141Integrity">ATTRIB</span>}</td><td><Status value={item.severity} /></td><td><Status value={item.resourceSeverity} /></td><td><b>{attributionOk ? item.peakPressure : '—'}</b>{attributionOk ? '/100' : ''}</td><td>{attributionOk ? shortTime(item.peakTime) : 'mapping error'}</td>
-          <td>{item.sustained?.sustainedClass || 'NONE'} · {item.sustained?.sustainedScore || 0}</td><td>{attributionOk ? metricText(item.metrics?.cpu?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.ram?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.load?.value, 2) : '—'}</td><td>{attributionOk ? metricText(item.metrics?.swapIn?.value, 0, ' p/s') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.wpCritical?.value) : '—'}</td>
+          <td>{runPresentation(item.sustained)}</td><td>{attributionOk ? metricText(item.metrics?.cpu?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.ram?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.load?.value, 2) : '—'}</td><td>{attributionOk ? metricText(item.metrics?.swapIn?.value, 0, ' p/s') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.wpCritical?.value) : '—'}</td>
         </tr>
       })}
     </tbody></table></div>
@@ -148,13 +163,14 @@ function cpuShareText(item) {
 function WorkloadDetail({ item }) {
   if (!item) return null
   const taxonomy = item.errorTaxonomy || {}
+  const quality = qualityPresentation(item.localConfidence)
   const timingText = taxonomy.classified?.map((entry) => `${entry.code}: ${entry.timing?.state || 'NONE'}${hasMetric(entry.timing?.deltaMinutes) ? ` (${signed(entry.timing.deltaMinutes, 0, 'm')})` : ''}`).join(' · ') || 'None'
   return <section className="logV2Panel">
     <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAIL</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {humanize(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Victim {item.victimScore}</span></div></div>
     <div className="logV2DetailGrid">
       <div className="logV2DetailFacts"><dl>
         <div><dt>Role</dt><dd>{humanize(item.incidentRole)}</dd></div><div><dt>Target</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>
-        <div><dt>Data quality</dt><dd>{item.localConfidence?.grade || '—'} · {item.localConfidence?.score ?? '—'}/100</dd></div><div><dt>Cross-host</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.score ?? '—'}/100</dd></div>
+        <div><dt>Data quality</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Cross-host</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.score ?? '—'}/100</dd></div>
         <div><dt>Host @ incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host evidence</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>
         <div><dt>CPU @ evidence</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated CPU share</dt><dd>{cpuShareText(item)}</dd></div>
         <div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div><div><dt>PSS baseline</dt><dd>{metricText(item.pssBaseline?.median, 2, ' GB')} · z {robustZText(item.pssUplift?.z)}</dd></div>
@@ -171,15 +187,20 @@ function WorkloadDetail({ item }) {
   </section>
 }
 
-function AnalyticsDiagnostics({ diagnostics, capabilities, mapping, verdict, rca }) {
+function AnalyticsDiagnostics({ diagnostics, capabilities, mapping, verdict, rca, analysis }) {
   const parity = diagnostics?.parity || {}
   const attributionIssues = (rca?.hostPeaks || []).filter((item) => !hostPeakAttributionValid(item)).map((item) => item.host)
+  const source = analysis?.sourceHostProvenance || {}
+  const sourceText = source.totalBlocks
+    ? `${source.status || 'WARN'} · verified ${source.verifiedBlocks || 0}/${source.totalBlocks} · unverified ${source.unverifiedBlocks || 0} · mismatch ${source.mismatchBlocks || 0} · dropped T/P ${source.droppedTelemetryRows || 0}/${source.droppedProcessRows || 0}`
+    : 'WARN · raw source-host headers unavailable'
   return <details className="logV2SourceAudit"><summary>Diagnostics</summary><div><table><tbody>
-    <tr><th>RCA engine</th><td>{diagnostics?.engineDiagnostics?.rcaEngine || 'RCA v3.6.2'}</td></tr>
+    <tr><th>RCA engine</th><td>{diagnostics?.engineDiagnostics?.rcaEngine || 'RCA v3.6.3'}</td></tr>
     <tr><th>Core aggregator</th><td>{diagnostics?.engineDiagnostics?.coreAggregator || diagnostics?.engineDiagnostics?.activeEngine || '—'}</td></tr>
     <tr><th>DuckDB</th><td>{diagnostics?.engineDiagnostics?.duckDbStatus || '—'} · {diagnostics?.engineReason || diagnostics?.engineDiagnostics?.reason || 'no error'}</td></tr>
     <tr><th>Parity</th><td>{parity.status || 'NOT_RUN'} · compared {parity.compared || 0} · mismatches {parity.mismatchCount || 0}</td></tr>
     <tr><th>Process mapping</th><td>EXACT {mapping?.counts?.EXACT || 0} · ≤2m {mapping?.counts?.NEAREST_2M || 0} · ≤5m {mapping?.counts?.NEAREST_5M || 0} · unmapped {mapping?.counts?.UNMAPPED || 0}</td></tr>
+    <tr><th>Source host provenance</th><td>{sourceText}</td></tr>
     <tr><th>Host peak attribution</th><td>{attributionIssues.length ? `FAIL · ${attributionIssues.join(', ')}` : 'PASS'}</td></tr>
     <tr><th>Telemetry</th><td>{capabilities?.mode || 'LEGACY'} · coverage {capabilities?.coveragePct || 0}% · host {capabilities?.hostCoveragePct || 0}% · process {capabilities?.processCoveragePct || 0}%</td></tr>
     <tr><th>Verdict rules</th><td>{verdict?.reasons?.join(' · ') || 'none'}</td></tr>
@@ -187,7 +208,7 @@ function AnalyticsDiagnostics({ diagnostics, capabilities, mapping, verdict, rca
 }
 
 function SourceAudit({ collections = [] }) {
-  return <details className="logV2SourceAudit"><summary>Source Audit</summary><div><table><thead><tr><th>#</th><th>Collection</th><th>Host samples</th><th>Source file</th></tr></thead><tbody>{collections.map((item, index) => <tr key={item.key}><td>{index + 1}</td><td>{item.timeLabel}{item.endTime !== item.timeLabel ? ` → ${item.endTime}` : ''}</td><td>{item.rows.map((row) => `${row.host}@${row.timeLabel || row.snapshot}`).join(' · ')}</td><td>{item.fileName}</td></tr>)}</tbody></table></div></details>
+  return <details className="logV2SourceAudit"><summary>Source Audit</summary><div><table><thead><tr><th>#</th><th>Collection</th><th>Host samples</th><th>Source file</th></tr></thead><tbody>{collections.map((item, index) => <tr key={item.key}><td>{index + 1}</td><td>{item.timeLabel}{item.endTime !== item.timeLabel ? ` → ${item.endTime}` : ''}</td><td>{item.rows.map((row) => `${row.host}@${row.timeLabel || row.snapshot}${row.sourceHostStatus ? ` [${row.sourceHostStatus}]` : ''}`).join(' · ')}</td><td>{item.fileName}</td></tr>)}</tbody></table></div></details>
 }
 
 export default function ToolLogAutoRcaV5() {
@@ -234,7 +255,8 @@ export default function ToolLogAutoRcaV5() {
       setSelectedCollectionKey(nextRca.resourceLandscapePeak?.key || nextRca.collections[0]?.key || ''); setSelectedHost(nextRca.hostPeaks?.[0]?.host || nextRca.hosts?.[0] || '')
       setResourceRows([]); setSelectedResource(null); setVerdict(null)
       const rejected = (nextRca.quality?.telemetryRejected || 0) + (nextRca.quality?.processRejected || 0)
-      setStatus(`${expanded.length} files · ${nextRca.collections.length} collections · ${nextRca.hosts.length} application servers · rejects ${rejected} · telemetry ${caps.mode}`)
+      const sourceStatus = nextAnalysis?.sourceHostProvenance?.status || 'WARN'
+      setStatus(`${expanded.length} files · ${nextRca.collections.length} collections · ${nextRca.hosts.length} application servers · rejects ${rejected} · source-host ${sourceStatus} · telemetry ${caps.mode}`)
       await rankResources(nextAnalysis, nextRca)
     } catch (error) {
       setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
@@ -263,7 +285,7 @@ export default function ToolLogAutoRcaV5() {
         <Stat label="Telemetry" value={capabilities.mode || 'LEGACY'} meta={`${capabilities.coveragePct || 0}% enhanced coverage`} />
       </section>
 
-      {!ranking && <IncidentSummary verdict={verdict} capabilities={capabilities} />}
+      {!ranking && <IncidentSummary verdict={verdict} capabilities={capabilities} topRow={resourceRows[0]} />}
 
       <section className="logV2Panel">
         <div className="logV2PanelHead"><div><h2>APP1–APP5 Timeline</h2></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
@@ -279,7 +301,7 @@ export default function ToolLogAutoRcaV5() {
       </section>
 
       {!ranking && <WorkloadDetail item={selectedResource} />}
-      <AnalyticsDiagnostics diagnostics={diagnostics} capabilities={capabilities} mapping={mapping} verdict={verdict} rca={rca} />
+      <AnalyticsDiagnostics diagnostics={diagnostics} capabilities={capabilities} mapping={mapping} verdict={verdict} rca={rca} analysis={analysis} />
       <SourceAudit collections={rca.collections} />
     </>}
   </div></section>
