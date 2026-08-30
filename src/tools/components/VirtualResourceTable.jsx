@@ -7,8 +7,8 @@ const fmt = (value, digits = 1) => hasMetric(value) ? Number(value).toLocaleStri
 
 function toneForError(value = '') {
   if (value === 'NEW_AT_PEAK') return 'critical'
-  if (value === 'PERSISTENT_AT_PEAK') return 'warn'
-  if (value === 'OFF_PEAK') return 'neutral'
+  if (value === 'NEW_BEFORE_PEAK' || value === 'PERSISTENT_NEAR_PEAK') return 'warn'
+  if (value === 'NEW_AFTER_PEAK' || value === 'OFF_PEAK') return 'neutral'
   return 'good'
 }
 
@@ -20,15 +20,16 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
     { accessorKey: 'workload', header: 'Workload / Job', size: 260 },
     { accessorKey: 'program', header: 'Program', size: 180 },
     { accessorKey: 'resourceScore', header: 'Investigation Score', size: 145, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
-    { accessorKey: 'peakCorrelation', header: 'Peak Align.', size: 115, cell: ({ getValue }) => `${fmt(getValue(), 0)}%` },
-    { accessorKey: 'avgCpu', header: 'Avg CPU Σ', size: 105, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
+    { accessorKey: 'peakCorrelation', header: 'Peak Align.', size: 115, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 0)}%` : '—' },
+    { accessorKey: 'avgCpu', header: 'Avg CPU Σ (obs)', size: 125, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
     { accessorKey: 'peakCpu', header: 'Peak CPU Σ', size: 105, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
-    { accessorKey: 'peakRss', header: 'Peak RSS Σ', size: 110, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 2)} GB` : '—' },
+    { accessorKey: 'peakRss', header: 'Peak ΣRSS*', size: 110, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 2)} GB` : '—' },
+    { accessorKey: 'peakMaxPidRss', header: 'Max PID RSS', size: 115, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 2)} GB` : '—' },
     { accessorKey: 'dStateHits', header: 'D Hits', size: 82 },
     { accessorKey: 'peakConcurrentPids', header: 'Peak PIDs', size: 92 },
     { accessorKey: 'uniquePidCount', header: 'Unique PIDs', size: 98 },
     { accessorKey: 'presenceCount', header: 'Presence', size: 95 },
-    { accessorKey: 'errorState', header: 'Error State', size: 150, cell: ({ getValue }) => <span className={`logV2ErrorState ${toneForError(getValue())}`}>{getValue()}</span> },
+    { accessorKey: 'errorState', header: 'Error State', size: 170, cell: ({ getValue }) => <span className={`logV2ErrorState ${toneForError(getValue())}`}>{getValue()}</span> },
     { accessorKey: 'errors', header: 'Errors', size: 280, cell: ({ getValue }) => (getValue() || []).join(', ') || '—' },
   ], [])
 
@@ -57,7 +58,7 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
   return <div className="logV2TableShell">
     <div className="logV2TableToolbar">
       <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search job, host, program, error…" />
-      <span><b>{tableRows.length}</b> of {rows.length} observed workloads · virtualized</span>
+      <span><b>{tableRows.length}</b> of {rows.length} observed workloads · virtualized · *ΣRSS is an upper-bound signal</span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
