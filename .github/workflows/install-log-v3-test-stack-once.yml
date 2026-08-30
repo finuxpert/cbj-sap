@@ -1,0 +1,41 @@
+name: ONCE - Install LOG v3 validation stack
+
+on:
+  push:
+    branches:
+      - fix/log-v3-deterministic-analytics-20260830
+    paths:
+      - .github/workflows/install-log-v3-test-stack-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/log-v3-deterministic-analytics-20260830
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Add schema and property-test dependencies
+        run: |
+          npm install zod@^4 --save
+          npm install vitest@^3 fast-check@^4 --save-dev
+          npm pkg set scripts.test="vitest run"
+      - name: Commit lockfile updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes"
+          else
+            git commit -m "build: add LOG v3 schema and property-test stack"
+            git push origin HEAD:fix/log-v3-deterministic-analytics-20260830
+          fi
