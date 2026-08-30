@@ -6,17 +6,8 @@ import { __test as telemetryTest } from '../telemetryEnrichmentV13.js'
 describe('LOG v1.14.1 correctness stabilization', () => {
   it('does not double-count legacy D-state or force BLOCKED_VICTIM without enhanced evidence', () => {
     const base = {
-      causalScore: 51,
-      victimScore: 70,
-      incidentScore: 65,
-      incidentRole: 'MIXED',
-      targetDState: 1,
-      targetConcurrentPids: 2,
-      targetEvidence: 'EXACT_TARGET',
-      localConfidence: { grade: 'HIGH', score: 95 },
-      enhancedEvidenceUsable: false,
-      errors: [],
-      errorTimings: [],
+      causalScore: 51, victimScore: 70, incidentScore: 65, incidentRole: 'MIXED', targetDState: 1, targetConcurrentPids: 2,
+      targetEvidence: 'EXACT_TARGET', localConfidence: { grade: 'HIGH', score: 95 }, enhancedEvidenceUsable: false, errors: [], errorTimings: [],
     }
     const refined = refineWorkloadV14(base, { row: { memoryPct: 99, resourceLoadRatio: 3.4, swapIn: 450 } }, { mode: 'LEGACY' })
     expect(refined.victimScore).toBe(70)
@@ -35,23 +26,17 @@ describe('LOG v1.14.1 correctness stabilization', () => {
     expect(taxonomy.strongest.category).toBe('DB_CONCURRENCY')
     expect(taxonomy.strongest.timing.state).toBe('NEW_AFTER_TARGET')
     expect(taxonomy.precursor).toBeNull()
-    expect(taxonomy.direction).toBe('CONTEXT')
+    expect(taxonomy.direction).toBe('LIKELY_SYMPTOM')
   })
 
   it('uses LEGACY, PARTIAL, ENHANCED instead of a binary telemetry flag', () => {
     const legacy = telemetryCapabilitiesV13({ telemetry: [{ host: 'APP1' }], processes: [{ pid: '1' }] })
     expect(legacy.mode).toBe('LEGACY')
-
-    const partial = telemetryCapabilitiesV13({
-      telemetry: [{ host: 'APP1', iowaitPct: 2 }, { host: 'APP1' }],
-      processes: [{ pid: '1', pssGb: 1 }, { pid: '2' }, { pid: '3' }],
-    })
+    const partial = telemetryCapabilitiesV13({ telemetry: [{ host: 'APP1', iowaitPct: 2 }, { host: 'APP1' }], processes: [{ pid: '1', pssGb: 1 }, { pid: '2' }, { pid: '3' }] })
     expect(partial.mode).toBe('PARTIAL')
-
     const telemetry = Array.from({ length: 10 }, (_, index) => ({ host: 'APP1', iowaitPct: 2, psiMemorySome10: 1, psiIoSome10: 1, sample: index }))
     const processes = Array.from({ length: 10 }, (_, index) => ({ pid: String(index), pssGb: 1, wchan: 'futex_wait', readBytes: index * 100, writeBytes: index * 20 }))
-    const enhanced = telemetryCapabilitiesV13({ telemetry, processes })
-    expect(enhanced.mode).toBe('ENHANCED')
+    expect(telemetryCapabilitiesV13({ telemetry, processes }).mode).toBe('ENHANCED')
   })
 
   it('keeps enhanced samples 3-5 minutes away as context-only, not causal evidence', () => {
@@ -63,10 +48,8 @@ describe('LOG v1.14.1 correctness stabilization', () => {
 
   it('prioritizes WCHAN from D-state PIDs over the dominant all-state WCHAN', () => {
     const top = telemetryTest.topWchan([
-      { pid: '1', procState: 'S', wchan: 'futex_wait_queue_me' },
-      { pid: '2', procState: 'S', wchan: 'futex_wait_queue_me' },
-      { pid: '3', procState: 'S', wchan: 'futex_wait_queue_me' },
-      { pid: '4', procState: 'D', wchan: 'nfs_file_read' },
+      { pid: '1', procState: 'S', wchan: 'futex_wait_queue_me' }, { pid: '2', procState: 'S', wchan: 'futex_wait_queue_me' },
+      { pid: '3', procState: 'S', wchan: 'futex_wait_queue_me' }, { pid: '4', procState: 'D', wchan: 'nfs_file_read' },
     ])
     expect(top.className).toBe('NFS')
     expect(top.wchan).toBe('nfs_file_read')
@@ -74,10 +57,7 @@ describe('LOG v1.14.1 correctness stabilization', () => {
   })
 
   it('keeps PARTIAL telemetry on the conservative culprit threshold', () => {
-    const rows = [{
-      workload: 'JOB_A', host: 'APP1', causalScore: 67, victimScore: 30, incidentScore: 70,
-      incidentRole: 'RESOURCE_CONSUMER', targetEvidence: 'EXACT_TARGET', localConfidence: { grade: 'HIGH', score: 95 }, enhancedEvidenceUsable: true,
-    }]
+    const rows = [{ workload: 'JOB_A', host: 'APP1', causalScore: 67, victimScore: 30, incidentScore: 70, incidentRole: 'RESOURCE_CONSUMER', targetEvidence: 'EXACT_TARGET', localConfidence: { grade: 'HIGH', score: 95 }, enhancedEvidenceUsable: true }]
     const verdict = verdictV14(rows, { pattern: 'RESOURCE_CONTENTION' }, { row: {} }, { mode: 'PARTIAL' })
     expect(verdict.status).toBe('NO_SINGLE_CULPRIT')
     expect(verdict.reasons).toContain('CAUSAL_SCORE_BELOW_70')
