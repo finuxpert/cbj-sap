@@ -1,0 +1,113 @@
+name: ONCE - Apply LOG v1.14.5 operator wording
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - .github/workflows/apply-log-v1145-wording-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Apply operator wording polish
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_exact(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"Expected snippet not found in {path}: {old[:140]!r}")
+              p.write_text(text.replace(old, new, count))
+
+          tool = 'src/tools/ToolLogAutoRcaV5.jsx'
+          table = 'src/tools/components/VirtualResourceTableV14.jsx'
+
+          replace_exact(tool,
+              "const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\\b\\w/g, (char) => char.toUpperCase())",
+              "const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\\b\\w/g, (char) => char.toUpperCase())\nconst operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', NFS_IO_CONTENTION: 'NFS I/O Contention', IO_CONSUMER: 'I/O Consumer', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)"
+          )
+          replace_exact(tool, "  return { label, meta: `${fmt(score, 0)}% local data quality` }", "  return { label, meta: `${fmt(score, 0)}% coverage` }")
+          replace_exact(tool, "  return `${humanize(name)} · score ${fmt(sustained?.sustainedScore || 0, 0)}`", "  return humanize(name)")
+          replace_exact(tool, "    return { label: legacyLabels[raw] || humanize(raw), qualifier: 'Indicative · legacy telemetry' }", "    return { label: legacyLabels[raw] || humanize(raw), qualifier: 'Based on standard log data' }")
+          replace_exact(tool, "  if (mode === 'PARTIAL') return { label: humanize(raw), qualifier: 'Supported · partial telemetry' }\n  return { label: humanize(raw), qualifier: 'Enhanced telemetry' }", "  if (mode === 'PARTIAL') return { label: humanize(raw), qualifier: 'Supported by partial Linux telemetry' }\n  return { label: humanize(raw), qualifier: 'Supported by enhanced Linux telemetry' }")
+
+          p = Path(tool)
+          text = p.read_text()
+          marker = "}\n\nfunction workerParse(files)"
+          if marker not in text:
+              raise SystemExit('patternPresentation end marker not found')
+          helper = "}\n\nfunction dataSourcePresentation(capabilities = {}) {\n  const mode = capabilities?.mode || 'LEGACY'\n  if (mode === 'LEGACY') return { label: 'STANDARD', meta: 'Standard log metrics only' }\n  if (mode === 'PARTIAL') return { label: 'PARTIAL', meta: `${capabilities?.coveragePct || 0}% additional telemetry coverage` }\n  return { label: 'ENHANCED', meta: `${capabilities?.coveragePct || 0}% enhanced telemetry coverage` }\n}\n\nfunction workerParse(files)"
+          p.write_text(text.replace(marker, helper, 1))
+
+          replace_exact(tool, "function DecisionBadge({ confirmed = false }) {\n  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'CONFIRMED' : 'UNCONFIRMED'}</span>\n}", "function DecisionBadge({ confirmed = false }) {\n  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'SUPPORTED' : 'INCONCLUSIVE'}</span>\n}")
+          replace_exact(tool, "  const quality = qualityPresentation(topRow?.localConfidence)\n  return <section", "  const quality = qualityPresentation(topRow?.localConfidence)\n  const source = dataSourcePresentation(capabilities)\n  return <section")
+          replace_exact(tool, "<div><span className=\"logV141Kicker\">INCIDENT SUMMARY</span><h2>{single ? 'Dominant workload confirmed' : 'No dominant workload'}</h2></div>", "<div><span className=\"logV141Kicker\">INCIDENT SUMMARY</span><h2>{single ? 'Primary workload identified' : 'Root cause not isolated'}</h2></div>")
+          replace_exact(tool, "<div><span>Pattern</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>", "<div><span>Observed condition</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>")
+          replace_exact(tool, "<div><span>Top candidate</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {humanize(topRow?.incidentRole || 'UNKNOWN')} · priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>", "<div><span>Primary workload for review</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {operatorLabel(topRow?.incidentRole || 'UNKNOWN')} · RCA priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>")
+          replace_exact(tool, "<div><span>Data quality</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>", "<div><span>Data coverage</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>")
+          replace_exact(tool, "<div><span>Cross-host</span><strong>{landscape.grade || 'LOW'} {hasMetric(landscape.score) ? `${landscape.score}/100` : ''}</strong><small>{landscape.skewMinutes ?? 0}m skew · exact {landscape.exactHosts ?? 0}/{landscape.hostCount ?? 0}</small></div>", "<div><span>Server time alignment</span><strong>{landscape.grade || 'LOW'}</strong><small>{landscape.skewMinutes ?? 0} min difference · {landscape.exactHosts ?? 0} of {landscape.hostCount ?? 0} servers aligned</small></div>")
+          replace_exact(tool, "<div><span>Telemetry</span><strong>{capabilities?.mode || verdict.telemetryMode || 'LEGACY'}</strong><small>{capabilities?.coveragePct ?? 0}% enhanced coverage</small></div>", "<div><span>Data source</span><strong>{source.label}</strong><small>{source.meta}</small></div>")
+
+          replace_exact(tool, "<div className=\"logV2PanelHead\"><div><h2>{incident ? 'Incident Collection' : 'Selected Collection'} · {range}</h2><p>Cross-host skew {skew}m · telemetry {capabilities?.mode || 'LEGACY'}</p></div><Status value={collection.resourceSeverity || collection.severity} /></div>", "<div className=\"logV2PanelHead\"><div><h2>{incident ? 'Incident Snapshot' : 'Selected Snapshot'} · {range}</h2><p>Server time difference: {skew} min · data source {dataSourcePresentation(capabilities).label}</p></div><Status value={collection.resourceSeverity || collection.severity} /></div>")
+          replace_exact(tool, "<div className=\"logV2PanelHead\"><div><h2>Application Server Peaks</h2><p>Maximum observed per host across the full analysis window.</p></div></div>", "<div className=\"logV2PanelHead\"><div><h2>Server Resource Peaks</h2><p>Highest recorded values for each server during the selected period.</p></div></div>")
+          replace_exact(tool, "<th>Host</th><th>Operational</th><th>Resource</th><th>Window Peak</th><th>Peak Time</th><th>Run</th>", "<th>Host</th><th>Operational</th><th>Resource</th><th>Peak Score</th><th>Peak Time</th><th>Duration</th>")
+
+          replace_exact(tool, "<div className=\"logV2PanelHead\"><div><span className=\"logV141Kicker\">WORKLOAD DETAIL</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {humanize(item.incidentRole)}</p></div>", "<div className=\"logV2PanelHead\"><div><span className=\"logV141Kicker\">WORKLOAD DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {operatorLabel(item.incidentRole)}</p></div>")
+          replace_exact(tool, "<div><dt>Role</dt><dd>{humanize(item.incidentRole)}</dd></div><div><dt>Target</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>\n        <div><dt>Data quality</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Cross-host</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.score ?? '—'}/100</dd></div>\n        <div><dt>Host @ incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host evidence</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>\n        <div><dt>CPU @ evidence</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated CPU share</dt><dd>{cpuShareText(item)}</dd></div>", "<div><dt>Workload role</dt><dd>{operatorLabel(item.incidentRole)}</dd></div><div><dt>Time match</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>\n        <div><dt>Data coverage</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Server time alignment</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.skewMinutes ?? 0} min difference</dd></div>\n        <div><dt>Host status at incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host sample</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>\n        <div><dt>{item.targetEvidence === 'EXACT_TARGET' ? 'CPU at incident' : 'CPU at sample'}</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated host CPU share</dt><dd>{cpuShareText(item)}</dd></div>")
+          replace_exact(tool, "<div><dt>Blocking WCHAN</dt><dd>{humanize(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Enhanced timing</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes}m` : ''}</dd></div>\n        <div><dt>Avg read since previous sample</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)}m` : ''}</dd></div><div><dt>Avg write since previous sample</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)}m` : ''}</dd></div>", "<div><dt>Kernel wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Metric sample time</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes} min` : ''}</dd></div>\n        <div><dt>Average read rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div><div><dt>Average write rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div>")
+          replace_exact(tool, "<div><dt>Error class</dt><dd>{humanize(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error direction</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>\n        <div className=\"wide\"><dt>Error timing</dt><dd>{timingText}</dd></div>", "<div><dt>Error type</dt><dd>{operatorLabel(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error context</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>\n        <div className=\"wide\"><dt>Error timeline</dt><dd>{timingText}</dd></div>")
+
+          replace_exact(tool, "<header className=\"logV2Header\"><div><span className=\"logV141Kicker\">SAP APP / LINUX RCA</span><h1>LOG Analysis</h1></div>", "<header className=\"logV2Header\"><div><span className=\"logV141Kicker\">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div>")
+          replace_exact(tool, "<div className=\"logV2EmptyState\"><b>Upload evidence</b><p>WP-SCOUT / Daily Check logs. Enhanced Linux telemetry is optional.</p></div>", "<div className=\"logV2EmptyState\"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div>")
+          replace_exact(tool, "  const pattern = patternPresentation(verdict, capabilities)\n\n  return <section", "  const pattern = patternPresentation(verdict, capabilities)\n  const dataSource = dataSourcePresentation(capabilities)\n\n  return <section")
+          replace_exact(tool, "<Stat label=\"Evidence\" value={`${rca.collections.length} collections`} meta={`${rca.evidenceWindow.fileCount} files`} />\n        <Stat label=\"Servers\" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />\n        <Stat label=\"Time range\" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={`${rca.cadence.nominalMinutes || '—'}m cadence`} />\n        <Stat label=\"Incident\" value={`${incidentAnchorHost || '—'} ${shortTime(incidentAnchorTime)}`} meta={`cross-host ${diagnostics.landscapeConfidence?.grade || '—'} · ${diagnostics.landscapeConfidence?.skewMinutes ?? 0}m skew`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />\n        <Stat label=\"Verdict\" value={ranking ? 'Ranking…' : verdict?.status === 'SINGLE_CULPRIT_SUPPORTED' ? 'DOMINANT WORKLOAD' : 'NO DOMINANT WORKLOAD'} meta={ranking ? 'working' : pattern.label} />\n        <Stat label=\"Telemetry\" value={capabilities.mode || 'LEGACY'} meta={`${capabilities.coveragePct || 0}% enhanced coverage`} />", "<Stat label=\"Data set\" value={`${rca.collections.length} snapshots`} meta={`${rca.evidenceWindow.fileCount} files`} />\n        <Stat label=\"Servers\" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />\n        <Stat label=\"Analysis period\" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={`${rca.cadence.nominalMinutes || '—'} min interval`} />\n        <Stat label=\"Incident\" value={`${incidentAnchorHost || '—'} ${shortTime(incidentAnchorTime)}`} meta={`server alignment ${diagnostics.landscapeConfidence?.grade || '—'} · ${diagnostics.landscapeConfidence?.skewMinutes ?? 0} min difference`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />\n        <Stat label=\"RCA status\" value={ranking ? 'ANALYZING' : verdict?.status === 'SINGLE_CULPRIT_SUPPORTED' ? 'PRIMARY WORKLOAD IDENTIFIED' : 'ROOT CAUSE NOT ISOLATED'} meta={ranking ? 'processing workload evidence' : pattern.label} />\n        <Stat label=\"Data source\" value={dataSource.label} meta={dataSource.meta} />")
+          replace_exact(tool, "<div className=\"logV2PanelHead\"><div><h2>Workload Ranking</h2><p>Sorted by incident priority. Click a row for details.</p></div></div>", "<div className=\"logV2PanelHead\"><div><h2>Workload Analysis</h2><p>Workloads observed around the incident time. Select a row for details.</p></div></div>")
+
+          replace_exact(table, "const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\\b\\w/g, (char) => char.toUpperCase())", "const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\\b\\w/g, (char) => char.toUpperCase())\nconst operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', IO_CONSUMER: 'I/O Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)")
+          replace_exact(table, "  return ({ EXACT_TARGET: 'EXACT', NEAR_TARGET: 'NEAR', EARLY_TARGET: 'EARLY', LATE_TARGET: 'LATE', OFF_TARGET: 'OFF', ADJACENT_TARGET: 'ADJACENT' })[value] || 'NONE'", "  return ({ EXACT_TARGET: 'Exact', NEAR_TARGET: 'Near', EARLY_TARGET: 'Early', LATE_TARGET: 'Late', OFF_TARGET: 'Off target', ADJACENT_TARGET: 'Adjacent' })[value] || 'None'")
+          replace_exact(table, "    return `${humanize(category)}${suffix ? ` · ${suffix}` : ''}`", "    return `${operatorLabel(category)}${suffix ? ` · ${suffix}` : ''}`")
+          replace_exact(table, "{ accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => humanize(getValue()) },\n    { accessorKey: 'causalScore', header: 'Priority', size: 86, cell: ({ getValue }) => <b className=\"logV2Score\">{fmt(getValue(), 0)}</b> },\n    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Local Data', size: 126, cell: ({ row }) => confidenceText(row.original) },", "{ accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => operatorLabel(getValue()) },\n    { accessorKey: 'causalScore', header: 'RCA Priority', size: 96, cell: ({ getValue }) => <b className=\"logV2Score\">{fmt(getValue(), 0)}</b> },\n    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Coverage', size: 126, cell: ({ row }) => confidenceText(row.original) },")
+          replace_exact(table, "{ id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocking', size: 130, cell: ({ row }) => blockingText(row.original) },\n    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error / Timing', size: 210, cell: ({ row }) => <span className={`logV143Error ${errorTone(row.original)}`}>{errorText(row.original)}</span> },\n    { accessorKey: 'targetEvidence', header: 'Target', size: 88, cell: ({ getValue }) => evidenceLabel(getValue()) },", "{ id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocked WP', size: 130, cell: ({ row }) => blockingText(row.original) },\n    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error Context', size: 210, cell: ({ row }) => <span className={`logV143Error ${errorTone(row.original)}`}>{errorText(row.original)}</span> },\n    { accessorKey: 'targetEvidence', header: 'Time Match', size: 96, cell: ({ getValue }) => evidenceLabel(getValue()) },")
+          replace_exact(table, "  const gridTemplate = '128px minmax(280px,1.8fr) 145px 86px 126px 82px 165px 130px minmax(210px,1.2fr) 88px'\n  const minWidth = 1420", "  const gridTemplate = '128px minmax(280px,1.8fr) 145px 96px 126px 82px 165px 130px minmax(210px,1.2fr) 96px'\n  const minWidth = 1440")
+
+          replace_exact('src/app/version.js', "export const APP_VERSION = '1.14.4'", "export const APP_VERSION = '1.14.5'")
+          replace_exact('src/app/version.js', "export const LOG_UI_REVISION = 'operator-console-final-semantics-v3.6.4'", "export const LOG_UI_REVISION = 'operator-console-plain-language-v3.6.5'")
+          replace_exact('index.html', 'SAP RCA Workspace v1.14.4', 'SAP RCA Workspace v1.14.5', 2)
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Run deterministic RCA tests
+        run: npm test
+      - name: Syntax checks
+        run: |
+          node --check src/tools/logRcaEngineV3.js
+          node --check src/tools/logAnalysisV14.js
+          node --check src/tools/telemetryEnrichmentV13.js
+          node --check src/tools/incidentTaxonomyV14.js
+          node --check src/tools/workloadAnalyticsV5.js
+      - name: Build SAP bundle
+        run: npm run build
+
+      - name: Commit verified v1.14.5
+        run: |
+          git config user.name "Zactos-lab"
+          git config user.email "fikrirtc12@gmail.com"
+          git add index.html src/app/version.js src/tools/ToolLogAutoRcaV5.jsx src/tools/components/VirtualResourceTableV14.jsx
+          git commit -m "fix: simplify LOG v1.14.5 operator wording"
+          git push origin HEAD:dev
