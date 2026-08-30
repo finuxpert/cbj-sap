@@ -2,7 +2,8 @@ import React from 'react'
 import { flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
-const fmt = (value, digits = 1) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
+const hasMetric = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
+const fmt = (value, digits = 1) => hasMetric(value) ? Number(value).toLocaleString('en-US', { maximumFractionDigits: digits }) : '—'
 
 function toneForError(value = '') {
   if (value === 'NEW_AT_PEAK') return 'critical'
@@ -20,11 +21,12 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
     { accessorKey: 'program', header: 'Program', size: 180 },
     { accessorKey: 'resourceScore', header: 'Investigation Score', size: 145, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
     { accessorKey: 'peakCorrelation', header: 'Peak Align.', size: 115, cell: ({ getValue }) => `${fmt(getValue(), 0)}%` },
-    { accessorKey: 'avgCpu', header: 'Avg CPU', size: 100, cell: ({ getValue }) => `${fmt(getValue(), 1)}%` },
-    { accessorKey: 'peakCpu', header: 'Peak CPU', size: 100, cell: ({ getValue }) => `${fmt(getValue(), 1)}%` },
-    { accessorKey: 'peakRss', header: 'Peak RSS', size: 105, cell: ({ getValue }) => `${fmt(getValue(), 2)} GB` },
+    { accessorKey: 'avgCpu', header: 'Avg CPU Σ', size: 105, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
+    { accessorKey: 'peakCpu', header: 'Peak CPU Σ', size: 105, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
+    { accessorKey: 'peakRss', header: 'Peak RSS Σ', size: 110, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 2)} GB` : '—' },
     { accessorKey: 'dStateHits', header: 'D Hits', size: 82 },
-    { accessorKey: 'pidCount', header: 'PIDs', size: 72 },
+    { accessorKey: 'peakConcurrentPids', header: 'Peak PIDs', size: 92 },
+    { accessorKey: 'uniquePidCount', header: 'Unique PIDs', size: 98 },
     { accessorKey: 'presenceCount', header: 'Presence', size: 95 },
     { accessorKey: 'errorState', header: 'Error State', size: 150, cell: ({ getValue }) => <span className={`logV2ErrorState ${toneForError(getValue())}`}>{getValue()}</span> },
     { accessorKey: 'errors', header: 'Errors', size: 280, cell: ({ getValue }) => (getValue() || []).join(', ') || '—' },
@@ -49,13 +51,7 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
 
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
-  const virtualizer = useVirtualizer({
-    count: tableRows.length,
-    getScrollElement: () => bodyRef.current,
-    estimateSize: () => 42,
-    overscan: 10,
-  })
-
+  const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 10 })
   const gridTemplate = columns.map((column) => `${column.size || 120}px`).join(' ')
 
   return <div className="logV2TableShell">
@@ -65,8 +61,7 @@ export default function VirtualResourceTable({ rows = [], selectedKey = '', onSe
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
-        {flexRender(header.column.columnDef.header, header.getContext())}
-        <span>{header.column.getIsSorted() === 'asc' ? ' ↑' : header.column.getIsSorted() === 'desc' ? ' ↓' : ''}</span>
+        {flexRender(header.column.columnDef.header, header.getContext())}<span>{header.column.getIsSorted() === 'asc' ? ' ↑' : header.column.getIsSorted() === 'desc' ? ' ↓' : ''}</span>
       </button>)}
     </div>
     <div className="logV2VirtualBody" ref={bodyRef}>
