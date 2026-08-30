@@ -1,0 +1,46 @@
+name: ONCE - Verify LOG v3 deterministic analytics
+
+on:
+  push:
+    branches:
+      - fix/log-v3-deterministic-analytics-20260830
+    paths:
+      - .github/workflows/verify-log-v3-once.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Verify logical collection engine
+        run: |
+          node --input-type=module <<'NODE'
+          import { buildAutoPeakRcaV3 } from './src/tools/logRcaEngineV3.js'
+          const telemetry = []
+          for (let file = 0; file < 30; file += 1) {
+            for (let host = 1; host <= 5; host += 1) {
+              const minute = file * 20 + host - 1
+              const hh = String(2 + Math.floor(minute / 60)).padStart(2, '0')
+              const mm = String(minute % 60).padStart(2, '0')
+              telemetry.push({ fileName: `f${file}.log`, snapshot: `2026-01-15 ${hh}:${mm}`, timeLabel: `2026-01-15 ${hh}:${mm}`, sortKey: 20260115000000 + minute, host: `APP${host}`, cpuPct: 10, memoryPct: 20, loadRatio: 0.1, swapIn: 0, wpCritical: 0 })
+            }
+          }
+          const rca = buildAutoPeakRcaV3({ telemetry })
+          if (rca.collections.length !== 30) throw new Error(`expected 30 collections, got ${rca.collections.length}`)
+          if (rca.collections.some((row) => row.hostCount !== 5)) throw new Error('every collection must contain 5 hosts')
+          NODE
+      - name: Syntax checks
+        run: |
+          node --check src/tools/logRcaEngineV3.js
+          node --check src/tools/workloadAnalyticsV3.js
+      - name: Build production bundle
+        run: npm run build -- --base=/sap/
