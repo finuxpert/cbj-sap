@@ -1,3 +1,5 @@
+import { validateEvidenceAnalysisV3 } from './evidenceSchemaV3.js'
+
 const metric = (value) => {
   if (value === null || value === undefined || value === '') return null
   const parsed = Number(String(value).replace(',', '.'))
@@ -172,7 +174,8 @@ function buildHostPeaks(collections = [], hosts = []) {
 }
 
 export function buildAutoPeakRcaV3(analysis = {}) {
-  const telemetry = analysis?.telemetry || []
+  const validated = validateEvidenceAnalysisV3(analysis)
+  const telemetry = validated.analysis.telemetry
   const collections = buildLogicalCollectionsV3(telemetry)
   const hosts = Array.from(new Set(telemetry.map((row) => row.host).filter((host) => host && host !== 'UNKNOWN'))).sort()
   const hostPeaks = buildHostPeaks(collections, hosts)
@@ -181,6 +184,7 @@ export function buildAutoPeakRcaV3(analysis = {}) {
   const files = Array.from(new Set(telemetry.map((row) => row.fileName).filter(Boolean)))
   return {
     version: 3,
+    quality: validated.quality,
     hosts,
     collections,
     hostPeaks,
