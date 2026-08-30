@@ -43,6 +43,12 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
   const option = React.useMemo(() => {
     const times = collections.map((row) => row.timeLabel)
     const hosts = rca?.hosts || []
+    const resourcePeakTime = rca?.resourceLandscapePeak?.timeLabel || rca?.landscapePeak?.timeLabel || ''
+    const operationalPeakTime = rca?.operationalLandscapePeak?.timeLabel || ''
+    const peakLines = []
+    if (resourcePeakTime) peakLines.push({ xAxis: resourcePeakTime, name: 'Resource landscape peak', label: { formatter: `Resource peak\n${resourcePeakTime}`, position: 'insideEndTop' } })
+    if (operationalPeakTime && operationalPeakTime !== resourcePeakTime) peakLines.push({ xAxis: operationalPeakTime, name: 'Operational landscape peak', label: { formatter: `Operational peak\n${operationalPeakTime}`, position: 'insideEndBottom' } })
+
     const series = hosts.map((host, index) => ({
       name: host,
       type: 'line',
@@ -57,11 +63,10 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
       markPoint: {
         symbol: 'pin', symbolSize: 42, label: { formatter: 'MAX', fontSize: 9 }, data: [{ type: 'max', name: `${host} max` }],
       },
-      markLine: index === 0 && rca?.landscapePeak?.timeLabel ? {
+      markLine: index === 0 && peakLines.length ? {
         symbol: ['none', 'none'],
-        label: { formatter: `Landscape peak\n${rca.landscapePeak.timeLabel}`, position: 'insideEndTop' },
         lineStyle: { type: 'dashed', width: 1.5 },
-        data: [{ xAxis: rca.landscapePeak.timeLabel }],
+        data: peakLines,
       } : undefined,
     }))
     return {
@@ -85,7 +90,7 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
       dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 18, height: 18, borderColor: '#294047', fillerColor: 'rgba(49,199,207,.16)', textStyle: { color: '#81979f' } }],
       series,
     }
-  }, [collections, rca?.hosts, rca?.landscapePeak?.timeLabel, meta.digits, meta.label, meta.suffix, metric])
+  }, [collections, rca?.hosts, rca?.resourceLandscapePeak?.timeLabel, rca?.operationalLandscapePeak?.timeLabel, rca?.landscapePeak?.timeLabel, meta.digits, meta.label, meta.suffix, metric])
 
   const click = React.useCallback((params) => {
     const collection = collections[params?.dataIndex]
@@ -139,23 +144,23 @@ export function WorkloadTrendEChart({ records = [], hostPeakTime = '', hostPeakC
           const row = rows[items[0]?.dataIndex] || {}
           const cpu = row.cpu === null ? '—' : `${Number(row.cpu).toFixed(1)}%`
           const rss = row.rss === null ? '—' : `${Number(row.rss).toFixed(2)} GB`
-          return `<b>${row.time || ''}</b><br/>CPU ${cpu}<br/>RSS ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
+          return `<b>${row.time || ''}</b><br/>CPU Σ ${cpu}<br/>ΣRSS upper bound ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
         },
       },
       xAxis: { type: 'category', data: rows.map((row) => row.time), axisLabel: { color: '#81979f', hideOverlap: true } },
       yAxis: [
-        { type: 'value', name: 'CPU %', axisLabel: { color: '#81979f' }, splitLine: { lineStyle: { color: '#183036', type: 'dashed' } } },
-        { type: 'value', name: 'RSS GB', axisLabel: { color: '#81979f' }, splitLine: { show: false } },
+        { type: 'value', name: 'CPU Σ %', axisLabel: { color: '#81979f' }, splitLine: { lineStyle: { color: '#183036', type: 'dashed' } } },
+        { type: 'value', name: 'ΣRSS GB*', axisLabel: { color: '#81979f' }, splitLine: { show: false } },
       ],
       dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 12, height: 16, filterMode: 'none' }],
       series: [
-        { name: 'CPU', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: peakMarkerTime ? { symbol: ['none', 'none'], data: [{ xAxis: peakMarkerTime, name: 'Host resource peak' }], label: { formatter: 'Host resource peak' }, lineStyle: { type: 'dashed' } } : undefined },
-        { name: 'RSS', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.rss) },
+        { name: 'CPU Σ', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: peakMarkerTime ? { symbol: ['none', 'none'], data: [{ xAxis: peakMarkerTime, name: 'Host resource peak' }], label: { formatter: 'Host resource peak' }, lineStyle: { type: 'dashed' } } : undefined },
+        { name: 'ΣRSS (upper bound)', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.rss) },
       ],
     }
   }, [records, hostPeakTime, hostPeakCollectionKey, aggregated])
   const ref = useEChart(option)
-  return <div ref={ref} className="logV2WorkloadChart" role="img" aria-label="Selected workload aggregate CPU and RSS trend" />
+  return <div ref={ref} className="logV2WorkloadChart" role="img" aria-label="Selected workload aggregate CPU and RSS upper-bound trend" />
 }
 
 export const LOG_V2_METRICS = METRICS
