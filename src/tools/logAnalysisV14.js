@@ -38,6 +38,165 @@ function gbFromKb(value) {
   return observed === null ? null : observed / KB_PER_GB
 }
 
+function inferFileHost(fileName = '') {
+  const match = String(fileName || '').toUpperCase().match(/\b([A-Z0-9_-]*PAPPDC)\b/)
+  return match?.[1] || ''
+}
+
+function uniqueHosts(values = []) {
+  return Array.from(new Set(values.map((value) => text(value).toUpperCase()).filter(Boolean)))
+}
+
+function finalizeSourceBlock(block = {}) {
+  const hostnameHosts = uniqueHosts(block.hostnameHosts)
+  const wpScoutHosts = uniqueHosts(block.wpScoutHosts)
+  const enhancedHosts = uniqueHosts(block.enhancedHosts)
+  const declaredHosts = uniqueHosts([block.fileHost, ...hostnameHosts, ...wpScoutHosts, ...enhancedHosts])
+  const status = declaredHosts.length > 1 ? 'MISMATCH' : declaredHosts.length === 1 ? 'VERIFIED' : 'UNVERIFIED'
+  return {
+    ...block,
+    hostnameHosts,
+    wpScoutHosts,
+    enhancedHosts,
+    declaredHosts,
+    sourceHost: declaredHosts[0] || '',
+    status,
+  }
+}
+
+function parseSourceHostBlocks(rawText = '', fileName = '') {
+  const blocks = []
+  const fileHost = inferFileHost(fileName)
+  let current = null
+  const ensure = () => {
+    if (!current) current = { fileName, fileHost, snapshot: '', timeLabel: '', hostnameHosts: [], wpScoutHosts: [], enhancedHosts: [] }
+    return current
+  }
+  const flush = () => {
+    if (!current) return
+    const meaningful = current.snapshot || current.hostnameHosts.length || current.wpScoutHosts.length || current.enhancedHosts.length
+    if (meaningful) blocks.push(finalizeSourceBlock(current))
+    current = null
+  }
+
+  String(rawText || '').replace(/\r/g, '').split('\n').forEach((rawLine) => {
+    const line = text(rawLine)
+    if (!line) return
+    let match = line.match(/^snapshot\s*@\s*(.+)$/i)
+    if (match) {
+      flush()
+      current = { fileName, fileHost, snapshot: match[1].trim(), timeLabel: timeLabel(match[1]), hostnameHosts: [], wpScoutHosts: [], enhancedHosts: [] }
+      return
+    }
+    match = line.match(/^Hostname\s*:\s*(\S+)/i)
+    if (match) {
+      ensure().hostnameHosts.push(match[1])
+      return
+    }
+    match = line.match(/^##\s*WP-SCOUT\s*@\s*(\S+)\s+SID=\S+\s+INSTS=\S+\s+TS=(.+)$/i)
+    if (match) {
+      const block = ensure()
+      block.wpScoutHosts.push(match[1])
+      if (!block.snapshot) {
+        block.snapshot = match[2].trim()
+        block.timeLabel = timeLabel(match[2])
+      }
+      return
+    }
+    match = line.match(/^##\s*RCA-EXT\s*@\s*(\S+)\s+TS=(.+?)(?:\s+VERSION=\S+)?$/i)
+    if (match) {
+      const block = ensure()
+      block.enhancedHosts.push(match[1])
+      if (!block.snapshot) {
+        block.snapshot = match[2].trim()
+        block.timeLabel = timeLabel(match[2])
+      }
+    }
+  })
+  flush()
+  return { fileName, fileHost, blocks }
+}
+
+function sourceBlockForRow(row = {}, provenance = {}) {
+  const blocks = provenance.blocks || []
+  if (!blocks.length) return null
+  const rowTime = timeLabel(row.snapshot || row.timeLabel)
+  const exact = blocks.filter((block) => block.timeLabel && block.timeLabel === rowTime)
+  if (exact.length === 1) return exact[0]
+  if (exact.length > 1) {
+    const host = text(row.host).toUpperCase()
+    return exact.find((block) => block.declaredHosts?.includes(host)) || exact[0]
+  }
+  if (blocks.length === 1) return blocks[0]
+  return null
+}
+
+function attachSourceHostProvenance(legacy = {}, provenance = {}) {
+  const attach = (row) => {
+    const block = sourceBlockForRow(row, provenance)
+    const parsedHost = text(row.host).toUpperCase()
+    const sourceHost = block?.sourceHost || ''
+    let sourceHostStatus = block?.status || 'UNVERIFIED'
+    if (sourceHostStatus !== 'MISMATCH' && sourceHost && parsedHost && sourceHost !== parsedHost) sourceHostStatus = 'MISMATCH'
+    return {
+      ...row,
+      sourceHostStatus,
+      sourceDeclaredHost: sourceHost,
+      sourceFileHost: block?.fileHost || provenance.fileHost || '',
+      sourceHostnameHost: (block?.hostnameHosts || []).join('|'),
+      sourceWpScoutHost: (block?.wpScoutHosts || []).join('|'),
+      sourceEnhancedHost: (block?.enhancedHosts || []).join('|'),
+      sourceProvenanceSnapshot: block?.snapshot || '',
+    }
+  }
+  return {
+    ...legacy,
+    telemetry: (legacy.telemetry || []).map(attach),
+    processes: (legacy.processes || []).map(attach),
+    sourceHostProvenance: provenance,
+  }
+}
+
+function summarizeSourceHostProvenance(parsedFiles = []) {
+  const blocks = parsedFiles.flatMap((item) => item.sourceHostProvenance?.blocks || [])
+  const telemetryRows = parsedFiles.flatMap((item) => item.telemetry || [])
+  const processRows = parsedFiles.flatMap((item) => item.processes || [])
+  const mismatchTelemetry = telemetryRows.filter((row) => row.sourceHostStatus === 'MISMATCH')
+  const mismatchProcesses = processRows.filter((row) => row.sourceHostStatus === 'MISMATCH')
+  const mismatchBlocks = blocks.filter((block) => block.status === 'MISMATCH')
+  const unverifiedBlocks = blocks.filter((block) => block.status === 'UNVERIFIED')
+  const verifiedBlocks = blocks.filter((block) => block.status === 'VERIFIED')
+  const issues = mismatchBlocks.map((block) => ({
+    fileName: block.fileName,
+    snapshot: block.snapshot,
+    fileHost: block.fileHost,
+    hostnameHosts: block.hostnameHosts,
+    wpScoutHosts: block.wpScoutHosts,
+    enhancedHosts: block.enhancedHosts,
+    declaredHosts: block.declaredHosts,
+  }))
+  const rowMismatchCount = mismatchTelemetry.length + mismatchProcesses.length
+  return {
+    status: mismatchBlocks.length || rowMismatchCount ? 'FAIL' : unverifiedBlocks.length ? 'WARN' : 'PASS',
+    totalBlocks: blocks.length,
+    verifiedBlocks: verifiedBlocks.length,
+    unverifiedBlocks: unverifiedBlocks.length,
+    mismatchBlocks: mismatchBlocks.length,
+    rowMismatchCount,
+    droppedTelemetryRows: mismatchTelemetry.length,
+    droppedProcessRows: mismatchProcesses.length,
+    issues,
+  }
+}
+
+function sanitizeSourceHostRows(parsedFiles = []) {
+  return parsedFiles.map((item) => ({
+    ...item,
+    telemetry: (item.telemetry || []).filter((row) => row.sourceHostStatus !== 'MISMATCH'),
+    processes: (item.processes || []).filter((row) => row.sourceHostStatus !== 'MISMATCH'),
+  }))
+}
+
 function parseEnhancedBlocks(rawText = '', fileName = '') {
   const hostRows = []
   const processRows = []
@@ -169,18 +328,19 @@ function telemetryIdentity(row = {}) {
 }
 
 const PROVENANCE_FIELDS = ['enhancedSampleTime', 'enhancedDeltaMinutes', 'enhancedMapping', 'enhancedCausalUsable']
+const SOURCE_PROVENANCE_FIELDS = ['sourceHostStatus', 'sourceDeclaredHost', 'sourceFileHost', 'sourceHostnameHost', 'sourceWpScoutHost', 'sourceEnhancedHost', 'sourceProvenanceSnapshot']
 
 function reattachEnhanced(analysis, parsedFiles = []) {
   const processMap = new Map()
   const telemetryMap = new Map()
   parsedFiles.flatMap((item) => item.processes || []).forEach((row) => {
-    if ([...PROCESS_FIELDS, ...PROVENANCE_FIELDS].some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) processMap.set(processIdentity(row), row)
+    if ([...PROCESS_FIELDS, ...PROVENANCE_FIELDS, ...SOURCE_PROVENANCE_FIELDS].some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) processMap.set(processIdentity(row), row)
   })
   parsedFiles.flatMap((item) => item.telemetry || []).forEach((row) => {
-    if ([...HOST_FIELDS, ...PROVENANCE_FIELDS].some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) telemetryMap.set(telemetryIdentity(row), row)
+    if ([...HOST_FIELDS, ...PROVENANCE_FIELDS, ...SOURCE_PROVENANCE_FIELDS].some((field) => row[field] !== null && row[field] !== undefined && row[field] !== '')) telemetryMap.set(telemetryIdentity(row), row)
   })
-  const telemetry = (analysis.telemetry || []).map((row) => copyFields(row, telemetryMap.get(telemetryIdentity(row)), [...HOST_FIELDS, ...PROVENANCE_FIELDS]))
-  const processes = (analysis.processes || []).map((row) => copyFields(row, processMap.get(processIdentity(row)), [...PROCESS_FIELDS, ...PROVENANCE_FIELDS]))
+  const telemetry = (analysis.telemetry || []).map((row) => copyFields(row, telemetryMap.get(telemetryIdentity(row)), [...HOST_FIELDS, ...PROVENANCE_FIELDS, ...SOURCE_PROVENANCE_FIELDS]))
+  const processes = (analysis.processes || []).map((row) => copyFields(row, processMap.get(processIdentity(row)), [...PROCESS_FIELDS, ...PROVENANCE_FIELDS, ...SOURCE_PROVENANCE_FIELDS]))
   return { ...analysis, telemetry, processes }
 }
 
@@ -222,16 +382,23 @@ export function telemetryCapabilitiesV13(analysis = {}) {
 
 export function parseLogText(rawText = '', fileName = '') {
   const legacy = parseLegacyLogText(rawText, fileName)
-  return enrichParsed(legacy, parseEnhancedBlocks(rawText, fileName))
+  const provenance = parseSourceHostBlocks(rawText, fileName)
+  return attachSourceHostProvenance(enrichParsed(legacy, parseEnhancedBlocks(rawText, fileName)), provenance)
 }
 
 export function buildLogAnalysis(parsedFiles = []) {
-  const analysis = reattachEnhanced(buildLegacyLogAnalysis(parsedFiles), parsedFiles)
-  return { ...analysis, telemetryCapabilities: telemetryCapabilitiesV13(analysis) }
+  const sourceHostProvenance = summarizeSourceHostProvenance(parsedFiles)
+  const sanitizedFiles = sanitizeSourceHostRows(parsedFiles)
+  const analysis = reattachEnhanced(buildLegacyLogAnalysis(sanitizedFiles), sanitizedFiles)
+  return { ...analysis, sourceHostProvenance, telemetryCapabilities: telemetryCapabilitiesV13(analysis) }
 }
 
 export const __test = {
   parseEnhancedBlocks,
+  parseSourceHostBlocks,
+  attachSourceHostProvenance,
+  summarizeSourceHostProvenance,
+  sanitizeSourceHostRows,
   enrichParsed,
   minuteStamp,
   telemetryCapabilitiesV13,
