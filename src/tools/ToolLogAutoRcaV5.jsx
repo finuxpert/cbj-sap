@@ -44,15 +44,15 @@ function patternPresentation(verdict, capabilities) {
   const mode = capabilities?.mode || verdict?.telemetryMode || 'LEGACY'
   if (mode === 'LEGACY') {
     const legacyLabels = {
-      MEMORY_BLOCKING_CONTENTION: 'Memory Pressure + Blocking Signals',
-      MEMORY_IO_CONTENTION: 'Memory + I/O Pressure Signals',
-      NFS_IO_CONTENTION: 'NFS / I/O Blocking Signals',
-      BLOCK_IO_CONTENTION: 'Block I/O Pressure Signals',
-      IO_STALL_CONTENTION: 'I/O Stall Signals',
-      MEMORY_RECLAIM_STALL: 'Memory Reclaim Signals',
-      CPU_SATURATION: 'CPU Saturation Signals',
-      MEMORY_PRESSURE: 'Memory Pressure',
-      CPU_PRESSURE: 'CPU Pressure',
+      MEMORY_BLOCKING_CONTENTION: 'High Memory Pressure with Blocked Work Processes',
+      MEMORY_IO_CONTENTION: 'Memory Pressure with I/O Activity',
+      NFS_IO_CONTENTION: 'NFS I/O Blocking',
+      BLOCK_IO_CONTENTION: 'Block I/O Pressure',
+      IO_STALL_CONTENTION: 'I/O Stall',
+      MEMORY_RECLAIM_STALL: 'Memory Reclaim Activity',
+      CPU_SATURATION: 'High CPU Utilization',
+      MEMORY_PRESSURE: 'High Memory Pressure',
+      CPU_PRESSURE: 'High CPU Pressure',
     }
     return { label: legacyLabels[raw] || humanize(raw), qualifier: 'Based on standard log data' }
   }
@@ -82,7 +82,7 @@ function Status({ value = 'NORMAL' }) {
 }
 
 function DecisionBadge({ confirmed = false }) {
-  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'SUPPORTED' : 'INCONCLUSIVE'}</span>
+  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'IDENTIFIED' : 'UNRESOLVED'}</span>
 }
 
 function Stat({ label, value, meta, tone = '' }) {
@@ -118,9 +118,9 @@ function IncidentSummary({ verdict, capabilities, topRow }) {
       <DecisionBadge confirmed={single} />
     </div>
     <div className="logV141SummaryGrid">
-      <div><span>Host / time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
+      <div><span>Server and time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
       <div><span>Observed condition</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
-      <div><span>Primary workload for review</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {operatorLabel(topRow?.incidentRole || 'UNKNOWN')} · RCA priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>
+      <div><span>Primary workload for review</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {operatorLabel(topRow?.incidentRole || 'UNKNOWN')} · RCA priority {verdict.topCausalScore ?? 0} · blocked {verdict.topVictimScore ?? 0}</small></div>
       <div><span>Data coverage</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>
       <div><span>Server time alignment</span><strong>{landscape.grade || 'LOW'}</strong><small>{landscape.skewMinutes ?? 0} min difference · {landscape.exactHosts ?? 0} of {landscape.hostCount ?? 0} servers aligned</small></div>
       <div><span>Data source</span><strong>{source.label}</strong><small>{source.meta}</small></div>
@@ -175,7 +175,7 @@ function WorkloadDetail({ item }) {
   const quality = qualityPresentation(item.localConfidence)
   const timingText = taxonomy.classified?.map((entry) => `${entry.code}: ${entry.timing?.state || 'NONE'}${hasMetric(entry.timing?.deltaMinutes) ? ` (${signed(entry.timing.deltaMinutes, 0, 'm')})` : ''}`).join(' · ') || 'None'
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {operatorLabel(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Victim {item.victimScore}</span></div></div>
+    <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {operatorLabel(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Blocked {item.victimScore}</span></div></div>
     <div className="logV2DetailGrid">
       <div className="logV2DetailFacts"><dl>
         <div><dt>Workload role</dt><dd>{operatorLabel(item.incidentRole)}</dd></div><div><dt>Time match</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>
@@ -184,10 +184,10 @@ function WorkloadDetail({ item }) {
         <div><dt>{item.targetEvidence === 'EXACT_TARGET' ? 'CPU at incident' : 'CPU at sample'}</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated host CPU share</dt><dd>{cpuShareText(item)}</dd></div>
         <div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div><div><dt>PSS baseline</dt><dd>{metricText(item.pssBaseline?.median, 2, ' GB')} · z {robustZText(item.pssUplift?.z)}</dd></div>
         <div><dt>Private memory</dt><dd>{metricText(item.targetPrivateGb, 2, ' GB')}</dd></div><div><dt>Σ shared mappings</dt><dd>{metricText(item.targetSharedGb, 2, ' GB')} · non-exclusive</dd></div>
-        <div><dt>Max PID RSS</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state / PIDs</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} / ${item.targetConcurrentPids}` : '—'}</dd></div>
+        <div><dt>Max PID RSS</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state and PIDs</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} / ${item.targetConcurrentPids}` : '—'}</dd></div>
         <div><dt>Kernel wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Metric sample time</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes} min` : ''}</dd></div>
         <div><dt>Average read rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div><div><dt>Average write rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div>
-        <div><dt>Host iowait</dt><dd>{metricText(item.hostIowaitPct, 1, '%')}</dd></div><div><dt>PSI mem / I/O full10</dt><dd>{metricText(item.hostPsiMemoryFull10, 1, '%')} / {metricText(item.hostPsiIoFull10, 1, '%')}</dd></div>
+        <div><dt>Host iowait</dt><dd>{metricText(item.hostIowaitPct, 1, '%')}</dd></div><div><dt>PSI memory and I/O full10</dt><dd>{metricText(item.hostPsiMemoryFull10, 1, '%')} / {metricText(item.hostPsiIoFull10, 1, '%')}</dd></div>
         <div><dt>Error type</dt><dd>{operatorLabel(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error context</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>
         <div className="wide"><dt>Error timeline</dt><dd>{timingText}</dd></div>
       </dl></div>
@@ -222,7 +222,7 @@ function SourceAudit({ collections = [] }) {
 
 export default function ToolLogAutoRcaV5() {
   const [busy, setBusy] = React.useState(false)
-  const [status, setStatus] = React.useState('Upload WP-SCOUT / Daily Check logs.')
+  const [status, setStatus] = React.useState('Upload WP-SCOUT or Daily Check logs.')
   const [analysis, setAnalysis] = React.useState(null)
   const [rca, setRca] = React.useState(null)
   const [metric, setMetric] = React.useState('memoryPct')

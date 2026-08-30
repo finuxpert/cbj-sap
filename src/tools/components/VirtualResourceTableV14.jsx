@@ -33,9 +33,9 @@ function blockingText(row = {}) {
 
 function timingSuffix(timing = {}, direction = '') {
   const delta = hasMetric(timing?.deltaMinutes) ? Math.abs(Number(timing.deltaMinutes)) : null
-  if (timing?.state === 'NEW_BEFORE_TARGET') return delta === null ? 'before' : `${fmt(delta, 0)}m before`
+  if (timing?.state === 'NEW_BEFORE_TARGET') return delta === null ? 'before' : `${fmt(delta, 0)} min before`
   if (timing?.state === 'NEW_AT_TARGET') return 'at target'
-  if (timing?.state === 'NEW_AFTER_TARGET') return delta === null ? 'after' : `${fmt(delta, 0)}m after`
+  if (timing?.state === 'NEW_AFTER_TARGET') return delta === null ? 'after' : `${fmt(delta, 0)} min after`
   if (timing?.state === 'PERSISTENT_NEAR_TARGET') return 'persistent'
   if (direction === 'POTENTIAL_PRECURSOR') return 'precursor'
   if (direction === 'LIKELY_SYMPTOM') return 'symptom'
@@ -68,7 +68,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   const [globalFilter, setGlobalFilter] = React.useState('')
   const columns = React.useMemo(() => [
     { accessorKey: 'host', header: 'Host', size: 128 },
-    { accessorKey: 'workload', header: 'Workload / Job', size: 280 },
+    { accessorKey: 'workload', header: 'Workload or Job', size: 280 },
     { accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => operatorLabel(getValue()) },
     { accessorKey: 'causalScore', header: 'RCA Priority', size: 96, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
     { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Coverage', size: 126, cell: ({ row }) => confidenceText(row.original) },
@@ -105,7 +105,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   return <div className="logV2TableShell">
     <div className="logV2TableToolbar">
       <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search host, job, role, WCHAN, error…" />
-      <span><b>{tableRows.length}</b> workloads · sorted by incident priority</span>
+      <span><b>{tableRows.length}</b> workloads · sorted by RCA priority</span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate, minWidth: `${minWidth}px` }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
