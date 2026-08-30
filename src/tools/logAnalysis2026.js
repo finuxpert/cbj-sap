@@ -151,14 +151,16 @@ function mergeProcessRows(rows = []) {
 function newTelemetry(context = {}) {
   return {
     fileName: context.fileName || '', snapshot: context.snapshot || '', sortKey: snapshotSortKey(context.snapshot, context.fileName), timeLabel: timelineLabel(context.snapshot) || timelineLabel(context.fileName),
-    host: context.host || 'UNKNOWN', sid: context.sid || '', instance: context.instance || '', os: '', uptime: '', ip: '', vcpu: 0, cpuPct: 0,
-    load1: 0, load5: 0, load15: 0, loadRatio: 0, memoryUsedGb: 0, memoryFreeGb: 0, memoryTotalGb: 0, memoryPct: 0, swapIn: 0, swapOut: 0,
-    wpRunning: 0, wpStandby: 0, wpCritical: 0, wpOk: 0, wpDialog: 0, wpBtc: 0, wpUpd: 0,
+    host: context.host || 'UNKNOWN', sid: context.sid || '', instance: context.instance || '', os: '', uptime: '', ip: '', vcpu: null, cpuPct: null,
+    load1: null, load5: null, load15: null, loadRatio: null, memoryUsedGb: null, memoryFreeGb: null, memoryTotalGb: null, memoryPct: null, swapIn: null, swapOut: null,
+    wpRunning: null, wpStandby: null, wpCritical: null, wpOk: null, wpDialog: null, wpBtc: null, wpUpd: null,
   }
 }
 
 function telemetryHasData(row = {}) {
-  return Boolean(row.snapshot && row.host && row.host !== 'UNKNOWN' && (row.vcpu || row.cpuPct || row.memoryTotalGb || row.load15 || row.swapIn || row.wpRunning || row.wpStandby || row.wpCritical || row.wpOk))
+  const observed = ['vcpu', 'cpuPct', 'memoryTotalGb', 'memoryPct', 'load15', 'loadRatio', 'swapIn', 'swapOut', 'wpRunning', 'wpStandby', 'wpCritical', 'wpOk']
+    .some((field) => metric(row[field]) !== null)
+  return Boolean(row.snapshot && row.host && row.host !== 'UNKNOWN' && observed)
 }
 
 function parseTelemetryLine(line, current) {
@@ -227,19 +229,31 @@ function mergeTelemetry(rows = []) {
 }
 
 export function snapshotSeverity(snapshot = {}) {
-  const cpu = num(snapshot.cpuPct), ram = num(snapshot.memoryPct), load = num(snapshot.loadRatio), swapIn = num(snapshot.swapIn), wpCritical = num(snapshot.wpCritical)
-  if (load >= 1.5 || ram >= 85 || cpu >= 90 || swapIn >= 1000 || wpCritical >= 3) return 'CRIT'
-  if (load >= 1 || ram >= 75 || cpu >= 75 || swapIn >= 100 || wpCritical >= 1) return 'WARN'
+  const cpu = metric(snapshot.cpuPct), ram = metric(snapshot.memoryPct), load = metric(snapshot.loadRatio), swapIn = metric(snapshot.swapIn), wpCritical = metric(snapshot.wpCritical)
+  const resourceCrit = (load !== null && load >= 1.5) || (ram !== null && ram >= 85) || (cpu !== null && cpu >= 90) || (swapIn !== null && swapIn >= 1000)
+  const resourceWarn = (load !== null && load >= 1) || (ram !== null && ram >= 75) || (cpu !== null && cpu >= 75) || (swapIn !== null && swapIn >= 100)
+  if (resourceCrit) return 'CRIT'
+  if (resourceWarn || (wpCritical !== null && wpCritical >= 1)) return 'WARN'
   return 'NORMAL'
 }
 
 function pressureScore(snapshot = {}) {
-  const cpu = Math.min(1, num(snapshot.cpuPct) / 90), ram = Math.min(1, num(snapshot.memoryPct) / 85), load = Math.min(1, num(snapshot.loadRatio) / 1.5), swap = Math.min(1, num(snapshot.swapIn) / 1000)
-  return Math.round(((cpu + ram + load + swap) / 4) * 100)
+  const signals = [
+    [metric(snapshot.cpuPct), 90],
+    [metric(snapshot.memoryPct), 85],
+    [metric(snapshot.loadRatio), 1.5],
+    [metric(snapshot.swapIn), 1000],
+  ].filter(([value]) => value !== null).map(([value, threshold]) => Math.max(0, value / threshold))
+  if (!signals.length) return 0
+  const maxSignal = Math.max(...signals, 0)
+  const avgSignal = signals.reduce((sum, value) => sum + value, 0) / signals.length
+  return Math.round(Math.min(100, (maxSignal * 0.55 + avgSignal * 0.45) * 100))
 }
 
 function peak(rows = [], key = '') {
-  return rows.reduce((best, row) => num(row[key]) > num(best.value) ? { value: num(row[key]), time: row.timeLabel, row } : best, { value: 0, time: '', row: null })
+  const available = rows.filter((row) => metric(row[key]) !== null)
+  if (!available.length) return { value: null, time: '', row: null }
+  return available.reduce((best, row) => metric(row[key]) > metric(best?.value) ? { value: metric(row[key]), time: row.timeLabel, row } : best, { value: null, time: '', row: null })
 }
 
 function choosePrimaryHost(telemetry = []) {
