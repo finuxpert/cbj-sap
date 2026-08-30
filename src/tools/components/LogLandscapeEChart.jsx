@@ -4,7 +4,8 @@ import * as echarts from 'echarts'
 const METRICS = {
   cpuPct: { label: 'CPU', suffix: '%', digits: 1 },
   memoryPct: { label: 'RAM', suffix: '%', digits: 1 },
-  loadRatio: { label: 'Load / vCPU', suffix: '', digits: 2 },
+  resourceLoadRatio: { label: 'Load1/vCPU', suffix: '', digits: 2 },
+  load15Ratio: { label: 'Load15/vCPU', suffix: '', digits: 2 },
   swapIn: { label: 'Swap In', suffix: ' p/s', digits: 0 },
   wpCritical: { label: 'WP Critical', suffix: '', digits: 0 },
 }
@@ -119,19 +120,20 @@ function legacyWorkloadRows(records = []) {
     time: row.time,
     cpu: row.cpuValues.length ? row.cpuValues.reduce((sum, value) => sum + value, 0) : null,
     rss: row.rssValues.length ? row.rssValues.reduce((sum, value) => sum + value, 0) : null,
+    maxPidRss: row.rssValues.length ? Math.max(...row.rssValues) : null,
     pids: row.pids.size,
     d: row.d,
     errors: Array.from(row.errors),
   })).sort((a, b) => String(a.time).localeCompare(String(b.time)))
 }
 
-export function WorkloadTrendEChart({ records = [], hostPeakTime = '', hostPeakCollectionKey = '', aggregated = false }) {
+export function WorkloadTrendEChart({ records = [], targetTime = '', targetCollectionKey = '', aggregated = false }) {
   const option = React.useMemo(() => {
     const rows = aggregated
-      ? records.map((row) => ({ time: row.collectionTime || row.timeLabel || row.snapshot, collectionKey: row.collectionKey, cpu: metricValue(row.cpu), rss: metricValue(row.rssGb), pids: Number(row.concurrentPids || 0), d: Number(row.dState || 0), errors: row.errors || [] })).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+      ? records.map((row) => ({ time: row.collectionTime || row.timeLabel || row.snapshot, collectionKey: row.collectionKey, cpu: metricValue(row.cpu), rss: metricValue(row.rssGb), maxPidRss: metricValue(row.maxPidRssGb), pids: Number(row.concurrentPids || 0), d: Number(row.dState || 0), errors: row.errors || [] })).sort((a, b) => String(a.time).localeCompare(String(b.time)))
       : legacyWorkloadRows(records)
-    const peakSample = hostPeakCollectionKey ? rows.find((row) => row.collectionKey === hostPeakCollectionKey) : null
-    const peakMarkerTime = peakSample?.time || (rows.some((row) => row.time === hostPeakTime) ? hostPeakTime : '')
+    const targetSample = targetCollectionKey ? rows.find((row) => row.collectionKey === targetCollectionKey) : null
+    const markerTime = targetSample?.time || (rows.some((row) => row.time === targetTime) ? targetTime : '')
     return {
       animationDuration: 200,
       backgroundColor: 'transparent',
@@ -143,24 +145,26 @@ export function WorkloadTrendEChart({ records = [], hostPeakTime = '', hostPeakC
         formatter: (items = []) => {
           const row = rows[items[0]?.dataIndex] || {}
           const cpu = row.cpu === null ? '—' : `${Number(row.cpu).toFixed(1)}%`
+          const maxPidRss = row.maxPidRss === null ? '—' : `${Number(row.maxPidRss).toFixed(2)} GB`
           const rss = row.rss === null ? '—' : `${Number(row.rss).toFixed(2)} GB`
-          return `<b>${row.time || ''}</b><br/>CPU Σ ${cpu}<br/>ΣRSS upper bound ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
+          return `<b>${row.time || ''}</b><br/>CPU Σ ${cpu}<br/>Max PID RSS ${maxPidRss}<br/>ΣRSS upper bound ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
         },
       },
       xAxis: { type: 'category', data: rows.map((row) => row.time), axisLabel: { color: '#81979f', hideOverlap: true } },
       yAxis: [
         { type: 'value', name: 'CPU Σ %', axisLabel: { color: '#81979f' }, splitLine: { lineStyle: { color: '#183036', type: 'dashed' } } },
-        { type: 'value', name: 'ΣRSS GB*', axisLabel: { color: '#81979f' }, splitLine: { show: false } },
+        { type: 'value', name: 'RSS GB', axisLabel: { color: '#81979f' }, splitLine: { show: false } },
       ],
       dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 12, height: 16, filterMode: 'none' }],
       series: [
-        { name: 'CPU Σ', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: peakMarkerTime ? { symbol: ['none', 'none'], data: [{ xAxis: peakMarkerTime, name: 'Host resource peak' }], label: { formatter: 'Host resource peak' }, lineStyle: { type: 'dashed' } } : undefined },
-        { name: 'ΣRSS (upper bound)', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.rss) },
+        { name: 'CPU Σ', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: markerTime ? { symbol: ['none', 'none'], data: [{ xAxis: markerTime, name: 'Landscape incident target' }], label: { formatter: 'Landscape incident target' }, lineStyle: { type: 'dashed' } } : undefined },
+        { name: 'Max PID RSS', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.maxPidRss) },
+        { name: 'ΣRSS upper bound', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: false, lineStyle: { type: 'dashed' }, data: rows.map((row) => row.rss) },
       ],
     }
-  }, [records, hostPeakTime, hostPeakCollectionKey, aggregated])
+  }, [records, targetTime, targetCollectionKey, aggregated])
   const ref = useEChart(option)
-  return <div ref={ref} className="logV2WorkloadChart" role="img" aria-label="Selected workload aggregate CPU and RSS upper-bound trend" />
+  return <div ref={ref} className="logV2WorkloadChart" role="img" aria-label="Selected workload incident-relative CPU and memory trend" />
 }
 
 export const LOG_V2_METRICS = METRICS
