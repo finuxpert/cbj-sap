@@ -61,16 +61,17 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
       xAxis: resourceAxisTime,
       name: 'Incident',
       label: {
-        formatter: `INCIDENT${resourceAnchorHost ? ` · ${resourceAnchorHost}` : ''}\n${shortStamp(resourceActualTime)}`,
+        formatter: 'INCIDENT',
         position: 'insideEndTop',
-        color: '#eef4f5',
+        rotate: 0,
+        color: '#e6edef',
         backgroundColor: '#24343a',
         borderColor: '#3b5158',
         borderWidth: 1,
         borderRadius: 3,
-        padding: [4, 6],
+        padding: [3, 5],
         fontSize: 9,
-        lineHeight: 13,
+        lineHeight: 11,
       },
       lineStyle: { type: 'dashed', width: 1.5, color: '#7f969e' },
     }] : []
@@ -97,7 +98,8 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
         formatter: (items = []) => {
           if (!items.length) return ''
           const collection = collections[items[0]?.dataIndex]
-          const title = `<b>${items[0].axisValue}</b>${collection?.endTime && collection.endTime !== collection.timeLabel ? `<br/><span>${collection.endTime}</span>` : ''}`
+          const incident = collection?.key === resourcePeak?.key
+          const title = `<b>${items[0].axisValue}</b>${collection?.endTime && collection.endTime !== collection.timeLabel ? `<br/><span>${collection.endTime}</span>` : ''}${incident ? `<br/><span>Incident: ${resourceAnchorHost || 'host unknown'} · ${shortStamp(resourceActualTime)}</span>` : ''}`
           const body = items.filter((item) => item.value !== null && item.value !== undefined).map((item) => `${item.marker}${item.seriesName}: <b>${Number(item.value).toFixed(meta.digits)}${meta.suffix}</b>`).join('<br/>')
           return `${title}<br/>${body || 'No metric evidence'}`
         },
