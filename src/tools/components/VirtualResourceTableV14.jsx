@@ -5,9 +5,10 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 const hasMetric = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
 const fmt = (value, digits = 1) => hasMetric(value) ? Number(value).toLocaleString('en-US', { maximumFractionDigits: digits }) : '—'
 const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+const operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', IO_CONSUMER: 'I/O Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)
 
 function evidenceLabel(value = '') {
-  return ({ EXACT_TARGET: 'EXACT', NEAR_TARGET: 'NEAR', EARLY_TARGET: 'EARLY', LATE_TARGET: 'LATE', OFF_TARGET: 'OFF', ADJACENT_TARGET: 'ADJACENT' })[value] || 'NONE'
+  return ({ EXACT_TARGET: 'Exact', NEAR_TARGET: 'Near', EARLY_TARGET: 'Early', LATE_TARGET: 'Late', OFF_TARGET: 'Off target', ADJACENT_TARGET: 'Adjacent' })[value] || 'None'
 }
 
 function confidenceText(row = {}) {
@@ -48,7 +49,7 @@ function errorText(row = {}) {
   const category = strongest.category
   if (category && category !== 'NONE') {
     const suffix = timingSuffix(strongest.timing, taxonomy.direction)
-    return `${humanize(category)}${suffix ? ` · ${suffix}` : ''}`
+    return `${operatorLabel(category)}${suffix ? ` · ${suffix}` : ''}`
   }
   if (row.errorState && row.errorState !== 'NONE') return humanize(row.errorState)
   return '—'
@@ -68,14 +69,14 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   const columns = React.useMemo(() => [
     { accessorKey: 'host', header: 'Host', size: 128 },
     { accessorKey: 'workload', header: 'Workload / Job', size: 280 },
-    { accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => humanize(getValue()) },
-    { accessorKey: 'causalScore', header: 'Priority', size: 86, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
-    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Local Data', size: 126, cell: ({ row }) => confidenceText(row.original) },
+    { accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => operatorLabel(getValue()) },
+    { accessorKey: 'causalScore', header: 'RCA Priority', size: 96, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
+    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Coverage', size: 126, cell: ({ row }) => confidenceText(row.original) },
     { accessorKey: 'targetCpu', header: 'CPU', size: 82, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
     { id: 'memory', accessorFn: (row) => row.targetPssGb ?? row.targetMaxPidRss ?? -1, header: 'Memory', size: 165, cell: ({ row }) => memoryText(row.original) },
-    { id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocking', size: 130, cell: ({ row }) => blockingText(row.original) },
-    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error / Timing', size: 210, cell: ({ row }) => <span className={`logV143Error ${errorTone(row.original)}`}>{errorText(row.original)}</span> },
-    { accessorKey: 'targetEvidence', header: 'Target', size: 88, cell: ({ getValue }) => evidenceLabel(getValue()) },
+    { id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocked WP', size: 130, cell: ({ row }) => blockingText(row.original) },
+    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error Context', size: 210, cell: ({ row }) => <span className={`logV143Error ${errorTone(row.original)}`}>{errorText(row.original)}</span> },
+    { accessorKey: 'targetEvidence', header: 'Time Match', size: 96, cell: ({ getValue }) => evidenceLabel(getValue()) },
   ], [])
 
   const table = useReactTable({
@@ -98,8 +99,8 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
   const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 12 })
-  const gridTemplate = '128px minmax(280px,1.8fr) 145px 86px 126px 82px 165px 130px minmax(210px,1.2fr) 88px'
-  const minWidth = 1420
+  const gridTemplate = '128px minmax(280px,1.8fr) 145px 96px 126px 82px 165px 130px minmax(210px,1.2fr) 96px'
+  const minWidth = 1440
 
   return <div className="logV2TableShell">
     <div className="logV2TableToolbar">

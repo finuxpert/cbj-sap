@@ -17,6 +17,7 @@ const shortTime = (value = '') => {
   return match ? `${match[2]}-${match[3]} ${match[4]}` : value || '—'
 }
 const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+const operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', NFS_IO_CONTENTION: 'NFS I/O Contention', IO_CONSUMER: 'I/O Consumer', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)
 const robustZText = (value) => {
   if (!hasMetric(value)) return '—'
   const n = Number(value)
@@ -29,13 +30,13 @@ function qualityPresentation(local = {}) {
   const score = hasMetric(local?.score) ? Number(local.score) : null
   if (score === null) return { label: 'Unknown', meta: 'local data unavailable' }
   const label = score >= 95 ? 'Complete' : score >= 80 ? 'Good' : score >= 60 ? 'Limited' : 'Low'
-  return { label, meta: `${fmt(score, 0)}% local data quality` }
+  return { label, meta: `${fmt(score, 0)}% coverage` }
 }
 
 function runPresentation(sustained = {}) {
   const name = sustained?.sustainedClass || 'NONE'
   if (name === 'NONE') return 'None'
-  return `${humanize(name)} · score ${fmt(sustained?.sustainedScore || 0, 0)}`
+  return humanize(name)
 }
 
 function patternPresentation(verdict, capabilities) {
@@ -53,10 +54,17 @@ function patternPresentation(verdict, capabilities) {
       MEMORY_PRESSURE: 'Memory Pressure',
       CPU_PRESSURE: 'CPU Pressure',
     }
-    return { label: legacyLabels[raw] || humanize(raw), qualifier: 'Indicative · legacy telemetry' }
+    return { label: legacyLabels[raw] || humanize(raw), qualifier: 'Based on standard log data' }
   }
-  if (mode === 'PARTIAL') return { label: humanize(raw), qualifier: 'Supported · partial telemetry' }
-  return { label: humanize(raw), qualifier: 'Enhanced telemetry' }
+  if (mode === 'PARTIAL') return { label: humanize(raw), qualifier: 'Supported by partial Linux telemetry' }
+  return { label: humanize(raw), qualifier: 'Supported by enhanced Linux telemetry' }
+}
+
+function dataSourcePresentation(capabilities = {}) {
+  const mode = capabilities?.mode || 'LEGACY'
+  if (mode === 'LEGACY') return { label: 'STANDARD', meta: 'Standard log metrics only' }
+  if (mode === 'PARTIAL') return { label: 'PARTIAL', meta: `${capabilities?.coveragePct || 0}% additional telemetry coverage` }
+  return { label: 'ENHANCED', meta: `${capabilities?.coveragePct || 0}% enhanced telemetry coverage` }
 }
 
 function workerParse(files) {
@@ -74,7 +82,7 @@ function Status({ value = 'NORMAL' }) {
 }
 
 function DecisionBadge({ confirmed = false }) {
-  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'CONFIRMED' : 'UNCONFIRMED'}</span>
+  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'SUPPORTED' : 'INCONCLUSIVE'}</span>
 }
 
 function Stat({ label, value, meta, tone = '' }) {
@@ -103,18 +111,19 @@ function IncidentSummary({ verdict, capabilities, topRow }) {
   const landscape = verdict.landscapeConfidence || {}
   const pattern = patternPresentation(verdict, capabilities)
   const quality = qualityPresentation(topRow?.localConfidence)
+  const source = dataSourcePresentation(capabilities)
   return <section className="logV2Panel logV141Summary">
     <div className="logV141SummaryTop">
-      <div><span className="logV141Kicker">INCIDENT SUMMARY</span><h2>{single ? 'Dominant workload confirmed' : 'No dominant workload'}</h2></div>
+      <div><span className="logV141Kicker">INCIDENT SUMMARY</span><h2>{single ? 'Primary workload identified' : 'Root cause not isolated'}</h2></div>
       <DecisionBadge confirmed={single} />
     </div>
     <div className="logV141SummaryGrid">
       <div><span>Host / time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
-      <div><span>Pattern</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
-      <div><span>Top candidate</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {humanize(topRow?.incidentRole || 'UNKNOWN')} · priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>
-      <div><span>Data quality</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>
-      <div><span>Cross-host</span><strong>{landscape.grade || 'LOW'} {hasMetric(landscape.score) ? `${landscape.score}/100` : ''}</strong><small>{landscape.skewMinutes ?? 0}m skew · exact {landscape.exactHosts ?? 0}/{landscape.hostCount ?? 0}</small></div>
-      <div><span>Telemetry</span><strong>{capabilities?.mode || verdict.telemetryMode || 'LEGACY'}</strong><small>{capabilities?.coveragePct ?? 0}% enhanced coverage</small></div>
+      <div><span>Observed condition</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
+      <div><span>Primary workload for review</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {operatorLabel(topRow?.incidentRole || 'UNKNOWN')} · RCA priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>
+      <div><span>Data coverage</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>
+      <div><span>Server time alignment</span><strong>{landscape.grade || 'LOW'}</strong><small>{landscape.skewMinutes ?? 0} min difference · {landscape.exactHosts ?? 0} of {landscape.hostCount ?? 0} servers aligned</small></div>
+      <div><span>Data source</span><strong>{source.label}</strong><small>{source.meta}</small></div>
     </div>
   </section>
 }
@@ -125,7 +134,7 @@ function SnapshotStrip({ collection, incidentKey, capabilities }) {
   const incident = collection.key === incidentKey
   const skew = collectionSkew(collection)
   return <section className="logV2Panel logV2SnapshotPanel">
-    <div className="logV2PanelHead"><div><h2>{incident ? 'Incident Collection' : 'Selected Collection'} · {range}</h2><p>Cross-host skew {skew}m · telemetry {capabilities?.mode || 'LEGACY'}</p></div><Status value={collection.resourceSeverity || collection.severity} /></div>
+    <div className="logV2PanelHead"><div><h2>{incident ? 'Incident Snapshot' : 'Selected Snapshot'} · {range}</h2><p>Server time difference: {skew} min · data source {dataSourcePresentation(capabilities).label}</p></div><Status value={collection.resourceSeverity || collection.severity} /></div>
     <div className="logV2SnapshotGrid">{collection.rows.map((row) => <article key={row.host}><div className="logV141HostHead"><b>{row.host}</b><div className="logV141HostStates"><span>RESOURCE</span><Status value={row.resourceSeverity} /><span>OPS</span><Status value={row.severity} /></div></div><small>{shortTime(row.timeLabel || row.snapshot)}</small><dl>
       <div><dt>CPU</dt><dd>{metricText(row.cpuPct, 1, '%')}</dd></div><div><dt>RAM</dt><dd>{metricText(row.memoryPct, 1, '%')}</dd></div>
       <div><dt>Load1/vCPU</dt><dd>{metricText(row.resourceLoadRatio, 2)}</dd></div><div><dt>Swap In</dt><dd>{metricText(row.swapIn, 0, ' p/s')}</dd></div>
@@ -139,8 +148,8 @@ function SnapshotStrip({ collection, incidentKey, capabilities }) {
 function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
   if (!rca?.hostPeaks?.length) return null
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><h2>Application Server Peaks</h2><p>Maximum observed per host across the full analysis window.</p></div></div>
-    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Window Peak</th><th>Peak Time</th><th>Run</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>WP Critical</th></tr></thead><tbody>
+    <div className="logV2PanelHead"><div><h2>Server Resource Peaks</h2><p>Highest recorded values for each server during the selected period.</p></div></div>
+    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Peak Score</th><th>Peak Time</th><th>Duration</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>WP Critical</th></tr></thead><tbody>
       {rca.hostPeaks.map((item) => {
         const attributionOk = hostPeakAttributionValid(item)
         return <tr key={item.host} className={`${selectedHost === item.host ? 'active' : ''} ${attributionOk ? '' : 'attributionError'}`} onClick={() => onSelectHost?.(item.host)}>
@@ -166,21 +175,21 @@ function WorkloadDetail({ item }) {
   const quality = qualityPresentation(item.localConfidence)
   const timingText = taxonomy.classified?.map((entry) => `${entry.code}: ${entry.timing?.state || 'NONE'}${hasMetric(entry.timing?.deltaMinutes) ? ` (${signed(entry.timing.deltaMinutes, 0, 'm')})` : ''}`).join(' · ') || 'None'
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAIL</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {humanize(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Victim {item.victimScore}</span></div></div>
+    <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {operatorLabel(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Victim {item.victimScore}</span></div></div>
     <div className="logV2DetailGrid">
       <div className="logV2DetailFacts"><dl>
-        <div><dt>Role</dt><dd>{humanize(item.incidentRole)}</dd></div><div><dt>Target</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>
-        <div><dt>Data quality</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Cross-host</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.score ?? '—'}/100</dd></div>
-        <div><dt>Host @ incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host evidence</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>
-        <div><dt>CPU @ evidence</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated CPU share</dt><dd>{cpuShareText(item)}</dd></div>
+        <div><dt>Workload role</dt><dd>{operatorLabel(item.incidentRole)}</dd></div><div><dt>Time match</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>
+        <div><dt>Data coverage</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Server time alignment</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.skewMinutes ?? 0} min difference</dd></div>
+        <div><dt>Host status at incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host sample</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>
+        <div><dt>{item.targetEvidence === 'EXACT_TARGET' ? 'CPU at incident' : 'CPU at sample'}</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated host CPU share</dt><dd>{cpuShareText(item)}</dd></div>
         <div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div><div><dt>PSS baseline</dt><dd>{metricText(item.pssBaseline?.median, 2, ' GB')} · z {robustZText(item.pssUplift?.z)}</dd></div>
         <div><dt>Private memory</dt><dd>{metricText(item.targetPrivateGb, 2, ' GB')}</dd></div><div><dt>Σ shared mappings</dt><dd>{metricText(item.targetSharedGb, 2, ' GB')} · non-exclusive</dd></div>
         <div><dt>Max PID RSS</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state / PIDs</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} / ${item.targetConcurrentPids}` : '—'}</dd></div>
-        <div><dt>Blocking WCHAN</dt><dd>{humanize(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Enhanced timing</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes}m` : ''}</dd></div>
-        <div><dt>Avg read since previous sample</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)}m` : ''}</dd></div><div><dt>Avg write since previous sample</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)}m` : ''}</dd></div>
+        <div><dt>Kernel wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Metric sample time</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes} min` : ''}</dd></div>
+        <div><dt>Average read rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div><div><dt>Average write rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div>
         <div><dt>Host iowait</dt><dd>{metricText(item.hostIowaitPct, 1, '%')}</dd></div><div><dt>PSI mem / I/O full10</dt><dd>{metricText(item.hostPsiMemoryFull10, 1, '%')} / {metricText(item.hostPsiIoFull10, 1, '%')}</dd></div>
-        <div><dt>Error class</dt><dd>{humanize(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error direction</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>
-        <div className="wide"><dt>Error timing</dt><dd>{timingText}</dd></div>
+        <div><dt>Error type</dt><dd>{operatorLabel(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error context</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>
+        <div className="wide"><dt>Error timeline</dt><dd>{timingText}</dd></div>
       </dl></div>
       <WorkloadTrendEChart records={item.samples} targetTime={item.targetTime} targetCollectionKey={item.targetCollectionKey} aggregated />
     </div>
@@ -270,19 +279,20 @@ export default function ToolLogAutoRcaV5() {
   const incidentAnchorTime = verdict?.anchorTime || rca?.resourceIncidentAnchor?.time || rca?.resourceLandscapePeak?.incidentAnchorTime || rca?.resourceLandscapePeak?.timeLabel
   const incidentAnchorHost = verdict?.anchorHost || rca?.resourceIncidentAnchor?.host || ''
   const pattern = patternPresentation(verdict, capabilities)
+  const dataSource = dataSourcePresentation(capabilities)
 
   return <section className="logV2Shell"><div className="logV2Inner">
-    <header className="logV2Header"><div><span className="logV141Kicker">SAP APP / LINUX RCA</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
+    <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
     <div className={`logV2StatusBar ${rca ? 'ready' : ''}`}>{status}</div>
 
-    {!rca ? <div className="logV2EmptyState"><b>Upload evidence</b><p>WP-SCOUT / Daily Check logs. Enhanced Linux telemetry is optional.</p></div> : <>
+    {!rca ? <div className="logV2EmptyState"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div> : <>
       <section className="logV2Stats">
-        <Stat label="Evidence" value={`${rca.collections.length} collections`} meta={`${rca.evidenceWindow.fileCount} files`} />
+        <Stat label="Data set" value={`${rca.collections.length} snapshots`} meta={`${rca.evidenceWindow.fileCount} files`} />
         <Stat label="Servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
-        <Stat label="Time range" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={`${rca.cadence.nominalMinutes || '—'}m cadence`} />
-        <Stat label="Incident" value={`${incidentAnchorHost || '—'} ${shortTime(incidentAnchorTime)}`} meta={`cross-host ${diagnostics.landscapeConfidence?.grade || '—'} · ${diagnostics.landscapeConfidence?.skewMinutes ?? 0}m skew`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />
-        <Stat label="Verdict" value={ranking ? 'Ranking…' : verdict?.status === 'SINGLE_CULPRIT_SUPPORTED' ? 'DOMINANT WORKLOAD' : 'NO DOMINANT WORKLOAD'} meta={ranking ? 'working' : pattern.label} />
-        <Stat label="Telemetry" value={capabilities.mode || 'LEGACY'} meta={`${capabilities.coveragePct || 0}% enhanced coverage`} />
+        <Stat label="Analysis period" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={`${rca.cadence.nominalMinutes || '—'} min interval`} />
+        <Stat label="Incident" value={`${incidentAnchorHost || '—'} ${shortTime(incidentAnchorTime)}`} meta={`server alignment ${diagnostics.landscapeConfidence?.grade || '—'} · ${diagnostics.landscapeConfidence?.skewMinutes ?? 0} min difference`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />
+        <Stat label="RCA status" value={ranking ? 'ANALYZING' : verdict?.status === 'SINGLE_CULPRIT_SUPPORTED' ? 'PRIMARY WORKLOAD IDENTIFIED' : 'ROOT CAUSE NOT ISOLATED'} meta={ranking ? 'processing workload evidence' : pattern.label} />
+        <Stat label="Data source" value={dataSource.label} meta={dataSource.meta} />
       </section>
 
       {!ranking && <IncidentSummary verdict={verdict} capabilities={capabilities} topRow={resourceRows[0]} />}
@@ -296,7 +306,7 @@ export default function ToolLogAutoRcaV5() {
       <HostPeakSummary rca={rca} selectedHost={selectedHostPeak?.host} onSelectHost={(hostName) => { setSelectedHost(hostName); const first = resourceRows.find((row) => row.host === hostName); if (first) setSelectedResource(first) }} />
 
       <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Workload Ranking</h2><p>Sorted by incident priority. Click a row for details.</p></div></div>
+        <div className="logV2PanelHead"><div><h2>Workload Analysis</h2><p>Workloads observed around the incident time. Select a row for details.</p></div></div>
         {ranking ? <div className="logV2Empty">Ranking {analysis?.processes?.length || 0} process rows…</div> : <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />}
       </section>
 
