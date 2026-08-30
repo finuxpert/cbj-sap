@@ -111,7 +111,7 @@ function IncidentSummary({ verdict, capabilities, topRow }) {
     <div className="logV141SummaryGrid">
       <div><span>Host / time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
       <div><span>Pattern</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
-      <div><span>Top candidate</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>
+      <div><span>Top candidate</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {humanize(topRow?.incidentRole || 'UNKNOWN')} · priority {verdict.topCausalScore ?? 0} · victim {verdict.topVictimScore ?? 0}</small></div>
       <div><span>Data quality</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>
       <div><span>Cross-host</span><strong>{landscape.grade || 'LOW'} {hasMetric(landscape.score) ? `${landscape.score}/100` : ''}</strong><small>{landscape.skewMinutes ?? 0}m skew · exact {landscape.exactHosts ?? 0}/{landscape.hostCount ?? 0}</small></div>
       <div><span>Telemetry</span><strong>{capabilities?.mode || verdict.telemetryMode || 'LEGACY'}</strong><small>{capabilities?.coveragePct ?? 0}% enhanced coverage</small></div>
@@ -139,8 +139,8 @@ function SnapshotStrip({ collection, incidentKey, capabilities }) {
 function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
   if (!rca?.hostPeaks?.length) return null
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><h2>Application Server Peaks</h2></div></div>
-    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Peak</th><th>Time</th><th>Run</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>WP Critical</th></tr></thead><tbody>
+    <div className="logV2PanelHead"><div><h2>Application Server Peaks</h2><p>Maximum observed per host across the full analysis window.</p></div></div>
+    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Window Peak</th><th>Peak Time</th><th>Run</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>WP Critical</th></tr></thead><tbody>
       {rca.hostPeaks.map((item) => {
         const attributionOk = hostPeakAttributionValid(item)
         return <tr key={item.host} className={`${selectedHost === item.host ? 'active' : ''} ${attributionOk ? '' : 'attributionError'}`} onClick={() => onSelectHost?.(item.host)}>

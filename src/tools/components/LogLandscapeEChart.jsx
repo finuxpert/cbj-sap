@@ -157,7 +157,7 @@ export function WorkloadTrendEChart({ records = [], targetTime = '', targetColle
       ],
       dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 12, height: 16, filterMode: 'none' }],
       series: [
-        { name: 'CPU Σ', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: markerTime ? { symbol: ['none', 'none'], data: [{ xAxis: markerTime, name: 'Landscape incident target' }], label: { formatter: 'Landscape incident target' }, lineStyle: { type: 'dashed' } } : undefined },
+        { name: 'CPU Σ', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: markerTime ? { silent: true, symbol: ['none', 'none'], data: [{ xAxis: markerTime, name: 'Incident' }], label: { formatter: 'INCIDENT', color: '#c3d0d4', backgroundColor: '#24343a', borderColor: '#3b5158', borderWidth: 1, borderRadius: 3, padding: [3, 5], fontSize: 9 }, lineStyle: { type: 'dashed', color: '#7f969e' } } : undefined },
         { name: 'Max PID RSS', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.maxPidRss) },
         { name: 'ΣRSS upper bound', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: false, lineStyle: { type: 'dashed' }, data: rows.map((row) => row.rss) },
       ],

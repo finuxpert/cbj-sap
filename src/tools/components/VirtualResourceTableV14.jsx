@@ -54,6 +54,14 @@ function errorText(row = {}) {
   return '—'
 }
 
+function errorTone(row = {}) {
+  const timing = row.errorTaxonomy?.strongest?.timing || {}
+  if (timing.state === 'PERSISTENT_NEAR_TARGET') return 'persistent'
+  if (timing.state === 'NEW_BEFORE_TARGET' || row.errorTaxonomy?.direction === 'POTENTIAL_PRECURSOR') return 'precursor'
+  if (timing.state === 'NEW_AT_TARGET') return 'at-target'
+  return ''
+}
+
 export default function VirtualResourceTableV14({ rows = [], selectedKey = '', onSelect }) {
   const [sorting, setSorting] = React.useState([{ id: 'causalScore', desc: true }])
   const [globalFilter, setGlobalFilter] = React.useState('')
@@ -66,7 +74,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
     { accessorKey: 'targetCpu', header: 'CPU', size: 82, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
     { id: 'memory', accessorFn: (row) => row.targetPssGb ?? row.targetMaxPidRss ?? -1, header: 'Memory', size: 165, cell: ({ row }) => memoryText(row.original) },
     { id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocking', size: 130, cell: ({ row }) => blockingText(row.original) },
-    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error / Timing', size: 210, cell: ({ row }) => errorText(row.original) },
+    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error / Timing', size: 210, cell: ({ row }) => <span className={`logV143Error ${errorTone(row.original)}`}>{errorText(row.original)}</span> },
     { accessorKey: 'targetEvidence', header: 'Target', size: 88, cell: ({ getValue }) => evidenceLabel(getValue()) },
   ], [])
 
@@ -117,4 +125,4 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   </div>
 }
 
-export const __test = { confidenceText, errorText, timingSuffix }
+export const __test = { confidenceText, errorText, timingSuffix, errorTone }
