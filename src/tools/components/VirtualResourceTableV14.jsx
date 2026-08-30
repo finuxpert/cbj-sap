@@ -12,7 +12,10 @@ function evidenceLabel(value = '') {
 
 function confidenceText(row = {}) {
   const local = row.localConfidence || {}
-  return `${local.grade || '—'}${hasMetric(local.score) ? ` ${fmt(local.score, 0)}` : ''}`
+  const score = hasMetric(local.score) ? Number(local.score) : null
+  if (score === null) return '—'
+  const label = score >= 95 ? 'Complete' : score >= 80 ? 'Good' : score >= 60 ? 'Limited' : 'Low'
+  return `${label} · ${fmt(score, 0)}%`
 }
 
 function memoryText(row = {}) {
@@ -27,9 +30,26 @@ function blockingText(row = {}) {
   return '—'
 }
 
+function timingSuffix(timing = {}, direction = '') {
+  const delta = hasMetric(timing?.deltaMinutes) ? Math.abs(Number(timing.deltaMinutes)) : null
+  if (timing?.state === 'NEW_BEFORE_TARGET') return delta === null ? 'before' : `${fmt(delta, 0)}m before`
+  if (timing?.state === 'NEW_AT_TARGET') return 'at target'
+  if (timing?.state === 'NEW_AFTER_TARGET') return delta === null ? 'after' : `${fmt(delta, 0)}m after`
+  if (timing?.state === 'PERSISTENT_NEAR_TARGET') return 'persistent'
+  if (direction === 'POTENTIAL_PRECURSOR') return 'precursor'
+  if (direction === 'LIKELY_SYMPTOM') return 'symptom'
+  if (direction === 'SUPPORTING_SIGNAL') return 'supporting'
+  return ''
+}
+
 function errorText(row = {}) {
-  const category = row.errorTaxonomy?.strongest?.category
-  if (category && category !== 'NONE') return humanize(category)
+  const taxonomy = row.errorTaxonomy || {}
+  const strongest = taxonomy.strongest || {}
+  const category = strongest.category
+  if (category && category !== 'NONE') {
+    const suffix = timingSuffix(strongest.timing, taxonomy.direction)
+    return `${humanize(category)}${suffix ? ` · ${suffix}` : ''}`
+  }
   if (row.errorState && row.errorState !== 'NONE') return humanize(row.errorState)
   return '—'
 }
@@ -42,11 +62,11 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
     { accessorKey: 'workload', header: 'Workload / Job', size: 280 },
     { accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => humanize(getValue()) },
     { accessorKey: 'causalScore', header: 'Priority', size: 86, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
-    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Data Quality', size: 116, cell: ({ row }) => confidenceText(row.original) },
+    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Local Data', size: 126, cell: ({ row }) => confidenceText(row.original) },
     { accessorKey: 'targetCpu', header: 'CPU', size: 82, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
     { id: 'memory', accessorFn: (row) => row.targetPssGb ?? row.targetMaxPidRss ?? -1, header: 'Memory', size: 165, cell: ({ row }) => memoryText(row.original) },
     { id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocking', size: 130, cell: ({ row }) => blockingText(row.original) },
-    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error', size: 180, cell: ({ row }) => errorText(row.original) },
+    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error / Timing', size: 210, cell: ({ row }) => errorText(row.original) },
     { accessorKey: 'targetEvidence', header: 'Target', size: 88, cell: ({ getValue }) => evidenceLabel(getValue()) },
   ], [])
 
@@ -63,15 +83,15 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
       const needle = String(value || '').toLowerCase().trim()
       if (!needle) return true
       const item = row.original
-      return [item.host, item.workload, item.program, item.incidentRole, item.targetEvidence, item.wchanClass, item.targetWchan, item.errorState, item.errorTaxonomy?.strongest?.category, ...(item.errors || [])].join(' ').toLowerCase().includes(needle)
+      return [item.host, item.workload, item.program, item.incidentRole, item.targetEvidence, item.wchanClass, item.targetWchan, item.errorState, item.errorTaxonomy?.strongest?.category, item.errorTaxonomy?.direction, ...(item.errors || [])].join(' ').toLowerCase().includes(needle)
     },
   })
 
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
   const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 12 })
-  const gridTemplate = '128px minmax(280px,1.8fr) 145px 86px 116px 82px 165px 130px minmax(180px,1.15fr) 88px'
-  const minWidth = 1380
+  const gridTemplate = '128px minmax(280px,1.8fr) 145px 86px 126px 82px 165px 130px minmax(210px,1.2fr) 88px'
+  const minWidth = 1420
 
   return <div className="logV2TableShell">
     <div className="logV2TableToolbar">
@@ -96,3 +116,5 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
     </div>
   </div>
 }
+
+export const __test = { confidenceText, errorText, timingSuffix }
