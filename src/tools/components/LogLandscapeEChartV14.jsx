@@ -19,6 +19,11 @@ const metricValue = (value) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function shortStamp(value = '') {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/)
+  return match ? `${match[2]}-${match[3]} ${match[4]}` : String(value || '')
+}
+
 function useEChart(option, onClick) {
   const ref = React.useRef(null)
   React.useEffect(() => {
@@ -51,20 +56,24 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
     const resourceAxisCollection = collections.find((row) => row.key === resourcePeak?.key)
     const resourceAxisTime = resourceAxisCollection?.timeLabel || resourcePeak?.timeLabel || ''
     const resourceActualTime = resourcePeak?.incidentAnchorTime || rca?.resourceIncidentAnchor?.time || resourcePeak?.timeLabel || ''
-    const operationalPeak = rca?.operationalLandscapePeak || null
-    const operationalAxisCollection = collections.find((row) => row.key === operationalPeak?.key)
-    const operationalAxisTime = operationalAxisCollection?.timeLabel || operationalPeak?.timeLabel || ''
-    const peakLines = []
-    if (resourceAxisTime) peakLines.push({
+    const resourceAnchorHost = rca?.resourceIncidentAnchor?.host || resourcePeak?.incidentAnchorHost || ''
+    const incidentLine = resourceAxisTime ? [{
       xAxis: resourceAxisTime,
-      name: 'Resource incident',
-      label: { formatter: `Resource incident\n${resourceActualTime}`, position: 'insideEndTop' },
-    })
-    if (operationalAxisTime && operationalAxisTime !== resourceAxisTime) peakLines.push({
-      xAxis: operationalAxisTime,
-      name: 'Operational peak',
-      label: { formatter: `Operational peak\n${operationalPeak?.timeLabel || operationalAxisTime}`, position: 'insideEndBottom' },
-    })
+      name: 'Incident',
+      label: {
+        formatter: `INCIDENT${resourceAnchorHost ? ` · ${resourceAnchorHost}` : ''}\n${shortStamp(resourceActualTime)}`,
+        position: 'insideEndTop',
+        color: '#eef4f5',
+        backgroundColor: '#24343a',
+        borderColor: '#3b5158',
+        borderWidth: 1,
+        borderRadius: 3,
+        padding: [4, 6],
+        fontSize: 9,
+        lineHeight: 13,
+      },
+      lineStyle: { type: 'dashed', width: 1.5, color: '#7f969e' },
+    }] : []
     const series = hosts.map((host, index) => ({
       name: host,
       type: 'line',
@@ -74,7 +83,7 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
       emphasis: { focus: 'series' },
       data: collections.map((collection) => metricValue(collection.byHost?.get?.(host)?.[metric])),
       markPoint: { symbol: 'pin', symbolSize: 42, label: { formatter: 'MAX', fontSize: 9 }, data: [{ type: 'max', name: `${host} max` }] },
-      markLine: index === 0 && peakLines.length ? { symbol: ['none', 'none'], lineStyle: { type: 'dashed', width: 1.5 }, data: peakLines } : undefined,
+      markLine: index === 0 && incidentLine.length ? { silent: true, symbol: ['none', 'none'], data: incidentLine } : undefined,
     }))
     return {
       animationDuration: 220,
@@ -98,7 +107,7 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
       dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 18, height: 18, borderColor: '#294047', fillerColor: 'rgba(49,199,207,.16)', textStyle: { color: '#81979f' } }],
       series,
     }
-  }, [collections, rca?.hosts, rca?.resourceLandscapePeak, rca?.landscapePeak, rca?.operationalLandscapePeak, rca?.resourceIncidentAnchor, metric, meta.digits, meta.label, meta.suffix])
+  }, [collections, rca?.hosts, rca?.resourceLandscapePeak, rca?.landscapePeak, rca?.resourceIncidentAnchor, metric, meta.digits, meta.label, meta.suffix])
 
   const click = React.useCallback((params) => {
     const collection = collections[params?.dataIndex]
