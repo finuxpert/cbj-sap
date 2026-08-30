@@ -1,0 +1,25 @@
+name: ONCE - Verify LOG v1.12 RCA verdict
+
+on:
+  push:
+    branches:
+      - verify/log-v1-12-rca-verdict-20260830
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run deterministic RCA tests
+        run: npm test
+      - name: Syntax check analytics wrappers
+        run: |
+          node --check src/tools/workloadAnalyticsV4.js
+          node --check src/tools/logRcaEngineV3.js
+      - name: Build SAP bundle
+        run: npm run build
