@@ -36,13 +36,14 @@ function Stat({ label, value, meta, tone = '' }) {
   return <article className={`logV2Stat ${tone}`}><span>{label}</span><strong>{value}</strong><small>{meta}</small></article>
 }
 
-function SnapshotStrip({ collection }) {
+function SnapshotStrip({ collection, incidentKey }) {
   if (!collection) return null
   const range = collection.endTime && collection.endTime !== collection.timeLabel ? `${shortTime(collection.timeLabel)} → ${shortTime(collection.endTime)}` : shortTime(collection.timeLabel)
+  const incident = collection.key === incidentKey
   return <section className="logV2Panel logV2SnapshotPanel">
-    <div className="logV2PanelHead"><div><h2>Selected Collection · {range}</h2><p>One logical collection groups APP samples captured in the same evidence cycle. Each card retains its actual host sample timestamp.</p></div><Status value={collection.severity} /></div>
-    <div className="logV2SnapshotGrid">{collection.rows.map((row) => <article key={row.host}><div><b>{row.host}</b><Status value={row.severity} /></div><small>sample {shortTime(row.timeLabel || row.snapshot)} · resource {row.resourceSeverity}</small><dl>
-      <div><dt>CPU</dt><dd>{metricText(row.cpuPct, 1, '%')}</dd></div><div><dt>RAM</dt><dd>{metricText(row.memoryPct, 1, '%')}</dd></div><div><dt>Load/vCPU</dt><dd>{metricText(row.loadRatio, 2)}</dd></div><div><dt>Swap In</dt><dd>{metricText(row.swapIn, 0, ' p/s')}</dd></div><div><dt>WP Critical</dt><dd>{metricText(row.wpCritical)}</dd></div><div><dt>Resource pressure</dt><dd>{row.resourcePressure}/100</dd></div>
+    <div className="logV2PanelHead"><div><h2>Selected Collection · {range}{incident ? ' · RESOURCE INCIDENT TARGET' : ''}</h2><p>Each card retains its actual host timestamp. Workload ranking is anchored to the automatic resource-landscape incident target, not to unrelated per-host maxima.</p></div><Status value={collection.severity} /></div>
+    <div className="logV2SnapshotGrid">{collection.rows.map((row) => <article key={row.host}><div><b>{row.host}</b><Status value={row.severity} /></div><small>sample {shortTime(row.timeLabel || row.snapshot)} · resource {row.resourceSeverity} · coverage {row.resourceCoverage?.observed ?? 0}/4</small><dl>
+      <div><dt>CPU</dt><dd>{metricText(row.cpuPct, 1, '%')}</dd></div><div><dt>RAM</dt><dd>{metricText(row.memoryPct, 1, '%')}</dd></div><div><dt>Load1/vCPU</dt><dd>{metricText(row.resourceLoadRatio, 2)}</dd></div><div><dt>Swap In</dt><dd>{metricText(row.swapIn, 0, ' p/s')}</dd></div><div><dt>WP Critical</dt><dd>{metricText(row.wpCritical)}</dd></div><div><dt>Calibrated pressure</dt><dd>{row.resourcePressure}/100</dd></div>
     </dl></article>)}</div>
   </section>
 }
@@ -50,11 +51,11 @@ function SnapshotStrip({ collection }) {
 function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
   if (!rca?.hostPeaks?.length) return null
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><h2>Application Server Resource Peak Summary</h2><p>Resource peak excludes WP-only warnings. Operational status still includes WP Critical. Sustained pressure shows the strongest consecutive resource-elevated run.</p></div></div>
-    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Resource Peak</th><th>Peak Time</th><th>Sustained</th><th>Max CPU</th><th>Max RAM</th><th>Max Load</th><th>Max Swap</th><th>Max WP Critical</th></tr></thead><tbody>
+    <div className="logV2PanelHead"><div><h2>Application Server Resource Peak Summary</h2><p>Instantaneous pressure prefers Load1/vCPU; Load15 remains context only. Resource severity outranks a merely high normal-pressure score. Sustained requires duration, while two points are labeled a short burst.</p></div></div>
+    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Resource Peak</th><th>Peak Time</th><th>Run</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>Max WP Critical</th></tr></thead><tbody>
       {rca.hostPeaks.map((item) => <tr key={item.host} className={selectedHost === item.host ? 'active' : ''} onClick={() => onSelectHost?.(item.host)}>
         <td><b>{item.host}</b></td><td><Status value={item.severity} /></td><td><Status value={item.resourceSeverity} /></td><td><b>{item.peakPressure}</b>/100</td><td>{shortTime(item.peakTime)}</td>
-        <td title={`${item.sustained?.sustainedMinutes || 0} min observed span · pressure AUC ${item.sustained?.pressureAuc || 0}`}>{item.sustained?.sustainedScore || 0}/100 · {item.sustained?.sustainedSamples || 0}x</td>
+        <td title={`${item.sustained?.sustainedMinutes || 0} min span · ${item.sustained?.sustainedSamples || 0} samples · AUC ${item.sustained?.pressureAuc || 0}`}>{item.sustained?.sustainedClass || 'NONE'} · {item.sustained?.sustainedScore || 0}</td>
         <td title={item.metrics?.cpu?.timeLabel || ''}>{metricText(item.metrics?.cpu?.value, 1, '%')}</td><td title={item.metrics?.ram?.timeLabel || ''}>{metricText(item.metrics?.ram?.value, 1, '%')}</td><td title={item.metrics?.load?.timeLabel || ''}>{metricText(item.metrics?.load?.value, 2)}</td><td title={item.metrics?.swapIn?.timeLabel || ''}>{metricText(item.metrics?.swapIn?.value, 0, ' p/s')}</td><td title={item.metrics?.wpCritical?.timeLabel || ''}>{metricText(item.metrics?.wpCritical?.value)}</td>
       </tr>)}
     </tbody></table></div>
@@ -62,25 +63,39 @@ function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
 }
 
 function errorTone(value = '') {
-  if (value === 'NEW_AT_PEAK') return 'critical'
-  if (value === 'NEW_BEFORE_PEAK' || value === 'PERSISTENT_NEAR_PEAK') return 'warn'
+  if (value === 'NEW_AT_TARGET') return 'critical'
+  if (value === 'NEW_BEFORE_TARGET' || value === 'PERSISTENT_NEAR_TARGET') return 'warn'
   return 'neutral'
 }
 
+function signed(value, digits = 1, suffix = '') {
+  if (!hasMetric(value)) return '—'
+  const number = Number(value)
+  return `${number > 0 ? '+' : ''}${fmt(number, digits)}${suffix}`
+}
+
 function WorkloadDetail({ item }) {
-  if (!item) return <section className="logV2Panel"><div className="logV2Empty">Select an observed workload from the investigation ranking.</div></section>
-  const timingText = item.errorTimings?.map((entry) => `${entry.error}: ${entry.state}${entry.deltaCollections === null ? '' : ` (Δ${entry.deltaCollections >= 0 ? '+' : ''}${entry.deltaCollections})`}`).join(' · ') || 'None'
+  if (!item) return <section className="logV2Panel"><div className="logV2Empty">Select an observed workload from the incident-relevance ranking.</div></section>
+  const timingText = item.errorTimings?.map((entry) => `${entry.error}: ${entry.state}${entry.deltaMinutes === null ? '' : ` (${signed(entry.deltaMinutes, 0, 'm')})`}`).join(' · ') || 'None'
+  const breakdown = item.scoreBreakdown || {}
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><span className="logV2Eyebrow">SELECTED AGGREGATED WORKLOAD</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · host resource peak {shortTime(item.hostPeakTime)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.resourceScore}/100</span><span className={`logV2ErrorBadge ${errorTone(item.errorState)}`}>{item.errorState}</span></div></div>
+    <div className="logV2PanelHead"><div><span className="logV2Eyebrow">SELECTED INCIDENT-RELATIVE WORKLOAD</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · landscape resource target {shortTime(item.targetTime)} · host resource {item.targetHostSeverity}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Incident {item.incidentScore}/100</span><span className="logV2ScoreBadge">Footprint {item.footprintScore}/100</span><span className={`logV2ErrorBadge ${errorTone(item.errorState)}`}>{item.errorState}</span></div></div>
     <div className="logV2DetailGrid">
       <div className="logV2DetailFacts"><dl>
-        <div><dt>Host-peak alignment</dt><dd>{metricText(item.peakCorrelation, 0, '%')}</dd></div><div><dt>Avg CPU Σ (observed)</dt><dd>{metricText(item.avgCpu, 1, '%')}</dd></div><div><dt>Peak CPU Σ</dt><dd>{metricText(item.peakCpu, 1, '%')}</dd></div><div><dt>Peak ΣRSS upper bound</dt><dd>{metricText(item.peakRss, 2, ' GB')}</dd></div>
-        <div><dt>Max PID RSS</dt><dd>{metricText(item.peakMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state hits</dt><dd>{item.dStateHits}</dd></div><div><dt>Peak concurrent PIDs</dt><dd>{item.peakConcurrentPids}</dd></div><div><dt>Unique PIDs / window</dt><dd>{item.uniquePidCount}</dd></div>
-        <div><dt>Evidence presence</dt><dd>{item.presenceCount}/{item.hostSampleCount || '—'}</dd></div><div><dt>First → last</dt><dd>{shortTime(item.firstSeen)} → {shortTime(item.lastSeen)}</dd></div><div className="wide"><dt>Errors</dt><dd>{item.errors?.join(', ') || 'None'}</dd></div><div className="wide"><dt>Error timing vs host peak</dt><dd>{timingText}</dd></div>
+        <div><dt>Target evidence</dt><dd>{item.targetEvidence}{item.targetDeltaCollections ? ` Δ${item.targetDeltaCollections > 0 ? '+' : ''}${item.targetDeltaCollections}` : ''}</dd></div><div><dt>Incident alignment</dt><dd>{metricText(item.incidentAlignment, 0, '%')}</dd></div>
+        <div><dt>CPU Σ @ incident</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Max PID RSS @ incident</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div>
+        <div><dt>ΣRSS @ incident upper</dt><dd>{metricText(item.targetRss, 2, ' GB')}</dd></div><div><dt>D-state / PIDs @ incident</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} / ${item.targetConcurrentPids}` : '—'}</dd></div>
+        <div><dt>CPU contribution estimate</dt><dd>{metricText(item.cpuContributionPct, 1, '%')}</dd></div><div><dt>Memory lower-bound contribution</dt><dd>{metricText(item.memoryLowerContributionPct, 1, '%')}</dd></div>
+        <div><dt>CPU baseline median</dt><dd>{metricText(item.cpuBaseline?.median, 1, '%')}</dd></div><div><dt>Max PID RSS baseline</dt><dd>{metricText(item.rssBaseline?.median, 2, ' GB')}</dd></div>
+        <div><dt>CPU uplift vs baseline</dt><dd>{signed(item.cpuUplift?.delta, 1, '%')} · z {metricText(item.cpuUplift?.z, 1)}</dd></div><div><dt>RSS uplift vs baseline</dt><dd>{signed(item.rssUplift?.delta, 2, ' GB')} · z {metricText(item.rssUplift?.z, 1)}</dd></div>
+        <div><dt>Window peak CPU Σ</dt><dd>{metricText(item.peakCpu, 1, '%')}</dd></div><div><dt>Window max PID RSS</dt><dd>{metricText(item.peakMaxPidRss, 2, ' GB')}</dd></div>
+        <div><dt>Observed presence</dt><dd>{item.presenceCount}/{item.hostSampleCount || '—'}</dd></div><div><dt>First → last</dt><dd>{shortTime(item.firstSeen)} → {shortTime(item.lastSeen)}</dd></div>
+        <div className="wide"><dt>Score components</dt><dd>contribution {fmt(breakdown.contribution, 1)} · uplift {fmt(breakdown.uplift, 1)} · blocked {fmt(breakdown.blocked, 1)} · temporal {fmt(breakdown.temporal, 1)} · persistence {fmt(breakdown.persistence, 1)} · error {fmt(breakdown.error, 1)} · host pressure {fmt(breakdown.hostPressure, 1)} · event multiplier {fmt(breakdown.eventWeight, 2)}</dd></div>
+        <div className="wide"><dt>Errors</dt><dd>{item.errors?.join(', ') || 'None'}</dd></div><div className="wide"><dt>Error timing vs landscape incident</dt><dd>{timingText}</dd></div>
       </dl></div>
-      <WorkloadTrendEChart records={item.samples} hostPeakTime={item.hostPeakTime} hostPeakCollectionKey={item.hostPeakCollectionKey} aggregated />
+      <WorkloadTrendEChart records={item.samples} targetTime={item.targetTime} targetCollectionKey={item.targetCollectionKey} aggregated />
     </div>
-    <div className="logV2Method"><b>Interpretation:</b> CPU is workload aggregate across observed concurrent PIDs. ΣRSS is an upper-bound signal because Linux RSS can double-count shared pages; the score therefore uses Max PID RSS as the primary memory signal and gives ΣRSS reduced weight. Missing metrics and unavailable alignment remain N/A. Error timing distinguishes before, exact, and after the host resource peak.</div>
+    <div className="logV2Method"><b>Interpretation:</b> Incident Score is anchored to the automatic resource-landscape peak. It combines host-relative CPU/memory contribution at that target, robust uplift versus the workload baseline, D-state evidence when load/swap pressure supports blocking, temporal evidence quality, and small supporting persistence/error terms. Hosts that are resource-normal at the landscape incident are down-weighted. Full-window Footprint is context only. Max PID RSS is the lower-bound memory signal; ΣRSS remains an upper bound because shared Linux pages can be counted in multiple PIDs.</div>
   </section>
 }
 
@@ -90,7 +105,7 @@ function SourceAudit({ collections = [] }) {
 
 export default function ToolLogAutoRcaV3() {
   const [busy, setBusy] = React.useState(false)
-  const [status, setStatus] = React.useState('Upload WP-SCOUT / Daily Check logs. The v3.1 engine validates evidence, builds logical capture cycles, then ranks only confidently mapped workloads.')
+  const [status, setStatus] = React.useState('Upload WP-SCOUT / Daily Check logs. The v3.2 engine calibrates Load1-based host pressure and ranks workloads against the automatic landscape resource incident.')
   const [analysis, setAnalysis] = React.useState(null)
   const [rca, setRca] = React.useState(null)
   const [metric, setMetric] = React.useState('memoryPct')
@@ -112,7 +127,7 @@ export default function ToolLogAutoRcaV3() {
 
   const upload = React.useCallback(async (list) => {
     setBusy(true)
-    setStatus('Parsing evidence → schema validation → logical collections → resource peaks → workload aggregation…')
+    setStatus('Parsing evidence → schema validation → calibrated Load1 resource peaks → incident-relative workload aggregation…')
     try {
       const expanded = (await expandZipAwareFiles(list, ['log', 'txt', 'csv'])).filter((file) => ['log', 'txt', 'csv'].includes(fileExt(file.name)))
       if (!expanded.length) throw new Error('No supported .log, .txt, or .csv files found.')
@@ -139,28 +154,28 @@ export default function ToolLogAutoRcaV3() {
   const selectedCollection = React.useMemo(() => rca?.collections?.find((item) => item.key === selectedCollectionKey) || rca?.resourceLandscapePeak || null, [rca, selectedCollectionKey])
   const selectedHostPeak = React.useMemo(() => rca?.hostPeaks?.find((item) => item.host === selectedHost) || rca?.hostPeaks?.[0] || null, [rca, selectedHost])
   const ranking = resourceEngine === 'RANKING'
-  const engineLabel = ranking ? 'Ranking…' : resourceEngine.startsWith('DUCKDB') ? 'DuckDB-WASM v3.1' : resourceEngine.startsWith('JS_FALLBACK') ? 'JS fallback v3.1' : resourceEngine
+  const engineLabel = ranking ? 'Ranking…' : resourceEngine.startsWith('DUCKDB') ? 'DuckDB-WASM v3.2' : resourceEngine.startsWith('JS_FALLBACK') ? 'JS fallback v3.2' : resourceEngine
   const mappingMeta = ranking ? `${analysis?.processes?.length || 0} validated process records` : `EXACT ${mapping.counts.EXACT || 0} · ≤2m ${mapping.counts.NEAREST_2M || 0} · ≤5m ${mapping.counts.NEAREST_5M || 0} · unmapped ${mapping.counts.UNMAPPED || 0}`
 
   return <section className="logV2Shell"><div className="logV2Inner">
-    <header className="logV2Header"><div><span className="logV2Eyebrow">DETERMINISTIC · ACCURACY-HARDENED RCA</span><h1>LOG Analysis</h1><p>Logical capture cycles group APP1–APP5 before host peaks and workload aggregation. Resource and operational peaks are separated, workload mapping is confidence-bounded, and RSS scoring avoids treating ΣRSS as physical memory.</p></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
+    <header className="logV2Header"><div><span className="logV2Eyebrow">DETERMINISTIC · INCIDENT-RELATIVE RCA</span><h1>LOG Analysis</h1><p>The engine detects logical APP1–APP5 capture cycles, calibrates instantaneous resource pressure using Load1/vCPU, selects one automatic landscape resource incident, then ranks workloads by their evidence at that incident instead of unrelated full-window maxima.</p></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
     <div className={`logV2StatusBar ${rca ? 'ready' : ''}`}>{status}</div>
 
-    {!rca ? <div className="logV2EmptyState"><b>Deterministic investigation flow</b><span>Upload → validate → logical collections → resource/operational peaks → bounded process mapping → aggregate concurrent PIDs → rank observed workloads</span><p>Missing metrics stay null, unmapped rows are excluded from ranking, and ΣRSS is treated as an upper-bound signal.</p></div> : <>
+    {!rca ? <div className="logV2EmptyState"><b>Incident-relative investigation flow</b><span>Upload → validate → logical collections → Load1-calibrated landscape incident → bounded process mapping → aggregate concurrent PIDs → baseline/uplift → incident ranking</span><p>Absence is never converted to zero, resource-normal hosts are down-weighted at the incident, and full-window footprint is separated from incident relevance.</p></div> : <>
       <section className="logV2Stats">
         <Stat label="Evidence" value={`${rca.collections.length} collections`} meta={`${rca.evidenceWindow.fileCount} source files · rejects ${(rca.quality?.telemetryRejected || 0) + (rca.quality?.processRejected || 0)}`} />
         <Stat label="Application servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
         <Stat label="Full time range" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={`${rca.cadence.nominalMinutes || '—'}-min collection cadence`} />
-        <Stat label="Resource / operational peaks" value={`R ${shortTime(rca.resourceLandscapePeak?.timeLabel)} · O ${shortTime(rca.operationalLandscapePeak?.timeLabel)}`} meta={`resource ${rca.resourceLandscapePeak?.resourceElevated || 0}/${rca.resourceLandscapePeak?.hostCount || 0} · operational ${rca.operationalLandscapePeak?.elevated || 0}/${rca.operationalLandscapePeak?.hostCount || 0}`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />
+        <Stat label="Incident target / operational peak" value={`R ${shortTime(rca.resourceLandscapePeak?.timeLabel)} · O ${shortTime(rca.operationalLandscapePeak?.timeLabel)}`} meta={`resource ${rca.resourceLandscapePeak?.resourceElevated || 0}/${rca.resourceLandscapePeak?.hostCount || 0} · operational ${rca.operationalLandscapePeak?.elevated || 0}/${rca.operationalLandscapePeak?.hostCount || 0}`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />
         <Stat label="Resource engine" value={engineLabel} meta={mappingMeta} />
       </section>
 
       <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>APP1–APP5 Logical Collection Timeline</h2><p>Each x-axis point is one capture cycle, not one host timestamp. Resource and operational landscape peaks are marked separately when they differ.</p></div><div className="logV2MetricTabs">{Object.entries(LOG_V2_METRICS).map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
+        <div className="logV2PanelHead"><div><h2>APP1–APP5 Logical Collection Timeline</h2><p>Load1/vCPU is used for instantaneous pressure; Load15/vCPU can be inspected separately. Clicking the timeline inspects another collection, while ranking remains anchored to the automatic resource incident.</p></div><div className="logV2MetricTabs">{Object.entries(LOG_V2_METRICS).map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
         <LandscapeResourceEChart rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} />
       </section>
 
-      <SnapshotStrip collection={selectedCollection} />
+      <SnapshotStrip collection={selectedCollection} incidentKey={rca.resourceLandscapePeak?.key} />
       <HostPeakSummary rca={rca} selectedHost={selectedHostPeak?.host} onSelectHost={(hostName) => {
         setSelectedHost(hostName)
         const first = resourceRows.find((row) => row.host === hostName)
@@ -168,8 +183,8 @@ export default function ToolLogAutoRcaV3() {
       }} />
 
       <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Observed Workloads · Aggregated & Ranked</h2><p>CPU is aggregate across observed concurrent PIDs. ΣRSS is an upper-bound signal; Max PID RSS is the primary memory-ranking input. Only EXACT / ≤5-minute mapped evidence enters ranking.</p></div><div className="logV2Legend"><span><i className="resource" /> investigation priority</span><span><i className="peak" /> host-peak alignment</span><span><i className="error" /> error timing</span></div></div>
-        {ranking ? <div className="logV2Empty"><b>Aggregating workload snapshots in DuckDB…</b><br />Parsed {analysis?.processes?.length || 0} validated process rows.</div> : <VirtualResourceTable rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />}
+        <div className="logV2PanelHead"><div><h2>Observed Workloads · Incident-Relevance Ranking</h2><p>Primary ranking answers: “which observed workload best explains the automatic landscape resource incident?” Full-window footprint is shown separately so an off-incident heavy workload cannot win only because it was large at another time.</p></div><div className="logV2Legend"><span><i className="resource" /> incident relevance</span><span><i className="peak" /> baseline uplift</span><span><i className="error" /> supporting error timing</span></div></div>
+        {ranking ? <div className="logV2Empty"><b>Aggregating incident-relative workload evidence in DuckDB…</b><br />Parsed {analysis?.processes?.length || 0} validated process rows.</div> : <VirtualResourceTable rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />}
       </section>
 
       {!ranking && <WorkloadDetail item={selectedResource} />}
