@@ -13,7 +13,12 @@ const MANUAL_BUNDLES = {
   eh: { mainModule: duckdbEhWasm, mainWorker: duckdbEhWorker },
 }
 
-const numeric = (value) => Number.isFinite(Number(value)) ? Number(value) : 0
+const metric = (value) => {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(String(value).replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+const numeric = (value) => metric(value) ?? 0
 const identity = (row = {}) => row.workloadName && row.workloadName !== UNKNOWN
   ? row.workloadName
   : row.jobName && row.jobName !== UNKNOWN
@@ -56,11 +61,12 @@ function enrichRows(rows = [], processes = [], hostPeaks = [], cadenceMinutes = 
     if (!grouped.has(key)) grouped.set(key, [])
     grouped.get(key).push(row)
   })
-  const hostPeakMap = new Map(hostPeaks.map((row) => [row.host, row.peakTime]))
+  const hostPeakMap = new Map(hostPeaks.map((row) => [row.host, row]))
   return rows.map((item) => {
     const key = `${item.host}|${item.workload}`
     const records = grouped.get(key) || []
-    const hostPeakTime = hostPeakMap.get(item.host) || ''
+    const hostPeak = hostPeakMap.get(item.host) || null
+    const hostPeakTime = hostPeak?.peakTime || ''
     const hostPeakStamp = minuteStamp(hostPeakTime)
     const nearTimes = Array.from(new Set(records.map((row) => row.timeLabel || row.snapshot).filter(Boolean))).filter((time) => {
       const stamp = minuteStamp(time)
@@ -80,10 +86,16 @@ function enrichRows(rows = [], processes = [], hostPeaks = [], cadenceMinutes = 
     }).map((row) => row.errorCode).filter((value) => value && value !== UNKNOWN))
     const newPeakErrors = peakErrors.filter((error) => !beforeErrors.has(error))
     const errorState = newPeakErrors.length ? 'NEW_AT_PEAK' : peakErrors.length ? 'PERSISTENT_AT_PEAK' : allErrors.length ? 'OFF_PEAK' : 'NONE'
-    const persistence = collectionCount ? Math.min(1, numeric(item.presence_count) / collectionCount) : 0
+    const availableCollections = Math.max(1, numeric(hostPeak?.sampleCount) || collectionCount || 1)
+    const persistence = Math.min(1, numeric(item.presence_count) / availableCollections)
+    const hostMemoryGb = metric(hostPeak?.peak?.memoryTotalGb)
+    const peakRss = numeric(item.peak_rss)
+    const rssPressure = hostMemoryGb && hostMemoryGb > 0
+      ? Math.min(1, peakRss / Math.max(1, hostMemoryGb * 0.25))
+      : Math.min(1, peakRss / 16)
     const resourceScore = Math.round(Math.min(100,
       Math.min(1, numeric(item.peak_cpu) / 80) * 30 +
-      Math.min(1, numeric(item.peak_rss) / 16) * 30 +
+      rssPressure * 30 +
       Math.min(1, numeric(item.d_state_hits) / 3) * 18 +
       Math.min(1, numeric(item.pid_count) / 5) * 10 +
       persistence * 12
@@ -96,11 +108,12 @@ function enrichRows(rows = [], processes = [], hostPeaks = [], cadenceMinutes = 
       type: item.type || '—',
       avgCpu: numeric(item.avg_cpu),
       peakCpu: numeric(item.peak_cpu),
-      peakRss: numeric(item.peak_rss),
+      peakRss,
       dStateHits: numeric(item.d_state_hits),
       pidCount: numeric(item.pid_count),
       presenceCount: numeric(item.presence_count),
       recordCount: numeric(item.record_count),
+      hostSampleCount: availableCollections,
       persistence,
       resourceScore,
       peakCorrelation,
@@ -127,19 +140,23 @@ function fallbackRows(processes = []) {
     grouped.set(key, current)
   })
   const mode = (map) => [...map.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
-  return Array.from(grouped.values()).map((item) => ({
-    host: item.host,
-    workload: item.workload,
-    program: mode(item.programs),
-    type: mode(item.types),
-    avg_cpu: item.records.length ? item.records.reduce((sum, row) => sum + numeric(row.cpu), 0) / item.records.length : 0,
-    peak_cpu: Math.max(0, ...item.records.map((row) => numeric(row.cpu))),
-    peak_rss: Math.max(0, ...item.records.map((row) => numeric(row.rssGb))),
-    d_state_hits: item.records.filter((row) => String(row.state || '').toUpperCase() === 'D').length,
-    pid_count: new Set(item.records.map((row) => row.pid).filter(Boolean)).size,
-    presence_count: new Set(item.records.map((row) => row.timeLabel || row.snapshot).filter(Boolean)).size,
-    record_count: item.records.length,
-  }))
+  return Array.from(grouped.values()).map((item) => {
+    const cpuValues = item.records.map((row) => metric(row.cpu)).filter((value) => value !== null)
+    const rssValues = item.records.map((row) => metric(row.rssGb)).filter((value) => value !== null)
+    return {
+      host: item.host,
+      workload: item.workload,
+      program: mode(item.programs),
+      type: mode(item.types),
+      avg_cpu: cpuValues.length ? cpuValues.reduce((sum, value) => sum + value, 0) / cpuValues.length : null,
+      peak_cpu: cpuValues.length ? Math.max(...cpuValues) : null,
+      peak_rss: rssValues.length ? Math.max(...rssValues) : null,
+      d_state_hits: item.records.filter((row) => String(row.state || '').toUpperCase() === 'D').length,
+      pid_count: new Set(item.records.map((row) => row.pid).filter(Boolean)).size,
+      presence_count: new Set(item.records.map((row) => row.timeLabel || row.snapshot).filter(Boolean)).size,
+      record_count: item.records.length,
+    }
+  })
 }
 
 export async function rankResourceConsumers(processes = [], hostPeaks = [], cadenceMinutes = 10, collectionCount = 1) {
@@ -159,10 +176,14 @@ export async function rankResourceConsumers(processes = [], hostPeaks = [], cade
     conn = await withTimeout(db.connect(), 1500, 'DuckDB connect')
     const header = ['host', 'workload', 'program', 'type', 'state', 'pid', 'time_label', 'cpu', 'rss']
     const lines = [header.join('\t')]
-    processes.forEach((row) => lines.push([
-      clean(row.host), clean(identity(row)), clean(row.program && row.program !== UNKNOWN ? row.program : ''), clean(row.type && row.type !== UNKNOWN ? row.type : ''), clean(row.state), clean(row.pid), clean(row.timeLabel || row.snapshot),
-      Number.isFinite(Number(row.cpu)) ? Number(row.cpu) : '', Number.isFinite(Number(row.rssGb)) ? Number(row.rssGb) : '',
-    ].join('\t')))
+    processes.forEach((row) => {
+      const cpu = metric(row.cpu)
+      const rss = metric(row.rssGb)
+      lines.push([
+        clean(row.host), clean(identity(row)), clean(row.program && row.program !== UNKNOWN ? row.program : ''), clean(row.type && row.type !== UNKNOWN ? row.type : ''), clean(row.state), clean(row.pid), clean(row.timeLabel || row.snapshot),
+        cpu === null ? '' : cpu, rss === null ? '' : rss,
+      ].join('\t'))
+    })
     const fileName = `log-processes-${Date.now()}.tsv`
     await withTimeout(db.registerFileText(fileName, lines.join('\n')), 1500, 'DuckDB file registration')
     const result = await withTimeout(conn.query(`
