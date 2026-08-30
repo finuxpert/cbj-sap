@@ -5,6 +5,12 @@ const num = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+const metric = (value) => {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(String(value).replace(',', '.'))
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 const median = (values = []) => {
   const rows = values.map(Number).filter(Number.isFinite).sort((a, b) => a - b)
   if (!rows.length) return 0
@@ -15,27 +21,31 @@ const median = (values = []) => {
 const severityRank = (value = '') => ({ NORMAL: 0, OK: 0, WARN: 1, CRIT: 2 })[String(value || '').toUpperCase()] ?? 0
 
 export function snapshotSeverityAuto(snapshot = {}) {
-  const cpu = num(snapshot.cpuPct)
-  const ram = num(snapshot.memoryPct)
-  const load = num(snapshot.loadRatio)
-  const swapIn = num(snapshot.swapIn)
-  const wpCritical = num(snapshot.wpCritical)
-  if (load >= 1.5 || ram >= 85 || cpu >= 90 || swapIn >= 1000 || wpCritical >= 3) return 'CRIT'
-  if (load >= 1 || ram >= 75 || cpu >= 75 || swapIn >= 100 || wpCritical >= 1) return 'WARN'
+  const cpu = metric(snapshot.cpuPct)
+  const ram = metric(snapshot.memoryPct)
+  const load = metric(snapshot.loadRatio)
+  const swapIn = metric(snapshot.swapIn)
+  const wpCritical = metric(snapshot.wpCritical)
+  const resourceCrit = (load !== null && load >= 1.5) || (ram !== null && ram >= 85) || (cpu !== null && cpu >= 90) || (swapIn !== null && swapIn >= 1000)
+  const resourceWarn = (load !== null && load >= 1) || (ram !== null && ram >= 75) || (cpu !== null && cpu >= 75) || (swapIn !== null && swapIn >= 100)
+  if (resourceCrit) return 'CRIT'
+  if (resourceWarn || (wpCritical !== null && wpCritical >= 1)) return 'WARN'
   return 'NORMAL'
 }
 
 export function pressureScoreAuto(snapshot = {}) {
-  const normalized = [
-    num(snapshot.cpuPct) / 90,
-    num(snapshot.memoryPct) / 85,
-    num(snapshot.loadRatio) / 1.5,
-    num(snapshot.swapIn) / 1000,
-    num(snapshot.wpCritical) / 3,
-  ].map((value) => Math.max(0, value))
-  const maxSignal = Math.max(...normalized, 0)
-  const avgSignal = normalized.reduce((sum, value) => sum + value, 0) / normalized.length
-  return Math.round(Math.min(100, (maxSignal * 0.55 + avgSignal * 0.45) * 100))
+  const resourceSignals = [
+    [metric(snapshot.cpuPct), 90],
+    [metric(snapshot.memoryPct), 85],
+    [metric(snapshot.loadRatio), 1.5],
+    [metric(snapshot.swapIn), 1000],
+  ].filter(([value]) => value !== null).map(([value, threshold]) => Math.max(0, value / threshold))
+  const wpCritical = metric(snapshot.wpCritical)
+  if (!resourceSignals.length && wpCritical === null) return 0
+  const maxSignal = Math.max(...resourceSignals, 0)
+  const avgSignal = resourceSignals.length ? resourceSignals.reduce((sum, value) => sum + value, 0) / resourceSignals.length : 0
+  const wpSignal = wpCritical === null ? 0 : Math.min(1, Math.max(0, wpCritical / 10))
+  return Math.round(Math.min(100, (maxSignal * 0.55 + avgSignal * 0.30 + wpSignal * 0.15) * 100))
 }
 
 function epochMinutes(value = '') {
@@ -56,7 +66,7 @@ function worstSeverity(rows = []) {
 }
 
 function collectionKey(row = {}, index = 0) {
-  return row.fileName || row.snapshot || row.timeLabel || `collection-${index}`
+  return row.snapshot || row.timeLabel || row.fileName || `collection-${index}`
 }
 
 function buildCollections(telemetry = []) {
@@ -126,7 +136,9 @@ function cadenceOf(collections = []) {
 }
 
 function peakMetric(rows = [], key = '') {
-  return rows.reduce((best, row) => num(row[key]) > num(best?.value) ? { value: num(row[key]), row, timeLabel: row.timeLabel, fileName: row.fileName } : best, null)
+  const available = rows.filter((row) => metric(row[key]) !== null)
+  if (!available.length) return null
+  return available.reduce((best, row) => metric(row[key]) > metric(best?.value) ? { value: metric(row[key]), row, timeLabel: row.timeLabel, fileName: row.fileName } : best, null)
 }
 
 function buildHostPeaks(collections = [], hosts = []) {
@@ -171,20 +183,20 @@ function identityName(row = {}) {
 function seriesForWorkload(records = [], collectionKeys = []) {
   const grouped = new Map(collectionKeys.map((key) => [key, []]))
   records.forEach((row) => {
-    const key = row.fileName || row.snapshot || row.timeLabel
+    const key = row.snapshot || row.timeLabel || row.fileName
     if (!grouped.has(key)) grouped.set(key, [])
     grouped.get(key).push(row)
   })
   return collectionKeys.map((key) => {
     const rows = grouped.get(key) || []
-    const cpuRows = rows.filter((row) => Number.isFinite(Number(row.cpu)))
-    const rssRows = rows.filter((row) => Number.isFinite(Number(row.rssGb)))
+    const cpuRows = rows.filter((row) => metric(row.cpu) !== null)
+    const rssRows = rows.filter((row) => metric(row.rssGb) !== null)
     const errors = Array.from(new Set(rows.map((row) => row.errorCode).filter((value) => value && value !== UNKNOWN)))
     const pids = Array.from(new Set(rows.map((row) => row.pid).filter(Boolean)))
     return {
       key,
-      cpu: cpuRows.reduce((sum, row) => sum + num(row.cpu), 0),
-      rss: rssRows.reduce((sum, row) => sum + num(row.rssGb), 0),
+      cpu: cpuRows.reduce((sum, row) => sum + metric(row.cpu), 0),
+      rss: rssRows.reduce((sum, row) => sum + metric(row.rssGb), 0),
       dState: rows.filter((row) => String(row.state || '').toUpperCase() === 'D').length,
       errors,
       pids,
@@ -345,7 +357,7 @@ export function buildAutoPeakRca(analysis = null) {
       start: collections[0]?.timeLabel || '—',
       end: collections.at(-1)?.timeLabel || '—',
       count: collections.length,
-      fileCount: new Set(collections.map((item) => item.fileName)).size,
+      fileCount: new Set((analysis.telemetry || []).map((item) => item.fileName).filter(Boolean)).size,
       hostCount: hosts.length,
     },
   }
