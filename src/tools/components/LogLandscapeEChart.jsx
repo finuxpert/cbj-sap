@@ -37,10 +37,11 @@ function useEChart(option, onClick) {
   return ref
 }
 
-export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTime }) {
+export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTime, onSelectCollection }) {
   const meta = METRICS[metric] || METRICS.memoryPct
+  const collections = rca?.collections || []
   const option = React.useMemo(() => {
-    const times = rca?.collections?.map((row) => row.timeLabel) || []
+    const times = collections.map((row) => row.timeLabel)
     const hosts = rca?.hosts || []
     const series = hosts.map((host, index) => ({
       name: host,
@@ -49,15 +50,12 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
       symbolSize: 6,
       connectNulls: false,
       emphasis: { focus: 'series' },
-      data: (rca?.collections || []).map((collection) => {
+      data: collections.map((collection) => {
         const row = collection.byHost?.get?.(host)
         return metricValue(row?.[metric])
       }),
       markPoint: {
-        symbol: 'pin',
-        symbolSize: 42,
-        label: { formatter: 'MAX', fontSize: 9 },
-        data: [{ type: 'max', name: `${host} peak` }],
+        symbol: 'pin', symbolSize: 42, label: { formatter: 'MAX', fontSize: 9 }, data: [{ type: 'max', name: `${host} max` }],
       },
       markLine: index === 0 && rca?.landscapePeak?.timeLabel ? {
         symbol: ['none', 'none'],
@@ -73,11 +71,11 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
       legend: { top: 0, type: 'scroll', textStyle: { color: '#a9bbc1' } },
       grid: { left: 58, right: 34, top: 52, bottom: 72 },
       tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'cross' },
+        trigger: 'axis', axisPointer: { type: 'cross' },
         formatter: (items = []) => {
           if (!items.length) return ''
-          const title = `<b>${items[0].axisValue}</b>`
+          const collection = collections[items[0]?.dataIndex]
+          const title = `<b>${items[0].axisValue}</b>${collection?.endTime && collection.endTime !== collection.timeLabel ? `<br/><span>${collection.endTime}</span>` : ''}`
           const body = items.filter((item) => item.value !== null && item.value !== undefined).map((item) => `${item.marker}${item.seriesName}: <b>${Number(item.value).toFixed(meta.digits)}${meta.suffix}</b>`).join('<br/>')
           return `${title}<br/>${body}`
         },
@@ -87,31 +85,48 @@ export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTim
       dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 18, height: 18, borderColor: '#294047', fillerColor: 'rgba(49,199,207,.16)', textStyle: { color: '#81979f' } }],
       series,
     }
-  }, [rca, metric, meta.digits, meta.label, meta.suffix])
+  }, [collections, rca?.hosts, rca?.landscapePeak?.timeLabel, meta.digits, meta.label, meta.suffix, metric])
+
   const click = React.useCallback((params) => {
-    if (params?.name) onSelectTime?.(String(params.name))
-  }, [onSelectTime])
+    const collection = collections[params?.dataIndex]
+    if (collection?.key) onSelectCollection?.(collection.key)
+    if (collection?.timeLabel) onSelectTime?.(collection.timeLabel)
+  }, [collections, onSelectCollection, onSelectTime])
   const ref = useEChart(option, click)
-  return <div ref={ref} className="logV2LandscapeChart" role="img" aria-label={`${meta.label} timeline across application servers`} />
+  return <div ref={ref} className="logV2LandscapeChart" role="img" aria-label={`${meta.label} timeline across logical application-server collections`} />
 }
 
-export function WorkloadTrendEChart({ records = [], hostPeakTime = '' }) {
+function legacyWorkloadRows(records = []) {
+  const grouped = new Map()
+  records.forEach((row) => {
+    const key = row.timeLabel || row.snapshot
+    if (!key) return
+    const current = grouped.get(key) || { time: key, cpuValues: [], rssValues: [], pids: new Set(), d: 0, errors: new Set() }
+    const cpu = metricValue(row.cpu); const rss = metricValue(row.rssGb)
+    if (cpu !== null) current.cpuValues.push(cpu)
+    if (rss !== null) current.rssValues.push(rss)
+    if (row.pid) current.pids.add(row.pid)
+    if (String(row.state || '').toUpperCase() === 'D') current.d += 1
+    if (row.errorCode && row.errorCode !== '?') current.errors.add(row.errorCode)
+    grouped.set(key, current)
+  })
+  return Array.from(grouped.values()).map((row) => ({
+    time: row.time,
+    cpu: row.cpuValues.length ? row.cpuValues.reduce((sum, value) => sum + value, 0) : null,
+    rss: row.rssValues.length ? row.rssValues.reduce((sum, value) => sum + value, 0) : null,
+    pids: row.pids.size,
+    d: row.d,
+    errors: Array.from(row.errors),
+  })).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+}
+
+export function WorkloadTrendEChart({ records = [], hostPeakTime = '', hostPeakCollectionKey = '', aggregated = false }) {
   const option = React.useMemo(() => {
-    const grouped = new Map()
-    records.forEach((row) => {
-      const key = row.timeLabel || row.snapshot
-      if (!key) return
-      const current = grouped.get(key) || { time: key, cpu: 0, rss: 0, pids: new Set(), d: 0, errors: new Set() }
-      const cpu = metricValue(row.cpu)
-      const rss = metricValue(row.rssGb)
-      if (cpu !== null) current.cpu += cpu
-      if (rss !== null) current.rss += rss
-      if (row.pid) current.pids.add(row.pid)
-      if (String(row.state || '').toUpperCase() === 'D') current.d += 1
-      if (row.errorCode && row.errorCode !== '?') current.errors.add(row.errorCode)
-      grouped.set(key, current)
-    })
-    const rows = Array.from(grouped.values()).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+    const rows = aggregated
+      ? records.map((row) => ({ time: row.collectionTime || row.timeLabel || row.snapshot, collectionKey: row.collectionKey, cpu: metricValue(row.cpu), rss: metricValue(row.rssGb), pids: Number(row.concurrentPids || 0), d: Number(row.dState || 0), errors: row.errors || [] })).sort((a, b) => String(a.time).localeCompare(String(b.time)))
+      : legacyWorkloadRows(records)
+    const peakSample = hostPeakCollectionKey ? rows.find((row) => row.collectionKey === hostPeakCollectionKey) : null
+    const peakMarkerTime = peakSample?.time || (rows.some((row) => row.time === hostPeakTime) ? hostPeakTime : '')
     return {
       animationDuration: 200,
       backgroundColor: 'transparent',
@@ -122,7 +137,9 @@ export function WorkloadTrendEChart({ records = [], hostPeakTime = '' }) {
         trigger: 'axis',
         formatter: (items = []) => {
           const row = rows[items[0]?.dataIndex] || {}
-          return `<b>${row.time || ''}</b><br/>CPU ${Number(row.cpu || 0).toFixed(1)}%<br/>RSS ${Number(row.rss || 0).toFixed(2)} GB<br/>PIDs ${row.pids?.size || 0}<br/>D-state ${row.d || 0}<br/>Errors ${Array.from(row.errors || []).join(', ') || 'None'}`
+          const cpu = row.cpu === null ? '—' : `${Number(row.cpu).toFixed(1)}%`
+          const rss = row.rss === null ? '—' : `${Number(row.rss).toFixed(2)} GB`
+          return `<b>${row.time || ''}</b><br/>CPU ${cpu}<br/>RSS ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
         },
       },
       xAxis: { type: 'category', data: rows.map((row) => row.time), axisLabel: { color: '#81979f', hideOverlap: true } },
@@ -130,15 +147,15 @@ export function WorkloadTrendEChart({ records = [], hostPeakTime = '' }) {
         { type: 'value', name: 'CPU %', axisLabel: { color: '#81979f' }, splitLine: { lineStyle: { color: '#183036', type: 'dashed' } } },
         { type: 'value', name: 'RSS GB', axisLabel: { color: '#81979f' }, splitLine: { show: false } },
       ],
-      dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 12, height: 16 }],
+      dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 12, height: 16, filterMode: 'none' }],
       series: [
-        { name: 'CPU', type: 'line', yAxisIndex: 0, showSymbol: rows.length <= 35, data: rows.map((row) => Number(row.cpu.toFixed(3))), markLine: hostPeakTime ? { symbol: ['none', 'none'], data: [{ xAxis: hostPeakTime, name: 'Host peak' }], label: { formatter: 'Host peak' }, lineStyle: { type: 'dashed' } } : undefined },
-        { name: 'RSS', type: 'line', yAxisIndex: 1, showSymbol: rows.length <= 35, data: rows.map((row) => Number(row.rss.toFixed(3))) },
+        { name: 'CPU', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: peakMarkerTime ? { symbol: ['none', 'none'], data: [{ xAxis: peakMarkerTime, name: 'Host resource peak' }], label: { formatter: 'Host resource peak' }, lineStyle: { type: 'dashed' } } : undefined },
+        { name: 'RSS', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.rss) },
       ],
     }
-  }, [records, hostPeakTime])
+  }, [records, hostPeakTime, hostPeakCollectionKey, aggregated])
   const ref = useEChart(option)
-  return <div ref={ref} className="logV2WorkloadChart" role="img" aria-label="Selected workload CPU and RSS trend" />
+  return <div ref={ref} className="logV2WorkloadChart" role="img" aria-label="Selected workload aggregate CPU and RSS trend" />
 }
 
 export const LOG_V2_METRICS = METRICS
