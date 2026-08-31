@@ -1,4 +1,4 @@
-import { buildLogAnalysis, parseLogText } from '../logAnalysisV14.js'
+import { buildLogAnalysis, parseLogText } from '../logAnalysisV15.js'
 
 self.onmessage = (event) => {
   try {
@@ -7,6 +7,6 @@ self.onmessage = (event) => {
     const analysis = buildLogAnalysis(parsed)
     self.postMessage({ ok: true, analysis })
   } catch (error) {
-    self.postMessage({ ok: false, error: error?.message || 'LOG v1.14 worker failed.' })
+    self.postMessage({ ok: false, error: error?.message || 'LOG v1.15 worker failed.' })
   }
 }
