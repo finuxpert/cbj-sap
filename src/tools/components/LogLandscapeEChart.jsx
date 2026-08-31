@@ -147,7 +147,7 @@ export function WorkloadTrendEChart({ records = [], targetTime = '', targetColle
           const cpu = row.cpu === null ? '—' : `${Number(row.cpu).toFixed(1)}%`
           const maxPidRss = row.maxPidRss === null ? '—' : `${Number(row.maxPidRss).toFixed(2)} GB`
           const rss = row.rss === null ? '—' : `${Number(row.rss).toFixed(2)} GB`
-          return `<b>${row.time || ''}</b><br/>CPU Σ ${cpu}<br/>Max PID RSS ${maxPidRss}<br/>ΣRSS upper bound ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
+          return `<b>${row.time || ''}</b><br/>CPU Σ ${cpu}<br/>Max PID RSS ${maxPidRss}<br/>Total RSS (upper bound) ${rss}<br/>Concurrent PIDs ${row.pids || 0}<br/>D-state ${row.d || 0}<br/>Errors ${(row.errors || []).join(', ') || 'None'}`
         },
       },
       xAxis: { type: 'category', data: rows.map((row) => row.time), axisLabel: { color: '#81979f', hideOverlap: true } },
@@ -159,7 +159,7 @@ export function WorkloadTrendEChart({ records = [], targetTime = '', targetColle
       series: [
         { name: 'CPU Σ', type: 'line', yAxisIndex: 0, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.cpu), markLine: markerTime ? { silent: true, symbol: ['none', 'none'], data: [{ xAxis: markerTime, name: 'Incident' }], label: { formatter: 'INCIDENT', color: '#c3d0d4', backgroundColor: '#24343a', borderColor: '#3b5158', borderWidth: 1, borderRadius: 3, padding: [3, 5], fontSize: 9 }, lineStyle: { type: 'dashed', color: '#7f969e' } } : undefined },
         { name: 'Max PID RSS', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: rows.length <= 35, data: rows.map((row) => row.maxPidRss) },
-        { name: 'ΣRSS upper bound', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: false, lineStyle: { type: 'dashed' }, data: rows.map((row) => row.rss) },
+        { name: 'Total RSS (upper bound)', type: 'line', yAxisIndex: 1, connectNulls: false, showSymbol: false, lineStyle: { type: 'dashed' }, data: rows.map((row) => row.rss) },
       ],
     }
   }, [records, targetTime, targetCollectionKey, aggregated])

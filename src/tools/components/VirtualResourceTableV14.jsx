@@ -27,7 +27,7 @@ function memoryText(row = {}) {
 
 function blockingText(row = {}) {
   if (row.enhancedEvidenceUsable && row.wchanClass && row.wchanClass !== 'NONE') return `${humanize(row.wchanClass)}${row.wchanScope === 'D_STATE' ? ' · D' : ''}`
-  if (hasMetric(row.targetDState) && Number(row.targetDState) > 0) return `D ${row.targetDState}/${row.targetConcurrentPids || 0}`
+  if (hasMetric(row.targetDState) && Number(row.targetDState) > 0) return `${row.targetDState} of ${row.targetConcurrentPids || 0} D-state`
   return '—'
 }
 

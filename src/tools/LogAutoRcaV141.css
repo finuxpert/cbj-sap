@@ -3,3 +3,7 @@
 .logV143Error.persistent{color:#71868d}
 .logV143Error.precursor{color:#d7b75b}
 .logV143Error.at-target{color:#d9c46d}
+
+/* v1.14.6: standard-mode operator cleanup */
+.logV141SummaryGrid>div:nth-child(2) strong{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}
+.logV146StandardNote dd{color:#80949a}

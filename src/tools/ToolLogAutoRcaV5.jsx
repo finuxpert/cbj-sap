@@ -82,7 +82,7 @@ function Status({ value = 'NORMAL' }) {
 }
 
 function DecisionBadge({ confirmed = false }) {
-  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'IDENTIFIED' : 'UNRESOLVED'}</span>
+  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'IDENTIFIED' : 'RCA OPEN'}</span>
 }
 
 function Stat({ label, value, meta, tone = '' }) {
@@ -169,8 +169,9 @@ function cpuShareText(item) {
   return metricText(item.estimatedCpuSharePct, 1, '%')
 }
 
-function WorkloadDetail({ item }) {
+function WorkloadDetail({ item, capabilities }) {
   if (!item) return null
+  const enhancedDetailsAvailable = capabilities?.mode !== 'LEGACY'
   const taxonomy = item.errorTaxonomy || {}
   const quality = qualityPresentation(item.localConfidence)
   const timingText = taxonomy.classified?.map((entry) => `${entry.code}: ${entry.timing?.state || 'NONE'}${hasMetric(entry.timing?.deltaMinutes) ? ` (${signed(entry.timing.deltaMinutes, 0, 'm')})` : ''}`).join(' · ') || 'None'
@@ -178,16 +179,19 @@ function WorkloadDetail({ item }) {
     <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {operatorLabel(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Blocked {item.victimScore}</span></div></div>
     <div className="logV2DetailGrid">
       <div className="logV2DetailFacts"><dl>
-        <div><dt>Workload role</dt><dd>{operatorLabel(item.incidentRole)}</dd></div><div><dt>Time match</dt><dd>{humanize(item.targetEvidence)} · {signed(item.targetDeltaMinutes, 0, 'm')}</dd></div>
+        <div><dt>Workload role</dt><dd>{operatorLabel(item.incidentRole)}</dd></div><div><dt>Time match</dt><dd>{item.targetEvidence === 'EXACT_TARGET' ? 'At incident time' : `${humanize(item.targetEvidence)} · ${signed(item.targetDeltaMinutes, 0, ' min')}`}</dd></div>
         <div><dt>Data coverage</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Server time alignment</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.skewMinutes ?? 0} min difference</dd></div>
         <div><dt>Host status at incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host sample</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>
         <div><dt>{item.targetEvidence === 'EXACT_TARGET' ? 'CPU at incident' : 'CPU at sample'}</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated host CPU share</dt><dd>{cpuShareText(item)}</dd></div>
-        <div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div><div><dt>PSS baseline</dt><dd>{metricText(item.pssBaseline?.median, 2, ' GB')} · z {robustZText(item.pssUplift?.z)}</dd></div>
-        <div><dt>Private memory</dt><dd>{metricText(item.targetPrivateGb, 2, ' GB')}</dd></div><div><dt>Σ shared mappings</dt><dd>{metricText(item.targetSharedGb, 2, ' GB')} · non-exclusive</dd></div>
-        <div><dt>Max PID RSS</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state and PIDs</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} / ${item.targetConcurrentPids}` : '—'}</dd></div>
-        <div><dt>Kernel wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Metric sample time</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes} min` : ''}</dd></div>
-        <div><dt>Average read rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div><div><dt>Average write rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div>
-        <div><dt>Host iowait</dt><dd>{metricText(item.hostIowaitPct, 1, '%')}</dd></div><div><dt>PSI memory and I/O full10</dt><dd>{metricText(item.hostPsiMemoryFull10, 1, '%')} / {metricText(item.hostPsiIoFull10, 1, '%')}</dd></div>
+        <div><dt>Max PID RSS</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state and PIDs</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} of ${item.targetConcurrentPids}` : '—'}</dd></div>
+        {!enhancedDetailsAvailable && <div className="wide logV146StandardNote"><dt>Additional Linux metrics</dt><dd>Not available in standard logs</dd></div>}
+        {enhancedDetailsAvailable && <>
+          <div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div><div><dt>PSS baseline</dt><dd>{metricText(item.pssBaseline?.median, 2, ' GB')} · z {robustZText(item.pssUplift?.z)}</dd></div>
+          <div><dt>Private memory</dt><dd>{metricText(item.targetPrivateGb, 2, ' GB')}</dd></div><div><dt>Shared memory mappings</dt><dd>{metricText(item.targetSharedGb, 2, ' GB')} · non-exclusive</dd></div>
+          <div><dt>Kernel wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Metric sample time</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes} min` : ''}</dd></div>
+          <div><dt>Average read rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div><div><dt>Average write rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div>
+          <div><dt>Host iowait</dt><dd>{metricText(item.hostIowaitPct, 1, '%')}</dd></div><div><dt>PSI memory and I/O full10</dt><dd>{metricText(item.hostPsiMemoryFull10, 1, '%')} / {metricText(item.hostPsiIoFull10, 1, '%')}</dd></div>
+        </>}
         <div><dt>Error type</dt><dd>{operatorLabel(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error context</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>
         <div className="wide"><dt>Error timeline</dt><dd>{timingText}</dd></div>
       </dl></div>
@@ -265,7 +269,7 @@ export default function ToolLogAutoRcaV5() {
       setResourceRows([]); setSelectedResource(null); setVerdict(null)
       const rejected = (nextRca.quality?.telemetryRejected || 0) + (nextRca.quality?.processRejected || 0)
       const sourceStatus = nextAnalysis?.sourceHostProvenance?.status || 'WARN'
-      setStatus(`${expanded.length} files · ${nextRca.collections.length} collections · ${nextRca.hosts.length} application servers · rejects ${rejected} · source-host ${sourceStatus} · telemetry ${caps.mode}`)
+      setStatus(`${expanded.length} files · ${nextRca.collections.length} snapshots · ${nextRca.hosts.length} application servers · rejects ${rejected} · source-host ${sourceStatus} · data source ${dataSourcePresentation(caps).label}`)
       await rankResources(nextAnalysis, nextRca)
     } catch (error) {
       setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
@@ -310,7 +314,7 @@ export default function ToolLogAutoRcaV5() {
         {ranking ? <div className="logV2Empty">Ranking {analysis?.processes?.length || 0} process rows…</div> : <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />}
       </section>
 
-      {!ranking && <WorkloadDetail item={selectedResource} />}
+      {!ranking && <WorkloadDetail item={selectedResource} capabilities={capabilities} />}
       <AnalyticsDiagnostics diagnostics={diagnostics} capabilities={capabilities} mapping={mapping} verdict={verdict} rca={rca} analysis={analysis} />
       <SourceAudit collections={rca.collections} />
     </>}
