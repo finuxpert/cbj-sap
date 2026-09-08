@@ -21,12 +21,6 @@ const shortTime = (value = '') => {
 const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
 const operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', NFS_IO_CONTENTION: 'NFS I/O Contention', IO_CONSUMER: 'I/O Consumer', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)
 
-function runPresentation(sustained = {}) {
-  const name = sustained?.sustainedClass || 'NONE'
-  if (name === 'NONE') return 'None'
-  return humanize(name)
-}
-
 function workerParse(files) {
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') return reject(new Error('Worker unavailable'))
@@ -42,7 +36,7 @@ function Status({ value = 'NORMAL' }) {
 }
 
 function Stat({ label, value, meta, tone = '' }) {
-  return <article className={`logV2Stat ${tone}`}><span>{label}</span><strong>{value}</strong><small>{meta}</small></article>
+  return <article className={`logV2Stat ${tone}`}><span>{label}</span><strong>{value}</strong>{meta ? <small>{meta}</small> : null}</article>
 }
 
 function collectionSkew(collection) {
@@ -83,10 +77,9 @@ function PointInTimeSummary({ topRow, collection }) {
 function IncidentSummary({ verdict, topRow }) {
   if (!verdict) return null
   const single = verdict.status === 'SINGLE_CULPRIT_SUPPORTED'
-  return <section className="logV2Panel logV141Summary">
-    <div className="logV141SummaryTop"><div><span className="logV141Kicker">SUMMARY</span><h2>Trend summary</h2></div></div>
+  return <section className="logV2Panel logV141Summary logV2TrendSummary">
     <div className="logV141SummaryGrid logV141SummaryGridTrend">
-      <div><span>Overall Status</span><strong>{single ? 'Primary consumer identified' : 'No single bottleneck identified'}</strong><small>{single ? 'strongest workload around peak' : 'no single workload confirmed'}</small></div>
+      <div><span>Overall Status</span><strong>{single ? 'Primary consumer identified' : 'No single bottleneck identified'}</strong></div>
       <div><span>Peak Server</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
       <div><span>Top Consumer</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {topRow?.type || '—'}</small></div>
     </div>
@@ -109,17 +102,27 @@ function SnapshotStrip({ collection }) {
 
 function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
   if (!rca?.hostPeaks?.length) return null
-  return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><h2>Application Server Resource Usage</h2><p>Peak resource usage during the selected period.</p></div></div>
-    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Server</th><th>Host Status</th><th>Peak Time</th><th>Duration</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>Critical WP</th></tr></thead><tbody>
+  return <section className="logV2Panel logV2HostPeakPanel">
+    <div className="logV2PanelHead"><div><h2>Application Server Resource Usage</h2><p>Peak values during the selected period.</p></div></div>
+    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Server</th><th>Peak Time</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1 vCPU</th><th>Critical WP</th></tr></thead><tbody>
       {rca.hostPeaks.map((item) => {
         const attributionOk = hostPeakAttributionValid(item)
         return <tr key={item.host} className={`${selectedHost === item.host ? 'active' : ''} ${attributionOk ? '' : 'attributionError'}`} onClick={() => onSelectHost?.(item.host)}>
-          <td><b>{item.host}</b>{!attributionOk && <span className="logV141Integrity">ATTRIB</span>}</td><td><Status value={item.resourceSeverity} /></td><td>{attributionOk ? shortTime(item.peakTime) : 'mapping error'}</td><td>{runPresentation(item.sustained)}</td><td>{attributionOk ? metricText(item.metrics?.cpu?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.ram?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.load?.value, 2) : '—'}</td><td>{attributionOk ? metricText(item.metrics?.swapIn?.value, 0, ' p/s') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.wpCritical?.value) : '—'}</td>
+          <td><b>{item.host}</b>{!attributionOk && <span className="logV141Integrity">ATTRIB</span>}</td><td>{attributionOk ? shortTime(item.peakTime) : 'mapping error'}</td><td>{attributionOk ? metricText(item.metrics?.cpu?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.ram?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.load?.value, 2) : '—'}</td><td>{attributionOk ? metricText(item.metrics?.wpCritical?.value) : '—'}</td>
         </tr>
       })}
     </tbody></table></div>
   </section>
+}
+
+function ServerDetails({ rca, collection, selectedHost, onSelectHost }) {
+  return <details className="logV2SourceAudit logV2ServerDetails">
+    <summary>Server Details</summary>
+    <div className="logV2ServerDetailsBody">
+      <SnapshotStrip collection={collection} />
+      <HostPeakSummary rca={rca} selectedHost={selectedHost} onSelectHost={onSelectHost} />
+    </div>
+  </details>
 }
 
 function WorkloadDetail({ item, capabilities, pointInTime = false }) {
@@ -185,7 +188,7 @@ function topObservedConsumer(rows = []) {
 
 export default function ToolLogAutoRcaV5() {
   const [busy, setBusy] = React.useState(false)
-  const [status, setStatus] = React.useState('Upload WP-SCOUT or Daily Check logs.')
+  const [status, setStatus] = React.useState('')
   const [analysis, setAnalysis] = React.useState(null)
   const [rca, setRca] = React.useState(null)
   const [metric, setMetric] = React.useState('memoryPct')
@@ -229,7 +232,7 @@ export default function ToolLogAutoRcaV5() {
       setAnalysis(nextAnalysis); setRca(nextRca); setCapabilities(caps)
       setSelectedCollectionKey(nextRca.resourceLandscapePeak?.key || nextRca.collections[0]?.key || ''); setSelectedHost(nextRca.hostPeaks?.[0]?.host || nextRca.hosts?.[0] || '')
       setResourceRows([]); setSelectedResource(null); setVerdict(null)
-      setStatus(`${expanded.length} ${expanded.length === 1 ? 'file' : 'files'} loaded`)
+      setStatus('')
       await rankResources(nextAnalysis, nextRca)
     } catch (error) {
       setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
@@ -246,15 +249,21 @@ export default function ToolLogAutoRcaV5() {
     ? resourceRows.find((row) => row.host === verdict.topHost && row.workload === verdict.topWorkload) || topConsumer
     : topConsumer
 
+  const selectHost = React.useCallback((hostName) => {
+    setSelectedHost(hostName)
+    const first = resourceRows.find((row) => row.host === hostName)
+    if (first) setSelectedResource(first)
+  }, [resourceRows])
+
   return <section className="logV2Shell"><div className="logV2Inner">
     <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
-    <div className={`logV2StatusBar ${rca ? 'ready' : ''}`}>{status}</div>
+    {status ? <div className="logV2StatusBar">{status}</div> : null}
 
     {!rca ? <div className="logV2EmptyState"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div> : <>
       <section className="logV2Stats logV2StatsCompact">
         <Stat label="Analysis" value={pointInTime ? 'POINT IN TIME' : 'TREND ANALYSIS'} meta={`${rca.collections.length} ${rca.collections.length === 1 ? 'collection' : 'collections'}`} />
         <Stat label="Period" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={pointInTime ? `${collectionSkew(rca.collections[0])} min collection window` : `${rca.cadence.nominalMinutes || '—'} min interval`} />
-        <Stat label="Application Servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
+        <Stat label="Application Servers" value={rca.hosts.length} />
       </section>
 
       {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} topRow={trendTopConsumer} />)}
@@ -266,8 +275,7 @@ export default function ToolLogAutoRcaV5() {
         </React.Suspense>
       </section>}
 
-      <SnapshotStrip collection={selectedCollection} />
-      {!pointInTime && <HostPeakSummary rca={rca} selectedHost={selectedHostPeak?.host} onSelectHost={(hostName) => { setSelectedHost(hostName); const first = resourceRows.find((row) => row.host === hostName); if (first) setSelectedResource(first) }} />}
+      {pointInTime ? <SnapshotStrip collection={selectedCollection} /> : null}
 
       <section className="logV2Panel">
         <div className="logV2PanelHead"><div><h2>Top Resource Consumers</h2><p>{pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div></div>
@@ -277,6 +285,7 @@ export default function ToolLogAutoRcaV5() {
       </section>
 
       {!ranking && <WorkloadDetail item={selectedResource} capabilities={capabilities} pointInTime={pointInTime} />}
+      {!pointInTime && <ServerDetails rca={rca} collection={selectedCollection} selectedHost={selectedHostPeak?.host} onSelectHost={selectHost} />}
       <AnalyticsDiagnostics diagnostics={diagnostics} capabilities={capabilities} mapping={mapping} verdict={verdict} rca={rca} analysis={analysis} />
       <SourceAudit collections={rca.collections} />
     </>}
