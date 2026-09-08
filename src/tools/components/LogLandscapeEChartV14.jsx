@@ -36,7 +36,7 @@ function useEChart(option, onClick) {
   return ref
 }
 
-export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelectCollection }) {
+export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelectCollection, onSelectPoint }) {
   const meta = METRICS[metric] || METRICS.memoryPct
   const collections = rca?.collections || []
   const option = React.useMemo(() => {
@@ -102,9 +102,20 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
   }, [collections, rca?.hosts, rca?.resourceLandscapePeak, rca?.landscapePeak, rca?.resourceIncidentAnchor, metric, meta.digits, meta.label, meta.suffix])
 
   const click = React.useCallback((params) => {
-    const collection = collections[params?.dataIndex]
-    if (collection?.key) onSelectCollection?.(collection.key)
-  }, [collections, onSelectCollection])
+    if (params?.componentType !== 'series' || !Number.isInteger(params?.dataIndex)) return
+    const collection = collections[params.dataIndex]
+    if (!collection?.key) return
+    onSelectCollection?.(collection.key)
+    onSelectPoint?.({
+      collectionKey: collection.key,
+      timeLabel: collection.timeLabel || '',
+      endTime: collection.endTime || collection.timeLabel || '',
+      host: params.seriesName || '',
+      metric,
+      value: metricValue(params.value),
+      dataIndex: params.dataIndex,
+    })
+  }, [collections, metric, onSelectCollection, onSelectPoint])
   const ref = useEChart(option, click)
   return <div ref={ref} className="logV2LandscapeChart" role="img" aria-label={`${meta.label} timeline across logical application-server collections`} />
 }
