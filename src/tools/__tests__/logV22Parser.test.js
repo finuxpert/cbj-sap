@@ -57,6 +57,23 @@ AOPH1QAPPDC-1788198434-3890\t2026-09-01T00:47:14+07:00\tAOPH1QAPPDC\t11128\tAOQ\
 AOPH1QAPPDC-1788198434-3890\t2026-09-01T00:47:14+07:00\tAOPH1QAPPDC\t11154\tAOQ\t20\t26\tBTC\tSAPCONTROL\t26.83\t0.2\t0.1551\tNORMAL\t0.0226\t0.0200\t0.1352\tS\t__x64_sys_poll\t95077\tOK\t1.2500\t0.5000\t2026-09-01T00:47:16+07:00\t2\t28\t0\t0\t28\tSAPDBDDF\tTRACE\tDBSQL_STMNT_TOO_LARGE\tSAPDBDDF\tR_JR_BTCJOBS_GENERATOR\t2026-08-31T15:11:06+07:00\t1788163866\t34568\tHISTORICAL\t/usr/sap/AOQ/D20/work/dev_w26
 ## RCA-WP-V2.2-END`
 
+function multiServerV22() {
+  return [
+    ['AOPH1PAPPDC', '30', '00:47:14', '2'],
+    ['AOPH2PAPPDC', '40', '00:48:14', '3'],
+    ['AOPH3PAPPDC', '50', '00:49:14', '4'],
+    ['AOPH4PAPPDC', '60', '00:50:14', '5'],
+    ['AOPH5PAPPDC', '70', '00:51:14', '6'],
+  ].map(([host, instance, clock, standby], index) => V22
+    .replaceAll('AOPH1QAPPDC', host)
+    .replaceAll('AOQ', 'AOP')
+    .replaceAll('20', instance)
+    .replaceAll('00:47:14', clock)
+    .replace('  - Total WP Standby : 2', `  - Total WP Standby : ${standby}`)
+    .replaceAll('1788198434', String(1788198434 + index * 60)))
+  ).join('\n')
+}
+
 describe('collector V2.2 parser', () => {
   it('uses the structured V2.2 blocks as the primary evidence source', () => {
     const parsed = parseLogText(V22, 'aoq-v22.log')
@@ -70,6 +87,22 @@ describe('collector V2.2 parser', () => {
     expect(parsed.processes[0].pssGb).toBe(1.886)
     expect(parsed.processes[0].readMiBps).toBe(0.1)
     expect(parsed.processes[0].type).toBe('DIA')
+  })
+
+  it('parses multiple application-server snapshots bundled in one collector log', () => {
+    const parsed = parseLogText(multiServerV22(), 'aop-five-servers.log')
+    expect(parsed.telemetry).toHaveLength(5)
+    expect(parsed.processes).toHaveLength(10)
+    expect(parsed.telemetry.map((row) => row.host)).toEqual([
+      'AOPH1PAPPDC',
+      'AOPH2PAPPDC',
+      'AOPH3PAPPDC',
+      'AOPH4PAPPDC',
+      'AOPH5PAPPDC',
+    ])
+    expect(parsed.telemetry.map((row) => row.instance)).toEqual(['30', '40', '50', '60', '70'])
+    expect(parsed.telemetry.map((row) => row.wpStandby)).toEqual([2, 3, 4, 5, 6])
+    expect(parsed.telemetry.every((row) => row.sourceHostStatus === 'VERIFIED')).toBe(true)
   })
 
   it('does not promote historical trace errors to incident-time RCA evidence', () => {
