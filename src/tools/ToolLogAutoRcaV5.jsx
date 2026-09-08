@@ -127,6 +127,8 @@ function ServerDetails({ rca, collection, selectedHost, onSelectHost }) {
 
 function WorkloadDetail({ item, capabilities, pointInTime = false }) {
   if (!item) return null
+  const sampleFocus = Boolean(item.sampleFocus)
+  const sampleMode = pointInTime || sampleFocus
   const enhancedDetailsAvailable = capabilities?.mode !== 'LEGACY'
   const taxonomy = item.errorTaxonomy || {}
   const errorLabel = taxonomy.strongest?.category && taxonomy.strongest.category !== 'NONE' ? operatorLabel(taxonomy.strongest.category) : (item.errors || []).filter((value) => value && value !== '?').join(' · ') || 'None'
@@ -134,14 +136,14 @@ function WorkloadDetail({ item, capabilities, pointInTime = false }) {
   return <details className="logV2SourceAudit logV2ConsumerDetail">
     <summary>Selected Consumer Details · {item.workload}</summary>
     <div className="logV2ConsumerDetailBody"><section className="logV2Panel">
-      <div className="logV2PanelHead"><div><span className="logV141Kicker">CONSUMER DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {item.type || '—'}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">{item.type || 'WP'}</span><span className="logV2ScoreBadge">CPU {metricText(pointInTime ? item.targetCpu : item.peakCpu, 1, '%')}</span></div></div>
+      <div className="logV2PanelHead"><div><span className="logV141Kicker">CONSUMER DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {item.type || '—'}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">{item.type || 'WP'}</span><span className="logV2ScoreBadge">CPU {metricText(sampleMode ? item.targetCpu : item.peakCpu, 1, '%')}</span></div></div>
       <div className="logV2DetailGrid" style={pointInTime ? { gridTemplateColumns: '1fr' } : undefined}>
         <div className="logV2DetailFacts"><dl>
           <div><dt>Application Server</dt><dd>{item.host || '—'}</dd></div><div><dt>WP Type</dt><dd>{item.type || '—'}</dd></div>
-          <div><dt>ABAP Program</dt><dd>{item.program || '—'}</dd></div><div><dt>{pointInTime ? 'Sample Time' : 'Observed'}</dt><dd>{pointInTime ? shortTime(item.targetTime) : `${item.presenceCount || 0} of ${item.hostSampleCount || 0} samples`}</dd></div>
-          {pointInTime ? <><div><dt>CPU at Sample</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Memory at Sample</dt><dd>{metricText(memory, 2, ' GB')}</dd></div></> : <><div><dt>Average CPU</dt><dd>{metricText(item.avgCpu, 1, '%')}</dd></div><div><dt>Peak CPU</dt><dd>{metricText(item.peakCpu, 1, '%')}</dd></div><div><dt>Peak Memory</dt><dd>{metricText(memory, 2, ' GB')}</dd></div><div><dt>First Seen</dt><dd>{shortTime(item.firstSeen)}</dd></div></>}
-          <div><dt>D-State WP</dt><dd>{metricText(pointInTime ? item.targetDState : item.dStateHits)}</dd></div><div><dt>Error or Short Dump</dt><dd>{errorLabel}</dd></div>
-          {enhancedDetailsAvailable && <>
+          <div><dt>ABAP Program</dt><dd>{item.program || '—'}</dd></div><div><dt>{sampleMode ? 'Sample Time' : 'Observed'}</dt><dd>{sampleMode ? shortTime(item.targetTime) : `${item.presenceCount || 0} of ${item.hostSampleCount || 0} samples`}</dd></div>
+          {sampleMode ? <><div><dt>CPU at Sample</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Memory at Sample</dt><dd>{metricText(memory, 2, ' GB')}</dd></div></> : <><div><dt>Average CPU</dt><dd>{metricText(item.avgCpu, 1, '%')}</dd></div><div><dt>Peak CPU</dt><dd>{metricText(item.peakCpu, 1, '%')}</dd></div><div><dt>Peak Memory</dt><dd>{metricText(memory, 2, ' GB')}</dd></div><div><dt>First Seen</dt><dd>{shortTime(item.firstSeen)}</dd></div></>}
+          <div><dt>D-State WP</dt><dd>{metricText(sampleMode ? item.targetDState : item.dStateHits)}</dd></div><div><dt>Error or Short Dump</dt><dd>{errorLabel}</dd></div>
+          {enhancedDetailsAvailable && !sampleFocus && <>
             <div><dt>Kernel Wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}</dd></div><div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div>
             <div><dt>Read Rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')}</dd></div><div><dt>Write Rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')}</dd></div>
           </>}
@@ -186,6 +188,69 @@ function topObservedConsumer(rows = []) {
   })[0] || null
 }
 
+function scopedConsumerRows(rows = [], focus = null) {
+  if (!focus?.host || !focus?.collectionKey) return []
+  return rows.flatMap((row) => {
+    if (row.host !== focus.host) return []
+    const sample = (row.samples || []).find((item) => item.collectionKey === focus.collectionKey)
+    if (!sample) return []
+    const errors = (sample.errors || []).filter((value) => value && value !== '?')
+    const sampleTime = sample.collectionTime || focus.timeLabel || ''
+    const cpu = hasMetric(sample.cpu) ? Number(sample.cpu) : null
+    const maxPidRss = hasMetric(sample.maxPidRssGb) ? Number(sample.maxPidRssGb) : null
+    const totalRss = hasMetric(sample.rssGb) ? Number(sample.rssGb) : null
+    return [{
+      ...row,
+      key: `${row.key}|sample:${focus.collectionKey}`,
+      program: sample.program || row.program,
+      type: sample.type || row.type,
+      targetCollectionKey: focus.collectionKey,
+      targetTime: sampleTime,
+      targetHostSampleTime: sampleTime,
+      targetActualTime: sampleTime,
+      targetCpu: cpu,
+      targetRss: totalRss,
+      targetMaxPidRss: maxPidRss,
+      targetPssGb: null,
+      targetDState: Number(sample.dState || 0),
+      targetConcurrentPids: Number(sample.concurrentPids || 0),
+      targetReadMiBps: null,
+      targetWriteMiBps: null,
+      targetWchan: '',
+      avgCpu: cpu,
+      peakCpu: cpu,
+      peakRss: totalRss,
+      peakMaxPidRss: maxPidRss,
+      dStateHits: Number(sample.dState || 0),
+      presenceCount: 1,
+      hostSampleCount: 1,
+      firstSeen: sampleTime,
+      lastSeen: sampleTime,
+      errors,
+      errorState: errors.length ? 'ERROR_AT_SAMPLE' : 'NONE',
+      errorTaxonomy: { strongest: { category: 'NONE' } },
+      sampleFocus: true,
+    }]
+  }).sort((a, b) => Number(b.targetCpu ?? -1) - Number(a.targetCpu ?? -1) || Number(consumerMemory(b) ?? -1) - Number(consumerMemory(a) ?? -1))
+}
+
+function SampleDrilldownSummary({ focus, rows = [], onClear }) {
+  if (!focus) return null
+  const top = rows[0] || null
+  return <section className="logV2Panel logV141Summary">
+    <div className="logV141SummaryTop">
+      <div><span className="logV141Kicker">CPU SAMPLE DRILLDOWN</span><h2>{focus.host} · {shortTime(focus.timeLabel)}</h2></div>
+      <div className="logV2QuickFilters"><button type="button" onClick={onClear}>Full period</button></div>
+    </div>
+    <div className="logV141SummaryGrid logV141SummaryGridCompact">
+      <div><span>Host CPU</span><strong>{metricText(focus.value, 1, '%')}</strong><small>application server CPU</small></div>
+      <div><span>Top Consumer</span><strong>{top?.workload || '—'}</strong><small>{top?.program || '—'}</small></div>
+      <div><span>Process CPU</span><strong>{metricText(top?.targetCpu, 1, '%')}</strong><small>at selected sample</small></div>
+      <div><span>WP Type</span><strong>{top?.type || '—'}</strong><small>{rows.length} consumers observed</small></div>
+    </div>
+  </section>
+}
+
 export default function ToolLogAutoRcaV5() {
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('')
@@ -196,6 +261,7 @@ export default function ToolLogAutoRcaV5() {
   const [selectedHost, setSelectedHost] = React.useState('')
   const [resourceRows, setResourceRows] = React.useState([])
   const [selectedResource, setSelectedResource] = React.useState(null)
+  const [sampleFocus, setSampleFocus] = React.useState(null)
   const [resourceEngine, setResourceEngine] = React.useState('WAITING')
   const [verdict, setVerdict] = React.useState(null)
   const [capabilities, setCapabilities] = React.useState({ mode: 'LEGACY', enhanced: false })
@@ -217,7 +283,7 @@ export default function ToolLogAutoRcaV5() {
   }, [])
 
   const upload = React.useCallback(async (list) => {
-    setBusy(true); setStatus('Analyzing logs…')
+    setBusy(true); setStatus('Analyzing logs…'); setSampleFocus(null)
     try {
       const expanded = (await expandZipAwareFiles(list, ['log', 'txt', 'csv'])).filter((file) => ['log', 'txt', 'csv'].includes(fileExt(file.name)))
       if (!expanded.length) throw new Error('No supported .log, .txt, or .csv files found.')
@@ -235,7 +301,7 @@ export default function ToolLogAutoRcaV5() {
       setStatus('')
       await rankResources(nextAnalysis, nextRca)
     } catch (error) {
-      setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
+      setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setSampleFocus(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
     } finally { setBusy(false) }
   }, [rankResources])
 
@@ -248,8 +314,31 @@ export default function ToolLogAutoRcaV5() {
   const trendTopConsumer = !pointInTime && verdict
     ? resourceRows.find((row) => row.host === verdict.topHost && row.workload === verdict.topWorkload) || topConsumer
     : topConsumer
+  const focusedRows = React.useMemo(() => scopedConsumerRows(resourceRows, sampleFocus), [resourceRows, sampleFocus])
+  const consumerRows = sampleFocus ? focusedRows : resourceRows
+  const consumerPointInTime = pointInTime || Boolean(sampleFocus)
+
+  const clearSampleFocus = React.useCallback(() => {
+    setSampleFocus(null)
+    const defaultRow = verdict
+      ? resourceRows.find((row) => row.host === verdict.topHost && row.workload === verdict.topWorkload) || resourceRows[0]
+      : resourceRows[0]
+    if (defaultRow) setSelectedResource(defaultRow)
+  }, [resourceRows, verdict])
+
+  const handleTrendPoint = React.useCallback((point) => {
+    if (!point?.collectionKey) return
+    setSelectedCollectionKey(point.collectionKey)
+    if (point.host) setSelectedHost(point.host)
+    if (point.metric !== 'cpuPct' || !point.host) return
+    setSampleFocus(point)
+    const scoped = scopedConsumerRows(resourceRows, point)
+    if (scoped[0]) setSelectedResource(scoped[0])
+    requestAnimationFrame(() => document.getElementById('top-resource-consumers')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }, [resourceRows])
 
   const selectHost = React.useCallback((hostName) => {
+    setSampleFocus(null)
     setSelectedHost(hostName)
     const first = resourceRows.find((row) => row.host === hostName)
     if (first) setSelectedResource(first)
@@ -269,18 +358,19 @@ export default function ToolLogAutoRcaV5() {
       {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} topRow={trendTopConsumer} />)}
 
       {!pointInTime && <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Resource trend by log timestamp.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
+        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>{metric === 'cpuPct' ? 'Click a CPU point to inspect consumers on that server at that sample.' : 'Resource trend by log timestamp.'}</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (key !== 'cpuPct' && sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
         <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading trend…</div>}>
-          <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} />
+          <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} onSelectPoint={handleTrendPoint} />
         </React.Suspense>
       </section>}
 
+      {sampleFocus ? <SampleDrilldownSummary focus={sampleFocus} rows={focusedRows} onClear={clearSampleFocus} /> : null}
       {pointInTime ? <SnapshotStrip collection={selectedCollection} /> : null}
 
-      <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Top Resource Consumers</h2><p>{pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div></div>
+      <section className="logV2Panel" id="top-resource-consumers">
+        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `Top CPU Consumers · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2><p>{sampleFocus ? `Processes observed at ${shortTime(sampleFocus.timeLabel)}. CPU values are process CPU at the selected sample.` : pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
         {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
-          <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={pointInTime} />
+          <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} />
         </React.Suspense>}
       </section>
 
