@@ -1,6 +1,6 @@
 import React from 'react'
 import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
-import { buildLogAnalysis, parseLogText, telemetryCapabilitiesV13 } from './logAnalysisV14.js'
+import { buildLogAnalysis, parseLogText, telemetryCapabilitiesV15 } from './logAnalysisV15.js'
 import { buildAutoPeakRcaV3 } from './logRcaEngineV3.js'
 import { rankResourceConsumersV5 } from './workloadAnalyticsV5.js'
 import VirtualResourceTableV14 from './components/VirtualResourceTableV14.jsx'
@@ -70,7 +70,7 @@ function dataSourcePresentation(capabilities = {}) {
 function workerParse(files) {
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') return reject(new Error('Worker unavailable'))
-    const worker = new Worker(new URL('./workers/logParserV14.worker.js', import.meta.url), { type: 'module' })
+    const worker = new Worker(new URL('./workers/logParserV15.worker.js', import.meta.url), { type: 'module' })
     worker.onmessage = (event) => { worker.terminate(); event.data?.ok ? resolve(event.data.analysis) : reject(new Error(event.data?.error || 'Worker parse failed')) }
     worker.onerror = (event) => { worker.terminate(); reject(new Error(event.message || 'Worker parse failed')) }
     worker.postMessage({ files })
@@ -244,7 +244,7 @@ export default function ToolLogAutoRcaV5() {
     setResourceEngine('RANKING')
     const ranked = await rankResourceConsumersV5(nextAnalysis?.processes || [], nextRca, nextAnalysis)
     setResourceRows(ranked.rows); setSelectedResource(ranked.rows[0] || null); setResourceEngine(ranked.engine); setVerdict(ranked.verdict || null)
-    setCapabilities(ranked.telemetryCapabilities || telemetryCapabilitiesV13(nextAnalysis))
+    setCapabilities(ranked.telemetryCapabilities || telemetryCapabilitiesV15(nextAnalysis))
     setDiagnostics({ parity: ranked.parity || { status: 'NOT_RUN' }, crossHostConfidence: ranked.crossHostConfidence || { grade: '—', skewMinutes: 0 }, landscapeConfidence: ranked.landscapeConfidence, engineReason: ranked.engineReason || '', engineDiagnostics: ranked.engineDiagnostics || {} })
     setMapping({ mappedRows: ranked.mappedRows || 0, unmappedRows: ranked.unmappedRows || 0, counts: ranked.mappingCounts || { EXACT: 0, NEAREST_2M: 0, NEAREST_5M: 0, UNMAPPED: 0 } })
     if (ranked.incidentAnchor?.host) setSelectedHost(ranked.incidentAnchor.host)
@@ -263,7 +263,7 @@ export default function ToolLogAutoRcaV5() {
       const nextRca = buildAutoPeakRcaV3(parsedAnalysis)
       const nextAnalysis = nextRca.validatedAnalysis || parsedAnalysis
       if (!nextRca?.collections?.length) throw new Error('No host telemetry snapshots found in the uploaded logs.')
-      const caps = telemetryCapabilitiesV13(nextAnalysis)
+      const caps = telemetryCapabilitiesV15(nextAnalysis)
       setAnalysis(nextAnalysis); setRca(nextRca); setCapabilities(caps)
       setSelectedCollectionKey(nextRca.resourceLandscapePeak?.key || nextRca.collections[0]?.key || ''); setSelectedHost(nextRca.hostPeaks?.[0]?.host || nextRca.hosts?.[0] || '')
       setResourceRows([]); setSelectedResource(null); setVerdict(null)

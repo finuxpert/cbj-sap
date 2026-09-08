@@ -64,6 +64,7 @@ jobs:
           echo "Cleaning previous Vite build output..."
           rm -rf dist 2>/dev/null || sudo rm -rf dist
           npm ci
+          npx vitest run src/tools/__tests__/logParserV15Parity.test.js src/tools/__tests__/logV22Parser.test.js
           npm run build
           test -f dist/index.html
           test -d dist/assets
