@@ -1,10 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const gitSha = String(process.env.GITHUB_SHA || '').slice(0, 7)
+const appEnv = String(process.env.GITHUB_REF_NAME || '')
+
 // https://vite.dev/config/
 export default defineConfig({
   base: '/sap/',
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_GIT_SHA': JSON.stringify(gitSha),
+    'import.meta.env.VITE_APP_ENV': JSON.stringify(appEnv),
+  },
   build: {
     // keep the warning, but make it less noisy for dashboards with charts
     chunkSizeWarningLimit: 800,
