@@ -27,16 +27,26 @@ jobs:
       PROD_WEBROOT: /var/www/html/sap
 
     steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 1
+      - name: Prepare isolated main worktree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          BUILD_DIR="/home/sadmin/prod-build-${GITHUB_RUN_ID}"
+          echo "BUILD_DIR=${BUILD_DIR}" >> "$GITHUB_ENV"
+          cd /home/sadmin/sap
+          git fetch origin main
+          git worktree prune
+          rm -rf "${BUILD_DIR}"
+          git worktree add --detach "${BUILD_DIR}" origin/main
+          cd "${BUILD_DIR}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "Prepared main commit $(git rev-parse --short HEAD)"
 
       - name: Validate main and build
         shell: bash
         run: |
           set -Eeuo pipefail
+          cd "${BUILD_DIR}"
           echo "Deploying commit: ${GITHUB_SHA}"
           test "${GITHUB_REF_NAME}" = "main"
           npm ci
@@ -74,7 +84,7 @@ jobs:
 
           echo "Staging build on production host..."
           ssh ${SSH_OPTS} "${REMOTE}" "set -Eeuo pipefail; rm -rf '${REMOTE_STAGE}'; mkdir -p '${REMOTE_STAGE}'; sudo mkdir -p '${BACKUP_DIR}'"
-          rsync -az --delete -e "ssh ${SSH_OPTS}" dist/ "${REMOTE}:${REMOTE_STAGE}/"
+          rsync -az --delete -e "ssh ${SSH_OPTS}" "${BUILD_DIR}/dist/" "${REMOTE}:${REMOTE_STAGE}/"
           ssh ${SSH_OPTS} "${REMOTE}" "test -f '${REMOTE_STAGE}/index.html'"
 
           echo "Backing up current production webroot to ${BACKUP_FILE}"
@@ -126,3 +136,12 @@ jobs:
             echo "- Backup: created before webroot replacement"
             echo "- Smoke test: PASS"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cleanup build worktree
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          cd /home/sadmin/sap
+          git worktree remove --force "${BUILD_DIR}" 2>/dev/null || rm -rf "${BUILD_DIR}"
+          git worktree prune
