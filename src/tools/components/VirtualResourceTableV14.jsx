@@ -19,16 +19,25 @@ function confidenceText(row = {}) {
   return `${label} · ${fmt(score, 0)}%`
 }
 
-function memoryText(row = {}) {
-  if (hasMetric(row.targetPssGb)) return `PSS ${fmt(row.targetPssGb, 2)} GB`
-  if (hasMetric(row.targetMaxPidRss)) return `Max PID RSS ${fmt(row.targetMaxPidRss, 2)} GB`
-  return '—'
+function memoryValue(row = {}, pointInTime = false) {
+  if (pointInTime) return row.targetPssGb ?? row.targetMaxPidRss ?? null
+  return row.peakMaxPidRss ?? row.peakRss ?? row.targetPssGb ?? row.targetMaxPidRss ?? null
 }
 
-function blockingText(row = {}) {
-  if (row.enhancedEvidenceUsable && row.wchanClass && row.wchanClass !== 'NONE') return `${humanize(row.wchanClass)}${row.wchanScope === 'D_STATE' ? ' · D' : ''}`
-  if (hasMetric(row.targetDState) && Number(row.targetDState) > 0) return `${row.targetDState} of ${row.targetConcurrentPids || 0} D-state`
-  return '—'
+function memoryText(row = {}, pointInTime = false) {
+  const value = memoryValue(row, pointInTime)
+  if (!hasMetric(value)) return '—'
+  const label = pointInTime && hasMetric(row.targetPssGb) ? 'PSS' : 'RSS'
+  return `${label} ${fmt(value, 2)} GB`
+}
+
+function cpuValue(row = {}, pointInTime = false) {
+  return pointInTime ? row.targetCpu : (row.peakCpu ?? row.targetCpu)
+}
+
+function blockingText(row = {}, pointInTime = false) {
+  const value = pointInTime ? row.targetDState : row.dStateHits
+  return hasMetric(value) ? fmt(value, 0) : '—'
 }
 
 function timingSuffix(timing = {}, direction = '') {
@@ -63,24 +72,82 @@ function errorTone(row = {}) {
   return ''
 }
 
-export default function VirtualResourceTableV14({ rows = [], selectedKey = '', onSelect }) {
-  const [sorting, setSorting] = React.useState([{ id: 'causalScore', desc: true }])
+function hasError(row = {}) {
+  return errorText(row) !== '—' || (row.errors || []).some((value) => value && value !== '?')
+}
+
+function findingText(row = {}, pointInTime = false) {
+  const cpu = Number(cpuValue(row, pointInTime) || 0)
+  const memory = Number(memoryValue(row, pointInTime) || 0)
+  const dState = Number(pointInTime ? row.targetDState : row.dStateHits || 0)
+  if (dState > 0) return 'D-STATE'
+  if (cpu >= 80 && memory >= 2) return 'HIGH CPU · HIGH MEMORY'
+  if (cpu >= 80) return 'HIGH CPU'
+  if (memory >= 2) return 'HIGH MEMORY'
+  if (hasError(row)) return 'ERROR'
+  return 'NORMAL'
+}
+
+function shortTime(value = '') {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/)
+  return match ? `${match[2]}-${match[3]} ${match[4]}` : value || '—'
+}
+
+function observedText(row = {}, pointInTime = false) {
+  if (pointInTime) return shortTime(row.targetTime || row.targetHostEvidenceTime || '')
+  const seen = Number(row.presenceCount || 0)
+  const total = Number(row.hostSampleCount || 0)
+  return total ? `${seen} of ${total} samples` : `${seen} samples`
+}
+
+function quickFilterMatch(row = {}, filter = 'ALL', pointInTime = false) {
+  const type = String(row.type || '').toUpperCase()
+  const cpu = Number(cpuValue(row, pointInTime) || 0)
+  const memory = Number(memoryValue(row, pointInTime) || 0)
+  const dState = Number(pointInTime ? row.targetDState : row.dStateHits || 0)
+  if (filter === 'BTC') return type === 'BTC'
+  if (filter === 'DIA') return type === 'DIA'
+  if (filter === 'HIGH_CPU') return cpu >= 80
+  if (filter === 'HIGH_MEMORY') return memory >= 2
+  if (filter === 'D_STATE') return dState > 0
+  if (filter === 'ERROR') return hasError(row)
+  return true
+}
+
+const QUICK_FILTERS = [
+  ['ALL', 'All'],
+  ['BTC', 'Background Jobs'],
+  ['DIA', 'Dialog'],
+  ['HIGH_CPU', 'High CPU'],
+  ['HIGH_MEMORY', 'High Memory'],
+  ['D_STATE', 'D-State'],
+  ['ERROR', 'Error'],
+]
+
+export default function VirtualResourceTableV14({ rows = [], selectedKey = '', onSelect, pointInTime = false }) {
+  const [sorting, setSorting] = React.useState([{ id: 'cpuValue', desc: true }])
   const [globalFilter, setGlobalFilter] = React.useState('')
+  const [quickFilter, setQuickFilter] = React.useState('ALL')
+
+  React.useEffect(() => {
+    setSorting([{ id: 'cpuValue', desc: true }])
+    setQuickFilter('ALL')
+  }, [pointInTime])
+
+  const filteredRows = React.useMemo(() => rows.filter((row) => quickFilterMatch(row, quickFilter, pointInTime)), [rows, quickFilter, pointInTime])
   const columns = React.useMemo(() => [
-    { accessorKey: 'host', header: 'Host', size: 128 },
-    { accessorKey: 'workload', header: 'Workload or Job', size: 280 },
-    { accessorKey: 'incidentRole', header: 'Role', size: 145, cell: ({ getValue }) => operatorLabel(getValue()) },
-    { accessorKey: 'causalScore', header: 'RCA Priority', size: 96, cell: ({ getValue }) => <b className="logV2Score">{fmt(getValue(), 0)}</b> },
-    { id: 'evidence', accessorFn: (row) => row.localConfidence?.score ?? 0, header: 'Coverage', size: 126, cell: ({ row }) => confidenceText(row.original) },
-    { accessorKey: 'targetCpu', header: 'CPU', size: 82, cell: ({ getValue }) => hasMetric(getValue()) ? `${fmt(getValue(), 1)}%` : '—' },
-    { id: 'memory', accessorFn: (row) => row.targetPssGb ?? row.targetMaxPidRss ?? -1, header: 'Memory', size: 165, cell: ({ row }) => memoryText(row.original) },
-    { id: 'blocking', accessorFn: (row) => row.targetDState ?? 0, header: 'Blocked WP', size: 130, cell: ({ row }) => blockingText(row.original) },
-    { id: 'error', accessorFn: (row) => row.errorTaxonomy?.strongest?.category || row.errorState || '', header: 'Error Context', size: 210, cell: ({ row }) => <span className={`logV143Error ${errorTone(row.original)}`}>{errorText(row.original)}</span> },
-    { accessorKey: 'targetEvidence', header: 'Time Match', size: 96, cell: ({ getValue }) => evidenceLabel(getValue()) },
-  ], [])
+    { accessorKey: 'host', header: 'Server', size: 128 },
+    { accessorKey: 'workload', header: 'Job Name or ABAP Program', size: 300 },
+    { accessorKey: 'type', header: 'WP Type', size: 88, cell: ({ getValue }) => getValue() || '—' },
+    { id: 'cpuValue', accessorFn: (row) => cpuValue(row, pointInTime) ?? -1, header: pointInTime ? 'CPU' : 'Peak CPU', size: 92, cell: ({ row }) => hasMetric(cpuValue(row.original, pointInTime)) ? `${fmt(cpuValue(row.original, pointInTime), 1)}%` : '—' },
+    { id: 'memory', accessorFn: (row) => memoryValue(row, pointInTime) ?? -1, header: pointInTime ? 'Memory' : 'Peak Memory', size: 145, cell: ({ row }) => memoryText(row.original, pointInTime) },
+    { id: 'dState', accessorFn: (row) => Number(pointInTime ? row.targetDState : row.dStateHits || 0), header: pointInTime ? 'D-State WP' : 'D-State Hits', size: 105, cell: ({ row }) => blockingText(row.original, pointInTime) },
+    { id: 'finding', accessorFn: (row) => findingText(row, pointInTime), header: 'Finding', size: 185, cell: ({ row }) => <b className={`logV2Finding ${findingText(row.original, pointInTime).toLowerCase().replaceAll(' ', '-').replaceAll('·', '')}`}>{findingText(row.original, pointInTime)}</b> },
+    { id: 'observed', accessorFn: (row) => pointInTime ? row.targetTime || '' : row.presenceCount || 0, header: pointInTime ? 'Sample Time' : 'Observed', size: 140, cell: ({ row }) => observedText(row.original, pointInTime) },
+  ], [pointInTime])
 
   const table = useReactTable({
-    data: rows,
+    data: filteredRows,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
@@ -92,20 +159,21 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
       const needle = String(value || '').toLowerCase().trim()
       if (!needle) return true
       const item = row.original
-      return [item.host, item.workload, item.program, item.incidentRole, item.targetEvidence, item.wchanClass, item.targetWchan, item.errorState, item.errorTaxonomy?.strongest?.category, item.errorTaxonomy?.direction, ...(item.errors || [])].join(' ').toLowerCase().includes(needle)
+      return [item.host, item.workload, item.program, item.type, item.wchanClass, item.targetWchan, item.errorState, item.errorTaxonomy?.strongest?.category, ...(item.errors || [])].join(' ').toLowerCase().includes(needle)
     },
   })
 
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
   const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 12 })
-  const gridTemplate = '128px minmax(280px,1.8fr) 145px 96px 126px 82px 165px 130px minmax(210px,1.2fr) 96px'
-  const minWidth = 1440
+  const gridTemplate = '128px minmax(300px,1.8fr) 88px 92px 145px 105px 185px 140px'
+  const minWidth = 1183
 
   return <div className="logV2TableShell">
-    <div className="logV2TableToolbar">
-      <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search host, job, role, WCHAN, error…" />
-      <span><b>{tableRows.length}</b> workloads · sorted by RCA priority</span>
+    <div className="logV2TableToolbar logV2BasisToolbar">
+      <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search server, job, program, WP type…" />
+      <div className="logV2QuickFilters">{QUICK_FILTERS.map(([key, label]) => <button key={key} type="button" className={quickFilter === key ? 'active' : ''} onClick={() => setQuickFilter(key)}>{label}</button>)}</div>
+      <span><b>{tableRows.length}</b> consumers · sorted by {pointInTime ? 'CPU' : 'peak CPU'}</span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate, minWidth: `${minWidth}px` }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
@@ -126,4 +194,4 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   </div>
 }
 
-export const __test = { confidenceText, errorText, timingSuffix, errorTone }
+export const __test = { confidenceText, errorText, timingSuffix, errorTone, findingText, quickFilterMatch }
