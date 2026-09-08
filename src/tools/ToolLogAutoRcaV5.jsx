@@ -14,27 +14,12 @@ const WorkloadTrendEChart = React.lazy(() => import('./components/LogLandscapeEC
 const hasMetric = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
 const fmt = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
 const metricText = (value, digits = 0, suffix = '') => hasMetric(value) ? `${fmt(value, digits)}${suffix}` : '—'
-const signed = (value, digits = 1, suffix = '') => hasMetric(value) ? `${Number(value) > 0 ? '+' : ''}${fmt(value, digits)}${suffix}` : '—'
 const shortTime = (value = '') => {
   const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/)
   return match ? `${match[2]}-${match[3]} ${match[4]}` : value || '—'
 }
 const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
 const operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', NFS_IO_CONTENTION: 'NFS I/O Contention', IO_CONSUMER: 'I/O Consumer', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)
-const robustZText = (value) => {
-  if (!hasMetric(value)) return '—'
-  const n = Number(value)
-  if (n >= 8) return '≥8'
-  if (n <= -8) return '≤-8'
-  return fmt(n, 1)
-}
-
-function qualityPresentation(local = {}) {
-  const score = hasMetric(local?.score) ? Number(local.score) : null
-  if (score === null) return { label: 'Unknown', meta: 'local data unavailable' }
-  const label = score >= 95 ? 'Complete' : score >= 80 ? 'Good' : score >= 60 ? 'Limited' : 'Low'
-  return { label, meta: `${fmt(score, 0)}% coverage` }
-}
 
 function runPresentation(sustained = {}) {
   const name = sustained?.sustainedClass || 'NONE'
@@ -84,10 +69,6 @@ function Status({ value = 'NORMAL' }) {
   return <span className={`logV2Status ${String(value || '').toLowerCase()}`}>{value}</span>
 }
 
-function DecisionBadge({ confirmed = false }) {
-  return <span className={`logV141Decision ${confirmed ? 'confirmed' : 'unconfirmed'}`}>{confirmed ? 'IDENTIFIED' : 'RCA OPEN'}</span>
-}
-
 function Stat({ label, value, meta, tone = '' }) {
   return <article className={`logV2Stat ${tone}`}><span>{label}</span><strong>{value}</strong><small>{meta}</small></article>
 }
@@ -108,42 +89,51 @@ function hostPeakAttributionValid(item = {}) {
   return !metricRows.some((row) => (row.host && row.host !== item.host) || row.sourceHostStatus === 'MISMATCH')
 }
 
+function consumerMemory(item = {}) {
+  return item.targetPssGb ?? item.targetMaxPidRss ?? item.peakMaxPidRss ?? item.peakRss ?? null
+}
+
+function PointInTimeSummary({ topRow, collection }) {
+  if (!topRow || !collection) return null
+  const range = collection.endTime && collection.endTime !== collection.timeLabel ? `${shortTime(collection.timeLabel)} → ${shortTime(collection.endTime)}` : shortTime(collection.timeLabel)
+  return <section className="logV2Panel logV141Summary">
+    <div className="logV141SummaryTop"><div><span className="logV141Kicker">POINT IN TIME</span><h2>Top consumer at sample time</h2></div></div>
+    <div className="logV141SummaryGrid logV141SummaryGridCompact">
+      <div><span>Job Name or ABAP Program</span><strong>{topRow.workload || topRow.program || '—'}</strong><small>{topRow.program && topRow.program !== topRow.workload ? topRow.program : range}</small></div>
+      <div><span>Application Server</span><strong>{topRow.host || '—'}</strong><small>{range}</small></div>
+      <div><span>WP Type</span><strong>{topRow.type || '—'}</strong><small>{topRow.targetConcurrentPids || 0} process rows</small></div>
+      <div><span>CPU</span><strong>{metricText(topRow.targetCpu, 1, '%')}</strong><small>process CPU at sample</small></div>
+      <div><span>Memory</span><strong>{metricText(consumerMemory(topRow), 2, ' GB')}</strong><small>{hasMetric(topRow.targetPssGb) ? 'PSS' : 'RSS'}</small></div>
+    </div>
+  </section>
+}
+
 function IncidentSummary({ verdict, capabilities, topRow }) {
   if (!verdict) return null
   const single = verdict.status === 'SINGLE_CULPRIT_SUPPORTED'
   const landscape = verdict.landscapeConfidence || {}
   const pattern = patternPresentation(verdict, capabilities)
-  const quality = qualityPresentation(topRow?.localConfidence)
-  const source = dataSourcePresentation(capabilities)
   return <section className="logV2Panel logV141Summary">
-    <div className="logV141SummaryTop">
-      <div><span className="logV141Kicker">INCIDENT SUMMARY</span><h2>{single ? 'Primary workload identified' : 'Root cause not isolated'}</h2></div>
-      <DecisionBadge confirmed={single} />
-    </div>
-    <div className="logV141SummaryGrid">
-      <div><span>Server and time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
-      <div><span>Observed condition</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
-      <div><span>Primary workload for review</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {operatorLabel(topRow?.incidentRole || 'UNKNOWN')} · RCA priority {verdict.topCausalScore ?? 0} · blocked {verdict.topVictimScore ?? 0}</small></div>
-      <div><span>Data coverage</span><strong>{quality.label}</strong><small>{quality.meta}</small></div>
-      <div><span>Server time alignment</span><strong>{landscape.grade || 'LOW'}</strong><small>{landscape.skewMinutes ?? 0} min difference · {landscape.exactHosts ?? 0} of {landscape.hostCount ?? 0} servers aligned</small></div>
-      <div><span>Data source</span><strong>{source.label}</strong><small>{source.meta}</small></div>
+    <div className="logV141SummaryTop"><div><span className="logV141Kicker">TREND ANALYSIS</span><h2>{single ? 'Primary consumer around peak' : 'No single bottleneck identified'}</h2></div></div>
+    <div className="logV141SummaryGrid logV141SummaryGridTrend">
+      <div><span>Peak Server and Time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
+      <div><span>Top Consumer</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {topRow?.type || '—'}</small></div>
+      <div><span>Observed Condition</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
+      <div><span>Server Alignment</span><strong>{landscape.grade || 'LOW'}</strong><small>{landscape.skewMinutes ?? 0} min · {landscape.exactHosts ?? 0} of {landscape.hostCount ?? 0} servers</small></div>
     </div>
   </section>
 }
 
-function SnapshotStrip({ collection, incidentKey, capabilities }) {
+function SnapshotStrip({ collection }) {
   if (!collection) return null
   const range = collection.endTime && collection.endTime !== collection.timeLabel ? `${shortTime(collection.timeLabel)} → ${shortTime(collection.endTime)}` : shortTime(collection.timeLabel)
-  const incident = collection.key === incidentKey
   const skew = collectionSkew(collection)
   return <section className="logV2Panel logV2SnapshotPanel">
-    <div className="logV2PanelHead"><div><h2>{incident ? 'Incident Snapshot' : 'Selected Snapshot'} · {range}</h2><p>Server time difference: {skew} min · data source {dataSourcePresentation(capabilities).label}</p></div><Status value={collection.resourceSeverity || collection.severity} /></div>
-    <div className="logV2SnapshotGrid">{collection.rows.map((row) => <article key={row.host}><div className="logV141HostHead"><b>{row.host}</b><div className="logV141HostStates"><span>RESOURCE</span><Status value={row.resourceSeverity} /><span>OPS</span><Status value={row.severity} /></div></div><small>{shortTime(row.timeLabel || row.snapshot)}</small><dl>
+    <div className="logV2PanelHead"><div><h2>Application Server Status · {range}</h2><p>{collection.rows.length} host samples · collected within {skew} min</p></div><Status value={collection.resourceSeverity || collection.severity} /></div>
+    <div className="logV2SnapshotGrid">{collection.rows.map((row) => <article key={row.host}><div className="logV141HostHead"><b>{row.host}</b><div className="logV141HostStates"><span>HOST</span><Status value={row.resourceSeverity} /><span>WP</span><Status value={row.severity} /></div></div><small>{shortTime(row.timeLabel || row.snapshot)}</small><dl>
       <div><dt>CPU</dt><dd>{metricText(row.cpuPct, 1, '%')}</dd></div><div><dt>RAM</dt><dd>{metricText(row.memoryPct, 1, '%')}</dd></div>
-      <div><dt>Load1/vCPU</dt><dd>{metricText(row.resourceLoadRatio, 2)}</dd></div><div><dt>Swap In</dt><dd>{metricText(row.swapIn, 0, ' p/s')}</dd></div>
-      <div><dt>CPU iowait</dt><dd>{metricText(row.iowaitPct, 1, '%')}</dd></div><div><dt>PSI Mem Full10</dt><dd>{metricText(row.psiMemoryFull10, 1, '%')}</dd></div>
-      <div><dt>PSI IO Full10</dt><dd>{metricText(row.psiIoFull10, 1, '%')}</dd></div><div><dt>WP Critical</dt><dd>{metricText(row.wpCritical)}</dd></div>
-      <div><dt>Pressure</dt><dd>{row.resourcePressure}/100</dd></div>
+      <div><dt>Load1 vCPU</dt><dd>{metricText(row.resourceLoadRatio, 2)}</dd></div><div><dt>Swap In</dt><dd>{metricText(row.swapIn, 0, ' p/s')}</dd></div>
+      <div><dt>I/O Wait</dt><dd>{metricText(row.iowaitPct, 1, '%')}</dd></div><div><dt>WP Critical</dt><dd>{metricText(row.wpCritical)}</dd></div>
     </dl></article>)}</div>
   </section>
 }
@@ -151,58 +141,45 @@ function SnapshotStrip({ collection, incidentKey, capabilities }) {
 function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
   if (!rca?.hostPeaks?.length) return null
   return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><h2>Server Resource Peaks</h2><p>Highest recorded values for each server during the selected period.</p></div></div>
-    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Host</th><th>Operational</th><th>Resource</th><th>Peak Score</th><th>Peak Time</th><th>Duration</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>WP Critical</th></tr></thead><tbody>
+    <div className="logV2PanelHead"><div><h2>Application Server Resource Usage</h2><p>Peak resource usage during the selected period.</p></div></div>
+    <div className="logV2HostTableWrap"><table className="logV2HostTable"><thead><tr><th>Server</th><th>Host Status</th><th>Peak Time</th><th>Duration</th><th>Max CPU</th><th>Max RAM</th><th>Max Load1</th><th>Max Swap</th><th>Critical WP</th></tr></thead><tbody>
       {rca.hostPeaks.map((item) => {
         const attributionOk = hostPeakAttributionValid(item)
         return <tr key={item.host} className={`${selectedHost === item.host ? 'active' : ''} ${attributionOk ? '' : 'attributionError'}`} onClick={() => onSelectHost?.(item.host)}>
-          <td><b>{item.host}</b>{!attributionOk && <span className="logV141Integrity">ATTRIB</span>}</td><td><Status value={item.severity} /></td><td><Status value={item.resourceSeverity} /></td><td><b>{attributionOk ? item.peakPressure : '—'}</b>{attributionOk ? '/100' : ''}</td><td>{attributionOk ? shortTime(item.peakTime) : 'mapping error'}</td>
-          <td>{runPresentation(item.sustained)}</td><td>{attributionOk ? metricText(item.metrics?.cpu?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.ram?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.load?.value, 2) : '—'}</td><td>{attributionOk ? metricText(item.metrics?.swapIn?.value, 0, ' p/s') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.wpCritical?.value) : '—'}</td>
+          <td><b>{item.host}</b>{!attributionOk && <span className="logV141Integrity">ATTRIB</span>}</td><td><Status value={item.resourceSeverity} /></td><td>{attributionOk ? shortTime(item.peakTime) : 'mapping error'}</td><td>{runPresentation(item.sustained)}</td><td>{attributionOk ? metricText(item.metrics?.cpu?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.ram?.value, 1, '%') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.load?.value, 2) : '—'}</td><td>{attributionOk ? metricText(item.metrics?.swapIn?.value, 0, ' p/s') : '—'}</td><td>{attributionOk ? metricText(item.metrics?.wpCritical?.value) : '—'}</td>
         </tr>
       })}
     </tbody></table></div>
   </section>
 }
 
-function cpuShareText(item) {
-  if (item.cpuContributionStatus === 'TEMPORAL_MISMATCH') return 'not synchronized'
-  if (item.cpuContributionStatus === 'UNAVAILABLE_TARGET_CPU') return 'CPU unavailable'
-  if (item.cpuContributionStatus === 'UNAVAILABLE_HOST_CPU_SCALE') return 'host scale unavailable'
-  if (item.cpuContributionStatus === 'INCONSISTENT_SCALE') return 'scale rejected'
-  return metricText(item.estimatedCpuSharePct, 1, '%')
-}
-
-function WorkloadDetail({ item, capabilities }) {
+function WorkloadDetail({ item, capabilities, pointInTime = false }) {
   if (!item) return null
   const enhancedDetailsAvailable = capabilities?.mode !== 'LEGACY'
   const taxonomy = item.errorTaxonomy || {}
-  const quality = qualityPresentation(item.localConfidence)
-  const timingText = taxonomy.classified?.map((entry) => `${entry.code}: ${entry.timing?.state || 'NONE'}${hasMetric(entry.timing?.deltaMinutes) ? ` (${signed(entry.timing.deltaMinutes, 0, 'm')})` : ''}`).join(' · ') || 'None'
-  return <section className="logV2Panel">
-    <div className="logV2PanelHead"><div><span className="logV141Kicker">WORKLOAD DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {operatorLabel(item.incidentRole)}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">Priority {item.causalScore}</span><span className="logV2ScoreBadge">Blocked {item.victimScore}</span></div></div>
-    <div className="logV2DetailGrid">
-      <div className="logV2DetailFacts"><dl>
-        <div><dt>Workload role</dt><dd>{operatorLabel(item.incidentRole)}</dd></div><div><dt>Time match</dt><dd>{item.targetEvidence === 'EXACT_TARGET' ? 'At incident time' : `${humanize(item.targetEvidence)} · ${signed(item.targetDeltaMinutes, 0, ' min')}`}</dd></div>
-        <div><dt>Data coverage</dt><dd>{quality.label} · {quality.meta}</dd></div><div><dt>Server time alignment</dt><dd>{item.landscapeConfidence?.grade || '—'} · {item.landscapeConfidence?.skewMinutes ?? 0} min difference</dd></div>
-        <div><dt>Host status at incident</dt><dd>{item.targetHostSeverity || 'UNKNOWN'}</dd></div><div><dt>Host sample</dt><dd>{item.targetHostEvidenceSeverity || '—'} @ {shortTime(item.targetHostEvidenceTime)}</dd></div>
-        <div><dt>{item.targetEvidence === 'EXACT_TARGET' ? 'CPU at incident' : 'CPU at sample'}</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Estimated host CPU share</dt><dd>{cpuShareText(item)}</dd></div>
-        <div><dt>Max PID RSS</dt><dd>{metricText(item.targetMaxPidRss, 2, ' GB')}</dd></div><div><dt>D-state and PIDs</dt><dd>{hasMetric(item.targetDState) ? `${item.targetDState} of ${item.targetConcurrentPids}` : '—'}</dd></div>
-        {!enhancedDetailsAvailable && <div className="wide logV146StandardNote"><dt>Additional Linux metrics</dt><dd>Not available in standard logs</dd></div>}
-        {enhancedDetailsAvailable && <>
-          <div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div><div><dt>PSS baseline</dt><dd>{metricText(item.pssBaseline?.median, 2, ' GB')} · z {robustZText(item.pssUplift?.z)}</dd></div>
-          <div><dt>Private memory</dt><dd>{metricText(item.targetPrivateGb, 2, ' GB')}</dd></div><div><dt>Shared memory mappings</dt><dd>{metricText(item.targetSharedGb, 2, ' GB')} · non-exclusive</dd></div>
-          <div><dt>Kernel wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}{item.wchanScope === 'D_STATE' ? ' · D-state first' : ''}</dd></div><div><dt>Metric sample time</dt><dd>{humanize(item.enhancedEvidenceQuality || 'UNAVAILABLE')}{hasMetric(item.enhancedEvidenceDeltaMinutes) ? ` · ${item.enhancedEvidenceDeltaMinutes} min` : ''}</dd></div>
-          <div><dt>Average read rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div><div><dt>Average write rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')} {hasMetric(item.targetIoWindowMinutes) ? `· ${fmt(item.targetIoWindowMinutes, 0)} min window` : ''}</dd></div>
-          <div><dt>Host iowait</dt><dd>{metricText(item.hostIowaitPct, 1, '%')}</dd></div><div><dt>PSI memory and I/O full10</dt><dd>{metricText(item.hostPsiMemoryFull10, 1, '%')} / {metricText(item.hostPsiIoFull10, 1, '%')}</dd></div>
-        </>}
-        <div><dt>Error type</dt><dd>{operatorLabel(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error context</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>
-        <div className="wide"><dt>Error timeline</dt><dd>{timingText}</dd></div>
-      </dl></div>
-      <React.Suspense fallback={<div className="logV2WorkloadChart logV2Empty" role="status">Loading workload chart…</div>}>
-        <WorkloadTrendEChart records={item.samples} targetTime={item.targetTime} targetCollectionKey={item.targetCollectionKey} aggregated />
-      </React.Suspense>
-    </div>
-  </section>
+  const errorLabel = taxonomy.strongest?.category && taxonomy.strongest.category !== 'NONE' ? operatorLabel(taxonomy.strongest.category) : (item.errors || []).filter((value) => value && value !== '?').join(' · ') || 'None'
+  const memory = consumerMemory(item)
+  return <details className="logV2SourceAudit logV2ConsumerDetail">
+    <summary>Selected Consumer Details · {item.workload}</summary>
+    <div className="logV2ConsumerDetailBody"><section className="logV2Panel">
+      <div className="logV2PanelHead"><div><span className="logV141Kicker">CONSUMER DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {item.type || '—'}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">{item.type || 'WP'}</span><span className="logV2ScoreBadge">CPU {metricText(pointInTime ? item.targetCpu : item.peakCpu, 1, '%')}</span></div></div>
+      <div className="logV2DetailGrid" style={pointInTime ? { gridTemplateColumns: '1fr' } : undefined}>
+        <div className="logV2DetailFacts"><dl>
+          <div><dt>Application Server</dt><dd>{item.host || '—'}</dd></div><div><dt>WP Type</dt><dd>{item.type || '—'}</dd></div>
+          <div><dt>ABAP Program</dt><dd>{item.program || '—'}</dd></div><div><dt>{pointInTime ? 'Sample Time' : 'Observed'}</dt><dd>{pointInTime ? shortTime(item.targetTime) : `${item.presenceCount || 0} of ${item.hostSampleCount || 0} samples`}</dd></div>
+          {pointInTime ? <><div><dt>CPU at Sample</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Memory at Sample</dt><dd>{metricText(memory, 2, ' GB')}</dd></div></> : <><div><dt>Average CPU</dt><dd>{metricText(item.avgCpu, 1, '%')}</dd></div><div><dt>Peak CPU</dt><dd>{metricText(item.peakCpu, 1, '%')}</dd></div><div><dt>Peak Memory</dt><dd>{metricText(memory, 2, ' GB')}</dd></div><div><dt>First Seen</dt><dd>{shortTime(item.firstSeen)}</dd></div></>}
+          <div><dt>D-State WP</dt><dd>{metricText(pointInTime ? item.targetDState : item.dStateHits)}</dd></div><div><dt>Error or Short Dump</dt><dd>{errorLabel}</dd></div>
+          {enhancedDetailsAvailable && <>
+            <div><dt>Kernel Wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}</dd></div><div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div>
+            <div><dt>Read Rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')}</dd></div><div><dt>Write Rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')}</dd></div>
+          </>}
+        </dl></div>
+        {!pointInTime && <React.Suspense fallback={<div className="logV2WorkloadChart logV2Empty" role="status">Loading workload chart…</div>}>
+          <WorkloadTrendEChart records={item.samples} targetTime={item.targetTime} targetCollectionKey={item.targetCollectionKey} aggregated />
+        </React.Suspense>}
+      </div>
+    </section></div>
+  </details>
 }
 
 function AnalyticsDiagnostics({ diagnostics, capabilities, mapping, verdict, rca, analysis }) {
@@ -229,6 +206,14 @@ function SourceAudit({ collections = [] }) {
   return <details className="logV2SourceAudit"><summary>Source Audit</summary><div><table><thead><tr><th>#</th><th>Collection</th><th>Host samples</th><th>Source file</th></tr></thead><tbody>{collections.map((item, index) => <tr key={item.key}><td>{index + 1}</td><td>{item.timeLabel}{item.endTime !== item.timeLabel ? ` → ${item.endTime}` : ''}</td><td>{item.rows.map((row) => `${row.host}@${row.timeLabel || row.snapshot}${row.sourceHostStatus ? ` [${row.sourceHostStatus}]` : ''}`).join(' · ')}</td><td>{item.fileName}</td></tr>)}</tbody></table></div></details>
 }
 
+function topObservedConsumer(rows = []) {
+  return [...rows].sort((a, b) => {
+    const cpu = Number(b.targetCpu ?? -1) - Number(a.targetCpu ?? -1)
+    if (cpu) return cpu
+    return Number(consumerMemory(b) ?? -1) - Number(consumerMemory(a) ?? -1)
+  })[0] || null
+}
+
 export default function ToolLogAutoRcaV5() {
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('Upload WP-SCOUT or Daily Check logs.')
@@ -248,7 +233,9 @@ export default function ToolLogAutoRcaV5() {
   const rankResources = React.useCallback(async (nextAnalysis, nextRca) => {
     setResourceEngine('RANKING')
     const ranked = await rankResourceConsumersV5(nextAnalysis?.processes || [], nextRca, nextAnalysis)
-    setResourceRows(ranked.rows); setSelectedResource(ranked.rows[0] || null); setResourceEngine(ranked.engine); setVerdict(ranked.verdict || null)
+    const rows = ranked.rows || []
+    const defaultRow = nextRca?.collections?.length === 1 ? topObservedConsumer(rows) : rows[0] || null
+    setResourceRows(rows); setSelectedResource(defaultRow); setResourceEngine(ranked.engine); setVerdict(ranked.verdict || null)
     setCapabilities(ranked.telemetryCapabilities || telemetryCapabilitiesV15(nextAnalysis))
     setDiagnostics({ parity: ranked.parity || { status: 'NOT_RUN' }, crossHostConfidence: ranked.crossHostConfidence || { grade: '—', skewMinutes: 0 }, landscapeConfidence: ranked.landscapeConfidence, engineReason: ranked.engineReason || '', engineDiagnostics: ranked.engineDiagnostics || {} })
     setMapping({ mappedRows: ranked.mappedRows || 0, unmappedRows: ranked.unmappedRows || 0, counts: ranked.mappingCounts || { EXACT: 0, NEAREST_2M: 0, NEAREST_5M: 0, UNMAPPED: 0 } })
@@ -267,14 +254,13 @@ export default function ToolLogAutoRcaV5() {
       try { parsedAnalysis = await workerParse(input) } catch { parsedAnalysis = buildLogAnalysis(input.map((item) => parseLogText(item.text, item.name))) }
       const nextRca = buildAutoPeakRcaV3(parsedAnalysis)
       const nextAnalysis = nextRca.validatedAnalysis || parsedAnalysis
-      if (!nextRca?.collections?.length) throw new Error('No host telemetry snapshots found in the uploaded logs.')
+      if (!nextRca?.collections?.length) throw new Error('No host telemetry collections found in the uploaded logs.')
       const caps = telemetryCapabilitiesV15(nextAnalysis)
+      const hostSamples = nextRca.collections.reduce((sum, collection) => sum + (collection.rows?.length || 0), 0)
       setAnalysis(nextAnalysis); setRca(nextRca); setCapabilities(caps)
       setSelectedCollectionKey(nextRca.resourceLandscapePeak?.key || nextRca.collections[0]?.key || ''); setSelectedHost(nextRca.hostPeaks?.[0]?.host || nextRca.hosts?.[0] || '')
       setResourceRows([]); setSelectedResource(null); setVerdict(null)
-      const rejected = (nextRca.quality?.telemetryRejected || 0) + (nextRca.quality?.processRejected || 0)
-      const sourceStatus = nextAnalysis?.sourceHostProvenance?.status || 'WARN'
-      setStatus(`${expanded.length} files · ${nextRca.collections.length} snapshots · ${nextRca.hosts.length} application servers · rejects ${rejected} · source-host ${sourceStatus} · data source ${dataSourcePresentation(caps).label}`)
+      setStatus(`${expanded.length} files · ${nextRca.collections.length} collections · ${hostSamples} host samples · ${nextRca.hosts.length} application servers · ${dataSourcePresentation(caps).label}`)
       await rankResources(nextAnalysis, nextRca)
     } catch (error) {
       setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
@@ -285,45 +271,43 @@ export default function ToolLogAutoRcaV5() {
   const selectedHostPeak = React.useMemo(() => rca?.hostPeaks?.find((item) => item.host === selectedHost) || rca?.hostPeaks?.[0] || null, [rca, selectedHost])
   const ranking = resourceEngine === 'RANKING'
   const visibleMetrics = Object.entries(LOG_V14_METRICS).filter(([, item]) => !item.enhanced || capabilities.mode !== 'LEGACY')
-  const incidentAnchorTime = verdict?.anchorTime || rca?.resourceIncidentAnchor?.time || rca?.resourceLandscapePeak?.incidentAnchorTime || rca?.resourceLandscapePeak?.timeLabel
-  const incidentAnchorHost = verdict?.anchorHost || rca?.resourceIncidentAnchor?.host || ''
-  const pattern = patternPresentation(verdict, capabilities)
   const dataSource = dataSourcePresentation(capabilities)
+  const pointInTime = (rca?.collections?.length || 0) === 1
+  const hostSampleCount = rca?.collections?.reduce((sum, collection) => sum + (collection.rows?.length || 0), 0) || 0
+  const topConsumer = pointInTime ? topObservedConsumer(resourceRows) : resourceRows[0] || null
 
   return <section className="logV2Shell"><div className="logV2Inner">
     <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
     <div className={`logV2StatusBar ${rca ? 'ready' : ''}`}>{status}</div>
 
     {!rca ? <div className="logV2EmptyState"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div> : <>
-      <section className="logV2Stats">
-        <Stat label="Data set" value={`${rca.collections.length} snapshots`} meta={`${rca.evidenceWindow.fileCount} files`} />
-        <Stat label="Servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
-        <Stat label="Analysis period" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={`${rca.cadence.nominalMinutes || '—'} min interval`} />
-        <Stat label="Incident" value={`${incidentAnchorHost || '—'} ${shortTime(incidentAnchorTime)}`} meta={`server alignment ${diagnostics.landscapeConfidence?.grade || '—'} · ${diagnostics.landscapeConfidence?.skewMinutes ?? 0} min difference`} tone={(rca.resourceLandscapePeak?.resourceCrit || 0) > 0 ? 'critical' : ''} />
-        <Stat label="RCA status" value={ranking ? 'ANALYZING' : verdict?.status === 'SINGLE_CULPRIT_SUPPORTED' ? 'PRIMARY WORKLOAD IDENTIFIED' : 'ROOT CAUSE NOT ISOLATED'} meta={ranking ? 'processing workload evidence' : pattern.label} />
-        <Stat label="Data source" value={dataSource.label} meta={dataSource.meta} />
+      <section className="logV2Stats logV2StatsCompact">
+        <Stat label="Analysis" value={pointInTime ? 'POINT IN TIME' : 'TREND ANALYSIS'} meta={pointInTime ? 'single collection' : `${rca.collections.length} collections`} />
+        <Stat label="Data Set" value={`${rca.collections.length} ${rca.collections.length === 1 ? 'collection' : 'collections'}`} meta={`${hostSampleCount} host samples · ${rca.evidenceWindow.fileCount} files`} />
+        <Stat label="Application Servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
+        <Stat label="Period" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={pointInTime ? `${collectionSkew(rca.collections[0])} min collection window` : `${rca.cadence.nominalMinutes || '—'} min interval`} />
       </section>
 
-      {!ranking && <IncidentSummary verdict={verdict} capabilities={capabilities} topRow={resourceRows[0]} />}
+      {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} capabilities={capabilities} topRow={topConsumer} />)}
 
-      <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>APP1–APP5 Timeline</h2></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
-        <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading timeline…</div>}>
+      {!pointInTime && <section className="logV2Panel">
+        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Resource trend by log timestamp.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
+        <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading trend…</div>}>
           <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} />
         </React.Suspense>
-      </section>
+      </section>}
 
-      <SnapshotStrip collection={selectedCollection} incidentKey={rca.resourceLandscapePeak?.key} capabilities={capabilities} />
-      <HostPeakSummary rca={rca} selectedHost={selectedHostPeak?.host} onSelectHost={(hostName) => { setSelectedHost(hostName); const first = resourceRows.find((row) => row.host === hostName); if (first) setSelectedResource(first) }} />
+      <SnapshotStrip collection={selectedCollection} />
+      {!pointInTime && <HostPeakSummary rca={rca} selectedHost={selectedHostPeak?.host} onSelectHost={(hostName) => { setSelectedHost(hostName); const first = resourceRows.find((row) => row.host === hostName); if (first) setSelectedResource(first) }} />}
 
       <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Workload Analysis</h2><p>Workloads observed around the incident time. Select a row for details.</p></div></div>
-        {ranking ? <div className="logV2Empty">Ranking {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading workload table…</div>}>
-          <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />
+        <div className="logV2PanelHead"><div><h2>Top Resource Consumers</h2><p>{pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div></div>
+        {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
+          <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={pointInTime} />
         </React.Suspense>}
       </section>
 
-      {!ranking && <WorkloadDetail item={selectedResource} capabilities={capabilities} />}
+      {!ranking && <WorkloadDetail item={selectedResource} capabilities={capabilities} pointInTime={pointInTime} />}
       <AnalyticsDiagnostics diagnostics={diagnostics} capabilities={capabilities} mapping={mapping} verdict={verdict} rca={rca} analysis={analysis} />
       <SourceAudit collections={rca.collections} />
     </>}
