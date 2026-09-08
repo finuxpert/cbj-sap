@@ -1,4 +1,3 @@
-import JSZip from 'jszip'
 import { listEvidence } from '../evidence-api-client.js'
 
 export const safe = (value) => String(value ?? '').trim()
@@ -55,6 +54,7 @@ export async function expandZipAwareFiles(fileList, allowedExts = []) {
       if (!allow.size || allow.has(fileExt(file.name))) output.push(file)
       continue
     }
+    const { default: JSZip } = await import('jszip')
     const zip = await JSZip.loadAsync(file)
     for (const entry of Object.values(zip.files)) {
       if (entry.dir || entry.name.startsWith('__MACOSX')) continue

@@ -3,10 +3,13 @@ import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
 import { buildLogAnalysis, parseLogText, telemetryCapabilitiesV15 } from './logAnalysisV15.js'
 import { buildAutoPeakRcaV3 } from './logRcaEngineV3.js'
 import { rankResourceConsumersV5 } from './workloadAnalyticsV5.js'
-import VirtualResourceTableV14 from './components/VirtualResourceTableV14.jsx'
-import { LandscapeResourceEChartV14, WorkloadTrendEChart, LOG_V14_METRICS } from './components/LogLandscapeEChartV14.jsx'
+import { LOG_V14_METRICS } from './components/logChartMetrics.js'
 import './LogAutoRcaV2.css'
 import './LogAutoRcaV141.css'
+
+const VirtualResourceTableV14 = React.lazy(() => import('./components/VirtualResourceTableV14.jsx'))
+const LandscapeResourceEChartV14 = React.lazy(() => import('./components/LogLandscapeEChartV14.jsx').then((module) => ({ default: module.LandscapeResourceEChartV14 })))
+const WorkloadTrendEChart = React.lazy(() => import('./components/LogLandscapeEChart.jsx').then((module) => ({ default: module.WorkloadTrendEChart })))
 
 const hasMetric = (value) => value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))
 const fmt = (value, digits = 0) => Number(value || 0).toLocaleString('en-US', { maximumFractionDigits: digits })
@@ -195,7 +198,9 @@ function WorkloadDetail({ item, capabilities }) {
         <div><dt>Error type</dt><dd>{operatorLabel(taxonomy.strongest?.category || 'NONE')}</dd></div><div><dt>Error context</dt><dd>{humanize(taxonomy.direction || 'CONTEXT')}</dd></div>
         <div className="wide"><dt>Error timeline</dt><dd>{timingText}</dd></div>
       </dl></div>
-      <WorkloadTrendEChart records={item.samples} targetTime={item.targetTime} targetCollectionKey={item.targetCollectionKey} aggregated />
+      <React.Suspense fallback={<div className="logV2WorkloadChart logV2Empty" role="status">Loading workload chart…</div>}>
+        <WorkloadTrendEChart records={item.samples} targetTime={item.targetTime} targetCollectionKey={item.targetCollectionKey} aggregated />
+      </React.Suspense>
     </div>
   </section>
 }
@@ -303,7 +308,9 @@ export default function ToolLogAutoRcaV5() {
 
       <section className="logV2Panel">
         <div className="logV2PanelHead"><div><h2>APP1–APP5 Timeline</h2></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
-        <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} />
+        <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading timeline…</div>}>
+          <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} />
+        </React.Suspense>
       </section>
 
       <SnapshotStrip collection={selectedCollection} incidentKey={rca.resourceLandscapePeak?.key} capabilities={capabilities} />
@@ -311,7 +318,9 @@ export default function ToolLogAutoRcaV5() {
 
       <section className="logV2Panel">
         <div className="logV2PanelHead"><div><h2>Workload Analysis</h2><p>Workloads observed around the incident time. Select a row for details.</p></div></div>
-        {ranking ? <div className="logV2Empty">Ranking {analysis?.processes?.length || 0} process rows…</div> : <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />}
+        {ranking ? <div className="logV2Empty">Ranking {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading workload table…</div>}>
+          <VirtualResourceTableV14 rows={resourceRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} />
+        </React.Suspense>}
       </section>
 
       {!ranking && <WorkloadDetail item={selectedResource} capabilities={capabilities} />}

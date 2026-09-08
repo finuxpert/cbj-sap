@@ -1,17 +1,7 @@
 import React from 'react'
-import * as echarts from 'echarts'
+import * as echarts from './logEcharts.js'
+import { LOG_V14_METRICS as METRICS } from './logChartMetrics.js'
 export { WorkloadTrendEChart } from './LogLandscapeEChart.jsx'
-
-const METRICS = {
-  cpuPct: { label: 'CPU', suffix: '%', digits: 1 },
-  memoryPct: { label: 'RAM', suffix: '%', digits: 1 },
-  resourceLoadRatio: { label: 'Load1/vCPU', suffix: '', digits: 2 },
-  swapIn: { label: 'Swap In', suffix: ' p/s', digits: 0 },
-  iowaitPct: { label: 'CPU iowait', suffix: '%', digits: 1, enhanced: true },
-  psiMemoryFull10: { label: 'PSI Mem Full', suffix: '%', digits: 1, enhanced: true },
-  psiIoFull10: { label: 'PSI IO Full', suffix: '%', digits: 1, enhanced: true },
-  wpCritical: { label: 'WP Critical', suffix: '', digits: 0 },
-}
 
 const metricValue = (value) => {
   if (value === null || value === undefined || value === '') return null
