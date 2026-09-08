@@ -1,13 +1,13 @@
 import { rankResourceConsumersV4 } from './workloadAnalyticsV4.js'
-import { telemetryCapabilitiesV13 } from './logAnalysisV14.js'
-import { enrichRankedRowsV13 } from './telemetryEnrichmentV13.js'
+import { telemetryCapabilitiesV15 } from './logAnalysisV15.js'
+import { enrichRankedRowsV15 } from './telemetryEnrichmentV15.js'
 import { refineWorkloadV14, verdictV14 } from './incidentTaxonomyV14.js'
 
 export async function rankResourceConsumersV5(processes = [], rca = {}, analysis = {}) {
   const base = await rankResourceConsumersV4(processes, rca)
-  const capabilities = telemetryCapabilitiesV13(analysis?.telemetry ? analysis : (rca.validatedAnalysis || analysis || {}))
+  const capabilities = telemetryCapabilitiesV15(analysis?.telemetry ? analysis : (rca.validatedAnalysis || analysis || {}))
   const anchor = base.incidentAnchor || rca.resourceIncidentAnchor || {}
-  const enriched = enrichRankedRowsV13(base.rows || [], rca)
+  const enriched = enrichRankedRowsV15(base.rows || [], rca)
   const rows = enriched
     .map((row) => refineWorkloadV14(row, anchor, capabilities))
     .sort((a, b) => (
@@ -23,9 +23,12 @@ export async function rankResourceConsumersV5(processes = [], rca = {}, analysis
     coreAggregator: base.engineDiagnostics?.activeEngine || base.engine || 'JS core',
     telemetryMode: capabilities.mode,
     telemetryCapabilities: capabilities,
+    collectorV22: capabilities.collectorV22 || false,
+    collectorSchemas: capabilities.collectorSchemas || [],
     patternVersion: 'v2.1',
   }
-  const engine = `RCA v3.6.1 · core ${base.engine || 'JS analytics'} · telemetry ${capabilities.mode.toLowerCase()} · pattern v2.1`
+  const collector = capabilities.collectorV22 ? ' · collector v2.2' : ''
+  const engine = `RCA v3.6.1 · core ${base.engine || 'JS analytics'} · telemetry ${capabilities.mode.toLowerCase()}${collector} · pattern v2.1`
 
   rows.verdict = verdict
   rows.incidentAnchor = anchor

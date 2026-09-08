@@ -1,5 +1,5 @@
 import React from 'react'
-import * as echarts from 'echarts'
+import * as echarts from './logEcharts.js'
 
 const METRICS = {
   cpuPct: { label: 'CPU', suffix: '%', digits: 1 },

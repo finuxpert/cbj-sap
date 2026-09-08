@@ -1,9 +1,21 @@
 import React from 'react'
+import '../app/sap-rca-logo.css'
+
+const BASE_URL = import.meta.env.BASE_URL
 
 export default function SapRcaLogo({ compact = false }) {
   return (
-    <span className={`sapRcaLogo ${compact ? 'compact' : ''}`} aria-label="RCA Workspace wordmark">
-      <span className="sapRcaWordmark">RCA</span>
+    <span className={`sphereLogo ${compact ? 'compact' : ''}`} aria-hidden="true">
+      <picture>
+        <source srcSet={`${BASE_URL}branding/logo/sphere-logo-navbar-dark.webp`} type="image/webp" />
+        <img
+          className="sphereLogoImage"
+          src={`${BASE_URL}branding/logo/sphere-logo-navbar-dark.png`}
+          alt=""
+          decoding="async"
+          fetchPriority="high"
+        />
+      </picture>
     </span>
   )
 }

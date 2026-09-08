@@ -1,6 +1,6 @@
 import React from 'react'
 import { getCurrentHashRoute } from '../app/routeUtils.js'
-import { APP_VERSION } from '../app/version.js'
+import { APP_DISPLAY_VERSION, APP_NAME, APP_TAGLINE, APP_VERSION } from '../app/version.js'
 import { tools, preloadTool } from '../tools'
 import SapRcaLogo from './SapRcaLogo.jsx'
 
@@ -49,15 +49,15 @@ export default function Navbar() {
     <>
       <header className="navbar rcaNav">
         <div className="navInner rcaNavInner">
-          <a className="brand rcaBrand" href="#/st03n" aria-label={`SAP RCA Workspace v${APP_VERSION} ST03N analysis`}>
+          <a className="brand rcaBrand" href="#/st03n" aria-label={`${APP_NAME} ${APP_DISPLAY_VERSION} ST03N analysis`}>
             <SapRcaLogo />
             <span className="brandText">
-              <span className="brandTitle">SAP RCA Workspace</span>
-              <span className="brandSub">Operational analysis · v{APP_VERSION}</span>
+              <span className="brandTitle">{APP_TAGLINE}</span>
+              <span className="brandSub">Performance analysis tools · {APP_DISPLAY_VERSION}</span>
             </span>
           </a>
 
-          <nav className="navQuick rcaToolTabs" aria-label="SAP analysis workspaces">
+          <nav className="navQuick rcaToolTabs" aria-label={`${APP_NAME} SAP analysis workspaces`}>
             {tools.map((tool) => {
               const href = `/tool/${tool.slug}`
               const active = isActive(href)
@@ -81,7 +81,7 @@ export default function Navbar() {
         </div>
       </header>
 
-      <nav className="mobileAnalysisNav" aria-label="Mobile SAP analysis navigation">
+      <nav className="mobileAnalysisNav" aria-label={`Mobile ${APP_NAME} SAP analysis navigation`}>
         {tools.map((tool) => {
           const href = `/tool/${tool.slug}`
           const active = isActive(href)

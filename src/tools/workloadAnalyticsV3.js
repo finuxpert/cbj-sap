@@ -534,7 +534,8 @@ export async function rankResourceConsumersV3(processes = [], rca = {}) {
   } catch (error) {
     engine = `JS_FALLBACK_V3_2: ${error?.message || 'DuckDB unavailable'}`
   }
-  return { rows: buildWindowRows(snapshots, attached, rca), engine, mappedRows, unmappedRows, mappingCounts: counts, snapshots }
+  // Share the already-computed fallback with V4 parity; no second JS aggregation.
+  return { rows: buildWindowRows(snapshots, attached, rca), engine, mappedRows, unmappedRows, mappingCounts: counts, snapshots, jsSnapshots: fallbackSnapshots }
 }
 
 export const __test = {

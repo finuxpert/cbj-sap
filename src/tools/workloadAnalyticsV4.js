@@ -1,4 +1,4 @@
-import { rankResourceConsumersV3, __test as v3Test } from './workloadAnalyticsV3.js'
+import { rankResourceConsumersV3 } from './workloadAnalyticsV3.js'
 import { resourceSignalScoresV3 } from './logRcaEngineV3.js'
 
 const CPU_CONTRIBUTION_MAX_VALID_PCT = 120
@@ -471,14 +471,13 @@ function enhanceRows(rows = [], rca = {}) {
 export async function rankResourceConsumersV4(processes = [], rca = {}) {
   const anchor = deriveIncidentAnchor(rca)
   const anchoredRca = withIncidentAnchor(rca, anchor)
-  const ranked = await rankResourceConsumersV3(processes, anchoredRca)
+  // Keep the parity reference local so it is not retained in the RCA result.
+  const { jsSnapshots, ...ranked } = await rankResourceConsumersV3(processes, anchoredRca)
   let engineReason = ''
   let parity = { status: 'NOT_RUN', compared: 0, mismatchCount: 0, mismatches: [] }
   const isDuckDb = String(ranked.engine || '').startsWith('DUCKDB')
   if (isDuckDb) {
     try {
-      const attached = v3Test.attachCollections(processes, anchoredRca).filter((row) => row.collectionIndex >= 0)
-      const jsSnapshots = v3Test.aggregateSnapshotsJs(attached)
       parity = compareSnapshotParity(jsSnapshots, ranked.snapshots || [])
     } catch (error) {
       parity = { status: 'ERROR', compared: 0, mismatchCount: 0, mismatches: [], reason: error?.message || 'Parity check failed' }
