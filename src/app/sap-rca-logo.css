@@ -1,61 +1,60 @@
-/* v1.3.2 flat RCA wordmark. Intentionally text-first: no gradient badge or pseudo-SAP mark. */
-.sapRcaLogo {
+/* SPHERE navbar logo. Asset paths are resolved in the React component via Vite BASE_URL. */
+.sphereLogo {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
   flex: 0 0 auto;
-  min-width: 44px;
-  height: 28px;
-  padding-left: 9px;
-  border-left: 2px solid #32c7cf;
+  width: 138px;
+  height: 34px;
+  overflow: hidden;
 }
 
-.sapRcaWordmark {
+.sphereLogo picture,
+.sphereLogoImage {
   display: block;
-  color: #e7eef2;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: .10em;
+  width: 100%;
+  height: 100%;
 }
 
-.sapRcaLogo.compact {
-  min-width: 40px;
-  height: 26px;
-  padding-left: 8px;
+.sphereLogoImage {
+  object-fit: contain;
+  object-position: left center;
 }
 
-.rcaBrand .sapRcaLogo {
-  margin-right: 0;
+.sphereLogo.compact {
+  width: 118px;
+  height: 30px;
 }
 
-.rcaBrand:hover .sapRcaWordmark {
-  color: #ffffff;
+.rcaBrand .brandTitle {
+  max-width: min(420px, 34vw);
 }
 
-@media (max-width: 720px) {
-  .sapRcaLogo {
-    min-width: 38px;
-    height: 25px;
-    padding-left: 7px;
-  }
-
-  .sapRcaWordmark {
-    font-size: 11px;
+@media (max-width: 900px) {
+  .sphereLogo {
+    width: 122px;
+    height: 31px;
   }
 
   .rcaBrand .brandTitle {
-    font-size: 13px !important;
+    max-width: 260px;
+  }
+}
+
+@media (max-width: 760px) {
+  .sphereLogo {
+    width: 112px;
+    height: 30px;
+  }
+
+  .rcaBrand .brandText {
+    display: none !important;
   }
 }
 
 @media (max-width: 460px) {
-  .sapRcaLogo {
-    min-width: 34px;
-    padding-left: 6px;
-  }
-
-  .sapRcaWordmark {
-    font-size: 10px;
+  .sphereLogo {
+    width: 98px;
+    height: 27px;
   }
 }
