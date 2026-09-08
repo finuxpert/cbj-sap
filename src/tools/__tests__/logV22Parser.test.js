@@ -67,10 +67,13 @@ function multiServerV22() {
   ].map(([host, instance, clock, standby], index) => V22
     .replaceAll('AOPH1QAPPDC', host)
     .replaceAll('AOQ', 'AOP')
-    .replaceAll('20', instance)
+    .replaceAll('INSTS=20', `INSTS=${instance}`)
+    .replaceAll('instances\t20', `instances\t${instance}`)
+    .replaceAll('\t20\t', `\t${instance}\t`)
+    .replaceAll('/D20/', `/D${instance}/`)
     .replaceAll('00:47:14', clock)
     .replace('  - Total WP Standby : 2', `  - Total WP Standby : ${standby}`)
-    .replaceAll('1788198434', String(1788198434 + index * 60)))
+    .replaceAll('1788198434', String(1788198434 + index * 60))
   ).join('\n')
 }
 
