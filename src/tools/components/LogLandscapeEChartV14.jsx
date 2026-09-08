@@ -36,6 +36,19 @@ function useEChart(option, onClick) {
   return ref
 }
 
+function maxCollectionIndex(collections = [], host = '', metric = '') {
+  let bestIndex = -1
+  let bestValue = -Infinity
+  collections.forEach((collection, index) => {
+    const value = metricValue(collection.byHost?.get?.(host)?.[metric])
+    if (value !== null && value > bestValue) {
+      bestValue = value
+      bestIndex = index
+    }
+  })
+  return bestIndex
+}
+
 export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelectCollection, onSelectPoint }) {
   const meta = METRICS[metric] || METRICS.memoryPct
   const collections = rca?.collections || []
@@ -68,10 +81,12 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
     const series = hosts.map((host, index) => ({
       name: host,
       type: 'line',
+      cursor: metric === 'cpuPct' ? 'pointer' : 'default',
+      triggerLineEvent: true,
       showSymbol: times.length <= 40,
-      symbolSize: 6,
+      symbolSize: metric === 'cpuPct' ? 9 : 6,
       connectNulls: false,
-      emphasis: { focus: 'series' },
+      emphasis: { focus: 'series', scale: true },
       data: collections.map((collection) => metricValue(collection.byHost?.get?.(host)?.[metric])),
       markPoint: { symbol: 'pin', symbolSize: 42, label: { formatter: 'MAX', fontSize: 9 }, data: [{ type: 'max', name: `${host} max` }] },
       markLine: index === 0 && incidentLine.length ? { silent: true, symbol: ['none', 'none'], data: incidentLine } : undefined,
@@ -91,7 +106,8 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
           const incident = collection?.key === resourcePeak?.key
           const title = `<b>${items[0].axisValue}</b>${collection?.endTime && collection.endTime !== collection.timeLabel ? `<br/><span>${collection.endTime}</span>` : ''}${incident ? `<br/><span>Incident: ${resourceAnchorHost || 'host unknown'} · ${shortStamp(resourceActualTime)}</span>` : ''}`
           const body = items.filter((item) => item.value !== null && item.value !== undefined).map((item) => `${item.marker}${item.seriesName}: <b>${Number(item.value).toFixed(meta.digits)}${meta.suffix}</b>`).join('<br/>')
-          return `${title}<br/>${body || 'No metric evidence'}`
+          const hint = metric === 'cpuPct' ? '<br/><span style="opacity:.72">Click a CPU point or MAX marker to inspect consumers</span>' : ''
+          return `${title}<br/>${body || 'No metric evidence'}${hint}`
         },
       },
       xAxis: { type: 'category', boundaryGap: false, data: times, axisLabel: { color: '#81979f', hideOverlap: true }, axisLine: { lineStyle: { color: '#2a3b40' } } },
@@ -102,18 +118,33 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
   }, [collections, rca?.hosts, rca?.resourceLandscapePeak, rca?.landscapePeak, rca?.resourceIncidentAnchor, metric, meta.digits, meta.label, meta.suffix])
 
   const click = React.useCallback((params) => {
-    if (params?.componentType !== 'series' || !Number.isInteger(params?.dataIndex)) return
-    const collection = collections[params.dataIndex]
+    const componentType = params?.componentType
+    if (componentType !== 'series' && componentType !== 'markPoint') return
+
+    const host = params?.seriesName || ''
+    let dataIndex = -1
+
+    if (componentType === 'markPoint') {
+      dataIndex = maxCollectionIndex(collections, host, metric)
+    } else if (Number.isInteger(params?.dataIndex)) {
+      dataIndex = params.dataIndex
+    } else if (params?.name) {
+      dataIndex = collections.findIndex((collection) => collection.timeLabel === params.name)
+    }
+
+    const collection = collections[dataIndex]
     if (!collection?.key) return
+    const value = metricValue(collection.byHost?.get?.(host)?.[metric])
+
     onSelectCollection?.(collection.key)
     onSelectPoint?.({
       collectionKey: collection.key,
       timeLabel: collection.timeLabel || '',
       endTime: collection.endTime || collection.timeLabel || '',
-      host: params.seriesName || '',
+      host,
       metric,
-      value: metricValue(params.value),
-      dataIndex: params.dataIndex,
+      value,
+      dataIndex,
     })
   }, [collections, metric, onSelectCollection, onSelectPoint])
   const ref = useEChart(option, click)
