@@ -27,34 +27,6 @@ function runPresentation(sustained = {}) {
   return humanize(name)
 }
 
-function patternPresentation(verdict, capabilities) {
-  const raw = verdict?.pattern || 'RESOURCE_CONTENTION'
-  const mode = capabilities?.mode || verdict?.telemetryMode || 'LEGACY'
-  if (mode === 'LEGACY') {
-    const legacyLabels = {
-      MEMORY_BLOCKING_CONTENTION: 'High Memory Pressure with Blocked Work Processes',
-      MEMORY_IO_CONTENTION: 'Memory Pressure with I/O Activity',
-      NFS_IO_CONTENTION: 'NFS I/O Blocking',
-      BLOCK_IO_CONTENTION: 'Block I/O Pressure',
-      IO_STALL_CONTENTION: 'I/O Stall',
-      MEMORY_RECLAIM_STALL: 'Memory Reclaim Activity',
-      CPU_SATURATION: 'High CPU Utilization',
-      MEMORY_PRESSURE: 'High Memory Pressure',
-      CPU_PRESSURE: 'High CPU Pressure',
-    }
-    return { label: legacyLabels[raw] || humanize(raw), qualifier: 'Based on standard log data' }
-  }
-  if (mode === 'PARTIAL') return { label: humanize(raw), qualifier: 'Supported by partial Linux telemetry' }
-  return { label: humanize(raw), qualifier: 'Supported by enhanced Linux telemetry' }
-}
-
-function dataSourcePresentation(capabilities = {}) {
-  const mode = capabilities?.mode || 'LEGACY'
-  if (mode === 'LEGACY') return { label: 'STANDARD', meta: 'Standard log metrics only' }
-  if (mode === 'PARTIAL') return { label: 'PARTIAL', meta: `${capabilities?.coveragePct || 0}% additional telemetry coverage` }
-  return { label: 'ENHANCED', meta: `${capabilities?.coveragePct || 0}% enhanced telemetry coverage` }
-}
-
 function workerParse(files) {
   return new Promise((resolve, reject) => {
     if (typeof Worker === 'undefined') return reject(new Error('Worker unavailable'))
@@ -108,18 +80,15 @@ function PointInTimeSummary({ topRow, collection }) {
   </section>
 }
 
-function IncidentSummary({ verdict, capabilities, topRow }) {
+function IncidentSummary({ verdict, topRow }) {
   if (!verdict) return null
   const single = verdict.status === 'SINGLE_CULPRIT_SUPPORTED'
-  const landscape = verdict.landscapeConfidence || {}
-  const pattern = patternPresentation(verdict, capabilities)
   return <section className="logV2Panel logV141Summary">
-    <div className="logV141SummaryTop"><div><span className="logV141Kicker">TREND ANALYSIS</span><h2>{single ? 'Primary consumer around peak' : 'No single bottleneck identified'}</h2></div></div>
+    <div className="logV141SummaryTop"><div><span className="logV141Kicker">SUMMARY</span><h2>Trend summary</h2></div></div>
     <div className="logV141SummaryGrid logV141SummaryGridTrend">
-      <div><span>Peak Server and Time</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
+      <div><span>Overall Status</span><strong>{single ? 'Primary consumer identified' : 'No single bottleneck identified'}</strong><small>{single ? 'strongest workload around peak' : 'no single workload confirmed'}</small></div>
+      <div><span>Peak Server</span><strong>{verdict.anchorHost || '—'}</strong><small>{shortTime(verdict.anchorTime)}</small></div>
       <div><span>Top Consumer</span><strong>{verdict.topWorkload || '—'}</strong><small>{verdict.topHost || '—'} · {topRow?.type || '—'}</small></div>
-      <div><span>Observed Condition</span><strong>{pattern.label}</strong><small>{pattern.qualifier}</small></div>
-      <div><span>Server Alignment</span><strong>{landscape.grade || 'LOW'}</strong><small>{landscape.skewMinutes ?? 0} min · {landscape.exactHosts ?? 0} of {landscape.hostCount ?? 0} servers</small></div>
     </div>
   </section>
 }
@@ -234,7 +203,8 @@ export default function ToolLogAutoRcaV5() {
     setResourceEngine('RANKING')
     const ranked = await rankResourceConsumersV5(nextAnalysis?.processes || [], nextRca, nextAnalysis)
     const rows = ranked.rows || []
-    const defaultRow = nextRca?.collections?.length === 1 ? topObservedConsumer(rows) : rows[0] || null
+    const verdictRow = rows.find((row) => row.host === ranked.verdict?.topHost && row.workload === ranked.verdict?.topWorkload) || null
+    const defaultRow = nextRca?.collections?.length === 1 ? topObservedConsumer(rows) : verdictRow || rows[0] || null
     setResourceRows(rows); setSelectedResource(defaultRow); setResourceEngine(ranked.engine); setVerdict(ranked.verdict || null)
     setCapabilities(ranked.telemetryCapabilities || telemetryCapabilitiesV15(nextAnalysis))
     setDiagnostics({ parity: ranked.parity || { status: 'NOT_RUN' }, crossHostConfidence: ranked.crossHostConfidence || { grade: '—', skewMinutes: 0 }, landscapeConfidence: ranked.landscapeConfidence, engineReason: ranked.engineReason || '', engineDiagnostics: ranked.engineDiagnostics || {} })
@@ -256,11 +226,10 @@ export default function ToolLogAutoRcaV5() {
       const nextAnalysis = nextRca.validatedAnalysis || parsedAnalysis
       if (!nextRca?.collections?.length) throw new Error('No host telemetry collections found in the uploaded logs.')
       const caps = telemetryCapabilitiesV15(nextAnalysis)
-      const hostSamples = nextRca.collections.reduce((sum, collection) => sum + (collection.rows?.length || 0), 0)
       setAnalysis(nextAnalysis); setRca(nextRca); setCapabilities(caps)
       setSelectedCollectionKey(nextRca.resourceLandscapePeak?.key || nextRca.collections[0]?.key || ''); setSelectedHost(nextRca.hostPeaks?.[0]?.host || nextRca.hosts?.[0] || '')
       setResourceRows([]); setSelectedResource(null); setVerdict(null)
-      setStatus(`${expanded.length} files · ${nextRca.collections.length} collections · ${hostSamples} host samples · ${nextRca.hosts.length} application servers · ${dataSourcePresentation(caps).label}`)
+      setStatus(`${expanded.length} ${expanded.length === 1 ? 'file' : 'files'} loaded`)
       await rankResources(nextAnalysis, nextRca)
     } catch (error) {
       setAnalysis(null); setRca(null); setResourceRows([]); setSelectedResource(null); setResourceEngine('FAILED'); setVerdict(null); setStatus(error?.message || 'LOG analysis failed.')
@@ -271,10 +240,11 @@ export default function ToolLogAutoRcaV5() {
   const selectedHostPeak = React.useMemo(() => rca?.hostPeaks?.find((item) => item.host === selectedHost) || rca?.hostPeaks?.[0] || null, [rca, selectedHost])
   const ranking = resourceEngine === 'RANKING'
   const visibleMetrics = Object.entries(LOG_V14_METRICS).filter(([, item]) => !item.enhanced || capabilities.mode !== 'LEGACY')
-  const dataSource = dataSourcePresentation(capabilities)
   const pointInTime = (rca?.collections?.length || 0) === 1
-  const hostSampleCount = rca?.collections?.reduce((sum, collection) => sum + (collection.rows?.length || 0), 0) || 0
   const topConsumer = pointInTime ? topObservedConsumer(resourceRows) : resourceRows[0] || null
+  const trendTopConsumer = !pointInTime && verdict
+    ? resourceRows.find((row) => row.host === verdict.topHost && row.workload === verdict.topWorkload) || topConsumer
+    : topConsumer
 
   return <section className="logV2Shell"><div className="logV2Inner">
     <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
@@ -282,13 +252,12 @@ export default function ToolLogAutoRcaV5() {
 
     {!rca ? <div className="logV2EmptyState"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div> : <>
       <section className="logV2Stats logV2StatsCompact">
-        <Stat label="Analysis" value={pointInTime ? 'POINT IN TIME' : 'TREND ANALYSIS'} meta={pointInTime ? 'single collection' : `${rca.collections.length} collections`} />
-        <Stat label="Data Set" value={`${rca.collections.length} ${rca.collections.length === 1 ? 'collection' : 'collections'}`} meta={`${hostSampleCount} host samples · ${rca.evidenceWindow.fileCount} files`} />
-        <Stat label="Application Servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
+        <Stat label="Analysis" value={pointInTime ? 'POINT IN TIME' : 'TREND ANALYSIS'} meta={`${rca.collections.length} ${rca.collections.length === 1 ? 'collection' : 'collections'}`} />
         <Stat label="Period" value={`${shortTime(rca.evidenceWindow.start)} → ${shortTime(rca.evidenceWindow.end)}`} meta={pointInTime ? `${collectionSkew(rca.collections[0])} min collection window` : `${rca.cadence.nominalMinutes || '—'} min interval`} />
+        <Stat label="Application Servers" value={rca.hosts.length} meta={rca.hosts.join(' · ')} />
       </section>
 
-      {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} capabilities={capabilities} topRow={topConsumer} />)}
+      {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} topRow={trendTopConsumer} />)}
 
       {!pointInTime && <section className="logV2Panel">
         <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Resource trend by log timestamp.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => setMetric(key)}>{item.label}</button>)}</div></div>
