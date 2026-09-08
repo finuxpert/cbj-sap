@@ -89,8 +89,21 @@ function parseHumanCounts(rawText = '') {
   }
 }
 
-function parseV22(rawText = '', fileName = '') {
-  if (!String(rawText || '').includes(V22_MARKER)) return null
+function splitV22Segments(rawText = '') {
+  const normalized = String(rawText || '').replace(/\r/g, '')
+  if (!normalized.includes(V22_MARKER)) return []
+  const lines = normalized.split('\n')
+  const starts = []
+  lines.forEach((line, index) => {
+    if (/^snapshot\s*@/i.test(text(line))) starts.push(index)
+  })
+  if (starts.length <= 1) return [normalized]
+  return starts
+    .map((start, index) => lines.slice(start, starts[index + 1] ?? lines.length).join('\n'))
+    .filter((segment) => segment.includes(V22_MARKER))
+}
+
+function parseV22Segment(rawText = '', fileName = '') {
   const lines = String(rawText || '').replace(/\r/g, '').split('\n')
   const snapshot = parseKeyValueBlock(lines, '## RCA-SNAPSHOT-V2.2-BEGIN', '## RCA-SNAPSHOT-V2.2-END')
   const wp = parseTableBlock(lines, '## RCA-WP-V2.2-BEGIN', '## RCA-WP-V2.2-END')
@@ -222,8 +235,21 @@ function parseV22(rawText = '', fileName = '') {
     return { ...row, workloadName: workloadName(row) }
   })
 
+  return { telemetry, processes, collectorV22: true }
+}
+
+function parseV22(rawText = '', fileName = '') {
+  const segments = splitV22Segments(rawText)
+  if (!segments.length) return null
+  const parsedSegments = segments.map((segment) => parseV22Segment(segment, fileName)).filter(Boolean)
+  if (!parsedSegments.length) return null
+  const parsed = {
+    telemetry: parsedSegments.flatMap((item) => item.telemetry || []),
+    processes: parsedSegments.flatMap((item) => item.processes || []),
+    collectorV22: true,
+  }
   const provenance = v14Test.parseSourceHostBlocks(rawText, fileName)
-  return v14Test.attachSourceHostProvenance({ telemetry, processes, collectorV22: true }, provenance)
+  return v14Test.attachSourceHostProvenance(parsed, provenance)
 }
 
 const V22_PROCESS_FIELDS = [
@@ -299,4 +325,4 @@ export function buildLogAnalysis(parsedFiles = []) {
   return { ...analysis, telemetryCapabilities: telemetryCapabilitiesV15(analysis) }
 }
 
-export const __test = { parseV22, parseKeyValueBlock, parseTableBlock, parseHumanCounts, reattachV22 }
+export const __test = { parseV22, parseV22Segment, splitV22Segments, parseKeyValueBlock, parseTableBlock, parseHumanCounts, reattachV22 }
