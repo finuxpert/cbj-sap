@@ -7,10 +7,6 @@ const fmt = (value, digits = 1) => hasMetric(value) ? Number(value).toLocaleStri
 const humanize = (value = '') => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
 const operatorLabel = (value = '') => ({ DB_CONCURRENCY: 'DB Concurrency', ABAP_SERIALIZATION: 'ABAP Serialization', ABAP_DATA: 'ABAP Data', ERROR_SIGNAL: 'Error Activity', MIXED: 'Mixed Evidence', BLOCKED_VICTIM: 'Blocked Workload', RESOURCE_CONSUMER: 'Resource Consumer', MEMORY_CONSUMER: 'Memory Consumer', IO_CONSUMER: 'I/O Consumer', BACKGROUND: 'Background' })[String(value || '').toUpperCase()] || humanize(value)
 
-function evidenceLabel(value = '') {
-  return ({ EXACT_TARGET: 'Exact', NEAR_TARGET: 'Near', EARLY_TARGET: 'Early', LATE_TARGET: 'Late', OFF_TARGET: 'Off target', ADJACENT_TARGET: 'Adjacent' })[value] || 'None'
-}
-
 function confidenceText(row = {}) {
   const local = row.localConfidence || {}
   const score = hasMetric(local.score) ? Number(local.score) : null
@@ -194,4 +190,6 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   </div>
 }
 
+// Test-only helper export intentionally shares this component module.
+// eslint-disable-next-line react-refresh/only-export-components
 export const __test = { confidenceText, errorText, timingSuffix, errorTone, findingText, quickFilterMatch }

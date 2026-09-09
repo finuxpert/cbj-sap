@@ -51,7 +51,7 @@ function maxCollectionIndex(collections = [], host = '', metric = '') {
 
 export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelectCollection, onSelectPoint }) {
   const meta = METRICS[metric] || METRICS.memoryPct
-  const collections = rca?.collections || []
+  const collections = React.useMemo(() => rca?.collections || [], [rca?.collections])
   const option = React.useMemo(() => {
     const times = collections.map((row) => row.timeLabel)
     const hosts = rca?.hosts || []
