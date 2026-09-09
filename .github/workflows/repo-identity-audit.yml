@@ -18,18 +18,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          old_repo='finuxpert/'"cbj-sap"
+          old_name='cbj-'"sap"
           echo '=== exact old repository references ==='
-          if grep -RInI --exclude-dir=.git --exclude='package-lock.json' -E 'finuxpert/cbj-sap|github\.com/finuxpert/cbj-sap' .; then
-            echo 'ERROR: stale finuxpert/cbj-sap references remain'
+          if grep -RInI --exclude-dir=.git --exclude='package-lock.json' -F "$old_repo" .; then
+            echo 'ERROR: stale old repository references remain'
             exit 1
           fi
           echo 'No exact old repository references found.'
-          echo '=== broad cbj-sap references ==='
-          if grep -RInI --exclude-dir=.git -E 'cbj-sap' .; then
-            echo 'ERROR: broad cbj-sap references remain'
+          echo '=== broad old repository-name references ==='
+          if grep -RInI --exclude-dir=.git -F "$old_name" .; then
+            echo 'ERROR: broad old repository-name references remain'
             exit 1
           fi
-          echo 'No cbj-sap references found.'
+          echo 'No old repository-name references found.'
       - name: Validate workflow syntax-sensitive files
         run: |
           npm ci
