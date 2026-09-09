@@ -1,0 +1,59 @@
+name: Cleanup Action History
+
+on:
+  push:
+    branches:
+      - cleanup-unused-files
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete previous workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_run="${GITHUB_RUN_ID}"
+          echo "Current cleanup run: ${current_run}"
+
+          gh api --paginate \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${GITHUB_REPOSITORY}/actions/runs?per_page=100" \
+            --jq '.workflow_runs[].id' > /tmp/workflow_run_ids.txt
+
+          total=$(wc -l < /tmp/workflow_run_ids.txt | tr -d ' ')
+          echo "Found ${total} workflow runs before cleanup."
+
+          deleted=0
+          failed=0
+          while read -r run_id; do
+            [ -n "${run_id}" ] || continue
+            if [ "${run_id}" = "${current_run}" ]; then
+              continue
+            fi
+            if gh api --method DELETE \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" >/dev/null 2>&1; then
+              deleted=$((deleted + 1))
+            else
+              failed=$((failed + 1))
+              echo "Could not delete run ${run_id}" >&2
+            fi
+          done < /tmp/workflow_run_ids.txt
+
+          echo "Deleted: ${deleted}"
+          echo "Failed: ${failed}"
+          echo "Current cleanup run intentionally remains so the job can finish."
+
+          if [ "${failed}" -ne 0 ]; then
+            exit 1
+          fi
