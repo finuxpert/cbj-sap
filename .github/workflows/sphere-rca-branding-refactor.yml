@@ -1,0 +1,168 @@
+name: SPHERE Branding Refactor
+
+on:
+  push:
+    branches:
+      - cleanup-unused-files
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Rename RCA-branded frontend artifacts
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          mappings = {
+            'src/app/pages/RCAFocusPanel.jsx': 'src/app/pages/SphereFocusPanel.jsx',
+            'src/app/pages/rca-panel-utils.js': 'src/app/pages/sphere-panel-utils.js',
+            'src/app/rca-workspace.css': 'src/app/sphere-workspace.css',
+            'src/app/sap-rca-logo.css': 'src/app/sphere-logo.css',
+            'src/app/wp-scout-rca-cockpit-polish.css': 'src/app/wp-scout-sphere-cockpit-polish.css',
+            'src/comparer-rca-final.css': 'src/comparer-sphere-final.css',
+            'src/components/SapRcaLogo.jsx': 'src/components/SphereLogo.jsx',
+            'src/sap-dynatrace-rca.css': 'src/sphere-dynatrace.css',
+            'src/tools/LogAutoRcaV141.css': 'src/tools/LogAutoSphereV141.css',
+            'src/tools/LogAutoRcaV2.css': 'src/tools/LogAutoSphereV2.css',
+            'src/tools/RcaWorkspace2026.css': 'src/tools/SphereWorkspace2026.css',
+            'src/tools/RcaWorkspacePerf2026.css': 'src/tools/SphereWorkspacePerf2026.css',
+            'src/tools/RcaWorkspaceV13.css': 'src/tools/SphereWorkspaceV13.css',
+            'src/tools/RcaWorkspaceV133.css': 'src/tools/SphereWorkspaceV133.css',
+            'src/tools/RcaWorkspaceV153.css': 'src/tools/SphereWorkspaceV153.css',
+            'src/tools/RcaWorkspaceV154.css': 'src/tools/SphereWorkspaceV154.css',
+            'src/tools/RcaWorkspaceV155.css': 'src/tools/SphereWorkspaceV155.css',
+            'src/tools/RcaWorkspaceV156.css': 'src/tools/SphereWorkspaceV156.css',
+            'src/tools/ToolLogAutoRcaV5.jsx': 'src/tools/ToolLogAutoSphereV5.jsx',
+            'src/tools/components/RcaDataTable.jsx': 'src/tools/components/SphereDataTable.jsx',
+            'src/tools/logRcaEngineV3.js': 'src/tools/logSphereEngineV3.js',
+            'src/tools/rcaExport.js': 'src/tools/sphereExport.js',
+          }
+
+          for old, new in mappings.items():
+            oldp, newp = Path(old), Path(new)
+            if oldp.exists():
+              newp.parent.mkdir(parents=True, exist_ok=True)
+              oldp.rename(newp)
+
+          replacements = [
+            ('RCAFocusPanel', 'SphereFocusPanel'),
+            ('rca-panel-utils', 'sphere-panel-utils'),
+            ('SapRcaLogo', 'SphereLogo'),
+            ('sap-rca-logo', 'sphere-logo'),
+            ('RcaDataTable', 'SphereDataTable'),
+            ('ToolLogAutoRcaV5', 'ToolLogAutoSphereV5'),
+            ('LogAutoRcaV141', 'LogAutoSphereV141'),
+            ('LogAutoRcaV2', 'LogAutoSphereV2'),
+            ('RcaWorkspacePerf2026', 'SphereWorkspacePerf2026'),
+            ('RcaWorkspace2026', 'SphereWorkspace2026'),
+            ('RcaWorkspaceV156', 'SphereWorkspaceV156'),
+            ('RcaWorkspaceV155', 'SphereWorkspaceV155'),
+            ('RcaWorkspaceV154', 'SphereWorkspaceV154'),
+            ('RcaWorkspaceV153', 'SphereWorkspaceV153'),
+            ('RcaWorkspaceV133', 'SphereWorkspaceV133'),
+            ('RcaWorkspaceV13', 'SphereWorkspaceV13'),
+            ('logRcaEngineV3', 'logSphereEngineV3'),
+            ('buildAutoPeakRcaV3', 'buildAutoPeakSphereV3'),
+            ('rcaExport', 'sphereExport'),
+            ('rca-workspace.css', 'sphere-workspace.css'),
+            ('wp-scout-rca-cockpit-polish', 'wp-scout-sphere-cockpit-polish'),
+            ('comparer-rca-final', 'comparer-sphere-final'),
+            ('sap-dynatrace-rca', 'sphere-dynatrace'),
+            ('CBJ SAP RCA', 'SPHERE'),
+            ('SAP Intelligent RCA Workspace', 'SPHERE'),
+            ('SAP Intelligent RCA', 'SPHERE'),
+            ('SAP RCA Workspace', 'SPHERE'),
+            ('SAP RCA', 'SPHERE'),
+            ('SAP-RCA', 'SPHERE'),
+            ('RCA Workspace', 'SPHERE Workspace'),
+            ('RCA Comparator', 'SPHERE Comparator'),
+            ('RCA Evidence Analytics', 'SPHERE Evidence Analytics'),
+            ('Management RCA Snapshot', 'Management SPHERE Snapshot'),
+            ('Case RCA Dashboard', 'Case SPHERE Dashboard'),
+            ('RCA Stage', 'SPHERE Stage'),
+            ('RCA Analytics', 'SPHERE Analytics'),
+            ('RCA Focus', 'SPHERE Focus'),
+            ('RCA Candidates', 'SPHERE Candidates'),
+            ('RCA Visual Summary', 'SPHERE Visual Summary'),
+            ('RCA Correlation Summary', 'SPHERE Correlation Summary'),
+            ('RCA Actions', 'SPHERE Actions'),
+            ('RCA Case', 'SPHERE Case'),
+            ('RCA event', 'SPHERE event'),
+            ('RCA dashboard', 'SPHERE dashboard'),
+            ('RCA report', 'SPHERE report'),
+            ('RCA summary', 'SPHERE summary'),
+            ('RCA engine', 'SPHERE engine'),
+            ('RCA v3.6.3', 'SPHERE v3.6.3'),
+            ('RCA v3.6.1', 'SPHERE v3.6.1'),
+            ('sap-intelligent-rca-report', 'sphere-report'),
+            ('sap-comparator-wpscout-rca-report', 'sphere-comparator-wpscout-report'),
+            ('sap-st03n-impact-rca-report', 'sphere-st03n-impact-report'),
+            ('sap-log-evidence-rca-report', 'sphere-log-evidence-report'),
+            ('sap-rca-', 'sphere-'),
+            ('sap-rca-workspace', 'sphere'),
+          ]
+
+          text_suffixes = {'.js', '.jsx', '.css', '.html', '.md', '.json', '.mjs', '.txt'}
+          for p in Path('src').rglob('*'):
+            if not p.is_file() or p.suffix.lower() not in text_suffixes:
+              continue
+            text = p.read_text(encoding='utf-8')
+            original = text
+            for old, new in replacements:
+              text = text.replace(old, new)
+            if text != original:
+              p.write_text(text, encoding='utf-8')
+          PY
+
+          git status --short
+
+      - name: Validate branding rename boundaries
+        shell: bash
+        run: |
+          echo '=== remaining RCA filenames in src ==='
+          remaining_files="$(git ls-files src | grep -Ei 'sap[-_]?rca|(^|/)[^/]*rca[^/]*$' || true)"
+          if [ -n "$remaining_files" ]; then
+            echo "$remaining_files"
+            exit 1
+          fi
+
+          echo '=== remaining forbidden branding tokens ==='
+          if git grep -nE 'SapRca|RcaWorkspace|RCAFocusPanel|RcaDataTable|ToolLogAutoRca|logRcaEngine|rcaExport|sap-rca|SAP RCA|SAP-RCA|RCA Workspace|RCA Comparator|RCA Case|RCA Stage|RCA Focus|RCA Analytics|RCA Candidates|RCA engine' -- src ':!src/tools/logAnalysisV14.js' ':!src/tools/logAnalysisV15.js' ':!src/tools/__tests__/**'; then
+            echo 'Forbidden RCA branding tokens remain in frontend source.' >&2
+            exit 1
+          fi
+
+          echo 'Parser protocol markers intentionally retained:'
+          git grep -nE 'RCA-EXT|RCA-SNAPSHOT|RCA-WP' -- src/tools/logAnalysisV14.js src/tools/logAnalysisV15.js src/tools/__tests__ || true
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+      - name: Lint baseline
+        continue-on-error: true
+        run: npm run lint
+      - name: Commit SPHERE branding refactor
+        shell: bash
+        run: |
+          git rm -f .github/workflows/sphere-rca-naming-audit.yml .github/workflows/sphere-rca-branding-refactor.yml
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'refactor: replace RCA-branded frontend naming with SPHERE'
+          git push origin HEAD:cleanup-unused-files
