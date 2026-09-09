@@ -132,21 +132,21 @@ jobs:
       - name: Validate branding rename boundaries
         shell: bash
         run: |
-          echo '=== remaining RCA filenames in src ==='
-          remaining_files="$(git ls-files src | grep -Ei 'sap[-_]?rca|(^|/)[^/]*rca[^/]*$' || true)"
+          echo '=== remaining RCA filenames in src filesystem ==='
+          remaining_files="$(find src -type f | grep -Ei 'sap[-_]?rca|(^|/)[^/]*rca[^/]*$' || true)"
           if [ -n "$remaining_files" ]; then
             echo "$remaining_files"
             exit 1
           fi
 
           echo '=== remaining forbidden branding tokens ==='
-          if git grep -nE 'SapRca|RcaWorkspace|RCAFocusPanel|RcaDataTable|ToolLogAutoRca|logRcaEngine|rcaExport|sap-rca|SAP RCA|SAP-RCA|RCA Workspace|RCA Comparator|RCA Case|RCA Stage|RCA Focus|RCA Analytics|RCA Candidates|RCA engine' -- src ':!src/tools/logAnalysisV14.js' ':!src/tools/logAnalysisV15.js' ':!src/tools/__tests__/**'; then
+          if grep -RInE 'SapRca|RcaWorkspace|RCAFocusPanel|RcaDataTable|ToolLogAutoRca|logRcaEngine|rcaExport|sap-rca|SAP RCA|SAP-RCA|RCA Workspace|RCA Comparator|RCA Case|RCA Stage|RCA Focus|RCA Analytics|RCA Candidates|RCA engine' src --exclude='logAnalysisV14.js' --exclude='logAnalysisV15.js' --exclude-dir='__tests__'; then
             echo 'Forbidden RCA branding tokens remain in frontend source.' >&2
             exit 1
           fi
 
           echo 'Parser protocol markers intentionally retained:'
-          git grep -nE 'RCA-EXT|RCA-SNAPSHOT|RCA-WP' -- src/tools/logAnalysisV14.js src/tools/logAnalysisV15.js src/tools/__tests__ || true
+          grep -RInE 'RCA-EXT|RCA-SNAPSHOT|RCA-WP' src/tools/logAnalysisV14.js src/tools/logAnalysisV15.js src/tools/__tests__ || true
 
       - name: Install dependencies
         run: npm ci
