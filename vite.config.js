@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import process from 'node:process'
 
 const gitSha = String(process.env.GITHUB_SHA || '').slice(0, 7)
 const appEnv = String(process.env.GITHUB_REF_NAME || '')

@@ -81,7 +81,7 @@ export default function ToolSt03nAnalysis2026() {
     catch (error) { setStatus(error?.message || 'Upload failed.'); setBusy(false) }
   }, [analyze])
 
-  const workload = analysis?.workloadTransactions || analysis?.transactions || []
+  const workload = React.useMemo(() => analysis?.workloadTransactions || analysis?.transactions || [], [analysis?.workloadTransactions, analysis?.transactions])
   const decompositionAbsolute = React.useMemo(() => transactionDecomposition(workload, 8), [workload])
   const decomposition = React.useMemo(() => decompMode === 'percent' ? percentDecomposition(decompositionAbsolute) : decompositionAbsolute, [decompositionAbsolute, decompMode])
   const ok = analysis?.coverage?.filter((item) => item.ok).length || 0

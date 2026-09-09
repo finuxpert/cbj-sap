@@ -257,9 +257,9 @@ async function aggregateSnapshotsDuckDb(rows = []) {
       }
     })
   } finally {
-    try { await conn?.close?.() } catch {}
-    try { await db?.terminate?.() } catch {}
-    try { worker?.terminate() } catch {}
+    try { await conn?.close?.() } catch { /* best-effort cleanup */ }
+    try { await db?.terminate?.() } catch { /* best-effort cleanup */ }
+    try { worker?.terminate() } catch { /* best-effort cleanup */ }
   }
 }
 
