@@ -1,0 +1,186 @@
+/* Loaded after ToolEvidenceSpecialist.css inside ST03N / LOG chunks. */
+
+/* The old localStorage session banner is stale context, not current evidence. */
+.evidenceToolShell.refinedTool .sessionContext {
+  display: none !important;
+}
+
+/* Case already has a dedicated strip below the analysis; do not duplicate it in Log KPIs. */
+.evidenceToolShell.refinedTool .incidentCockpitStrip {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.evidenceToolShell.refinedTool .incidentCockpitStrip > div:nth-of-type(5) {
+  display: none !important;
+}
+
+.evidenceToolShell.refinedTool {
+  width: 100%;
+  min-width: 0;
+  padding-inline: var(--rca-gutter, clamp(10px, 1.5vw, 24px));
+}
+
+.evidenceToolShell.refinedTool .decisionBoard {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evidenceToolShell.refinedTool .evidenceGrid,
+.evidenceToolShell.refinedTool .evidenceGrid.wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evidenceToolShell.refinedTool .evidenceGrid.triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.evidenceToolShell.refinedTool .rcaPrimaryFinding {
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .55fr);
+  gap: 14px;
+}
+
+.evidenceToolShell.refinedTool .confidenceRows {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.evidenceToolShell.refinedTool .toolActionRow {
+  margin-top: 0 !important;
+  margin-bottom: 8px !important;
+}
+
+@media (max-width: 1180px) {
+  .evidenceToolShell.refinedTool .decisionBoard,
+  .evidenceToolShell.refinedTool .incidentCockpitStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .evidenceToolShell.refinedTool .evidenceGrid.triple {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evidenceToolShell.refinedTool .rcaPrimaryFinding {
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .7fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .evidenceToolShell.refinedTool .evidenceGrid,
+  .evidenceToolShell.refinedTool .evidenceGrid.wide,
+  .evidenceToolShell.refinedTool .evidenceGrid.triple,
+  .evidenceToolShell.refinedTool .rcaPrimaryFinding {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .evidenceToolShell.refinedTool {
+    padding: 8px 8px calc(86px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .evidenceToolShell.refinedTool .evidenceHero {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 11px;
+    gap: 8px;
+  }
+
+  .evidenceToolShell.refinedTool .evidenceHero h1,
+  .evidenceToolShell.refinedTool .compactEvidenceHero h1 {
+    font-size: clamp(21px, 7vw, 28px);
+  }
+
+  .evidenceToolShell.refinedTool .evidenceUpload {
+    width: auto;
+    min-height: 38px;
+    padding-inline: 11px;
+    font-size: 11px;
+  }
+
+  .evidenceToolShell.refinedTool .decisionBoard,
+  .evidenceToolShell.refinedTool .incidentCockpitStrip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px;
+  }
+
+  .evidenceToolShell.refinedTool .decisionCard {
+    min-height: 76px;
+    padding: 8px 9px;
+  }
+
+  .evidenceToolShell.refinedTool .rcaPrimaryFinding {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .evidenceToolShell.refinedTool .rcaPrimaryFinding .findingMetrics,
+  .evidenceToolShell.refinedTool .confidenceRows {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .evidenceToolShell.refinedTool .workspaceTabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .evidenceToolShell.refinedTool .workspaceTabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .evidenceToolShell.refinedTool .workspaceTabs button {
+    flex: 0 0 auto;
+  }
+
+  .evidenceToolShell.refinedTool .rcaReadableChartPanel,
+  .evidenceToolShell.refinedTool .chartPanel {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+
+  .evidenceToolShell.refinedTool .rcaReadableChartPanel > .recharts-responsive-container,
+  .evidenceToolShell.refinedTool .chartPanel > .recharts-responsive-container {
+    min-width: 680px;
+  }
+
+  .evidenceToolShell.refinedTool .caseStatusStrip {
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    bottom: auto;
+    margin-bottom: 0;
+  }
+
+  .evidenceToolShell.refinedTool .caseStatusStrip .caseStatusActions {
+    width: auto;
+    margin-left: auto;
+  }
+}
+
+@media (max-width: 430px) {
+  .evidenceToolShell.refinedTool .evidenceHero {
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceToolShell.refinedTool .evidenceUpload {
+    width: 100%;
+  }
+
+  .evidenceToolShell.refinedTool .caseStatusStrip {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .evidenceToolShell.refinedTool .caseStatusStrip .caseStatusActions {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 340px) {
+  .evidenceToolShell.refinedTool .decisionBoard,
+  .evidenceToolShell.refinedTool .incidentCockpitStrip,
+  .evidenceToolShell.refinedTool .rcaPrimaryFinding .findingMetrics,
+  .evidenceToolShell.refinedTool .confidenceRows {
+    grid-template-columns: 1fr !important;
+  }
+}
