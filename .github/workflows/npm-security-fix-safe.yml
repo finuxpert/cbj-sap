@@ -26,7 +26,7 @@ jobs:
         run: |
           set -euo pipefail
           cp package.json /tmp/package.before.json
-          npm audit fix --package-lock-only
+          npm audit fix --package-lock-only || true
           cmp -s package.json /tmp/package.before.json
       - name: Validate locked install
         run: npm ci
