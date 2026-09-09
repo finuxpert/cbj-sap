@@ -26,6 +26,8 @@ jobs:
           npm pkg set name=sphere
           npm install --package-lock-only --ignore-scripts
           sed -i 's#finuxpert/cbj-sap#finuxpert/sphere#g' scripts/run-backend-safe-refactor.sh
+      - name: Install dependencies
+        run: npm ci
       - name: Validate exact legacy repo naming
         shell: bash
         run: |
@@ -36,8 +38,10 @@ jobs:
           test "$(node -p "require('./package.json').name")" = "sphere"
           test "$(node -p "require('./package-lock.json').name")" = "sphere"
       - name: Build
+        id: build
         run: npm run build
       - name: Test
+        id: test
         run: npm test
       - name: Lint baseline
         id: lint
@@ -62,5 +66,6 @@ jobs:
           echo "# SPHERE naming validation" >> "$GITHUB_STEP_SUMMARY"
           echo "- package name: sphere" >> "$GITHUB_STEP_SUMMARY"
           echo "- repository refs: finuxpert/sphere" >> "$GITHUB_STEP_SUMMARY"
-          echo "- build: ${{ steps.build.outcome || 'see job' }}" >> "$GITHUB_STEP_SUMMARY" || true
-          echo "- test/lint: see job steps" >> "$GITHUB_STEP_SUMMARY"
+          echo "- build: ${{ steps.build.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- test: ${{ steps.test.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- lint: ${{ steps.lint.outcome }}" >> "$GITHUB_STEP_SUMMARY"
