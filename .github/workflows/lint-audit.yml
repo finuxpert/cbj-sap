@@ -1,0 +1,26 @@
+name: Temporary Lint Audit
+
+on:
+  push:
+    branches:
+      - fix-lint-baseline
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run lint
+        run: npm run lint
