@@ -1,0 +1,183 @@
+name: Cleanup Audit Validation
+
+on:
+  push:
+    branches:
+      - cleanup-unused-files
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-and-validate:
+    name: Import graph, lint, build, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout cleanup branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend import graph
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          import path from 'node:path'
+
+          const repo = process.cwd()
+          const srcRoot = path.join(repo, 'src')
+          const extensions = ['.js', '.jsx', '.ts', '.tsx', '.css']
+          const sourceExtensions = new Set(extensions)
+          const norm = (value) => value.split(path.sep).join('/')
+          const rel = (value) => norm(path.relative(repo, value))
+
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return []
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+              const full = path.join(dir, entry.name)
+              return entry.isDirectory() ? walk(full) : [full]
+            })
+          }
+
+          const allFiles = walk(srcRoot)
+            .filter((file) => sourceExtensions.has(path.extname(file)))
+            .map(rel)
+            .sort()
+          const allSet = new Set(allFiles)
+
+          function resolveRelative(importer, specifier) {
+            if (!specifier?.startsWith('.')) return null
+            const base = path.resolve(repo, path.dirname(importer), specifier)
+            const candidates = [
+              base,
+              ...extensions.map((ext) => `${base}${ext}`),
+              ...extensions.map((ext) => path.join(base, `index${ext}`)),
+            ]
+            for (const candidate of candidates) {
+              const candidateRel = rel(candidate)
+              if (allSet.has(candidateRel)) return candidateRel
+            }
+            return null
+          }
+
+          const edges = new Map()
+          const unresolved = []
+          const dynamicPatterns = []
+
+          for (const file of allFiles) {
+            const text = fs.readFileSync(path.join(repo, file), 'utf8')
+            const specs = new Set()
+            const regexes = [
+              /\bimport\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/g,
+              /\bexport\s+(?:[^'";]*?\s+from\s+)['"]([^'"]+)['"]/g,
+              /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+              /\bnew\s+URL\s*\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url\s*\)/g,
+              /@import\s+(?:url\()?\s*['"]([^'"]+)['"]/g,
+            ]
+            for (const regex of regexes) {
+              for (const match of text.matchAll(regex)) specs.add(match[1])
+            }
+            if (/import\.meta\.glob/.test(text) || /\bimport\s*\(\s*[^'"\s]/.test(text) || /\brequire\s*\(\s*[^'"\s]/.test(text)) {
+              dynamicPatterns.push(file)
+            }
+            const targets = []
+            for (const spec of specs) {
+              if (!spec.startsWith('.')) continue
+              const target = resolveRelative(file, spec)
+              if (target) targets.push(target)
+              else unresolved.push({ importer: file, specifier: spec })
+            }
+            edges.set(file, [...new Set(targets)].sort())
+          }
+
+          const roots = ['src/main.jsx']
+          const reachable = new Set()
+          const queue = roots.filter((root) => allSet.has(root))
+          while (queue.length) {
+            const current = queue.shift()
+            if (reachable.has(current)) continue
+            reachable.add(current)
+            for (const next of edges.get(current) || []) {
+              if (!reachable.has(next)) queue.push(next)
+            }
+          }
+
+          const testFiles = allFiles.filter((file) => /(^|\/)__tests__\//.test(file) || /\.(test|spec)\.[jt]sx?$/.test(file))
+          const runtimeUnreachable = allFiles.filter((file) => !reachable.has(file) && !testFiles.includes(file))
+          const testOnly = testFiles.filter((file) => !reachable.has(file))
+
+          const report = {
+            roots,
+            totalSourceFiles: allFiles.length,
+            reachable: [...reachable].sort(),
+            runtimeUnreachable,
+            testOnly,
+            unresolved,
+            dynamicPatterns: [...new Set(dynamicPatterns)].sort(),
+            edges: Object.fromEntries([...edges.entries()]),
+          }
+          fs.writeFileSync('cleanup-audit.json', JSON.stringify(report, null, 2))
+
+          console.log(`AUDIT_TOTAL=${allFiles.length}`)
+          console.log(`AUDIT_REACHABLE=${reachable.size}`)
+          console.log(`AUDIT_RUNTIME_UNREACHABLE=${runtimeUnreachable.length}`)
+          console.log(`AUDIT_TEST_ONLY=${testOnly.length}`)
+          console.log('--- RUNTIME UNREACHABLE ---')
+          runtimeUnreachable.forEach((file) => console.log(file))
+          console.log('--- TEST ONLY (KEEP FOR VALIDATION) ---')
+          testOnly.forEach((file) => console.log(file))
+          console.log('--- UNRESOLVED RELATIVE REFERENCES ---')
+          unresolved.forEach((item) => console.log(`${item.importer} -> ${item.specifier}`))
+          console.log('--- NON-LITERAL/DYNAMIC PATTERN FILES ---')
+          dynamicPatterns.forEach((file) => console.log(file))
+          NODE
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanup-audit-report
+          path: cleanup-audit.json
+          if-no-files-found: error
+
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build
+        id: build
+        continue-on-error: true
+        run: npm run build
+
+      - name: Test
+        id: test
+        continue-on-error: true
+        run: npm test
+
+      - name: Validation summary
+        if: always()
+        run: |
+          {
+            echo "# Cleanup validation"
+            echo "- Lint: ${{ steps.lint.outcome }}"
+            echo "- Build: ${{ steps.build.outcome }}"
+            echo "- Test: ${{ steps.test.outcome }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if validation failed
+        if: always()
+        run: |
+          test "${{ steps.lint.outcome }}" = "success"
+          test "${{ steps.build.outcome }}" = "success"
+          test "${{ steps.test.outcome }}" = "success"
