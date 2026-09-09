@@ -1,0 +1,38 @@
+name: Temporary Repo Identity Audit
+
+on:
+  push:
+    branches:
+      - chore-align-repo-remote
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit stale repository references
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== exact old repository references ==='
+          if grep -RInI --exclude-dir=.git --exclude='package-lock.json' -E 'finuxpert/cbj-sap|github\.com/finuxpert/cbj-sap' .; then
+            echo 'ERROR: stale finuxpert/cbj-sap references remain'
+            exit 1
+          fi
+          echo 'No exact old repository references found.'
+          echo '=== broad cbj-sap references ==='
+          if grep -RInI --exclude-dir=.git -E 'cbj-sap' .; then
+            echo 'ERROR: broad cbj-sap references remain'
+            exit 1
+          fi
+          echo 'No cbj-sap references found.'
+      - name: Validate workflow syntax-sensitive files
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+          npm test
