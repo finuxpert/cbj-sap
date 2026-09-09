@@ -1,0 +1,25 @@
+name: SPHERE RCA Naming Audit
+
+on:
+  push:
+    branches:
+      - cleanup-unused-files
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit RCA branding references
+        shell: bash
+        run: |
+          echo '=== FILENAMES under src containing RCA/Rca/rca/SAP-RCA ==='
+          git ls-files src | grep -Ei 'sap[-_]?rca|(^|/)[^/]*rca[^/]*$' || true
+          echo '=== CODE CONTENT exact branding-ish tokens ==='
+          git grep -nE 'SapRca|SAP RCA|SAP-RCA|RcaWorkspace|RCAWorkspace|RCAFocusPanel|RcaDataTable|rcaExport|sap-rca|rca-workspace|rca-cockpit|comparer-rca|sap-dynatrace-rca' -- src ':!**/__tests__/**' || true
+          echo '=== APP/UI quoted RCA labels ==='
+          git grep -nEi "['\"`][^'\"`]{0,60}\bRCA\b[^'\"`]{0,60}['\"`]" -- src || true
