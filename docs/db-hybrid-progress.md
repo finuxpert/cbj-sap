@@ -87,7 +87,7 @@ Do not commit credentials to GitHub.
 
 ## SPHERE Backend DB Foundation
 
-Files added/updated in `finuxpert/cbj-sap` branch `dev`:
+Files added/updated in `finuxpert/sphere` branch `dev`:
 
 ```text
 backend/requirements.txt
@@ -319,7 +319,7 @@ Action: setup-and-status
 2. SAP DB migration:
 
 ```text
-Repo: finuxpert/cbj-sap
+Repo: finuxpert/sphere
 Workflow: SPHERE DB Migration
 Runner: sapdev-pc-runner
 Action: migrate-and-status
@@ -328,7 +328,7 @@ Action: migrate-and-status
 3. SAP DB layer smoke test:
 
 ```text
-Repo: finuxpert/cbj-sap
+Repo: finuxpert/sphere
 Workflow: SPHERE DB Layer Smoke Test
 Runner: sapdev-pc-runner
 ```

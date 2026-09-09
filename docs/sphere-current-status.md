@@ -6,7 +6,7 @@ Last updated: 2026-05-08
 
 ```text
 Project : SAP Intelligent RCA Workspace
-Repo    : finuxpert/cbj-sap
+Repo    : finuxpert/sphere
 Branch  : dev
 Target  : sapdev
 URL     : https://sapdev.cbj-kontruksi.com
@@ -273,7 +273,7 @@ Use this in a new ChatGPT prompt:
 
 ```text
 Lanjut SPHERE.
-Repo: finuxpert/cbj-sap
+Repo: finuxpert/sphere
 Branch: dev
 Target: sapdev
 URL: https://sapdev.cbj-kontruksi.com
