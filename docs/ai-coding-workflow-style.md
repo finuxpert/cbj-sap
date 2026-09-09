@@ -44,7 +44,7 @@ big rewrite -> many files changed -> hard to debug -> hard rollback
 For SPHERE:
 
 ```text
-Repo   : finuxpert/cbj-sap
+Repo   : finuxpert/sphere
 Branch : dev
 Target : sapdev
 URL    : https://sapdev.cbj-kontruksi.com
@@ -59,7 +59,7 @@ The DEV deploy workflow should run automatically on push to branch `dev`.
 Expected file:
 
 ```text
-.github/workflows/deploy-dev.yml
+.github/workflows/dev-deploy.yml
 ```
 
 Expected behavior:
@@ -153,7 +153,7 @@ APP_BUILD_STAMP
 Example:
 
 ```js
-const APP_BUILD_STAMP = 'sap-20260508-pdf-export-ux'
+const APP_BUILD_STAMP = 'sphere-20260909-pdf-export-ux'
 ```
 
 Use meaningful names, not random text.
@@ -165,7 +165,7 @@ Use short imperative commit messages:
 ```text
 Add Comparator UX polish
 Import enterprise theme
-Upgrade structured RCA PDF report export
+Upgrade structured SPHERE PDF report export
 Auto deploy sapdev on dev branch push
 Document enterprise theme structure
 ```
@@ -252,7 +252,7 @@ Use this when starting a new prompt for this repo:
 
 ```text
 Lanjut SPHERE coding style.
-Repo: finuxpert/cbj-sap
+Repo: finuxpert/sphere
 Branch: dev
 Target: sapdev
 URL: https://sapdev.cbj-kontruksi.com
@@ -314,11 +314,12 @@ src/app/comparer-process-ux.css
 src/app/pdf-export-ux.css
 ```
 
-Current PDF export source:
+Current PDF export sources:
 
 ```text
 src/features/pdf/structuredPdf.js
-src/features/pdf/ToolExportDock.jsx
+src/features/cases/casePdfExport.js
+src/tools/sphereExport.js
 ```
 
 Current core tools:
