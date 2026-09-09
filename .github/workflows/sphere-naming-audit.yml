@@ -1,0 +1,25 @@
+name: SPHERE Naming Audit
+
+on:
+  push:
+    branches:
+      - cleanup-unused-files
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan active naming
+        shell: bash
+        run: |
+          echo '=== CONTENT: cbj-sap / CBJ SAP / cbj_sap / cbjsap ==='
+          git grep -nEi 'cbj[-_ ]?sap|cbjsap' -- ':!docs/**' ':!.github/workflows/sphere-naming-audit.yml' || true
+          echo '=== FILENAMES: cbj / sap / sphere ==='
+          git ls-files | grep -Ei '(^|/)[^/]*(cbj|sap|sphere)[^/]*$' || true
+          echo '=== CONTENT: SPHERE ==='
+          git grep -nEi '\bSPHERE\b|\bsphere\b' -- src package.json package-lock.json vite.config.* .github 2>/dev/null || true
