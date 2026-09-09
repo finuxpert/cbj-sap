@@ -1,5 +1,5 @@
 /*
- * SAP Intelligent RCA Workspace - Enterprise theme entrypoint.
+ * SPHERE - Enterprise theme entrypoint.
  * Keep this as the single import in main.jsx for the newer UI polish layers.
  *
  * Order matters:
@@ -11,7 +11,7 @@
  * 6. export/print polish
  */
 @import './enterprise-ui-system.css';
-@import './sap-rca-logo.css';
+@import './sphere-logo.css';
 @import './enterprise-navigation.css';
 @import './header-v132.css';
 @import './evidence-history-ux.css';

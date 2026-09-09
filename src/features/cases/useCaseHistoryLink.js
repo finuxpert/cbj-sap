@@ -36,7 +36,7 @@ function buildIdentityOnlyCasePayload(title, suggested = {}, context = {}) {
     summary: suggested.summary || '',
     top_anomaly: suggested.top_anomaly || '',
     top_suspect: suggested.top_suspect || '',
-    created_by: suggested.created_by || 'sap-rca-workspace',
+    created_by: suggested.created_by || 'sphere-workspace',
   }
 }
 
@@ -106,8 +106,8 @@ export default function useCaseHistoryLink({
   storageKey,
   buildCasePayload,
   buildParsedPayload,
-  defaultCaseTitle = 'SAP RCA Case',
-  toolName = 'SAP RCA Workspace',
+  defaultCaseTitle = 'SPHERE Case',
+  toolName = 'SPHERE',
   uploadLimit = 20,
   uploadTags = [],
   requireExplicitSaveIntent = false,

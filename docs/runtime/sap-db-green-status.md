@@ -1,4 +1,4 @@
-# SAP RCA PostgreSQL Hybrid DB - GREEN Status
+# SPHERE PostgreSQL Hybrid DB - GREEN Status
 
 Last validated: 2026-05-09 23:48 WIB
 Environment: DEV

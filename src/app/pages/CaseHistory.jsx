@@ -265,7 +265,7 @@ export default function CaseHistory() {
           </select>
         </label>
         <label>
-          <span>RCA Stage</span>
+          <span>SPHERE Stage</span>
           <select value={stage} onChange={(event) => setStage(event.target.value)}>
             <option value="all">All stages</option>
             <option value="intake">INTAKE</option>

@@ -10,7 +10,7 @@
 -- PostgreSQL read-only user.
 --
 -- Required base tables/columns:
--- - cases.case_stage is expected to exist from the SAP RCA case-stage migration.
+-- - cases.case_stage is expected to exist from the SPHERE case-stage migration.
 
 CREATE OR REPLACE VIEW grafana_sap_rca_cases AS
 SELECT

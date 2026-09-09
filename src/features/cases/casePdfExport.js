@@ -27,7 +27,7 @@ function addFooter(pdf, page, generatedAt) {
     pdf.setTextColor(110, 120, 125)
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(7.5)
-    pdf.text(`SAP RCA Workspace Case History • ${generatedAt}`, page.m, page.h - 7)
+    pdf.text(`SPHERE Case History • ${generatedAt}`, page.m, page.h - 7)
     pdf.text(`Page ${i} / ${count}`, page.w - page.m - 20, page.h - 7)
   }
 }
@@ -89,7 +89,7 @@ export async function exportCaseHistoryListPdf(cases = [], filters = {}) {
   const generatedAt = new Date().toLocaleString('id-ID')
   const { page, line, section, header } = createWriter(pdf)
 
-  header('SAP RCA Case History Report', 'Persistent RCA Investigation Workspace')
+  header('SPHERE Case History Report', 'Persistent RCA Investigation Workspace')
 
   section('1. Executive Summary')
   line(`Generated: ${generatedAt}`, 9)
@@ -120,13 +120,13 @@ export async function exportCaseHistoryListPdf(cases = [], filters = {}) {
   section('3. Recommended Follow-Up')
   ;[
     'Open high-severity cases and validate timeline, parsed results, and linked raw evidence.',
-    'Use Case Detail export for management-ready RCA summary per incident.',
+    'Use Case Detail export for management-ready SPHERE summary per incident.',
     'Keep raw logs, ST03N, WP-SCOUT, or ZIP evidence attached to the incident/change record.',
   ].forEach((item, index) => line(`${index + 1}. ${item}`, 9.4, 'normal', 3))
 
   addFooter(pdf, page, generatedAt)
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-  pdf.save(`sap-rca-case-history-${stamp}.pdf`)
+  pdf.save(`sphere-case-history-${stamp}.pdf`)
 }
 
 export async function exportCaseDetailPdf(caseData = {}) {
@@ -138,7 +138,7 @@ export async function exportCaseDetailPdf(caseData = {}) {
   const caseNo = caseData.case_no || caseData.id || 'case-detail'
   const topProblem = caseData.top_problem || {}
 
-  header('SAP RCA Case Detail Report', `${caseNo} • Management RCA Snapshot`)
+  header('SPHERE Case Detail Report', `${caseNo} • Management SPHERE Snapshot`)
 
   section('1. Executive Summary')
   line(`Generated: ${generatedAt}`, 9)
@@ -156,7 +156,7 @@ export async function exportCaseDetailPdf(caseData = {}) {
   const timeline = caseData.timeline || []
   if (!timeline.length) line('No timeline saved yet.', 10, 'italic')
   else timeline.slice(0, 20).forEach((item, index) => {
-    line(`${index + 1}. ${formatDate(item.time || item.created_at)} — ${item.title || item.tool || 'RCA event'}`, 9.2, 'bold')
+    line(`${index + 1}. ${formatDate(item.time || item.created_at)} — ${item.title || item.tool || 'SPHERE event'}`, 9.2, 'bold')
     line(item.description || item.summary || item.reason || '-', 8.6, 'normal', 4)
   })
 
@@ -184,5 +184,5 @@ export async function exportCaseDetailPdf(caseData = {}) {
 
   addFooter(pdf, page, generatedAt)
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
-  pdf.save(`sap-rca-case-${safeFilePart(caseNo)}-${stamp}.pdf`)
+  pdf.save(`sphere-case-${safeFilePart(caseNo)}-${stamp}.pdf`)
 }

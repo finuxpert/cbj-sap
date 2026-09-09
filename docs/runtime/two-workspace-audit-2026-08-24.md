@@ -1,4 +1,4 @@
-# SAP RCA Two-Workspace Audit — 2026-08-24
+# SPHERE Two-Workspace Audit — 2026-08-24
 
 Target baseline: `v0.2.0`
 Branch: `refactor/two-workspace-sap-analysis-v0.2.0`

@@ -10,7 +10,7 @@ html body #root .appShell .navbar .mobileBtn{
   html body #root .appShell .navbar .mobileBtn{ display:inline-flex !important; }
 }
 
-/* Branding is now owned by Navbar.jsx: SAP Intelligent RCA by Fikri Maulana */
+/* Branding is now owned by Navbar.jsx: SPHERE by Fikri Maulana */
 html body #root .appShell .navbar .brandTitle::after,
 html body #root .appShell .navbar .brandSub::after{
   content:none !important;

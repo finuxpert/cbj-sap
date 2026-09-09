@@ -1,5 +1,5 @@
 /*
- * SAP Intelligent RCA Workspace - Enterprise UI System
+ * SPHERE - Enterprise UI System
  * Incremental UI/UX layer only. No runtime injector, no MutationObserver, no DOM patching.
  * Imported last from main.jsx so it behaves like a safe design-system override.
  */

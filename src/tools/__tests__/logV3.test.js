@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
-import { buildAutoPeakRcaV3, resourcePressureScoreV3, resourceSeverityV3 } from '../logRcaEngineV3.js'
+import { buildAutoPeakSphereV3, resourcePressureScoreV3, resourceSeverityV3 } from '../logSphereEngineV3.js'
 import { validateEvidenceAnalysisV3 } from '../evidenceSchemaV3.js'
 import { __test } from '../workloadAnalyticsV3.js'
 
@@ -64,7 +64,7 @@ describe('logical collection model', () => {
     for (let file = 0; file < 30; file += 1) {
       for (let host = 1; host <= 5; host += 1) telemetry.push(telemetryRow({ fileName: `f${file}.log`, host: `APP${host}`, minute: file * 20 + host - 1 }))
     }
-    const rca = buildAutoPeakRcaV3({ telemetry })
+    const rca = buildAutoPeakSphereV3({ telemetry })
     expect(rca.collections).toHaveLength(30)
     expect(rca.collections.every((row) => row.hostCount === 5)).toBe(true)
     expect(rca.validatedAnalysis.telemetry).toHaveLength(150)
@@ -77,7 +77,7 @@ describe('logical collection model', () => {
       telemetryRow({ fileName: 'combined.log', host: 'APP1', minute: 20 }),
       telemetryRow({ fileName: 'combined.log', host: 'APP2', minute: 21 }),
     ]
-    const rca = buildAutoPeakRcaV3({ telemetry })
+    const rca = buildAutoPeakSphereV3({ telemetry })
     expect(rca.collections).toHaveLength(2)
     expect(rca.collections.map((row) => row.hostCount)).toEqual([2, 2])
   })
@@ -145,20 +145,20 @@ describe('resource vs operational peaks and sustained pressure', () => {
     const telemetry = []
     for (let host = 1; host <= 5; host += 1) telemetry.push(telemetryRow({ fileName: 'wp.log', host: `APP${host}`, minute: host - 1, wpCritical: 5 }))
     for (let host = 1; host <= 5; host += 1) telemetry.push(telemetryRow({ fileName: 'resource.log', host: `APP${host}`, minute: 20 + host - 1, cpuPct: host === 1 ? 80 : 10 }))
-    const rca = buildAutoPeakRcaV3({ telemetry })
+    const rca = buildAutoPeakSphereV3({ telemetry })
     expect(rca.resourceLandscapePeak.fileName).toBe('resource.log')
     expect(rca.operationalLandscapePeak.fileName).toBe('wp.log')
   })
 
   it('labels two elevated points a short burst and three points sustained', () => {
-    const short = buildAutoPeakRcaV3({ telemetry: [
+    const short = buildAutoPeakSphereV3({ telemetry: [
       telemetryRow({ fileName: 's0.log', host: 'APP1', minute: 0, cpuPct: 80 }),
       telemetryRow({ fileName: 's1.log', host: 'APP1', minute: 20, cpuPct: 82 }),
       telemetryRow({ fileName: 's2.log', host: 'APP1', minute: 40, cpuPct: 10 }),
     ] })
     expect(short.hostPeaks[0].sustained.sustainedClass).toBe('SHORT_BURST')
 
-    const sustained = buildAutoPeakRcaV3({ telemetry: [
+    const sustained = buildAutoPeakSphereV3({ telemetry: [
       telemetryRow({ fileName: 'f0.log', host: 'APP1', minute: 0, cpuPct: 80 }),
       telemetryRow({ fileName: 'f1.log', host: 'APP1', minute: 20, cpuPct: 82 }),
       telemetryRow({ fileName: 'f2.log', host: 'APP1', minute: 40, cpuPct: 84 }),

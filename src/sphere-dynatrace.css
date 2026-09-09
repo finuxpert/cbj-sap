@@ -1,0 +1,390 @@
+/* SPHERE — Dynatrace-inspired observability theme
+   Static CSS only. No runtime injector, no MutationObserver, no delayed UI patching.
+   Scope: WP-SCOUT Comparator, ST03N Workload, System Log Triage, charts, tables, PDF/print readability. */
+
+:root {
+  --sap-obs-bg: #07090b;
+  --sap-obs-panel: rgba(16, 22, 26, 0.94);
+  --sap-obs-panel-soft: rgba(12, 18, 22, 0.90);
+  --sap-obs-border: rgba(148, 163, 184, 0.18);
+  --sap-obs-text: rgba(248, 250, 252, 0.96);
+  --sap-obs-muted: rgba(203, 213, 225, 0.70);
+  --sap-obs-green: #7ce38b;
+  --sap-obs-mint: #25f3d0;
+  --sap-obs-blue: #5ab0ff;
+  --sap-obs-purple: #a78bfa;
+  --sap-obs-red: #ff5f7e;
+  --sap-obs-orange: #ffb86b;
+  --sap-obs-yellow: #ffd166;
+}
+
+body {
+  background: var(--sap-obs-bg);
+}
+
+.cmpCleanShell,
+.st03n-clean,
+.toolLogs,
+.logsTool,
+.rcaTool,
+.logTriage,
+[class*='log'][class*='Tool'] {
+  color: var(--sap-obs-text);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(124, 227, 139, 0.12), transparent 28rem),
+    radial-gradient(circle at 88% 6%, rgba(90, 176, 255, 0.12), transparent 32rem),
+    linear-gradient(180deg, #07090b 0%, #090d0f 52%, #050707 100%) !important;
+}
+
+.cmpCleanHeader,
+.cmpCleanPanel,
+.cmpCleanFinding,
+.cmpCleanActionsPanel,
+.cmpCleanStat,
+.st03n-hero,
+.st03n-clean .panel,
+.st03n-clean .finding-card,
+.st03n-clean .kpi-grid > div,
+.toolLogs section,
+.toolLogs article,
+.toolLogs .panel,
+.toolLogs .card,
+.logsTool section,
+.logsTool article,
+.logsTool .panel,
+.logsTool .card,
+.rcaPanel,
+.rcaCard,
+.rcaHero,
+.rcaInsight,
+.rcaEvidencePanel {
+  border-color: var(--sap-obs-border) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+    var(--sap-obs-panel) !important;
+  box-shadow:
+    0 18px 52px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(16px) saturate(1.08);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.cmpCleanPanel:hover,
+.st03n-clean .panel:hover,
+.toolLogs .panel:hover,
+.logsTool .panel:hover,
+.rcaPanel:hover,
+.rcaCard:hover {
+  transform: translateY(-1px);
+  border-color: rgba(124, 227, 139, 0.32) !important;
+  box-shadow:
+    0 22px 62px rgba(0, 0, 0, 0.38),
+    0 0 22px rgba(124, 227, 139, 0.055),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.cmpCleanKicker,
+.cmpCleanFinding span,
+.cmpCleanActionsPanel span,
+.st03n-clean .eyebrow,
+.rcaKicker,
+.rcaEyebrow,
+.toolLogs h4,
+.logsTool h4 {
+  color: var(--sap-obs-green) !important;
+  text-shadow: 0 0 16px rgba(124, 227, 139, 0.24);
+}
+
+.cmpCleanHeader h1,
+.st03n-hero h1,
+.rcaHero h1,
+.toolLogs h1,
+.logsTool h1 {
+  background: linear-gradient(90deg, #ffffff, #defee5 48%, #a6d4ff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+.cmpCleanPrimary,
+.st03n-clean .primary-btn,
+.st03n-clean .controls button.active,
+.cmpCleanSeg button[data-active='true'],
+.rcaButtonPrimary,
+button.active {
+  border-color: rgba(124, 227, 139, 0.42) !important;
+  background: linear-gradient(135deg, var(--sap-obs-green), var(--sap-obs-mint)) !important;
+  color: #07100b !important;
+  box-shadow: 0 0 22px rgba(124, 227, 139, 0.18) !important;
+}
+
+.cmpCleanFilters input,
+.cmpCleanFilters select,
+.st03n-clean .controls input,
+.st03n-clean .controls select,
+.toolLogs input,
+.toolLogs select,
+.logsTool input,
+.logsTool select,
+.rcaInput,
+.rcaSelect {
+  background: rgba(9, 13, 16, 0.88) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: var(--sap-obs-text) !important;
+}
+
+.cmpCleanFilters input:focus,
+.cmpCleanFilters select:focus,
+.st03n-clean .controls input:focus,
+.toolLogs input:focus,
+.toolLogs select:focus,
+.logsTool input:focus,
+.logsTool select:focus {
+  border-color: rgba(124, 227, 139, 0.52) !important;
+  box-shadow: 0 0 0 3px rgba(124, 227, 139, 0.10) !important;
+  outline: none;
+}
+
+/* Unified monitoring charts */
+.cmpCleanChart,
+.st03n-clean .chart-panel .recharts-responsive-container,
+.st03n-clean .chart-panel,
+.rcaChart,
+.chartPanel,
+.toolLogs .chart,
+.logsTool .chart {
+  position: relative;
+  border-radius: 18px !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.012)),
+    radial-gradient(circle at 50% 0%, rgba(124, 227, 139, 0.085), transparent 42%),
+    #070b0d !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    inset 0 -40px 84px rgba(37, 243, 208, 0.030),
+    0 12px 34px rgba(0, 0, 0, 0.28) !important;
+  overflow: hidden;
+}
+
+.cmpCleanChart::after,
+.st03n-clean .chart-panel::after,
+.rcaChart::after,
+.chartPanel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.034) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(180deg, transparent, black 18%, black 88%, transparent);
+  opacity: 0.42;
+}
+
+.recharts-cartesian-grid line {
+  stroke: rgba(148, 163, 184, 0.24) !important;
+  stroke-dasharray: 2 8 !important;
+}
+
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: rgba(148, 163, 184, 0.18) !important;
+}
+
+.recharts-text,
+.recharts-label {
+  fill: rgba(224, 242, 241, 0.64) !important;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.recharts-default-tooltip {
+  border: 1px solid rgba(124, 227, 139, 0.28) !important;
+  border-radius: 12px !important;
+  background: rgba(8, 12, 15, 0.96) !important;
+  color: #f8fffd !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45) !important;
+}
+
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  color: #f8fffd !important;
+}
+
+.recharts-bar-rectangle path,
+.recharts-rectangle {
+  fill: var(--sap-obs-green) !important;
+  stroke: rgba(225, 255, 231, 0.45) !important;
+  filter: drop-shadow(0 0 8px rgba(124, 227, 139, 0.30));
+}
+
+.recharts-line-curve {
+  stroke: var(--sap-obs-blue) !important;
+  stroke-width: 3px !important;
+  filter: drop-shadow(0 0 7px rgba(90, 176, 255, 0.58));
+}
+
+.recharts-line:nth-of-type(2) .recharts-line-curve { stroke: var(--sap-obs-orange) !important; }
+.recharts-line:nth-of-type(3) .recharts-line-curve { stroke: var(--sap-obs-purple) !important; }
+
+.recharts-line-dot circle,
+.recharts-active-dot circle {
+  fill: #08090b !important;
+  stroke: var(--sap-obs-blue) !important;
+  stroke-width: 2.25px !important;
+}
+
+/* Tables */
+.cmpCleanTableWrap,
+.st03n-clean .table-wrap,
+.toolLogs .tableWrap,
+.logsTool .tableWrap,
+.rcaTableWrap {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0.006)),
+    #070b0d !important;
+}
+
+.cmpCleanTable th,
+.st03n-clean .table-wrap th,
+.toolLogs th,
+.logsTool th,
+.rcaTable th {
+  background: rgba(11, 16, 19, 0.98) !important;
+  color: rgba(226, 232, 240, 0.76) !important;
+}
+
+.cmpCleanTable td,
+.st03n-clean .table-wrap td,
+.toolLogs td,
+.logsTool td,
+.rcaTable td {
+  border-top-color: rgba(148, 163, 184, 0.10) !important;
+}
+
+.cmpCleanTable tbody tr:hover td,
+.st03n-clean .table-wrap tbody tr:hover td,
+.toolLogs tbody tr:hover td,
+.logsTool tbody tr:hover td,
+.rcaTable tbody tr:hover td {
+  background: rgba(124, 227, 139, 0.060) !important;
+}
+
+.cmpCleanBadge.crit,
+.pill.bad,
+.pill.crit,
+.rcaChip--crit,
+.rcaChip--critical {
+  background: rgba(255, 95, 126, 0.20) !important;
+  border: 1px solid rgba(255, 95, 126, 0.34) !important;
+  color: #ffe6eb !important;
+}
+
+.cmpCleanBadge.warn,
+.pill.warn,
+.rcaChip--warn,
+.rcaChip--warning {
+  background: rgba(255, 184, 107, 0.18) !important;
+  border: 1px solid rgba(255, 184, 107, 0.30) !important;
+  color: #fff0da !important;
+}
+
+.cmpCleanBadge.ok,
+.pill.ok,
+.rcaChip--ok,
+.rcaChip--low {
+  background: rgba(124, 227, 139, 0.15) !important;
+  border: 1px solid rgba(124, 227, 139, 0.28) !important;
+  color: #e7ffeb !important;
+}
+
+/* Smooth but not excessive animation */
+.cmpCleanHeader,
+.cmpCleanPanel,
+.cmpCleanStat,
+.st03n-hero,
+.st03n-clean .panel,
+.st03n-clean .finding-card,
+.toolLogs .panel,
+.logsTool .panel,
+.rcaPanel,
+.rcaCard {
+  animation: sapObsFade 260ms ease both;
+}
+
+@keyframes sapObsFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* PDF / print: stable layout, readable charts, no hover effects */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .cmpCleanShell,
+  .st03n-clean,
+  .toolLogs,
+  .logsTool,
+  .rcaTool {
+    background: #ffffff !important;
+    color: #111827 !important;
+    padding: 0 !important;
+  }
+
+  .cmpCleanHeader,
+  .cmpCleanPanel,
+  .cmpCleanFinding,
+  .cmpCleanActionsPanel,
+  .cmpCleanStat,
+  .st03n-hero,
+  .st03n-clean .panel,
+  .st03n-clean .finding-card,
+  .st03n-clean .kpi-grid > div,
+  .rcaPanel,
+  .rcaCard {
+    break-inside: avoid;
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .cmpCleanChart,
+  .st03n-clean .chart-panel {
+    min-height: 240px !important;
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .cmpCleanTableWrap,
+  .st03n-clean .table-wrap {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .cmpCleanFilters,
+  .controls,
+  .cmpCleanActions,
+  .upload-card,
+  .file-drop,
+  .primary-btn,
+  .load-more {
+    display: none !important;
+  }
+}

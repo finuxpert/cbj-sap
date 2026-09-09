@@ -1,4 +1,4 @@
-# SAP RCA PostgreSQL Hybrid Continuation
+# SPHERE PostgreSQL Hybrid Continuation
 
 Last updated: 2026-05-09
 Branch: dev

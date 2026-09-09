@@ -1,10 +1,10 @@
-# SAP RCA Workspace — Case History V1 Handoff Prompt
+# SPHERE — Case History V1 Handoff Prompt
 
 Use this prompt to continue work in a new chat without repeating the full context.
 
 ```text
 Project:
-SAP Intelligent Platform / SAP RCA Workspace
+SAP Intelligent Platform / SPHERE
 
 Repo:
 finuxpert/cbj-sap
@@ -100,7 +100,7 @@ PDF export implemented:
 
 DEV deploy workflow added:
 - .github/workflows/deploy-sapdev.yml
-- workflow name: Deploy SAP RCA Workspace to sapdev
+- workflow name: Deploy SPHERE to sapdev
 - triggers:
   - push to dev
   - workflow_dispatch

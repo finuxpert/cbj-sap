@@ -2,7 +2,7 @@ import React from 'react'
 import { getCurrentHashRoute } from '../app/routeUtils.js'
 import { APP_DISPLAY_VERSION, APP_NAME, APP_TAGLINE, APP_VERSION } from '../app/version.js'
 import { tools, preloadTool } from '../tools'
-import SapRcaLogo from './SapRcaLogo.jsx'
+import SphereLogo from './SphereLogo.jsx'
 
 const MOBILE_TOOL_LABELS = {
   analyzer: 'ST03N',
@@ -50,7 +50,7 @@ export default function Navbar() {
       <header className="navbar rcaNav">
         <div className="navInner rcaNavInner">
           <a className="brand rcaBrand" href="#/st03n" aria-label={`${APP_NAME} ${APP_DISPLAY_VERSION} ST03N analysis`}>
-            <SapRcaLogo />
+            <SphereLogo />
             <span className="brandText">
               <span className="brandTitle">{APP_TAGLINE}</span>
               <span className="brandSub">Performance analysis tools · {APP_DISPLAY_VERSION}</span>

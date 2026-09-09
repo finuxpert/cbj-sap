@@ -1,4 +1,4 @@
-# Grafana Integration Plan — SAP RCA Workspace
+# Grafana Integration Plan — SPHERE
 
 Purpose: define the safe integration pattern between SAP Intelligent RCA Workspace, PostgreSQL, and Grafana without duplicating RCA investigation features.
 
@@ -6,7 +6,7 @@ Purpose: define the safe integration pattern between SAP Intelligent RCA Workspa
 
 Grafana is not the RCA input or investigation screen.
 
-- SAP RCA Workspace remains the operational workspace for intake, evidence upload, parsing, RCA correlation, case detail, session replay, and PDF reports.
+- SPHERE remains the operational workspace for intake, evidence upload, parsing, RCA correlation, case detail, session replay, and PDF reports.
 - PostgreSQL remains the shared persistence layer.
 - Grafana reads curated PostgreSQL views for monitoring, comparison, and management/NOC visibility.
 
@@ -15,7 +15,7 @@ Grafana is not the RCA input or investigation screen.
 ```text
 User reports: SAP is slow
 ↓
-SAP RCA creates temporary investigation case
+SPHERE creates temporary investigation case
 ↓
 User uploads evidence per SID/host/app/tool
 ↓
@@ -27,7 +27,7 @@ PostgreSQL stores case + evidence + parsed_results + node metrics
 ↓
 Grafana reads curated SQL views
 ↓
-Grafana panels link back to SAP RCA case detail
+Grafana panels link back to SPHERE case detail
 ```
 
 ## Case Naming Model
@@ -91,7 +91,7 @@ Meaning:
 
 | Layer | Responsibility |
 |---|---|
-| SAP RCA Workspace | Intake, evidence upload, parsing, RCA, PDF report |
+| SPHERE | Intake, evidence upload, parsing, RCA, PDF report |
 | FastAPI `/sap-api` | Case/evidence/parsed-result API |
 | PostgreSQL | Durable RCA data store |
 | SQL views | Grafana-ready curated data |
@@ -166,7 +166,7 @@ Grafana can compare:
 - Error count by host/tool.
 - Suspect score by host.
 
-SAP RCA should still remain the source of truth for the final RCA narrative.
+SPHERE should still remain the source of truth for the final RCA narrative.
 
 ## Recommended SQL Views
 
@@ -257,7 +257,7 @@ case_url
 
 ## Example Grafana Panels
 
-### SAP RCA Command Center
+### SPHERE Command Center
 
 - Open Cases
 - Critical Cases
@@ -279,7 +279,7 @@ case_url
 - Suspect Score by App Server
 - Latest Evidence by Host
 
-## Link Back to SAP RCA
+## Link Back to SPHERE
 
 Grafana rows should include a link back to the case detail page.
 
@@ -316,9 +316,9 @@ If the deployed router uses a different case path, adjust the SQL view link only
 ### Phase 4 — Grafana dashboard
 
 - Add PostgreSQL datasource.
-- Build SAP RCA Command Center dashboard.
+- Build SPHERE Command Center dashboard.
 - Build per-case app1–app5 comparison dashboard.
-- Add data links back to SAP RCA case detail.
+- Add data links back to SPHERE case detail.
 
 ## Guardrails
 
@@ -326,5 +326,5 @@ If the deployed router uses a different case path, adjust the SQL view link only
 - Do not duplicate RCA analysis UI inside Grafana.
 - Do not expose raw file paths, secrets, tokens, or sensitive payloads in Grafana views.
 - Keep Grafana read-only.
-- Keep SAP RCA as the system of record.
+- Keep SPHERE as the system of record.
 - Keep changes incremental and rollback-safe.

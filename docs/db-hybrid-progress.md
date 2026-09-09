@@ -1,4 +1,4 @@
-# SAP RCA PostgreSQL Hybrid Progress
+# SPHERE PostgreSQL Hybrid Progress
 
 Last updated: 2026-05-09
 Branch: `dev`
@@ -85,7 +85,7 @@ Credential location on server only:
 
 Do not commit credentials to GitHub.
 
-## SAP RCA Backend DB Foundation
+## SPHERE Backend DB Foundation
 
 Files added/updated in `finuxpert/cbj-sap` branch `dev`:
 
@@ -320,7 +320,7 @@ Action: setup-and-status
 
 ```text
 Repo: finuxpert/cbj-sap
-Workflow: SAP RCA DB Migration
+Workflow: SPHERE DB Migration
 Runner: sapdev-pc-runner
 Action: migrate-and-status
 ```
@@ -329,7 +329,7 @@ Action: migrate-and-status
 
 ```text
 Repo: finuxpert/cbj-sap
-Workflow: SAP RCA DB Layer Smoke Test
+Workflow: SPHERE DB Layer Smoke Test
 Runner: sapdev-pc-runner
 ```
 

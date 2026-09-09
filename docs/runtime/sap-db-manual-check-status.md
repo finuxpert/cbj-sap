@@ -1,4 +1,4 @@
-# SAP RCA PostgreSQL Hybrid Manual Check
+# SPHERE PostgreSQL Hybrid Manual Check
 
 Checked at: 2026-05-09T23:16:19+07:00
 Host: sadmin-HP-280-G2-MT-Legacy

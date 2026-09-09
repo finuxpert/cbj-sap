@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${REPO:-finuxpert/cbj-sap}"
+REPO="${REPO:-finuxpert/sphere}"
 REF="${REF:-dev}"
 WORKFLOW="${WORKFLOW:-backend-safe-refactor.yml}"
 CONFIRM="${CONFIRM:-APPLY_BACKEND_REFACTOR}"
@@ -31,8 +31,8 @@ gh run list --repo "${REPO}" --workflow "${WORKFLOW}" --limit 5
 cat <<'EOF'
 
 Next commands:
-  gh run watch --repo finuxpert/cbj-sap
-  gh run view --repo finuxpert/cbj-sap --log-failed
+  gh run watch --repo finuxpert/sphere
+  gh run view --repo finuxpert/sphere --log-failed
 
 Expected flow:
   1. backend-safe-refactor.yml runs model refactor

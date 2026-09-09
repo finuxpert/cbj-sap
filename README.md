@@ -1,4 +1,4 @@
-# SAP RCA Workspace
+# SPHERE
 
 SAP Basis root-cause-analysis workspace focused on two primary analysis surfaces: ST03N workload/performance analysis and unified Log/process evidence analysis.
 
@@ -68,6 +68,6 @@ Relevant documentation:
 - [Code cleanup audit](docs/runtime/code-cleanup-audit.md)
 - [Frontend audit and development plan](docs/runtime/frontend-audit-development-plan.md)
 - [QA checklist](docs/qa-checklist.md)
-- [Current SAP RCA status](docs/sap-rca-current-status.md)
+- [Current SPHERE status](docs/sphere-current-status.md)
 
 Production backup/deploy/rollback procedures remain documented separately and are not part of frontend cleanup work.

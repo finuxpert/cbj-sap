@@ -40,7 +40,7 @@ Validate these endpoints on SAPDEV:
 
 ## Grafana Views
 
-The SQL file [`docs/sql/grafana-rca-views.sql`](docs/sql/grafana-rca-views.sql) defines:
+The SQL file [`docs/sql/grafana-sphere-views.sql`](docs/sql/grafana-sphere-views.sql) defines:
 
 - `grafana_rca_cases`
 - `grafana_rca_parsed_results`
