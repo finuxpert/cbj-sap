@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - fix-lint-baseline
+    paths:
+      - .github/workflows/lint-fix.yml
 
 permissions:
   contents: write
 
 jobs:
   apply-lint-fix:
-    if: github.event.head_commit.message == 'ci: add temporary lint fixer'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
