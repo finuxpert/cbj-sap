@@ -1,6 +1,6 @@
 # AI Coding Workflow Style
 
-This document describes the preferred coding workflow for SAP RCA Workspace and other CBJ/Finuxpert web apps.
+This document describes the preferred coding workflow for SPHERE and other CBJ/Finuxpert web apps.
 
 The goal is to improve web apps continuously while keeping the codebase clean, auditable, and easy to continue in a new ChatGPT prompt.
 
@@ -41,7 +41,7 @@ big rewrite -> many files changed -> hard to debug -> hard rollback
 
 ### 2. DEV first
 
-For SAP RCA Workspace:
+For SPHERE:
 
 ```text
 Repo   : finuxpert/cbj-sap
@@ -72,7 +72,7 @@ Manual workflow is acceptable, but the preferred flow is no manual clicking when
 
 ### 4. Keep UI changes structured
 
-For SAP RCA Workspace, newer UI polish layers must be centralized through:
+For SPHERE, newer UI polish layers must be centralized through:
 
 ```text
 src/app/enterprise-theme.css
@@ -251,7 +251,7 @@ Next recommended step
 Use this when starting a new prompt for this repo:
 
 ```text
-Lanjut SAP RCA Workspace coding style.
+Lanjut SPHERE coding style.
 Repo: finuxpert/cbj-sap
 Branch: dev
 Target: sapdev
@@ -299,7 +299,7 @@ Start by checking repo structure, build workflow, deploy target, CSS layers, and
 Then propose or apply the safest first patch.
 ```
 
-## Current SAP RCA Workspace UI layers
+## Current SPHERE UI layers
 
 Current newer polish layers:
 

@@ -17,17 +17,17 @@ The browser RCA engine uses these only when they are present. Missing or permiss
 
 ## Collector
 
-`ops/wp-scout-rca-telemetry-v13.sh` is read-only and best effort.
+`ops/wp-scout-sphere-telemetry-v13.sh` is read-only and best effort.
 
 ```bash
-chmod +x ops/wp-scout-rca-telemetry-v13.sh
-./ops/wp-scout-rca-telemetry-v13.sh >> wp-scout.log
+chmod +x ops/wp-scout-sphere-telemetry-v13.sh
+./ops/wp-scout-sphere-telemetry-v13.sh >> wp-scout.log
 ```
 
 Optional explicit PID list:
 
 ```bash
-RCA_PID_LIST="1234 5678 9012" ./ops/wp-scout-rca-telemetry-v13.sh >> wp-scout.log
+RCA_PID_LIST="1234 5678 9012" ./ops/wp-scout-sphere-telemetry-v13.sh >> wp-scout.log
 ```
 
 Without `RCA_PID_LIST`, the script discovers common SAP application processes using `ps`.

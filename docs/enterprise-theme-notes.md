@@ -1,6 +1,6 @@
-# SAP RCA Workspace Enterprise Theme Notes
+# SPHERE Enterprise Theme Notes
 
-This document keeps the UI/UX polish work maintainable while the SAP RCA Workspace evolves incrementally.
+This document keeps the UI/UX polish work maintainable while the SPHERE evolves incrementally.
 
 ## Current approach
 
@@ -48,7 +48,7 @@ Branch: `dev`
 Expected deploy workflow:
 
 ```text
-GitHub Actions -> Deploy SAP RCA Workspace to DEV -> Run workflow -> branch dev
+GitHub Actions -> Deploy SPHERE to DEV -> Run workflow -> branch dev
 ```
 
 Post-deploy smoke checks:

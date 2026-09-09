@@ -1,10 +1,10 @@
-# SAP RCA Workspace Refactor Status
+# SPHERE Refactor Status
 
 This document tracks the current RCA workspace refactor state and the next safe work items.
 
 ## Current State
 
-The SAP RCA Workspace is now evolving from a parser-only toolset into a persistent RCA investigation workspace.
+The SPHERE is now evolving from a parser-only toolset into a persistent RCA investigation workspace.
 
 Current stable foundation:
 
@@ -327,7 +327,7 @@ A DEV deploy workflow exists:
 Workflow name:
 
 ```text
-Deploy SAP RCA Workspace to sapdev
+Deploy SPHERE to sapdev
 ```
 
 Triggers:

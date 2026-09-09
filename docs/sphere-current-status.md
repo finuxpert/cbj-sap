@@ -1,4 +1,4 @@
-# SAP RCA Workspace Current Status
+# SPHERE Current Status
 
 Last updated: 2026-05-08
 
@@ -50,7 +50,7 @@ Secondary/helper tools must stay hidden or secondary unless explicitly requested
 
 ## Branding / logo status
 
-Navbar uses a custom internal SAP RCA Workspace badge:
+Navbar uses a custom internal SPHERE badge:
 
 ```text
 src/components/SapRcaLogo.jsx
@@ -60,10 +60,10 @@ src/app/sap-rca-logo.css
 Important note:
 
 ```text
-This is a custom internal SAP RCA mark, not an official SAP logo asset.
+This is a custom internal SPHERE mark, not an official SAP logo asset.
 ```
 
-The badge text is `SAP RCA` and is designed to match the enterprise theme without committing external trademark image files.
+The badge text is `SPHERE` and is designed to match the enterprise theme without committing external trademark image files.
 
 ## Current CSS / UI state
 
@@ -96,7 +96,7 @@ Current enterprise UI layers:
 
 ```text
 src/app/enterprise-ui-system.css        -> base enterprise tokens/cards/buttons/tables
-src/app/sap-rca-logo.css                -> custom SAP RCA badge styling
+src/app/sap-rca-logo.css                -> custom SPHERE badge styling
 src/app/enterprise-navigation.css       -> navbar, tool tabs, mobile nav
 src/app/evidence-history-ux.css         -> shared Evidence History / server evidence panels
 src/app/investigation-workspace-ux.css  -> home dashboard / evidence pack workflow
@@ -210,7 +210,7 @@ docs/dev-deploy-runbook.md          -> updated dev auto-deploy runbook
 docs/css-cleanup-audit.md           -> CSS cleanup/rollback audit
 docs/qa-checklist.md                -> visual/manual QA checklist after CSS consolidation
 docs/validation/dev-latest.md       -> runner-written latest DEV validation report
-docs/sap-rca-current-status.md      -> this status handoff file
+docs/sphere-current-status.md      -> this status handoff file
 ```
 
 ## Coding style rules
@@ -248,7 +248,7 @@ These previously caused:
 
 ```text
 blank screen
-stuck Loading SAP RCA module
+stuck Loading SPHERE module
 render lag
 mobile freeze
 hard-to-debug UI state
@@ -259,7 +259,7 @@ hard-to-debug UI state
 Recommended next work, in order:
 
 1. Smoke test sapdev visually after CSS consolidation.
-2. Verify desktop/mobile navbar and custom SAP RCA badge.
+2. Verify desktop/mobile navbar and custom SPHERE badge.
 3. Test Evidence Archive/Uploader/History on the 3 core tool pages.
 4. Test Export PDF on all 3 core tools.
 5. If visual QA is green, delete or archive unused legacy CSS in a later dedicated cleanup only after rollback window.
@@ -272,14 +272,14 @@ Recommended next work, in order:
 Use this in a new ChatGPT prompt:
 
 ```text
-Lanjut SAP RCA Workspace.
+Lanjut SPHERE.
 Repo: finuxpert/cbj-sap
 Branch: dev
 Target: sapdev
 URL: https://sapdev.cbj-kontruksi.com
 
 Read first:
-- docs/sap-rca-current-status.md
+- docs/sphere-current-status.md
 - docs/ai-coding-workflow-style.md
 - docs/enterprise-theme-notes.md
 - docs/dev-deploy-runbook.md
@@ -298,5 +298,5 @@ Working style:
 - auto deploy runs on push to dev
 
 Goal:
-Continue improving/auditing SAP RCA Workspace while keeping code clean, documented, and rollback-safe.
+Continue improving/auditing SPHERE while keeping code clean, documented, and rollback-safe.
 ```

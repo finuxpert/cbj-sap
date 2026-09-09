@@ -1,4 +1,4 @@
-# SAP RCA Workspace — Dynatrace-Style Observability Polish
+# SPHERE — Dynatrace-Style Observability Polish
 
 ## Scope
 
@@ -25,7 +25,7 @@ The workspace uses a dark observability theme with:
 
 ## Tool Naming
 
-Navbar naming was aligned to SAP RCA / observability terminology:
+Navbar naming was aligned to SPHERE / observability terminology:
 
 - `WP-SCOUT Comparator` → `WP-SCOUT Monitor`
 - `ST03N Workload` → `ST03N Workload RCA`
@@ -94,7 +94,7 @@ The current UI theme does not bypass the server-side evidence flow.
 
 - `src/sap-dynatrace-rca.css`
 - `src/tools/ToolComparerDynatrace.css`
-- `docs/sap-rca-workspace-dynatrace-polish.md`
+- `docs/sphere-workspace-dynatrace-polish.md`
 
 ### Updated
 

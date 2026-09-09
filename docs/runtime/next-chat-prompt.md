@@ -16,7 +16,7 @@ When the user only says `cek repo`, interpret it as:
 - Start by creating or updating `docs/runtime/code-cleanup-audit.md` with findings.
 - Do not delete files or change behavior until usage is proven.
 
-## Continuation Prompt — SAP RCA Code Audit / Kode Sampah Cleanup
+## Continuation Prompt — SPHERE Code Audit / Kode Sampah Cleanup
 
 ```text
 Lanjut SAP Intelligent RCA Workspace — fokus audit kode sampah / technical debt cleanup.
