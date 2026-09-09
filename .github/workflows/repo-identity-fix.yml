@@ -1,0 +1,68 @@
+name: Temporary Repo Identity Fix
+
+on:
+  push:
+    branches:
+      - chore-align-repo-remote
+    paths:
+      - .github/workflows/repo-identity-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chore-align-repo-remote
+      - name: Replace stale repository references
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          old = 'finuxpert/' + 'cbj-sap'
+          new = 'finuxpert/sphere'
+          changed = []
+          for root in (Path('docs'),):
+              for path in root.rglob('*'):
+                  if not path.is_file():
+                      continue
+                  try:
+                      text = path.read_text()
+                  except UnicodeDecodeError:
+                      continue
+                  if old in text:
+                      path.write_text(text.replace(old, new))
+                      changed.append(str(path))
+          if not changed:
+              raise SystemExit('No stale repository references found to replace')
+          print('Updated files:')
+          for path in changed:
+              print(path)
+          PY
+      - name: Verify old repository name is gone from docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          old_repo='finuxpert/'"cbj-sap"
+          old_name='cbj-'"sap"
+          ! grep -RInI -F "$old_repo" docs
+          ! grep -RInI -F "$old_name" docs
+      - name: Validate
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+          npm test
+      - name: Commit documentation cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Zactos-lab'
+          git config user.email 'fikrirtc12@gmail.com'
+          git add docs
+          git commit -m 'docs: align repository references with sphere'
+          git push origin HEAD:chore-align-repo-remote
