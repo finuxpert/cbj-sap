@@ -42,11 +42,12 @@ jobs:
           const norm = (value) => value.split(path.sep).join('/')
           const rel = (value) => norm(path.relative(repo, value))
 
-          function walk(dir) {
+          function walk(dir, skip = new Set()) {
             if (!fs.existsSync(dir)) return []
             return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+              if (skip.has(entry.name)) return []
               const full = path.join(dir, entry.name)
-              return entry.isDirectory() ? walk(full) : [full]
+              return entry.isDirectory() ? walk(full, skip) : [full]
             })
           }
 
@@ -71,12 +72,7 @@ jobs:
             return null
           }
 
-          const edges = new Map()
-          const unresolved = []
-          const dynamicPatterns = []
-
-          for (const file of allFiles) {
-            const text = fs.readFileSync(path.join(repo, file), 'utf8')
+          function extractSpecs(text) {
             const specs = new Set()
             const regexes = [
               /\bimport\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/g,
@@ -85,14 +81,19 @@ jobs:
               /\bnew\s+URL\s*\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url\s*\)/g,
               /@import\s+(?:url\()?\s*['"]([^'"]+)['"]/g,
             ]
-            for (const regex of regexes) {
-              for (const match of text.matchAll(regex)) specs.add(match[1])
-            }
-            if (/import\.meta\.glob/.test(text) || /\bimport\s*\(\s*[^'"\s]/.test(text) || /\brequire\s*\(\s*[^'"\s]/.test(text)) {
-              dynamicPatterns.push(file)
-            }
+            for (const regex of regexes) for (const match of text.matchAll(regex)) specs.add(match[1])
+            return [...specs]
+          }
+
+          const edges = new Map()
+          const unresolved = []
+          const dynamicPatterns = []
+
+          for (const file of allFiles) {
+            const text = fs.readFileSync(path.join(repo, file), 'utf8')
+            if (/import\.meta\.glob/.test(text) || /\bimport\s*\(\s*[^'"\s]/.test(text) || /\brequire\s*\(\s*[^'"\s]/.test(text)) dynamicPatterns.push(file)
             const targets = []
-            for (const spec of specs) {
+            for (const spec of extractSpecs(text)) {
               if (!spec.startsWith('.')) continue
               const target = resolveRelative(file, spec)
               if (target) targets.push(target)
@@ -101,28 +102,58 @@ jobs:
             edges.set(file, [...new Set(targets)].sort())
           }
 
-          const roots = ['src/main.jsx']
-          const reachable = new Set()
-          const queue = roots.filter((root) => allSet.has(root))
-          while (queue.length) {
-            const current = queue.shift()
-            if (reachable.has(current)) continue
-            reachable.add(current)
-            for (const next of edges.get(current) || []) {
-              if (!reachable.has(next)) queue.push(next)
+          function closure(roots) {
+            const seen = new Set()
+            const queue = roots.filter((root) => allSet.has(root))
+            while (queue.length) {
+              const current = queue.shift()
+              if (seen.has(current)) continue
+              seen.add(current)
+              for (const next of edges.get(current) || []) if (!seen.has(next)) queue.push(next)
             }
+            return seen
           }
 
+          const roots = ['src/main.jsx']
+          const runtimeReachable = closure(roots)
           const testFiles = allFiles.filter((file) => /(^|\/)__tests__\//.test(file) || /\.(test|spec)\.[jt]sx?$/.test(file))
-          const runtimeUnreachable = allFiles.filter((file) => !reachable.has(file) && !testFiles.includes(file))
-          const testOnly = testFiles.filter((file) => !reachable.has(file))
+          const testReachable = closure(testFiles)
+          const runtimeUnreachable = allFiles.filter((file) => !runtimeReachable.has(file) && !testFiles.includes(file))
+          const testDependencyOnly = [...testReachable].filter((file) => !runtimeReachable.has(file) && !testFiles.includes(file)).sort()
+
+          const externalRefs = []
+          const textExts = new Set(['.js','.jsx','.ts','.tsx','.mjs','.cjs','.json','.yml','.yaml','.html','.md','.sh','.py'])
+          const outsideFiles = walk(repo, new Set(['.git','node_modules','dist']))
+            .filter((file) => !rel(file).startsWith('src/') && textExts.has(path.extname(file)))
+          for (const abs of outsideFiles) {
+            const file = rel(abs)
+            let text = ''
+            try { text = fs.readFileSync(abs, 'utf8') } catch { continue }
+            for (const spec of extractSpecs(text)) {
+              if (!spec.startsWith('.')) continue
+              const base = path.resolve(repo, path.dirname(file), spec)
+              const candidates = [base, ...extensions.map((ext) => `${base}${ext}`), ...extensions.map((ext) => path.join(base, `index${ext}`))]
+              const target = candidates.map(rel).find((candidate) => allSet.has(candidate))
+              if (target) externalRefs.push({ importer: file, target, kind: 'import' })
+            }
+            for (const match of text.matchAll(/(?:^|[^A-Za-z0-9_.-])(src\/[A-Za-z0-9_./-]+\.(?:js|jsx|ts|tsx|css))/g)) {
+              if (allSet.has(match[1])) externalRefs.push({ importer: file, target: match[1], kind: 'literal-path' })
+            }
+          }
+          const externalByTarget = Object.fromEntries(runtimeUnreachable.map((target) => [target, externalRefs.filter((item) => item.target === target)]).filter(([, refs]) => refs.length))
+          const conservativeSafe = runtimeUnreachable.filter((file) => !testReachable.has(file) && !externalByTarget[file])
 
           const report = {
             roots,
             totalSourceFiles: allFiles.length,
-            reachable: [...reachable].sort(),
+            runtimeReachable: [...runtimeReachable].sort(),
             runtimeUnreachable,
-            testOnly,
+            testFiles,
+            testReachable: [...testReachable].sort(),
+            testDependencyOnly,
+            externalRefs,
+            externalByTarget,
+            conservativeSafe,
             unresolved,
             dynamicPatterns: [...new Set(dynamicPatterns)].sort(),
             edges: Object.fromEntries([...edges.entries()]),
@@ -130,13 +161,16 @@ jobs:
           fs.writeFileSync('cleanup-audit.json', JSON.stringify(report, null, 2))
 
           console.log(`AUDIT_TOTAL=${allFiles.length}`)
-          console.log(`AUDIT_REACHABLE=${reachable.size}`)
+          console.log(`AUDIT_RUNTIME_REACHABLE=${runtimeReachable.size}`)
           console.log(`AUDIT_RUNTIME_UNREACHABLE=${runtimeUnreachable.length}`)
-          console.log(`AUDIT_TEST_ONLY=${testOnly.length}`)
-          console.log('--- RUNTIME UNREACHABLE ---')
-          runtimeUnreachable.forEach((file) => console.log(file))
-          console.log('--- TEST ONLY (KEEP FOR VALIDATION) ---')
-          testOnly.forEach((file) => console.log(file))
+          console.log(`AUDIT_TEST_DEP_ONLY=${testDependencyOnly.length}`)
+          console.log(`AUDIT_CONSERVATIVE_SAFE=${conservativeSafe.length}`)
+          console.log('--- CONSERVATIVE SAFE (NO RUNTIME/TEST/EXTERNAL REF) ---')
+          conservativeSafe.forEach((file) => console.log(file))
+          console.log('--- TEST DEPENDENCY ONLY ---')
+          testDependencyOnly.forEach((file) => console.log(file))
+          console.log('--- EXTERNAL REFERENCES TO RUNTIME-UNREACHABLE ---')
+          Object.entries(externalByTarget).forEach(([target, refs]) => refs.forEach((item) => console.log(`${target} <- ${item.importer} [${item.kind}]`)))
           console.log('--- UNRESOLVED RELATIVE REFERENCES ---')
           unresolved.forEach((item) => console.log(`${item.importer} -> ${item.specifier}`))
           console.log('--- NON-LITERAL/DYNAMIC PATTERN FILES ---')
