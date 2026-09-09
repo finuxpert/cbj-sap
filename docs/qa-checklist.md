@@ -5,7 +5,7 @@ Use this checklist for every SPHERE DEV deployment and for future web app audits
 ## Scope
 
 ```text
-Repo   : finuxpert/cbj-sap
+Repo   : finuxpert/sphere
 Branch : dev
 Target : sapdev
 URL    : https://sapdev.cbj-kontruksi.com

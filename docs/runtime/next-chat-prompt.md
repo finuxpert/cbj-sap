@@ -22,7 +22,7 @@ When the user only says `cek repo`, interpret it as:
 Lanjut SAP Intelligent RCA Workspace — fokus audit kode sampah / technical debt cleanup.
 
 Repo:
-- finuxpert/cbj-sap
+- finuxpert/sphere
 
 Branch:
 - dev

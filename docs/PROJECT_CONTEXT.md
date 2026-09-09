@@ -1,6 +1,6 @@
 # CBJ SAP Tools — Project Context
 
-Dokumen ini adalah konteks utama project `cbj-sap` agar percakapan baru tetap nyambung tanpa perlu menjelaskan ulang dari awal.
+Dokumen ini adalah konteks utama project `sphere` agar percakapan baru tetap nyambung tanpa perlu menjelaskan ulang dari awal.
 
 ## Ringkasan project
 
@@ -8,13 +8,13 @@ CBJ SAP Tools adalah aplikasi React/Vite untuk kebutuhan operasional SAP Basis, 
 
 Project ini berbeda dari `cbj-trading-ai`:
 
-- `cbj-sap` adalah frontend/static app React/Vite.
+- `sphere` adalah frontend/static app React/Vite.
 - Deploy utamanya lewat build static dan Nginx route.
 - Tidak memakai Docker API sebagai runtime utama.
 
 ## Repository
 
-- GitHub repo: `finuxpert/cbj-sap`
+- GitHub repo: `finuxpert/sphere`
 - Visibility: Private
 - Default branch: `main`
 - Source path utama server: `/home/sadmin/sap`
@@ -206,5 +206,5 @@ Namun untuk konteks cepat project SAP, file ini (`docs/PROJECT_CONTEXT.md`) haru
 ## Prompt pendek untuk chat baru
 
 ```text
-Saya mau lanjut project CBJ SAP Tools. Repo GitHub: finuxpert/cbj-sap. Tolong baca README.md dan docs/PROJECT_CONTEXT.md dulu. Production ada di https://cbj-kontruksi.com/sap, dev utama sekarang di https://sapdev.cbj-kontruksi.com/, dan legacy brutal staging di http://192.168.10.1/sap-staging/ hanya untuk eksperimen besar. Jangan deploy ke production sebelum saya setujui.
+Saya mau lanjut project CBJ SAP Tools. Repo GitHub: finuxpert/sphere. Tolong baca README.md dan docs/PROJECT_CONTEXT.md dulu. Production ada di https://cbj-kontruksi.com/sap, dev utama sekarang di https://sapdev.cbj-kontruksi.com/, dan legacy brutal staging di http://192.168.10.1/sap-staging/ hanya untuk eksperimen besar. Jangan deploy ke production sebelum saya setujui.
 ```

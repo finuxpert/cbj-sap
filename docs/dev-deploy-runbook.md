@@ -26,7 +26,7 @@ The DEV server is behind Cloudflare Tunnel and does not expose SSH publicly. Bec
 ## Repository and Server Paths
 
 ```text
-Repository: finuxpert/cbj-sap
+Repository: finuxpert/sphere
 Active DEV branch: dev
 Local project path: /home/sadmin/sap
 Deploy root: /var/www/svr01-dev/sap
@@ -277,7 +277,7 @@ Safer unattended config:
 cd /home/sadmin/actions-runner
 
 sudo -u sadmin ./config.sh \
-  --url https://github.com/finuxpert/cbj-sap \
+  --url https://github.com/finuxpert/sphere \
   --token TOKEN_FROM_GITHUB \
   --name sapdev-pc-runner \
   --labels sapdev \

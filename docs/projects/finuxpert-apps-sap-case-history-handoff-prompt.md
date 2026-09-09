@@ -7,7 +7,7 @@ Project:
 SAP Intelligent Platform / SPHERE
 
 Repo:
-finuxpert/cbj-sap
+finuxpert/sphere
 
 Branch:
 dev

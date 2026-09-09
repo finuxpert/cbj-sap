@@ -3,7 +3,7 @@
 Last updated: 2026-05-10
 
 Repo:
-- GitHub: finuxpert/cbj-sap
+- GitHub: finuxpert/sphere
 - Branch: dev
 - Local path: /home/sadmin/sap
 - DEV URL: https://sapdev.cbj-kontruksi.com
@@ -199,7 +199,7 @@ GitHub DEV Deploy Workflow:
 - Manual command:
 
 ```bash
-gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
+gh workflow run 273264105 --repo finuxpert/sphere --ref dev
 ```
 
 Backend Safe Refactor Workflow:
@@ -340,7 +340,7 @@ Latest validated DEV/sapdev manual deploy uses the registered GitHub Actions wor
 Command used:
 
 ```bash
-gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
+gh workflow run 273264105 --repo finuxpert/sphere --ref dev
 ```
 
 Latest validation after deploy:
