@@ -336,7 +336,7 @@ export default function CaseAnalytics({ caseData }) {
     <article className="caseDetailPanel caseDetailAnalyticsPanel" data-analytics-source={rows.source}>
       <div className="caseDetailSectionHead caseAnalyticsHeader">
         <div>
-          <p className="sectionKicker">RCA Evidence Analytics</p>
+          <p className="sectionKicker">SPHERE Evidence Analytics</p>
           <span>{rows.source === 'backend' ? 'Backend-generated analytics from Case History API.' : 'Fallback analytics generated from parsed results in browser.'}</span>
         </div>
       </div>

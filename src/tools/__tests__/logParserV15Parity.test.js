@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const toolUrl = new URL('../ToolLogAutoRcaV5.jsx', import.meta.url)
+const toolUrl = new URL('../ToolLogAutoSphereV5.jsx', import.meta.url)
 const workerV15Url = new URL('../workers/logParserV15.worker.js', import.meta.url)
 const workerV14Url = new URL('../workers/logParserV14.worker.js', import.meta.url)
 

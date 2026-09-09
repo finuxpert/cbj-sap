@@ -3,10 +3,10 @@ import './case-workspace-panels.css'
 import { getCaseCorrelation, getCaseReplay, getMobileCase } from '../../evidence-api-client.js'
 import CaseDetail from './CaseDetail.jsx'
 import CaseAnalytics from './CaseAnalytics.jsx'
-import RCAFocusPanel from './RCAFocusPanel.jsx'
+import SphereFocusPanel from './SphereFocusPanel.jsx'
 import CorrelationSummary from './CorrelationSummary.jsx'
 import SessionReplayPanel from './SessionReplayPanel.jsx'
-import { countItems } from './rca-panel-utils.js'
+import { countItems } from './sphere-panel-utils.js'
 
 function normalizeCase(payload) {
   return payload?.case || payload?.item || payload || null
@@ -30,7 +30,7 @@ function AnalyticsQuickSummary({ caseData }) {
         <strong>{caseData?.case_no || caseData?.id || 'Case Detail'}</strong>
       </div>
       <div>
-        <span>RCA Stage</span>
+        <span>SPHERE Stage</span>
         <strong>{stage}</strong>
       </div>
       <div>
@@ -55,7 +55,7 @@ function AnalyticsQuickSummary({ caseData }) {
 
 function CaseDashboardHero({ caseData, loadingAnalytics }) {
   const title = caseData?.title || caseData?.case_no || caseData?.id || 'Case Detail'
-  const summary = caseData?.executive_summary || caseData?.summary || 'RCA dashboard summary will appear after the case data is loaded.'
+  const summary = caseData?.executive_summary || caseData?.summary || 'SPHERE dashboard summary will appear after the case data is loaded.'
   const status = String(caseData?.status || 'OPEN').toUpperCase()
   const severity = String(caseData?.severity || 'INFO').toUpperCase()
   const stage = stageLabel(caseData?.case_stage)
@@ -63,7 +63,7 @@ function CaseDashboardHero({ caseData, loadingAnalytics }) {
   return (
     <section className="caseDashboardHero">
       <div>
-        <p className="sectionKicker">Case RCA Dashboard</p>
+        <p className="sectionKicker">Case SPHERE Dashboard</p>
         <h1>{title}</h1>
         <p>{summary}</p>
       </div>
@@ -83,7 +83,7 @@ function AnalyticsBlock({ caseData, correlation, replay, loadingAnalytics, loadi
       <CaseDashboardHero caseData={caseData} loadingAnalytics={loadingAnalytics} />
       {caseData ? (
         <>
-          <RCAFocusPanel caseData={caseData} correlation={correlation} />
+          <SphereFocusPanel caseData={caseData} correlation={correlation} />
           <AnalyticsQuickSummary caseData={caseData} />
           <CorrelationSummary correlation={correlation} loading={loadingCorrelation} />
           <SessionReplayPanel replay={replay} loading={loadingReplay} />

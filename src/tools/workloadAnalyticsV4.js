@@ -1,5 +1,5 @@
 import { rankResourceConsumersV3 } from './workloadAnalyticsV3.js'
-import { resourceSignalScoresV3 } from './logRcaEngineV3.js'
+import { resourceSignalScoresV3 } from './logSphereEngineV3.js'
 
 const CPU_CONTRIBUTION_MAX_VALID_PCT = 120
 

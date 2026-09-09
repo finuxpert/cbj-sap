@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildLogAnalysis, parseLogText, __test as logTest } from '../logAnalysisV14.js'
-import { buildAutoPeakRcaV3 } from '../logRcaEngineV3.js'
+import { buildAutoPeakSphereV3 } from '../logSphereEngineV3.js'
 
 function hostLog({ hostname = 'AOPH2PAPPDC', wpHost = hostname, swapIn = 784 } = {}) {
   return `snapshot @ 2026-01-15 07:21:00
@@ -28,7 +28,7 @@ describe('LOG v1.14.3 raw source-host provenance', () => {
     expect(analysis.sourceHostProvenance.droppedTelemetryRows).toBe(0)
     expect(analysis.telemetry).toHaveLength(1)
 
-    const rca = buildAutoPeakRcaV3(analysis)
+    const rca = buildAutoPeakSphereV3(analysis)
     const app2 = rca.hostPeaks.find((item) => item.host === 'AOPH2PAPPDC')
     expect(app2).toBeTruthy()
     expect(app2.metrics.swapIn.value).toBe(784)

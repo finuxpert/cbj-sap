@@ -17,6 +17,6 @@
   .rca26EvidenceScope button{flex:1}
 }
 
-/* PDF export is paginated section-by-section by rcaExport.js in v1.5.4. */
+/* PDF export is paginated section-by-section by sphereExport.js in v1.5.4. */
 .rcaPdfExportMode .rca26IncidentReportOnly .rca26ReportTopWorkload{page-break-inside:avoid;break-inside:avoid}
 .rcaPdfExportMode .rca26IncidentReportOnly .rca26ReportTopWorkload .rca26JobCharts{page-break-inside:avoid;break-inside:avoid}

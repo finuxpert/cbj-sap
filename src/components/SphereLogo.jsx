@@ -1,9 +1,9 @@
 import React from 'react'
-import '../app/sap-rca-logo.css'
+import '../app/sphere-logo.css'
 
 const BASE_URL = import.meta.env.BASE_URL
 
-export default function SapRcaLogo({ compact = false }) {
+export default function SphereLogo({ compact = false }) {
   return (
     <span className={`sphereLogo ${compact ? 'compact' : ''}`} aria-hidden="true">
       <picture>

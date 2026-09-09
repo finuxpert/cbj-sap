@@ -326,7 +326,7 @@ function buildHostPeaks(collections = [], hosts = [], cadence = {}) {
   }).sort((a, b) => severityRank(b.resourceSeverity) - severityRank(a.resourceSeverity) || b.peakPressure - a.peakPressure || b.sustained.sustainedScore - a.sustained.sustainedScore || a.host.localeCompare(b.host))
 }
 
-export function buildAutoPeakRcaV3(analysis = {}) {
+export function buildAutoPeakSphereV3(analysis = {}) {
   const validated = validateEvidenceAnalysisV3(analysis)
   const telemetry = validated.analysis.telemetry
   const collections = buildLogicalCollectionsV3(telemetry)

@@ -1,11 +1,11 @@
 import React from 'react'
 import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
 import { buildLogAnalysis, parseLogText, telemetryCapabilitiesV15 } from './logAnalysisV15.js'
-import { buildAutoPeakRcaV3 } from './logRcaEngineV3.js'
+import { buildAutoPeakSphereV3 } from './logSphereEngineV3.js'
 import { rankResourceConsumersV5 } from './workloadAnalyticsV5.js'
 import { LOG_V14_METRICS } from './components/logChartMetrics.js'
-import './LogAutoRcaV2.css'
-import './LogAutoRcaV141.css'
+import './LogAutoSphereV2.css'
+import './LogAutoSphereV141.css'
 
 const VirtualResourceTableV14 = React.lazy(() => import('./components/VirtualResourceTableV14.jsx'))
 const LandscapeResourceEChartV14 = React.lazy(() => import('./components/LogLandscapeEChartV14.jsx').then((module) => ({ default: module.LandscapeResourceEChartV14 })))
@@ -164,7 +164,7 @@ function AnalyticsDiagnostics({ diagnostics, capabilities, mapping, verdict, rca
     ? `${source.status || 'WARN'} · verified ${source.verifiedBlocks || 0}/${source.totalBlocks} · unverified ${source.unverifiedBlocks || 0} · mismatch ${source.mismatchBlocks || 0} · dropped T/P ${source.droppedTelemetryRows || 0}/${source.droppedProcessRows || 0}`
     : 'WARN · raw source-host headers unavailable'
   return <details className="logV2SourceAudit"><summary>Diagnostics</summary><div><table><tbody>
-    <tr><th>RCA engine</th><td>{diagnostics?.engineDiagnostics?.rcaEngine || 'RCA v3.6.3'}</td></tr>
+    <tr><th>SPHERE engine</th><td>{diagnostics?.engineDiagnostics?.rcaEngine || 'SPHERE v3.6.3'}</td></tr>
     <tr><th>Core aggregator</th><td>{diagnostics?.engineDiagnostics?.coreAggregator || diagnostics?.engineDiagnostics?.activeEngine || '—'}</td></tr>
     <tr><th>DuckDB</th><td>{diagnostics?.engineDiagnostics?.duckDbStatus || '—'} · {diagnostics?.engineReason || diagnostics?.engineDiagnostics?.reason || 'no error'}</td></tr>
     <tr><th>Parity</th><td>{parity.status || 'NOT_RUN'} · compared {parity.compared || 0} · mismatches {parity.mismatchCount || 0}</td></tr>
@@ -251,7 +251,7 @@ function SampleDrilldownSummary({ focus, rows = [], onClear }) {
   </section>
 }
 
-export default function ToolLogAutoRcaV5() {
+export default function ToolLogAutoSphereV5() {
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('')
   const [analysis, setAnalysis] = React.useState(null)
@@ -291,7 +291,7 @@ export default function ToolLogAutoRcaV5() {
       for (const file of expanded) input.push({ name: file.name, text: await file.text() })
       let parsedAnalysis
       try { parsedAnalysis = await workerParse(input) } catch { parsedAnalysis = buildLogAnalysis(input.map((item) => parseLogText(item.text, item.name))) }
-      const nextRca = buildAutoPeakRcaV3(parsedAnalysis)
+      const nextRca = buildAutoPeakSphereV3(parsedAnalysis)
       const nextAnalysis = nextRca.validatedAnalysis || parsedAnalysis
       if (!nextRca?.collections?.length) throw new Error('No host telemetry collections found in the uploaded logs.')
       const caps = telemetryCapabilitiesV15(nextAnalysis)

@@ -4,7 +4,7 @@ import {
   normalizeCorrelationSources,
   sanitizeCorrelationHosts,
   sanitizeWorkprocesses,
-} from './rca-panel-utils.js'
+} from './sphere-panel-utils.js'
 
 export default function CorrelationSummary({ correlation, loading }) {
   const [showAllHosts, setShowAllHosts] = React.useState(false)
@@ -35,7 +35,7 @@ export default function CorrelationSummary({ correlation, loading }) {
     <article className="caseDetailPanel caseDetailAnalyticsPanel caseCorrelationSummary" data-rca-correlation="true">
       <div className="intelHead">
         <div>
-          <span>RCA Analytics</span>
+          <span>SPHERE Analytics</span>
           <small className="rcaPanelSubtext">Backend-generated analytics from Case History API</small>
         </div>
         <strong className={`rcaSeverityBadge is${severity.toLowerCase()}`} data-correlation-severity>{severity}</strong>

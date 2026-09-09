@@ -68,8 +68,8 @@ function sliceCanvas(source, startY, height) {
 
 export async function downloadWorkspacePdf(root, options = {}) {
   if (!root) return
-  const filename = options.filename || 'sap-rca-report.pdf'
-  const title = options.title || 'SAP RCA Report'
+  const filename = options.filename || 'sphere-report.pdf'
+  const title = options.title || 'SPHERE Report'
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')])
   document.body.classList.add('rcaPdfExportMode')
   root.setAttribute('data-pdf-export', 'true')
@@ -78,7 +78,7 @@ export async function downloadWorkspacePdf(root, options = {}) {
     if (document.fonts?.ready) await document.fonts.ready
     await nextFrame()
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
-    pdf.setProperties({ title, subject: 'SAP RCA engineering report', creator: 'SAP RCA Workspace' })
+    pdf.setProperties({ title, subject: 'SPHERE engineering report', creator: 'SPHERE' })
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
     const margin = 7

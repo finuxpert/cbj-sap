@@ -5,9 +5,9 @@ import {
   normalizeCorrelationSources,
   sanitizeCorrelationHosts,
   sanitizeWorkprocesses,
-} from './rca-panel-utils.js'
+} from './sphere-panel-utils.js'
 
-export default function RCAFocusPanel({ caseData, correlation }) {
+export default function SphereFocusPanel({ caseData, correlation }) {
   const severity = String(correlation?.severity || caseData?.severity || 'INFO').toUpperCase()
   const confidence = Number(correlation?.confidence || 0)
   const rootCause = correlation?.top_root_cause || caseData?.top_suspect || caseData?.top_anomaly || 'Need more evidence before final RCA.'
@@ -22,7 +22,7 @@ export default function RCAFocusPanel({ caseData, correlation }) {
     <article className="caseDetailPanel caseDetailAnalyticsPanel rcaFocusPanel">
       <div className="intelHead">
         <div>
-          <span>RCA Focus</span>
+          <span>SPHERE Focus</span>
           <small className="rcaPanelSubtext">Backend-generated analytics from Case History API</small>
         </div>
         <div className="rcaFocusHeadBadges">

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildAutoPeakRcaV3 } from '../logRcaEngineV3.js'
+import { buildAutoPeakSphereV3 } from '../logSphereEngineV3.js'
 
 describe('LOG v1.14.2 operator polish and attribution guard', () => {
   it('keeps host peak and metric attribution on the originating application server', () => {
@@ -10,7 +10,7 @@ describe('LOG v1.14.2 operator polish and attribution guard', () => {
       { fileName: 'c2.log', timeLabel: '2026-01-15 11:33', snapshot: '2026-01-15 11:33', sortKey: 4, host: 'AOPH2PAPPDC', vcpu: 8, cpuPct: 4, memoryPct: 59.6, load1: 1.2, swapIn: 0, wpCritical: 21 },
     ]
 
-    const rca = buildAutoPeakRcaV3({ telemetry, processes: [] })
+    const rca = buildAutoPeakSphereV3({ telemetry, processes: [] })
     const app1 = rca.hostPeaks.find((item) => item.host === 'AOPH1PAPPDC')
     const app2 = rca.hostPeaks.find((item) => item.host === 'AOPH2PAPPDC')
 

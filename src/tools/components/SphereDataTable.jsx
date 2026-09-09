@@ -48,7 +48,7 @@ function isEvidenceCandidate(row) {
   return dStateIncrease > 0 || cpuIncrease >= 5 || rssIncrease >= 1 || repeatedNewError
 }
 
-export default function RcaDataTable({
+export default function SphereDataTable({
   columns = [], rows = [], rowKey = (row, index) => row?.key || row?.id || index,
   defaultSort = null, search = true, searchPlaceholder = 'Search…', filters = [], pageSize = 50,
   compact = false, className = '', onRowClick, selectedKey = '', query: controlledQuery, onQueryChange,
@@ -140,7 +140,7 @@ export default function RcaDataTable({
   return <div className={`rca26DataTable ${className}`} aria-busy={pending ? 'true' : 'false'} data-pending={pending ? 'true' : 'false'}>
     {hasToolbar && <div className="rca26TableToolbar">
       {search && <input className="rca26Search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={searchPlaceholder} />}
-      {supportsEvidenceScope && <div className="rca26EvidenceScope" role="group" aria-label="Workload evidence scope" data-pdf-ignore="true" title="Candidates: score 60+, or score 40–59 with D-state increase, significant CPU/RSS increase, or a new error repeated across timestamps."><button type="button" data-active={evidenceScope === 'candidates'} onClick={() => setEvidenceScope('candidates')}>RCA Candidates</button><button type="button" data-active={evidenceScope === 'all'} onClick={() => setEvidenceScope('all')}>All Workloads</button></div>}
+      {supportsEvidenceScope && <div className="rca26EvidenceScope" role="group" aria-label="Workload evidence scope" data-pdf-ignore="true" title="Candidates: score 60+, or score 40–59 with D-state increase, significant CPU/RSS increase, or a new error repeated across timestamps."><button type="button" data-active={evidenceScope === 'candidates'} onClick={() => setEvidenceScope('candidates')}>SPHERE Candidates</button><button type="button" data-active={evidenceScope === 'all'} onClick={() => setEvidenceScope('all')}>All Workloads</button></div>}
       {filters.map((filter) => <label className="rca26Filter" key={filter.key}><span>{filter.label}</span><select value={filterState[filter.key] || '__all__'} onChange={(event) => setFilterState((current) => ({ ...current, [filter.key]: event.target.value }))}><option value="__all__">All</option>{(availableFilterOptions.get(filter.key) || []).map((option) => <option value={option} key={option}>{option}</option>)}</select></label>)}
       {(query || Object.values(filterState).some((value) => value && value !== '__all__')) && <button className="rca26TextBtn" onClick={() => { setQuery(''); setFilterState({}) }}>Clear</button>}
       <span className="rca26ResultCount">{supportsEvidenceScope && evidenceScope === 'candidates' ? `${sorted.length.toLocaleString()} of ${rows.length.toLocaleString()} rows` : `${sorted.length.toLocaleString()} rows`}</span>

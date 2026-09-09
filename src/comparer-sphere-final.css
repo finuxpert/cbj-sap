@@ -1,4 +1,4 @@
-/* CBJ SAP RCA Comparator final hardening
+/* SPHERE Comparator final hardening
    Purpose: remove old oval shortcut navigation and clean mobile RCA UI.
    Safe: CSS only, no DOM observer, no runtime loop. */
 
@@ -89,7 +89,7 @@
 .cbjRcaActions{margin-top:9px;padding:9px 10px;border-radius:10px;background:rgba(79,209,165,.07);border:1px solid rgba(79,209,165,.16)}
 .cbjRcaActions p{margin:0 0 5px;font-size:10.6px;line-height:1.35;color:rgba(227,235,225,.75)}
 
-/* Mobile UI/UX cleanup for RCA Comparator */
+/* Mobile UI/UX cleanup for SPHERE Comparator */
 @media(max-width:760px){
   .appShell.isTool .navbar,
   .appShell.isTool .navInner{
