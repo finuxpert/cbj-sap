@@ -1,0 +1,66 @@
+name: Temporary Safe NPM Audit Fix
+
+on:
+  push:
+    branches:
+      - security-npm-audit
+    paths:
+      - .github/workflows/npm-security-fix-safe.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-safe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security-npm-audit
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply non-breaking lockfile security updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp package.json /tmp/package.before.json
+          npm audit fix --package-lock-only
+          cmp -s package.json /tmp/package.before.json
+      - name: Validate locked install
+        run: npm ci
+      - name: Validate lint
+        run: npm run lint
+      - name: Validate build
+        run: npm run build
+      - name: Validate tests
+        run: npm test
+      - name: Validate expected remaining audit scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --json > /tmp/post.json || true
+          node <<'NODE'
+          const fs=require('fs')
+          const a=JSON.parse(fs.readFileSync('/tmp/post.json','utf8'))
+          const m=a.metadata?.vulnerabilities || {}
+          console.log('Remaining:', JSON.stringify(m))
+          if (m.total !== 4 || m.low !== 0 || m.high !== 1 || m.critical !== 1 || m.moderate !== 2) {
+            throw new Error('Unexpected post-fix vulnerability baseline')
+          }
+          const names=Object.keys(a.vulnerabilities||{}).sort()
+          console.log('Remaining packages:', names.join(', '))
+          const expected=['@vitest/mocker','jspdf','vitest','xlsx'].sort()
+          if (JSON.stringify(names)!==JSON.stringify(expected)) throw new Error('Unexpected remaining vulnerability packages')
+          NODE
+      - name: Commit lockfile security updates
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Zactos-lab'
+          git config user.email 'fikrirtc12@gmail.com'
+          git add package-lock.json
+          git diff --cached --quiet && { echo 'No lockfile changes'; exit 1; }
+          git commit -m 'chore: apply non-breaking npm security updates'
+          git push origin HEAD:security-npm-audit
