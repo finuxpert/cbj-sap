@@ -114,6 +114,33 @@
   font-weight: 700;
 }
 
+.rundeckRcaJobButton {
+  display: block;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 0 0 2px;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--sphere-text, #edf1f4);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 780;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rundeckRcaJobButton:hover,
+.rundeckRcaJobButton:focus-visible,
+.rundeckRcaJobButton.is-selected {
+  border-bottom-color: var(--sphere-accent, #49c8d1);
+  color: var(--sphere-accent, #49c8d1);
+  outline: none;
+}
+
 @media (max-width: 760px) {
   .rundeckJobHistoryHead {
     flex-direction: column;
