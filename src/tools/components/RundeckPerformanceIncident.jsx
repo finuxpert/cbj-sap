@@ -127,7 +127,9 @@ export default function RundeckPerformanceIncident({
   const hostMetrics = summary.current_host_metrics || {}
   const signalValue = metric(signal.value, signal.unit || '')
   const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
-  const resourceState = summary.host_resource_pressure ? 'WARNING' : 'NORMAL'
+  const resourceState = summary.host_resource_pressure
+    ? (summary.status === 'CRITICAL' ? 'CRITICAL' : 'WARNING')
+    : 'NORMAL'
 
   return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
