@@ -1,4 +1,5 @@
 import React from 'react'
+import SphereIcon from './SphereIcon.jsx'
 import { numberText, shortHost, workloadTypeLabel } from './sapUiFormat.js'
 import './RundeckCurrentWorkload.css'
 
@@ -68,7 +69,7 @@ export default function RundeckCurrentWorkload({ collectionId = '', selectedJob 
 
   return <section className="rundeckCurrentWorkload" aria-label="Current SAP Workload">
     <div className="rundeckCurrentWorkloadHead">
-      <h3>Current Workload</h3>
+      <h3><SphereIcon name="workload" /> Current Workload</h3>
       {rows.length > 10 && <button type="button" onClick={() => setShowAll((value) => !value)}>
         {showAll ? 'Top 10' : `View all ${rows.length}`}
       </button>}
