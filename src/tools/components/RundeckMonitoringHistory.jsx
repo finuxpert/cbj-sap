@@ -12,7 +12,6 @@ const RANGES = [
   ['24h', '24H'],
   ['7d', '7D'],
   ['30d', '30D'],
-  ['90d', '90D'],
 ]
 
 const BUCKETS = [
@@ -40,16 +39,21 @@ const themeToken = (name, fallback) => {
 }
 
 const chartTheme = () => ({
-  text: themeToken('--sphere-text', '#edf1f4'),
-  secondary: themeToken('--sphere-text-secondary', '#b1bbc4'),
-  muted: themeToken('--sphere-text-muted', '#7f8c97'),
-  border: themeToken('--sphere-border', '#323d48'),
-  grid: themeToken('--sphere-border-subtle', '#28323c'),
-  panel: themeToken('--sphere-surface-1', '#192129'),
-  panelStrong: themeToken('--sphere-surface-2', '#1e2730'),
-  accentSoft: themeToken('--sphere-accent-soft', '#17383f'),
-  warning: themeToken('--sphere-warning', '#e8c86b'),
-  danger: themeToken('--sphere-danger', '#ef8a94'),
+  text: themeToken('--sphere-text', '#e7edf0'),
+  secondary: themeToken('--sphere-text-secondary', '#a9b5bb'),
+  muted: themeToken('--sphere-text-muted', '#718089'),
+  grid: themeToken('--sphere-chart-grid', 'rgba(126,147,158,.12)'),
+  panel: themeToken('--sphere-surface-1', '#141d23'),
+  accentSoft: themeToken('--sphere-accent-soft', 'rgba(79,198,200,.14)'),
+  warning: themeToken('--sphere-warning', '#d8b35f'),
+  danger: themeToken('--sphere-danger', '#db7d86'),
+  series: [
+    themeToken('--sphere-chart-1', '#6f9fd8'),
+    themeToken('--sphere-chart-2', '#89b47e'),
+    themeToken('--sphere-chart-3', '#9a94c7'),
+    themeToken('--sphere-chart-4', '#d39a69'),
+    themeToken('--sphere-chart-5', '#62b8bd'),
+  ],
 })
 
 async function json(url, signal) {
@@ -121,24 +125,26 @@ function TrendChart({ trend, mode, range, onSelect }) {
     const thresholdLines = []
 
     if (trend?.warning !== null && trend?.warning !== undefined) {
-      thresholdLines.push({ yAxis: Number(trend.warning), name: 'WARNING', lineStyle: { color: palette.warning, type: 'dashed' }, label: { formatter: `WARNING ${trend.warning}${suffix}`, color: palette.warning } })
+      thresholdLines.push({ yAxis: Number(trend.warning), name: 'WARNING', lineStyle: { color: palette.warning, type: 'dashed', opacity: .58 }, label: { formatter: `WARNING ${trend.warning}${suffix}`, color: palette.warning, fontSize: 8 } })
     }
     if (trend?.critical !== null && trend?.critical !== undefined) {
-      thresholdLines.push({ yAxis: Number(trend.critical), name: 'CRITICAL', lineStyle: { color: palette.danger, type: 'dashed' }, label: { formatter: `CRITICAL ${trend.critical}${suffix}`, color: palette.danger } })
+      thresholdLines.push({ yAxis: Number(trend.critical), name: 'CRITICAL', lineStyle: { color: palette.danger, type: 'dashed', opacity: .62 }, label: { formatter: `CRITICAL ${trend.critical}${suffix}`, color: palette.danger, fontSize: 8 } })
     }
 
     return {
       animationDuration: 150,
       backgroundColor: 'transparent',
+      color: palette.series,
       textStyle: { color: palette.text },
-      legend: { top: 0, type: 'scroll', data: hosts.map(shortHost), textStyle: { color: palette.secondary }, pageTextStyle: { color: palette.muted } },
-      grid: { left: 56, right: 22, top: 42, bottom: 56 },
+      legend: { top: 0, type: 'scroll', itemWidth: 14, itemHeight: 8, data: hosts.map(shortHost), textStyle: { color: palette.secondary, fontSize: 9 }, pageTextStyle: { color: palette.muted } },
+      grid: { left: 52, right: 22, top: 38, bottom: 52 },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross', lineStyle: { color: palette.muted } },
-        backgroundColor: palette.panelStrong,
-        borderColor: palette.border,
-        textStyle: { color: palette.text },
+        confine: true,
+        axisPointer: { type: 'line', lineStyle: { color: palette.muted, width: 1, type: 'dashed' } },
+        backgroundColor: palette.panel,
+        borderWidth: 0,
+        textStyle: { color: palette.text, fontSize: 10 },
         formatter: (items = []) => {
           if (!items.length) return ''
           const first = items[0]?.data || {}
@@ -155,37 +161,42 @@ function TrendChart({ trend, mode, range, onSelect }) {
         type: 'time',
         axisLabel: {
           color: palette.muted,
+          fontSize: 9,
           hideOverlap: true,
           formatter: (value) => range === '6h' || range === '24h'
             ? formatWib(value, false)
             : new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', hour12: false }).format(new Date(value)),
         },
-        axisLine: { lineStyle: { color: palette.border } },
+        axisTick: { show: false },
+        axisLine: { lineStyle: { color: palette.grid } },
         splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
         name: `${trend?.metric_label || ''}${trend?.unit ? ` (${trend.unit})` : ''}`,
-        nameTextStyle: { color: palette.muted },
-        axisLabel: { color: palette.muted, formatter: (value) => `${value}${trend?.unit === '%' ? '%' : ''}` },
-        axisLine: { lineStyle: { color: palette.border } },
-        splitLine: { lineStyle: { color: palette.grid, type: 'dashed' } },
+        nameTextStyle: { color: palette.muted, fontSize: 9 },
+        axisLabel: { color: palette.muted, fontSize: 9, formatter: (value) => `${value}${trend?.unit === '%' ? '%' : ''}` },
+        axisTick: { show: false },
+        axisLine: { show: false },
+        splitLine: { lineStyle: { color: palette.grid, type: 'solid', width: 1 } },
         min: trend?.unit === '%' ? 0 : undefined,
         max: trend?.unit === '%' ? 100 : undefined,
+        splitNumber: 4,
       },
       dataZoom: [
         { type: 'inside', filterMode: 'none' },
-        { type: 'slider', bottom: 10, height: 12, filterMode: 'none', borderColor: palette.border, backgroundColor: palette.panel, fillerColor: palette.accentSoft, textStyle: { color: palette.muted } },
+        { type: 'slider', bottom: 8, height: 10, filterMode: 'none', borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.accentSoft, textStyle: { color: palette.muted, fontSize: 8 } },
       ],
       series: hosts.map((host, index) => ({
         name: shortHost(host),
         type: 'line',
         connectNulls: false,
         showSymbol: (byHost.get(host)?.length || 0) <= 80,
-        symbolSize: 7,
-        emphasis: { focus: 'series', scale: 1.5 },
+        symbolSize: 5,
+        lineStyle: { width: 1.5 },
+        emphasis: { focus: 'series', scale: 1.4 },
         data: (byHost.get(host) || []).map((row) => ({ value: [row.bucket, row[valueKey]], bucket: row.bucket, peakAt: row.peak_at, peakCollectionId: row.peak_collection_id, host: row.host, avg: row.avg_value, max: row.max_value })),
-        markLine: index === 0 && thresholdLines.length ? { silent: true, symbol: ['none', 'none'], lineStyle: { type: 'dashed', width: 1 }, label: { position: 'insideEndTop', fontSize: 8 }, data: thresholdLines } : undefined,
+        markLine: index === 0 && thresholdLines.length ? { silent: true, symbol: ['none', 'none'], data: thresholdLines } : undefined,
       })),
     }
   }, [mode, range, trend])
@@ -222,6 +233,11 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
   const selectedJobContext = consumer?.consumer_key ? { key: consumer.consumer_key, host: selectedRow?.host || selected?.host || '', consumerType: consumer.consumer_type || '', source: 'selected-time' } : null
   const jobSelected = selectedJobContext && selectedJob?.key === selectedJobContext.key && selectedJob?.host === selectedJobContext.host
   const selectedMetricIsCpu = String(selected?.metricLabel || '').toUpperCase() === 'CPU'
+  const facts = [
+    details.program ? ['Program', details.program] : null,
+    [details.wp_type, details.wp].filter(Boolean).length ? ['WP', [details.wp_type, details.wp].filter(Boolean).join(' ')] : null,
+    details.pid ? ['PID', details.pid] : null,
+  ].filter(Boolean)
 
   return <section ref={panelRef} tabIndex="-1" className="rundeckRcaSection" aria-live="polite">
     <div className="rundeckRcaHeader">
@@ -249,15 +265,9 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
         <div className="rundeckRcaWorkloadTitle">
           <span>Top Workload</span>
           {selectedJobContext ? <button type="button" className={`rundeckRcaJobButton ${jobSelected ? 'is-selected' : ''}`} onClick={() => onSelectJob?.(selectedJobContext)}>{consumer.consumer_key}</button> : <strong>No workload found</strong>}
-          {consumer && <small>CPU {numberText(consumer.cpu_pct)}% · PSS {numberText(details.pss_gb, 2)} GB</small>}
+          {consumer && <small>CPU {numberText(consumer.cpu_pct)}% · PSS {details.pss_gb === null || details.pss_gb === undefined ? '—' : `${numberText(details.pss_gb, 2)} GB`}</small>}
         </div>
-        <dl>
-          <div><dt>Background Job</dt><dd>{details.job_name || '—'}</dd></div>
-          <div><dt>ABAP Program</dt><dd>{details.program || '—'}</dd></div>
-          <div><dt>Work Process</dt><dd>{[details.wp_type, details.wp].filter(Boolean).join(' ') || '—'}</dd></div>
-          <div><dt>SAP User</dt><dd>{details.user || '—'}</dd></div>
-          <div><dt>PID</dt><dd>{details.pid || '—'}</dd></div>
-        </dl>
+        {facts.length > 0 && <dl>{facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}
       </div>
     </>}
 
@@ -355,10 +365,11 @@ export default function RundeckMonitoringHistory({
     </div>
 
     <details className="rundeckAdvancedControls">
-      <summary>Advanced</summary>
+      <summary>More</summary>
       <div>
+        <button type="button" className={range === '90d' ? 'is-active' : ''} onClick={() => setRange('90d')}>90D</button>
         <button type="button" className={metric === 'swap' ? 'is-active' : ''} onClick={() => setMetric('swap')}>Swap IO</button>
-        <span>Interval</span><Segmented options={BUCKETS} value={bucket} onChange={setBucket} ariaLabel="Trend interval" />
+        <Segmented options={BUCKETS} value={bucket} onChange={setBucket} ariaLabel="Trend interval" />
       </div>
     </details>
 
