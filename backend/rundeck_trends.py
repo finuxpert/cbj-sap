@@ -98,10 +98,12 @@ def trend_series(
     bucket_key: str,
     metric_key: str,
 ) -> dict:
-    """Aggregate host metrics with AVG/MAX/MIN and preserve peak timestamp.
+    """Aggregate host metrics by logical Rundeck collection time.
 
-    The query is intentionally bounded by the fixed range/bucket allowlists above.
-    At AUTO resolution the largest response is about 720 points across five hosts.
+    APP1 -> APP5 are collected sequentially, so their raw host timestamps can cross a
+    10-minute wall-clock boundary. Bucketing by the Rundeck execution start keeps all
+    hosts from the same collection aligned on one x-axis point while peak_at preserves
+    the exact host sample time used for RCA drill-down.
     """
     engine = get_engine()
     if engine is None:
@@ -117,15 +119,18 @@ def trend_series(
             SELECT
                 date_bin(
                     CAST(:stride AS interval),
-                    collected_at,
+                    COALESCE(c.started_at, c.finished_at, h.collected_at),
                     TIMESTAMPTZ '2000-01-01 00:00:00+00'
                 ) AS bucket,
-                collection_id,
-                collected_at,
-                host,
-                {column}::double precision AS value
-            FROM rundeck_host_metrics
-            WHERE collected_at >= :since
+                h.collection_id,
+                COALESCE(c.started_at, c.finished_at, h.collected_at) AS collection_at,
+                h.collected_at,
+                h.host,
+                h.{column}::double precision AS value
+            FROM rundeck_host_metrics h
+            LEFT JOIN rundeck_collections c
+              ON c.collection_id = h.collection_id
+            WHERE COALESCE(c.started_at, c.finished_at, h.collected_at) >= :since
         ),
         ranked AS (
             SELECT
@@ -143,15 +148,25 @@ def trend_series(
             MAX(value) FILTER (WHERE value IS NOT NULL) AS max_value,
             MIN(value) FILTER (WHERE value IS NOT NULL) AS min_value,
             COUNT(value) AS samples,
-            COUNT(*) FILTER (WHERE COALESCE(value, 0) > 0) AS affected_samples,
-            MAX(CASE WHEN peak_rank = 1 AND value IS NOT NULL THEN collected_at END) AS peak_at
+            COUNT(*) FILTER (
+                WHERE value IS NOT NULL
+                  AND (
+                    (CAST(:warning AS double precision) IS NOT NULL AND value >= CAST(:warning AS double precision))
+                    OR (CAST(:warning AS double precision) IS NULL AND value > 0)
+                  )
+            ) AS affected_samples,
+            MAX(CASE WHEN peak_rank = 1 AND value IS NOT NULL THEN collected_at END) AS peak_at,
+            MAX(CASE WHEN peak_rank = 1 AND value IS NOT NULL THEN collection_id END) AS peak_collection_id
         FROM ranked
         GROUP BY bucket, host
         ORDER BY bucket ASC, host ASC
     """)
 
     with engine.connect() as conn:
-        result = conn.execute(query, {"since": since, "stride": stride})
+        result = conn.execute(
+            query,
+            {"since": since, "stride": stride, "warning": metric["warning"]},
+        )
         items = [dict(row._mapping) for row in result]
 
     return {
@@ -166,3 +181,26 @@ def trend_series(
         "critical": metric["critical"],
         "items": items,
     }
+
+
+def collection_timeline(collection_id: str) -> list[dict]:
+    """Return the exact APP1-APP5 snapshot rows for one Rundeck collection."""
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT collection_id, collected_at, host, cpu_pct, ram_pct, load_1,
+                   io_wait_pct, swap_pct, wp_critical, health
+              FROM rundeck_host_metrics
+             WHERE collection_id = :collection_id
+             ORDER BY host, collected_at DESC
+        """), {"collection_id": collection_id})
+        rows = [dict(row._mapping) for row in result]
+
+    # Defensive de-duplication: retain the latest sample if a collector ever stores
+    # more than one row for the same host inside a logical collection.
+    by_host: dict[str, dict] = {}
+    for row in rows:
+        by_host.setdefault(row["host"], row)
+    return [by_host[host] for host in sorted(by_host)]
