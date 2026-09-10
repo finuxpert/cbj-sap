@@ -179,7 +179,7 @@ function SingleSamplePerformance({ row }) {
         ? <><span><b>IO Read</b>{numberText(read, 2)} MiB/s</span><span><b>IO Write</b>{numberText(write, 2)} MiB/s</span></>
         : <span><b>IO</b>0 MiB/s</span>}
       <span><b>WP</b>{numberText(wp, 0)}</span>
-      {critical > 0 && <span className="is-attention"><b>APP Critical WP</b>{critical}</span>}
+      {critical > 0 && <span className="is-attention"><b>APP Critical WP signal</b>{critical}</span>}
     </div>
     <div className="rundeckSingleSampleAxis"><i /><strong>{formatWib(row.collected_at, false)}</strong></div>
   </div>
@@ -207,7 +207,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     let top = 16
     const gap = 14
     const grids = lanes.map((lane) => {
-      const grid = { left: 58, right: 18, top, height: lane.height }
+      const grid = { left: 64, right: 18, top, height: lane.height }
       top += lane.height + gap
       return grid
     })
@@ -238,8 +238,8 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       axisTick: { show: false },
       splitLine: { show: true, lineStyle: { color: colors.grid, width: 1 } },
       splitNumber: 2,
-      axisLabel: { color: colors.muted, fontSize: 8.5, margin: 8 },
-      nameTextStyle: { color: colors.muted, fontSize: 9, align: 'left' },
+      axisLabel: { color: colors.muted, fontSize: 9, margin: 8 },
+      nameTextStyle: { color: colors.secondary, fontSize: 9.5, align: 'left' },
     }
     const line = (name, key, laneId, color, extra = {}) => {
       const index = laneIndex[laneId]
@@ -253,7 +253,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
         symbolSize: 4,
         smooth: false,
         connectNulls: false,
-        lineStyle: { width: 1.6, color },
+        lineStyle: { width: 1.8, color },
         itemStyle: { color },
         emphasis: { focus: 'series' },
         data: metricSeriesData(rows, key),
@@ -275,7 +275,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       profile.hasIo ? line('IO Write', 'write', 'io', colors.ioWrite) : null,
       profile.hasWp ? line('WP Count', 'wp', 'wp', colors.wp, { step: 'middle' }) : null,
       profile.hasCritical ? {
-        name: 'APP Critical WP',
+        name: 'APP Critical WP signal',
         type: 'scatter',
         xAxisIndex: laneIndex.event,
         yAxisIndex: laneIndex.event,
@@ -290,7 +290,10 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       height: chartHeight,
       profile,
       option: {
-        animationDuration: 150,
+        animationDuration: 180,
+        animationDurationUpdate: 220,
+        animationEasing: 'cubicOut',
+        animationEasingUpdate: 'cubicOut',
         backgroundColor: 'transparent',
         textStyle: { color: colors.text },
         grid: grids,
@@ -331,7 +334,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
               profile.hasIo ? `IO Read <b>${numberText(rowMetric(row, 'read'), 2)} MiB/s</b>` : 'IO <b>0 MiB/s</b>',
               profile.hasIo ? `IO Write <b>${numberText(rowMetric(row, 'write'), 2)} MiB/s</b>` : '',
               profile.hasWp ? `WP <b>${numberText(rowMetric(row, 'wp'), 0)}</b>` : '',
-              critical > 0 ? `APP Critical WP <b>${critical}</b>` : '',
+              critical > 0 ? `APP Critical WP signal <b>${critical}</b>` : '',
               `Run <b>#${row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</b>`,
             ].filter(Boolean).join('<br/>')
           },
@@ -421,8 +424,9 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   const correlation = temporalText(incidentStart, stats.firstSeen)
   const observed = durationText(stats.firstSeen, stats.lastSeen)
   const profile = chartProfile(episodeItems)
+  const contentKey = `${displayHost}|${displayConsumerType}|${displayKey}|${displayAt}`
 
-  return <section className="rundeckJobHistory" aria-label="Selected workload performance">
+  return <section className="rundeckJobHistory" aria-label="Selected workload performance" aria-busy={loading}>
     <div className="rundeckJobHistoryHead">
       <div>
         <span>Selected Workload</span>
@@ -435,7 +439,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
     {loading && history && <div className="rundeckJobHistoryState is-updating">{changingSelection ? 'Updating selected workload…' : 'Refreshing workload…'}</div>}
     {error && <div className="rundeckJobHistoryState is-error">{error}</div>}
 
-    {history && <>
+    {history && <div key={contentKey} className="rundeckJobHistoryContent">
       <div className="rundeckJobHistorySummary">
         <span><b>First Seen</b>{formatWib(stats.firstSeen, true)} WIB</span>
         <span><b>Last Seen</b>{formatWib(stats.lastSeen, true)} WIB</span>
@@ -455,7 +459,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
 
       <div className="rundeckJobPerformanceTitle">
         <h4><SphereIcon name="trend" /> Workload Performance</h4>
-        {profile.hasCritical && <span><i /> APP Critical WP</span>}
+        {profile.hasCritical && <span><i /> APP Critical WP signal</span>}
       </div>
 
       {episodeItems.length === 1
@@ -488,6 +492,6 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
           </table>
         </div>
       </details>
-    </>}
+    </div>}
   </section>
 }
