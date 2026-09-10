@@ -83,26 +83,62 @@ async function json(url, signal) {
   return response.json()
 }
 
-function useEChart(option, onClick) {
+function useEChart(option, onChartClick) {
   const ref = React.useRef(null)
+
   React.useEffect(() => {
     if (!ref.current) return undefined
+
+    // React StrictMode can mount effects twice in development. Always dispose an
+    // existing ECharts instance first so one DOM node never keeps two canvases.
+    echarts.getInstanceByDom?.(ref.current)?.dispose()
+
     const chart = echarts.init(ref.current, null, { renderer: 'canvas' })
     chart.setOption(option, true)
-    const click = (params) => onClick?.(params)
-    chart.on('click', click)
+
+    const handleChartClick = (event) => onChartClick?.(chart, event)
+    chart.getZr().on('click', handleChartClick)
+    chart.getZr().setCursorStyle('crosshair')
+
     const resize = () => chart.resize()
     window.addEventListener('resize', resize)
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
     observer?.observe(ref.current)
+
     return () => {
       observer?.disconnect()
       window.removeEventListener('resize', resize)
-      chart.off('click', click)
+      chart.getZr().off('click', handleChartClick)
       chart.dispose()
     }
-  }, [option, onClick])
+  }, [option, onChartClick])
+
   return ref
+}
+
+function nearestTrendPoint(chart, event, option) {
+  const pixel = [event?.offsetX, event?.offsetY]
+  if (!Number.isFinite(pixel[0]) || !Number.isFinite(pixel[1])) return null
+  if (!chart.containPixel({ gridIndex: 0 }, pixel)) return null
+
+  let nearest = null
+  let nearestDistance = Number.POSITIVE_INFINITY
+
+  ;(option?.series || []).forEach((series, seriesIndex) => {
+    ;(series?.data || []).forEach((item, dataIndex) => {
+      const point = chart.convertToPixel({ seriesIndex }, item.value)
+      if (!Array.isArray(point) || !Number.isFinite(point[0]) || !Number.isFinite(point[1])) return
+      const dx = point[0] - pixel[0]
+      const dy = point[1] - pixel[1]
+      const distance = (dx * dx) + (dy * dy)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearest = { seriesIndex, dataIndex, data: item }
+      }
+    })
+  })
+
+  return nearest
 }
 
 function TrendChart({ trend, mode, range, onSelect }) {
@@ -159,7 +195,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
             const value = mode === 'max' ? row.max : row.avg
             return `${item.marker}${item.seriesName}: <b>${number(value, trend?.metric === 'wp' ? 0 : 1)}${suffix}</b>`
           }).join('<br/>')
-          return `${title}<br/>${body}<br/><span style="opacity:.62">Click a point for RCA.</span>`
+          return `${title}<br/>${body}<br/><span style="opacity:.72">Click anywhere in the graph to open SAP Job detail.</span>`
         },
       },
       xAxis: {
@@ -206,8 +242,8 @@ function TrendChart({ trend, mode, range, onSelect }) {
         type: 'line',
         connectNulls: false,
         showSymbol: (byHost.get(host)?.length || 0) <= 80,
-        symbolSize: 7,
-        emphasis: { focus: 'series' },
+        symbolSize: 8,
+        emphasis: { focus: 'series', scale: 1.5 },
         data: (byHost.get(host) || []).map((row) => ({
           value: [row.bucket, row[valueKey]],
           bucket: row.bucket,
@@ -228,21 +264,30 @@ function TrendChart({ trend, mode, range, onSelect }) {
     }
   }, [mode, range, trend])
 
-  const click = React.useCallback((params) => {
-    if (params?.componentType !== 'series' || !params?.data) return
+  const click = React.useCallback((chart, event) => {
+    const nearest = nearestTrendPoint(chart, event, option)
+    if (!nearest?.data) return
+
+    chart.dispatchAction({
+      type: 'showTip',
+      seriesIndex: nearest.seriesIndex,
+      dataIndex: nearest.dataIndex,
+    })
+
+    const data = nearest.data
     onSelect?.({
-      host: params.data.host,
-      at: params.data.peakAt || params.data.bucket,
-      collectionId: params.data.peakCollectionId || '',
-      bucket: params.data.bucket,
-      avg: params.data.avg,
-      max: params.data.max,
-      value: mode === 'max' ? params.data.max : params.data.avg,
+      host: data.host,
+      at: data.peakAt || data.bucket,
+      collectionId: data.peakCollectionId || '',
+      bucket: data.bucket,
+      avg: data.avg,
+      max: data.max,
+      value: mode === 'max' ? data.max : data.avg,
       mode,
       metricLabel: trend?.metric_label || '',
       unit: trend?.unit || '',
     })
-  }, [mode, onSelect, trend?.metric_label, trend?.unit])
+  }, [mode, onSelect, option, trend?.metric_label, trend?.unit])
 
   const ref = useEChart(option, click)
   return <div ref={ref} className="rundeckTrendChart" role="img" aria-label={`${trend?.metric_label || 'Metric'} trend for application servers`} />
@@ -262,9 +307,9 @@ function InlineStatus({ value = 'UNKNOWN' }) {
   return <span className={`rundeckInlineStatus is-${String(value).toLowerCase()}`}>{value}</span>
 }
 
-function HistoricalRca({ selected, data, loading, error }) {
+function HistoricalRca({ selected, data, loading, error, panelRef }) {
   if (!selected && !loading && !error) {
-    return <div className="rundeckRcaHint">Click a trend point to see the SAP job at that time.</div>
+    return <div className="rundeckRcaHint"><strong>How to use:</strong> Click anywhere in the graph. SPHERE will pick the nearest server sample and show its SAP Job below.</div>
   }
 
   const rows = data?.items || []
@@ -272,17 +317,17 @@ function HistoricalRca({ selected, data, loading, error }) {
   const consumer = selectedRow?.top_consumers?.[0] || null
   const details = consumer?.details || {}
 
-  return <section className="rundeckRcaSection">
+  return <section ref={panelRef} tabIndex="-1" className="rundeckRcaSection" aria-live="polite">
     <div className="rundeckRcaHeader">
       <div>
-        <span>{TERMS.historicalRca}</span>
-        <h4>{selected?.host ? shortHost(selected.host) : 'Selected sample'}</h4>
-        <small>{selected?.at ? `${formatWib(selected.at)} WIB` : 'Loading selected sample'}</small>
+        <span>SAP Job at Selected Time</span>
+        <h4>{selected?.host ? shortHost(selected.host) : 'Selected server'}</h4>
+        <small>{selected?.at ? `${formatWib(selected.at)} WIB` : 'Loading selected time'}</small>
       </div>
       {selectedRow && <InlineStatus value={selectedRow.health} />}
     </div>
 
-    {loading && <div className="rundeckHistoryState">Loading RCA…</div>}
+    {loading && <div className="rundeckHistoryState">Loading SAP Job detail…</div>}
     {error && <div className="rundeckHistoryState is-error">{error}</div>}
 
     {!loading && !error && selectedRow && <>
@@ -328,6 +373,7 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
   const [timeline, setTimeline] = React.useState(null)
   const [timelineLoading, setTimelineLoading] = React.useState(false)
   const [timelineError, setTimelineError] = React.useState('')
+  const rcaRef = React.useRef(null)
 
   React.useEffect(() => {
     if (!databaseEnabled) return undefined
@@ -360,6 +406,21 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     return () => controller.abort()
   }, [databaseEnabled, range, refreshToken])
 
+  React.useEffect(() => {
+    setSelected(null)
+    setTimeline(null)
+    setTimelineError('')
+  }, [bucket, metric, mode, range])
+
+  React.useEffect(() => {
+    if (!selected) return
+    const frame = window.requestAnimationFrame(() => {
+      rcaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      rcaRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [selected])
+
   const selectPoint = React.useCallback((point) => {
     setSelected(point)
     setTimeline(null)
@@ -369,7 +430,7 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     const collectionQuery = point.collectionId ? `&collection_id=${encodeURIComponent(point.collectionId)}` : ''
     json(`${API}/history/timeline?at=${encodeURIComponent(point.at)}&window_minutes=5${collectionQuery}`)
       .then(setTimeline)
-      .catch((error) => setTimelineError(error.message || 'Unable to load RCA.'))
+      .catch((error) => setTimelineError(error.message || 'Unable to load SAP Job detail.'))
       .finally(() => setTimelineLoading(false))
   }, [])
 
@@ -412,7 +473,7 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     {!trendLoading && !trendError && trend && trend.items?.length > 0 && <TrendChart trend={trend} mode={mode} range={range} onSelect={selectPoint} />}
     {!trendLoading && !trendError && trend && !trend.items?.length && <div className="rundeckHistoryState">Trend data will appear after new Rundeck runs are stored.</div>}
 
-    <HistoricalRca selected={selected} data={timeline} loading={timelineLoading} error={timelineError} />
+    <HistoricalRca selected={selected} data={timeline} loading={timelineLoading} error={timelineError} panelRef={rcaRef} />
 
     <details className="rundeckEvidenceGroup">
       <summary>SAP Alerts <span>{criticalCount} critical · {warningCount} warning</span></summary>
