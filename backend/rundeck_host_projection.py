@@ -133,11 +133,15 @@ def parse_host_projection(raw: bytes | str) -> list[dict]:
 
 
 def _health(cpu, ram, iowait, wp_critical) -> str:
+    """Host state is resource severity; Critical WP remains a separate SAP signal.
+
+    A WP count alone can require investigation, but it does not prove host-critical
+    resource pressure. Incident severity performs the persistence-aware escalation.
+    """
     if (
         (cpu is not None and cpu >= CPU_CRITICAL)
         or (ram is not None and ram >= RAM_CRITICAL)
         or (iowait is not None and iowait >= IOWAIT_CRITICAL)
-        or (wp_critical is not None and wp_critical >= WP_CRITICAL)
     ):
         return "CRITICAL"
     if (
