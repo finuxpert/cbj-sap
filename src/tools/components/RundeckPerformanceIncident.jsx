@@ -31,6 +31,10 @@ const duration = (seconds) => {
   return rest ? `${hours}h ${rest}m` : `${hours}h`
 }
 
+const shortSignal = (label = '') => String(label || 'Performance issue')
+  .replace(/Critical Work Process/gi, 'Critical WP')
+  .replace(/Work Process/gi, 'WP')
+
 function StatusPill({ value = 'UNKNOWN' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
 }
@@ -47,14 +51,17 @@ function jobContext(workload, host, source) {
 
 function CurrentJobFacts({ workload }) {
   const details = workload?.details || {}
-  const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '—')
-  const workProcess = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
+  const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '')
+  const workProcess = [details.wp_type, details.wp].filter(Boolean).join(' ')
+  const facts = [
+    program ? ['Program', program] : null,
+    workProcess ? ['WP', workProcess] : null,
+    details.pid ? ['PID', details.pid] : null,
+    details.user ? ['User', details.user] : null,
+  ].filter(Boolean)
 
   return <dl className="rundeckIncidentFacts">
-    <div><dt>ABAP Program</dt><dd>{program}</dd></div>
-    <div><dt>Work Process</dt><dd>{workProcess}</dd></div>
-    <div><dt>SAP User</dt><dd>{details.user || '—'}</dd></div>
-    <div><dt>PID</dt><dd>{details.pid || '—'}</dd></div>
+    {facts.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
   </dl>
 }
 
@@ -73,10 +80,7 @@ export default function RundeckPerformanceIncident({
     const controller = new AbortController()
     const load = async () => {
       try {
-        const response = await fetch(`${API}/analysis/performance`, {
-          cache: 'no-store',
-          signal: controller.signal,
-        })
+        const response = await fetch(`${API}/analysis/performance`, { cache: 'no-store', signal: controller.signal })
         if (!response.ok) throw new Error(`Performance analysis unavailable (${response.status})`)
         const result = await response.json()
         setSummary(result)
@@ -101,11 +105,7 @@ export default function RundeckPerformanceIncident({
 
   if (error) {
     return <section className="rundeckIncident" aria-label="SAP performance issue">
-      <div className="rundeckIncidentHeader">
-        <h3>RCA data unavailable</h3>
-        {showStatus && <StatusPill value="UNKNOWN" />}
-      </div>
-      <p className="rundeckIncidentAssessment">Last good SAP data remains available below.</p>
+      <div className="rundeckIncidentHeader"><h3>Performance data unavailable</h3>{showStatus && <StatusPill value="UNKNOWN" />}</div>
     </section>
   }
 
@@ -113,7 +113,7 @@ export default function RundeckPerformanceIncident({
     const waiting = summary.status === 'WAITING'
     return <section className="rundeckIncident" aria-label="SAP performance status">
       <div className="rundeckIncidentHeader">
-        <h3>{waiting ? 'Waiting for SAP performance data' : 'No active SAP performance issue'}</h3>
+        <h3>{waiting ? 'Waiting for performance data' : 'No active performance issue'}</h3>
         {showStatus && <StatusPill value={summary.status || 'NORMAL'} />}
       </div>
     </section>
@@ -128,13 +128,10 @@ export default function RundeckPerformanceIncident({
   const signalValue = metric(signal.value, signal.unit || '')
   const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
   const resourceState = summary.host_resource_pressure ? 'WARNING' : 'NORMAL'
-  const rcaText = summary.host_resource_pressure
-    ? `OS resource pressure detected on ${shortHost(summary.affected_server)}. Review host metrics and SAP workload.`
-    : `OS resources are normal. Review Critical WP and SAP workload on ${shortHost(summary.affected_server)}.`
 
   return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
-      <h3>{shortHost(summary.affected_server)} · {signal.label || 'Performance signal'} {signalValue}</h3>
+      <h3>{shortHost(summary.affected_server)} · {shortSignal(signal.label)} {signalValue}</h3>
       {showStatus && <StatusPill value={summary.status || 'WARNING'} />}
     </div>
 
@@ -152,7 +149,7 @@ export default function RundeckPerformanceIncident({
             className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
             onClick={() => onSelectJob?.(currentContext)}
           >{current.consumer_key}</button> : <strong>No current workload found</strong>}
-          {current && <small>Run #{summary.execution_id || '—'} · CPU {metric(current.cpu_pct, '%')}</small>}
+          {current && <small>CPU {metric(current.cpu_pct, '%')} · Run #{summary.execution_id || '—'}</small>}
         </div>
         {current && <CurrentJobFacts workload={current} />}
       </section>
@@ -165,9 +162,7 @@ export default function RundeckPerformanceIncident({
             className={`rundeckIncidentJobButton ${selectedJob?.key === persistentContext.key && selectedJob?.host === persistentContext.host ? 'is-selected' : ''}`}
             onClick={() => onSelectJob?.(persistentContext)}
           >{persistent.consumer_key}</button> : <strong>No recurring workload found</strong>}
-          {persistent && <small>
-            {sameWorkload ? 'Also current · ' : ''}Seen in {persistent.occurrences} of {persistent.affected_samples} checks
-          </small>}
+          {persistent && <small>{sameWorkload ? 'Also current · ' : ''}Seen {persistent.occurrences} of {persistent.affected_samples} checks</small>}
         </div>
         {persistent && <dl className="rundeckIncidentFacts is-compact">
           <div><dt>Avg CPU</dt><dd>{metric(persistent.avg_cpu_pct, '%')}</dd></div>
@@ -177,12 +172,10 @@ export default function RundeckPerformanceIncident({
     </div>
 
     <div className="rundeckIncidentHostContext">
-      <span><b>OS Resources</b><StatusPill value={resourceState} /></span>
+      <span><b>OS</b><StatusPill value={resourceState} /></span>
       <span><b>CPU</b>{metric(hostMetrics.cpu_pct, '%')}</span>
       <span><b>RAM</b>{metric(hostMetrics.ram_pct, '%')}</span>
       <span><b>IO Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
     </div>
-
-    <p className="rundeckIncidentAssessment"><b>RCA:</b> {rcaText}</p>
   </section>
 }
