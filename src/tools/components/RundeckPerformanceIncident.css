@@ -1,0 +1,170 @@
+.rundeckIncident {
+  padding: 16px 0 14px;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckIncidentHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rundeckIncidentEyebrow {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentHeader h3 {
+  margin: 3px 0 0;
+  color: var(--sphere-text, #edf1f4);
+  font-size: 18px;
+  font-weight: 780;
+  letter-spacing: -.01em;
+}
+
+.rundeckIncidentMeta,
+.rundeckIncidentHostContext {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.rundeckIncidentMeta > span,
+.rundeckIncidentHostContext > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 12px;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.rundeckIncidentMeta > span:first-child,
+.rundeckIncidentHostContext > span:first-child {
+  padding-left: 0;
+}
+
+.rundeckIncidentMeta > span + span,
+.rundeckIncidentHostContext > span + span {
+  border-left: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckIncidentMeta b,
+.rundeckIncidentHostContext b {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentWorkload {
+  display: grid;
+  grid-template-columns: minmax(260px, .8fr) minmax(420px, 1.8fr);
+  gap: 28px;
+  margin-top: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckIncidentWorkloadLead {
+  min-width: 0;
+}
+
+.rundeckIncidentWorkloadLead > span {
+  display: block;
+  color: var(--sphere-accent, #49c8d1);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentWorkloadLead strong {
+  display: block;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--sphere-text, #edf1f4);
+  font-size: 15px;
+  font-weight: 780;
+}
+
+.rundeckIncidentWorkloadLead small {
+  display: block;
+  margin-top: 5px;
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 10px;
+}
+
+.rundeckIncidentFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 18px;
+  margin: 0;
+}
+
+.rundeckIncidentFacts div {
+  min-width: 0;
+}
+
+.rundeckIncidentFacts dt {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentFacts dd {
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--sphere-text, #edf1f4);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.rundeckIncidentHostContext {
+  margin-top: 9px;
+}
+
+.rundeckIncidentAssessment {
+  margin: 9px 0 0;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (max-width: 1050px) {
+  .rundeckIncidentWorkload {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .rundeckIncidentFacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .rundeckIncidentHeader h3 {
+    font-size: 16px;
+  }
+
+  .rundeckIncidentMeta > span,
+  .rundeckIncidentHostContext > span {
+    flex: 1 1 45%;
+    padding: 3px 8px 3px 0;
+    border-left: 0 !important;
+  }
+
+  .rundeckIncidentFacts {
+    grid-template-columns: 1fr;
+  }
+}
