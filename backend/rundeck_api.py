@@ -12,11 +12,14 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from backend.rundeck_monitoring import (
+    alert_history,
     collection_history,
     disk_status,
     host_history,
+    latest_host_metrics,
     timeline,
     timescale_status,
+    top_consumer_history,
 )
 from backend.rundeck_store import ROOT, collections, identifier
 
@@ -128,6 +131,32 @@ def history_hosts(
     since = datetime.now(timezone.utc) - timedelta(days=days)
     try:
         return {"since": since, "days": days, "host": host, "items": host_history(host, since, limit)}
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+
+
+@app.get("/history/hosts/latest")
+def history_hosts_latest():
+    try:
+        return {"items": latest_host_metrics()}
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+
+
+@app.get("/history/alerts")
+def history_alerts(days: int = Query(7, ge=1, le=90), limit: int = Query(500, ge=1, le=5000)):
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    try:
+        return {"since": since, "days": days, "items": alert_history(since, limit)}
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+
+
+@app.get("/history/top-consumers")
+def history_top_consumers(days: int = Query(90, ge=1, le=90), limit: int = Query(100, ge=1, le=1000)):
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    try:
+        return {"since": since, "days": days, "items": top_consumer_history(since, limit)}
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 

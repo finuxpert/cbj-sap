@@ -1,0 +1,225 @@
+.rundeckPanel {
+  margin: 16px 0 22px;
+  border: 1px solid var(--line, #d8dee8);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+  padding: 18px;
+}
+
+.rundeckPanelHead,
+.rundeckActions,
+.rundeckHostCard > div:first-child,
+.rundeckSectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rundeckPanelHead h2,
+.rundeckSectionTitle h3 {
+  margin: 2px 0 4px;
+}
+
+.rundeckPanelHead p,
+.rundeckSectionTitle span,
+.rundeckHostCard small,
+.rundeckOpsStrip small {
+  color: var(--muted, #667085);
+}
+
+.rundeckEyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.rundeckActions {
+  align-self: flex-start;
+}
+
+.rundeckCollectButton {
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rundeckCollectButton:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.rundeckMessage {
+  margin-top: 12px;
+  border: 1px solid var(--line, #d8dee8);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.rundeckMetadata,
+.rundeckOpsStrip {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.rundeckMetadata {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.rundeckOpsStrip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.rundeckMetadata > div,
+.rundeckOpsStrip > div {
+  min-width: 0;
+  border: 1px solid var(--line, #e3e7ee);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.rundeckMetadata span,
+.rundeckOpsStrip span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted, #667085);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.rundeckMetadata strong,
+.rundeckOpsStrip strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.rundeckStatus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.rundeckStatus.is-normal,
+.rundeckStatus.is-ready {
+  opacity: .85;
+}
+
+.rundeckStatus.is-warning,
+.rundeckStatus.is-partial,
+.rundeckStatus.is-waiting {
+  font-weight: 900;
+}
+
+.rundeckStatus.is-critical,
+.rundeckStatus.is-failed,
+.rundeckStatus.is-error {
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rundeckHostSection {
+  margin-top: 18px;
+}
+
+.rundeckHostGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.rundeckHostCard {
+  border: 1px solid var(--line, #e3e7ee);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.rundeckHostCard dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 10px;
+  margin: 12px 0 0;
+}
+
+.rundeckHostCard dl div {
+  min-width: 0;
+}
+
+.rundeckHostCard dt {
+  color: var(--muted, #667085);
+  font-size: 11px;
+}
+
+.rundeckHostCard dd {
+  margin: 1px 0 0;
+  font-weight: 700;
+}
+
+.rundeckHistory {
+  margin-top: 16px;
+  border-top: 1px solid var(--line, #e3e7ee);
+  padding-top: 12px;
+}
+
+.rundeckHistory summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.rundeckHistoryTableWrap {
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.rundeckHistory table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.rundeckHistory th,
+.rundeckHistory td {
+  text-align: left;
+  border-bottom: 1px solid var(--line, #e3e7ee);
+  padding: 8px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  .rundeckMetadata {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rundeckHostGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .rundeckPanelHead,
+  .rundeckSectionTitle {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rundeckMetadata,
+  .rundeckOpsStrip,
+  .rundeckHostGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .rundeckActions {
+    width: 100%;
+  }
+}

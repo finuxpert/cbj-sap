@@ -172,6 +172,59 @@ def _alerts_for_metric(collection_id: str, metric: dict) -> list[dict]:
     return alerts
 
 
+def _collection_alerts(row: dict, collected_at: datetime) -> list[dict]:
+    alerts = []
+    expected = set(row.get("expected_hosts") or [])
+    received = set(row.get("received_hosts") or [])
+    missing = sorted(expected - received)
+    status = str(row.get("status") or "").upper()
+    if status == "FAILED":
+        alerts.append({
+            "id": uuid4().hex,
+            "collection_id": row.get("collection_id"),
+            "collected_at": collected_at,
+            "host": None,
+            "code": "COLLECTION_FAILED",
+            "severity": "CRITICAL",
+            "message": "Rundeck collection failed",
+            "details": {"execution_id": row.get("execution_id"), "error": row.get("error")},
+        })
+    elif status == "PARTIAL":
+        alerts.append({
+            "id": uuid4().hex,
+            "collection_id": row.get("collection_id"),
+            "collected_at": collected_at,
+            "host": None,
+            "code": "COLLECTION_PARTIAL",
+            "severity": "WARNING",
+            "message": "Rundeck collection is partial",
+            "details": {"execution_id": row.get("execution_id"), "missing_hosts": missing},
+        })
+    for host in missing:
+        alerts.append({
+            "id": uuid4().hex,
+            "collection_id": row.get("collection_id"),
+            "collected_at": collected_at,
+            "host": host,
+            "code": "HOST_MISSING",
+            "severity": "CRITICAL" if status == "FAILED" else "WARNING",
+            "message": f"Expected host missing from collection: {host}",
+            "details": {"execution_id": row.get("execution_id")},
+        })
+    return alerts
+
+
+def _write_alert(conn, alert: dict) -> None:
+    conn.execute(text("""
+        INSERT INTO rundeck_alerts (
+          id, collection_id, collected_at, host, code, severity, message, details
+        ) VALUES (
+          :id, :collection_id, :collected_at, :host, :code, :severity, :message,
+          CAST(:details AS jsonb)
+        )
+    """), {**alert, "details": json.dumps(alert["details"])})
+
+
 def persist_collection(row: dict, raw: bytes) -> str:
     """Persist normalized data when DB is enabled. File-mode remains a supported fallback."""
     if not db_enabled():
@@ -230,14 +283,9 @@ def persist_collection(row: dict, raw: bytes) -> str:
                   wp_critical=EXCLUDED.wp_critical, health=EXCLUDED.health, details=EXCLUDED.details
             """), {**metric, "collection_id": row["collection_id"], "details": json.dumps(metric["details"])})
             for alert in _alerts_for_metric(row["collection_id"], metric):
-                conn.execute(text("""
-                    INSERT INTO rundeck_alerts (
-                      id, collection_id, collected_at, host, code, severity, message, details
-                    ) VALUES (
-                      :id, :collection_id, :collected_at, :host, :code, :severity, :message,
-                      CAST(:details AS jsonb)
-                    )
-                """), {**alert, "details": json.dumps(alert["details"])})
+                _write_alert(conn, alert)
+        for alert in _collection_alerts(row, finished or created):
+            _write_alert(conn, alert)
     return "STORED"
 
 
@@ -388,3 +436,54 @@ def maybe_run_retention(root: Path) -> dict | None:
     temporary.write_text(json.dumps(result, indent=2))
     temporary.replace(marker)
     return result
+
+
+def latest_host_metrics() -> list[dict]:
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT DISTINCT ON (host)
+                   collection_id, collected_at, host, cpu_pct, ram_pct, load_1,
+                   io_wait_pct, swap_pct, wp_critical, health
+              FROM rundeck_host_metrics
+             ORDER BY host, collected_at DESC
+        """))
+        return [dict(row._mapping) for row in result]
+
+
+def alert_history(since: datetime, limit: int = 1000) -> list[dict]:
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT id, collection_id, collected_at, host, code, severity, message, details, resolved_at
+              FROM rundeck_alerts
+             WHERE collected_at >= :since
+             ORDER BY collected_at DESC
+             LIMIT :limit
+        """), {"since": since, "limit": limit})
+        return [dict(row._mapping) for row in result]
+
+
+def top_consumer_history(since: datetime, limit: int = 100) -> list[dict]:
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT consumer_type, consumer_key, host,
+                   COUNT(*) AS occurrences,
+                   MAX(cpu_pct) AS peak_cpu_pct,
+                   AVG(cpu_pct) AS avg_cpu_pct,
+                   MAX(ram_pct) AS peak_ram_pct,
+                   MAX(collected_at) AS last_seen
+              FROM rundeck_top_consumers
+             WHERE collected_at >= :since
+             GROUP BY consumer_type, consumer_key, host
+             ORDER BY occurrences DESC, peak_cpu_pct DESC NULLS LAST
+             LIMIT :limit
+        """), {"since": since, "limit": limit})
+        return [dict(row._mapping) for row in result]
