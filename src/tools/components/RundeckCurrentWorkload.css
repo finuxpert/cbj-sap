@@ -13,7 +13,7 @@
 
 .rundeckCurrentWorkloadHead h3 {
   margin: 0;
-  color: var(--sphere-text, #edf1f4);
+  color: var(--sphere-text, #e7edf0);
   font-size: 12.5px;
   font-weight: 780;
 }
@@ -22,14 +22,14 @@
 .rundeckCurrentWorkload td button {
   border: 0;
   background: transparent;
-  color: var(--sphere-text, #edf1f4);
+  color: var(--sphere-text, #e7edf0);
   font-family: inherit;
   cursor: pointer;
 }
 
 .rundeckCurrentWorkloadHead button {
   padding: 2px 0;
-  color: var(--sphere-text-muted, #7f8c97);
+  color: var(--sphere-text-muted, #718089);
   font-size: 9px;
 }
 
@@ -37,7 +37,7 @@
 .rundeckCurrentWorkloadHead button:focus-visible,
 .rundeckCurrentWorkload td button:hover,
 .rundeckCurrentWorkload td button:focus-visible {
-  color: var(--sphere-accent, #49c8d1);
+  color: var(--sphere-accent, #4fc6c8);
   outline: none;
 }
 
@@ -49,14 +49,14 @@
 .rundeckCurrentWorkload table {
   width: 100%;
   border-collapse: collapse;
-  color: var(--sphere-text-secondary, #b1bbc4);
+  color: var(--sphere-text-secondary, #a9b5bb);
   font-size: 9.5px;
 }
 
 .rundeckCurrentWorkload th,
 .rundeckCurrentWorkload td {
   padding: 5px 7px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sphere-border-subtle, #28323c) 58%, transparent);
+  border-bottom: 1px solid rgba(113, 128, 137, .12);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
@@ -66,8 +66,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--sphere-page, #11161c);
-  color: var(--sphere-text-muted, #7f8c97);
+  background: var(--sphere-page, #0f151a);
+  color: var(--sphere-text-muted, #718089);
   font-size: 8px;
   font-weight: 750;
   letter-spacing: .02em;
@@ -90,25 +90,25 @@
 }
 
 .rundeckCurrentWorkload tbody tr:hover {
-  background: color-mix(in srgb, var(--sphere-accent-soft, #17383f) 22%, transparent);
+  background: rgba(79, 198, 200, .05);
 }
 
 .rundeckCurrentWorkload tbody tr.is-selected {
-  background: color-mix(in srgb, var(--sphere-accent-soft, #17383f) 48%, transparent);
+  background: rgba(79, 198, 200, .11);
 }
 
 .rundeckCurrentWorkload td.is-attention {
-  color: var(--sphere-warning, #e8c86b);
+  color: var(--sphere-warning, #d8b35f);
   font-weight: 760;
 }
 
 .rundeckCurrentWorkloadState {
   padding: 8px 0;
-  color: var(--sphere-text-secondary, #b1bbc4);
+  color: var(--sphere-text-secondary, #a9b5bb);
   font-size: 10px;
 }
 
 .rundeckCurrentWorkloadState.is-error {
-  color: var(--sphere-danger, #ef8a94);
+  color: var(--sphere-danger, #db7d86);
   font-weight: 700;
 }
