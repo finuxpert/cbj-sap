@@ -112,7 +112,21 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
       },
       xAxis: { type: 'category', boundaryGap: false, data: times, axisLabel: { color: '#81979f', hideOverlap: true }, axisLine: { lineStyle: { color: '#2a3b40' } } },
       yAxis: { type: 'value', name: meta.label, nameTextStyle: { color: '#81979f' }, axisLabel: { color: '#81979f', formatter: (value) => `${value}${meta.suffix}` }, splitLine: { lineStyle: { color: '#183036', type: 'dashed' } } },
-      dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 18, height: 18, borderColor: '#294047', fillerColor: 'rgba(49,199,207,.16)', textStyle: { color: '#81979f' } }],
+      dataZoom: [
+        { type: 'inside', filterMode: 'none' },
+        {
+          type: 'slider',
+          left: 58,
+          right: 34,
+          bottom: 18,
+          height: 18,
+          filterMode: 'none',
+          showDetail: false,
+          borderColor: '#294047',
+          fillerColor: 'rgba(49,199,207,.16)',
+          textStyle: { color: '#81979f' },
+        },
+      ],
       series,
     }
   }, [collections, rca?.hosts, rca?.resourceLandscapePeak, rca?.landscapePeak, rca?.resourceIncidentAnchor, metric, meta.digits, meta.label, meta.suffix])
