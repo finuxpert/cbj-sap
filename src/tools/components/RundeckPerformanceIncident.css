@@ -1,27 +1,19 @@
 .rundeckIncident {
-  padding: 16px 0 14px;
+  padding: 10px 0 9px;
   border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
 }
 
 .rundeckIncidentHeader {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-}
-
-.rundeckIncidentEyebrow {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
+  gap: 12px;
 }
 
 .rundeckIncidentHeader h3 {
-  margin: 3px 0 0;
+  margin: 0;
   color: var(--sphere-text, #edf1f4);
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 780;
   letter-spacing: -.01em;
 }
@@ -32,17 +24,17 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 
 .rundeckIncidentMeta > span,
 .rundeckIncidentHostContext > span {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
-  padding: 2px 12px;
+  gap: 5px;
+  padding: 1px 10px;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-size: 9.5px;
   white-space: nowrap;
 }
 
@@ -59,42 +51,38 @@
 .rundeckIncidentMeta b,
 .rundeckIncidentHostContext b {
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 750;
-  letter-spacing: .03em;
+  letter-spacing: .02em;
   text-transform: uppercase;
 }
 
 .rundeckIncidentComparison {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 14px;
-  padding: 12px 0;
+  margin-top: 8px;
+  padding: 8px 0;
   border-top: 1px solid var(--sphere-border-subtle, #28323c);
   border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
 }
 
 .rundeckIncidentWorkloadBlock {
   min-width: 0;
-  padding-right: 24px;
+  padding-right: 18px;
 }
 
 .rundeckIncidentWorkloadBlock + .rundeckIncidentWorkloadBlock {
   padding-right: 0;
-  padding-left: 24px;
+  padding-left: 18px;
   border-left: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
-.rundeckIncidentWorkloadLead {
-  min-width: 0;
 }
 
 .rundeckIncidentWorkloadLead > span {
   display: block;
   color: var(--sphere-accent, #49c8d1);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
-  letter-spacing: .06em;
+  letter-spacing: .05em;
   text-transform: uppercase;
 }
 
@@ -105,17 +93,17 @@
 .rundeckIncidentWorkloadLead strong,
 .rundeckIncidentJobButton {
   display: block;
-  margin-top: 5px;
+  margin-top: 3px;
   overflow-wrap: anywhere;
   color: var(--sphere-text, #edf1f4);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 780;
 }
 
 .rundeckIncidentJobButton {
   width: fit-content;
   max-width: 100%;
-  padding: 0 0 2px;
+  padding: 0 0 1px;
   border: 0;
   border-bottom: 1px solid transparent;
   background: transparent;
@@ -125,29 +113,29 @@
 }
 
 .rundeckIncidentJobButton:hover,
-.rundeckIncidentJobButton:focus-visible {
+.rundeckIncidentJobButton:focus-visible,
+.rundeckIncidentJobButton.is-selected {
   border-bottom-color: var(--sphere-accent, #49c8d1);
   color: var(--sphere-accent, #49c8d1);
   outline: none;
 }
 
-.rundeckIncidentJobButton.is-selected {
-  border-bottom-color: var(--sphere-accent, #49c8d1);
-  color: var(--sphere-accent, #49c8d1);
-}
-
 .rundeckIncidentWorkloadLead small {
   display: block;
-  margin-top: 5px;
+  margin-top: 3px;
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .rundeckIncidentFacts {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px 18px;
-  margin: 12px 0 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 14px;
+  margin: 7px 0 0;
+}
+
+.rundeckIncidentFacts.is-compact {
+  grid-template-columns: repeat(2, minmax(0, 110px));
 }
 
 .rundeckIncidentFacts div {
@@ -156,38 +144,31 @@
 
 .rundeckIncidentFacts dt {
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .rundeckIncidentFacts dd {
-  margin: 3px 0 0;
+  margin: 1px 0 0;
   overflow-wrap: anywhere;
   color: var(--sphere-text, #edf1f4);
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 650;
 }
 
 .rundeckIncidentHostContext {
-  margin-top: 9px;
-}
-
-.rundeckIncidentResourceAssessment {
-  margin: 8px 0 0;
-  color: var(--sphere-text, #edf1f4);
-  font-size: 10px;
-  font-weight: 650;
+  margin-top: 6px;
 }
 
 .rundeckIncidentAssessment {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 9.5px;
+  line-height: 1.35;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 980px) {
   .rundeckIncidentComparison {
     grid-template-columns: 1fr;
   }
@@ -197,28 +178,22 @@
   }
 
   .rundeckIncidentWorkloadBlock + .rundeckIncidentWorkloadBlock {
-    margin-top: 14px;
-    padding: 14px 0 0;
+    margin-top: 8px;
+    padding: 8px 0 0;
     border-top: 1px solid var(--sphere-border-subtle, #28323c);
     border-left: 0;
   }
 }
 
-@media (max-width: 1050px) {
-  .rundeckIncidentFacts {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 720px) {
   .rundeckIncidentHeader h3 {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .rundeckIncidentMeta > span,
   .rundeckIncidentHostContext > span {
     flex: 1 1 45%;
-    padding: 3px 8px 3px 0;
+    padding: 2px 8px 2px 0;
     border-left: 0 !important;
   }
 
