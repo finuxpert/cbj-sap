@@ -15,13 +15,25 @@ const formatTime = (value, compact = false) => {
   ).format(date)
 }
 
-const formatUiTime = () => formatTime(new Date(), true)
-
 const metric = (value, suffix = '') => (
   value === null || value === undefined || value === ''
     ? '—'
     : `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 })}${suffix}`
 )
+
+const formatBytes = (value) => {
+  const bytes = Number(value)
+  if (!Number.isFinite(bytes) || bytes < 0) return '—'
+  if (bytes < 1024) return `${bytes} B`
+  const units = ['KB', 'MB', 'GB', 'TB']
+  let size = bytes / 1024
+  let index = 0
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024
+    index += 1
+  }
+  return `${size.toLocaleString('en-US', { maximumFractionDigits: size >= 10 ? 1 : 2 })} ${units[index]}`
+}
 
 const shortHost = (host = '') => {
   const match = String(host).match(/APP(\d+)/i)
@@ -44,12 +56,13 @@ async function json(url, options = {}) {
 export default function RundeckSource({ onCollection }) {
   const [latest, setLatest] = React.useState(null)
   const [health, setHealth] = React.useState(null)
+  const [platform, setPlatform] = React.useState(null)
   const [hosts, setHosts] = React.useState([])
+  const [hostSnapshot, setHostSnapshot] = React.useState(null)
   const [history, setHistory] = React.useState([])
   const [runState, setRunState] = React.useState({ enabled: false, allowed: false })
   const [error, setError] = React.useState('')
   const [actionBusy, setActionBusy] = React.useState(false)
-  const [lastUpdate, setLastUpdate] = React.useState('')
   const loaded = React.useRef('')
   const onCollectionRef = React.useRef(onCollection)
 
@@ -81,18 +94,22 @@ export default function RundeckSource({ onCollection }) {
   }, [])
 
   const refreshMeta = React.useCallback(async () => {
-    const [healthResult, hostsResult, historyResult, runResult] = await Promise.allSettled([
+    const [healthResult, hostsResult, historyResult, runResult, platformResult] = await Promise.allSettled([
       json(`${API}/health`),
       json(`${API}/history/hosts/latest`),
       json(`${API}/history/collections?days=90&limit=30`),
       json(`${API}/collect-now/status`),
+      json(`${API}/platform/health`),
     ])
 
     if (healthResult.status === 'fulfilled') setHealth(healthResult.value)
-    if (hostsResult.status === 'fulfilled') setHosts(hostsResult.value.items || [])
+    if (hostsResult.status === 'fulfilled') {
+      setHosts(hostsResult.value.items || [])
+      setHostSnapshot(hostsResult.value)
+    }
     if (historyResult.status === 'fulfilled') setHistory(historyResult.value.items || [])
     if (runResult.status === 'fulfilled') setRunState(runResult.value)
-    setLastUpdate(formatUiTime())
+    if (platformResult.status === 'fulfilled') setPlatform(platformResult.value)
   }, [])
 
   const refreshAll = React.useCallback(async () => {
@@ -154,6 +171,9 @@ export default function RundeckSource({ onCollection }) {
   const failedCount = history.filter((row) => row.status === 'FAILED').length
   const collectorState = health?.rundeck_stale ? 'STALE' : 'CURRENT'
   const databaseState = health?.database ? 'ONLINE' : 'FILE FALLBACK'
+  const platformState = platform?.status || 'UNKNOWN'
+  const currentCollection = hostSnapshot?.collection_id || latest?.collection_id
+  const collectionAligned = !currentCollection || currentCollection === latest?.collection_id
 
   return <section className="rundeckPanel" aria-label="SAP infrastructure monitoring" aria-live="polite">
     <header className="rundeckLandscapeHeader">
@@ -178,20 +198,21 @@ export default function RundeckSource({ onCollection }) {
     </header>
 
     {error && <div className="rundeckMessage" role="status">{error}</div>}
+    {!collectionAligned && <div className="rundeckMessage" role="status">Operational telemetry is waiting for one complete Collection Cycle.</div>}
 
     <div className="rundeckLandscapeMeta" aria-label="Landscape telemetry status">
       <span><b>{TERMS.lastCollection}</b>{formatTime(latest?.collection_time_wib || latest?.finished_at)}</span>
       <span><b>{TERMS.telemetryCoverage}</b>{latest?.host_count || '—'}</span>
       <span><b>Rundeck</b>{collectorState}</span>
       <span><b>{TERMS.database}</b>{databaseState}</span>
+      <span><b>Platform</b><StatusPill value={platformState} /></span>
       <span><b>Execution</b>#{latest?.execution_id || '—'}</span>
-      <span className="rundeckUiUpdated"><b>UI Updated</b>{lastUpdate || '—'} WIB</span>
     </div>
 
     {hosts.length > 0 && <section className="rundeckServerSection">
       <div className="rundeckSectionTitle">
         <h3>{TERMS.applicationServers}</h3>
-        <span>Latest normalized telemetry</span>
+        <span>Collection #{hostSnapshot?.execution_id || latest?.execution_id || '—'} · one-cycle telemetry</span>
       </div>
       <div className="rundeckServerTableWrap">
         <table className="rundeckServerTable">
@@ -243,6 +264,24 @@ export default function RundeckSource({ onCollection }) {
               <td><StatusPill value={row.status || 'UNKNOWN'} /></td>
             </tr>)}
             {!history.length && <tr><td colSpan="4">No collection history yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details className="rundeckPlatformHealth">
+      <summary>SPHERE Platform Health <StatusPill value={platformState} /><span>OS, storage, database and maintenance</span></summary>
+      <div className="rundeckPlatformTableWrap">
+        <table className="rundeckPlatformTable">
+          <thead><tr><th>Signal</th><th>State</th><th>Operational Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Filesystem</td><td>{platform?.filesystem?.status || 'UNKNOWN'}</td><td>{metric(platform?.filesystem?.used_pct, '% used')}</td></tr>
+            <tr><td>Inode</td><td>{platform?.inode?.status || 'UNKNOWN'}</td><td>{metric(platform?.inode?.used_pct, '% used')}</td></tr>
+            <tr><td>Raw Evidence</td><td>{platform?.filesystem?.status || 'UNKNOWN'}</td><td>{platform?.archive ? `${platform.archive.files} files · ${formatBytes(platform.archive.bytes)}` : '—'}</td></tr>
+            <tr><td>PostgreSQL</td><td>{platform?.database?.status === 'ok' ? 'NORMAL' : String(platform?.database?.status || 'UNKNOWN').toUpperCase()}</td><td>{platform?.database ? `${formatBytes(platform.database.database_bytes)} · ${platform.database.connections ?? '—'} connections · ${platform.database.long_transactions ?? '—'} long tx` : '—'}</td></tr>
+            <tr><td>Retention</td><td>{platform?.maintenance?.status || 'UNKNOWN'}</td><td>{platform?.maintenance?.last_run ? `${formatTime(platform.maintenance.last_run)} · ${platform.maintenance.retention_days} days` : 'No maintenance result yet'}</td></tr>
+            <tr><td>Backup</td><td>{platform?.backup?.status || 'NOT_CONFIGURED'}</td><td>{platform?.backup?.last_success ? `Last success ${formatTime(platform.backup.last_success)}` : 'Backup status marker not configured'}</td></tr>
+            <tr><td>Release Window</td><td>NORMAL</td><td>{platform?.releases ? `${platform.releases.backend.count} backend · ${platform.releases.web.count} web · retain ${platform.releases.backend.retain}` : '—'}</td></tr>
           </tbody>
         </table>
       </div>
