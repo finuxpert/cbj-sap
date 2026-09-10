@@ -10,7 +10,7 @@ PROD_WEB=$(readlink -f /var/www/sphere.astraotoparts.co.id/current)
 PROD_API=$(readlink -f /opt/sphere/current)
 PROD_HASH=$(sha256sum "$PROD_WEB/index.html")
 test -f "$SOURCE/dist/index.html"
-rg -q '/dev/assets/' "$SOURCE/dist/index.html"
+grep -q '/dev/assets/' "$SOURCE/dist/index.html"
 install -d -m 0755 "$RELEASE" "$WEB"
 git -C "$SOURCE" archive HEAD | tar -x -C "$RELEASE"
 cp -a "$SOURCE/dist/." "$WEB/"
@@ -57,5 +57,5 @@ for attempt in {1..10}; do
 done
 curl --noproxy '*' -fsS https://sphere.astraotoparts.co.id/dev/api/health
 curl --noproxy '*' -fsS https://sphere.astraotoparts.co.id/dev/ -o /tmp/sphere-dev-smoke.html
-rg -q '/dev/assets/' /tmp/sphere-dev-smoke.html
+grep -q '/dev/assets/' /tmp/sphere-dev-smoke.html
 printf '\nPRODUCTION UNCHANGED\nDEV REVISION %s\n' "$REVISION"
