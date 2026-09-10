@@ -79,11 +79,12 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
   }
 
   if (!summary.active) {
+    const waiting = summary.status === 'WAITING'
     return <section className="rundeckIncident" aria-label="SAP performance assessment">
       <div className="rundeckIncidentHeader">
         <div>
           <span className="rundeckIncidentEyebrow">Performance Assessment</span>
-          <h3>No active performance degradation signal</h3>
+          <h3>{waiting ? 'Waiting for normalized performance telemetry' : 'No active performance degradation signal'}</h3>
         </div>
         <StatusPill value={summary.status || 'NORMAL'} />
       </div>
