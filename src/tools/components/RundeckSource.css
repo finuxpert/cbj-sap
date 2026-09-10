@@ -70,6 +70,10 @@
   font-size: 12px;
 }
 
+.rundeckMessage.is-reconnecting {
+  color: var(--sphere-warning, #e8c86b);
+}
+
 .rundeckLandscapeMeta {
   display: flex;
   align-items: center;
