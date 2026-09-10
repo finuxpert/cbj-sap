@@ -1,8 +1,7 @@
 .rundeckMonitoring {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--sphere-border-subtle, #28323c);
-  color: var(--sphere-text, #edf1f4);
+  margin-top: 10px;
+  padding-top: 8px;
+  color: var(--sphere-text, #e7edf0);
 }
 
 .rundeckMonitoringHead,
@@ -11,18 +10,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 9px;
 }
 
 .rundeckMonitoringHead h3,
 .rundeckOpsHead h4,
 .rundeckRcaHeader h4 {
   margin: 0;
-  color: var(--sphere-text, #edf1f4);
+  color: var(--sphere-text, #e7edf0);
 }
 
 .rundeckMonitoringHead h3 {
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 760;
 }
 
@@ -30,101 +29,105 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px 14px;
-  margin-top: 7px;
-  padding-bottom: 7px;
-  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  gap: 4px 10px;
+  margin-top: 5px;
+  padding-bottom: 2px;
+}
+
+.rundeckControlGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rundeckControlGroup > span {
+  display: none;
 }
 
 .rundeckSegmented {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 1px;
 }
 
 .rundeckSegmented button,
 .rundeckAdvancedControls button {
-  min-height: 25px;
-  padding: 2px 8px;
-  border: 1px solid transparent;
-  border-radius: 3px;
+  min-height: 23px;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
-  color: var(--sphere-text-secondary, #b1bbc4);
+  color: var(--sphere-text-muted, #718089);
   font-family: inherit;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
 }
 
 .rundeckSegmented button:hover,
 .rundeckAdvancedControls button:hover {
-  color: var(--sphere-text, #edf1f4);
-  background: var(--sphere-surface-2, #1e2730);
+  color: var(--sphere-text, #e7edf0);
+  background: color-mix(in srgb, var(--sphere-accent-soft, #17383f) 35%, transparent);
 }
 
 .rundeckSegmented button.is-active,
 .rundeckAdvancedControls button.is-active {
-  border-color: #315a61;
-  background: var(--sphere-accent-soft, #17383f);
-  color: #e8fbfc;
+  background: color-mix(in srgb, var(--sphere-accent, #4fc6c8) 13%, transparent);
+  color: var(--sphere-accent, #4fc6c8);
 }
 
 .rundeckAdvancedControls {
   width: fit-content;
-  margin-top: 5px;
+  margin-top: 1px;
 }
 
 .rundeckAdvancedControls summary {
-  color: var(--sphere-text-muted, #7f8c97);
+  color: var(--sphere-text-muted, #718089);
   cursor: pointer;
-  font-size: 9px;
-  font-weight: 700;
+  font-size: 8px;
+  font-weight: 650;
 }
 
 .rundeckAdvancedControls > div {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 5px;
+  gap: 5px;
+  margin-top: 3px;
 }
 
 .rundeckAdvancedControls > div > span {
-  margin-left: 6px;
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 8px;
-  font-weight: 750;
-  text-transform: uppercase;
+  display: none;
 }
 
 .rundeckTrendChart {
   width: 100%;
-  height: 330px;
-  min-height: 300px;
+  height: 305px;
+  min-height: 285px;
 }
 
 .rundeckHistoryState,
 .rundeckRcaHint {
-  padding: 10px 0;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 9.5px;
+  padding: 7px 0;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 9px;
 }
 
 .rundeckHistoryState.is-error {
-  color: var(--sphere-danger, #ef8a94);
+  color: var(--sphere-danger, #db7d86);
   font-weight: 700;
 }
 
 .rundeckRcaHint {
-  margin-top: 4px;
-  padding: 6px 0;
-  border-top: 1px dashed var(--sphere-border-subtle, #28323c);
-  color: var(--sphere-text-muted, #7f8c97);
+  margin-top: 0;
+  padding: 2px 0 4px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.5px;
 }
 
 .rundeckRcaSection {
-  margin-top: 8px;
-  padding: 8px 0 2px;
-  border-top: 1px solid var(--sphere-border, #323d48);
+  margin-top: 5px;
+  padding: 5px 0 1px;
   outline: none;
 }
 
@@ -138,113 +141,104 @@
 }
 
 .rundeckRcaHeader > div > span {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 8px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
   font-weight: 800;
-  letter-spacing: .05em;
+  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
 .rundeckRcaHeader h4 {
   margin-top: 1px;
-  font-size: 14px;
+  font-size: 12.5px;
 }
 
 .rundeckRcaHeader small {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.8px;
 }
 
 .rundeckRcaMetricStrip {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  min-height: 32px;
-  margin-top: 4px;
-  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  gap: 4px 13px;
+  margin-top: 3px;
+  padding: 3px 0;
 }
 
 .rundeckRcaMetricStrip > span {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
-  padding: 2px 9px;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 9px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 8.8px;
   white-space: nowrap;
 }
 
-.rundeckRcaMetricStrip > span:first-child {
-  padding-left: 0;
-}
-
-.rundeckRcaMetricStrip > span + span {
-  border-left: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
 .rundeckRcaMetricStrip b {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 8px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.6px;
   font-weight: 750;
   text-transform: uppercase;
 }
 
 .rundeckRcaWorkload {
   display: grid;
-  grid-template-columns: minmax(210px, 1.1fr) minmax(380px, 2fr);
-  gap: 18px;
-  padding: 8px 0;
+  grid-template-columns: minmax(210px, 1.05fr) minmax(380px, 2fr);
+  gap: 16px;
+  padding: 4px 0 6px;
 }
 
 .rundeckRcaWorkloadTitle > span {
   display: block;
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 8px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
   font-weight: 750;
   text-transform: uppercase;
 }
 
 .rundeckRcaWorkloadTitle > strong {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   overflow: hidden;
-  color: var(--sphere-text, #edf1f4);
-  font-size: 12px;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 11.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .rundeckRcaWorkloadTitle > small {
   display: block;
-  margin-top: 2px;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 9px;
+  margin-top: 1px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 8.8px;
 }
 
 .rundeckRcaWorkload dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 14px;
+  gap: 3px 12px;
   margin: 0;
 }
 
 .rundeckRcaWorkload dl div {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 6px;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 5px;
   min-width: 0;
 }
 
 .rundeckRcaWorkload dt {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 8px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.7px;
 }
 
 .rundeckRcaWorkload dd {
   overflow: hidden;
   margin: 0;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 9px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 8.8px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -253,71 +247,83 @@
 .rundeckInlineStatus {
   display: inline-flex;
   align-items: center;
-  min-height: 18px;
-  padding: 1px 5px;
-  border: 1px solid currentColor;
-  border-radius: 999px;
+  gap: 4px;
+  padding: 0;
+  border: 0;
   background: transparent;
-  font-size: 8px;
-  font-weight: 850;
+  font-size: 8.2px;
+  font-weight: 680;
+}
+
+.rundeckInlineStatus::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .rundeckInlineStatus.is-normal,
-.rundeckInlineStatus.is-ready { color: var(--sphere-positive, #78d6ad); }
+.rundeckInlineStatus.is-ready { color: var(--sphere-positive, #75cfa5); }
 .rundeckInlineStatus.is-warning,
-.rundeckInlineStatus.is-partial { color: var(--sphere-warning, #e8c86b); }
+.rundeckInlineStatus.is-partial { color: var(--sphere-warning, #d8b35f); }
 .rundeckInlineStatus.is-critical,
 .rundeckInlineStatus.is-failed,
-.rundeckInlineStatus.is-error { color: var(--sphere-danger, #ef8a94); }
+.rundeckInlineStatus.is-error { color: var(--sphere-danger, #db7d86); }
 
 .rundeckOpsSection {
-  margin-top: 8px;
+  margin-top: 5px;
 }
 
 .rundeckMiniTableWrap {
   overflow: auto;
-  max-height: 250px;
+  max-height: 230px;
 }
 
 .rundeckMiniTableWrap table {
   width: 100%;
   border-collapse: collapse;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 9px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 8.8px;
 }
 
 .rundeckMiniTableWrap th,
 .rundeckMiniTableWrap td {
-  padding: 6px 7px;
-  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  padding: 5px 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--sphere-border-subtle, #28323c) 55%, transparent);
   text-align: left;
 }
 
 .rundeckMiniTableWrap th {
   position: sticky;
   top: 0;
-  background: var(--sphere-page, #11161c);
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 8px;
+  background: var(--sphere-page, #10161b);
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
   text-transform: uppercase;
 }
 
 .rundeckEvidenceGroup {
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--sphere-border-subtle, #28323c);
+  margin-top: 6px;
+  padding-top: 3px;
 }
 
 .rundeckEvidenceGroup summary {
-  color: var(--sphere-text-secondary, #b1bbc4);
+  color: var(--sphere-text-secondary, #a9b5bb);
   cursor: pointer;
-  font-size: 9.5px;
-  font-weight: 700;
+  font-size: 0;
+  font-weight: 680;
+}
+
+.rundeckEvidenceGroup summary::before {
+  content: 'SAP Alert History';
+  font-size: 9px;
 }
 
 .rundeckEvidenceGroup summary span {
   margin-left: 6px;
-  color: var(--sphere-text-muted, #7f8c97);
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.5px;
   font-weight: 500;
 }
 
@@ -343,6 +349,6 @@
   }
 
   .rundeckTrendChart {
-    height: 300px;
+    height: 285px;
   }
 }
