@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/home/sadmin/sap}"
-POSTGRES_ENV="${POSTGRES_ENV:-/opt/postgres-sap-dev/.env}"
+APP_DIR="${APP_DIR:-/root/rundeck-sphere-dev}"
+POSTGRES_ENV="${POSTGRES_ENV:-/etc/sphere/rundeck-db.env}"
 VENV_DIR="${VENV_DIR:-${APP_DIR}/backend-venv}"
-STORAGE_ROOT="${STORAGE_ROOT:-/var/www/svr01-dev/sap-data}"
+STORAGE_ROOT="${STORAGE_ROOT:-/var/lib/sphere-dev/evidence}"
 DRY_RUN="${DRY_RUN:-0}"
 
 DB_HOST="${DB_HOST:-127.0.0.1}"
