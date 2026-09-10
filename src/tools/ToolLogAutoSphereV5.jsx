@@ -248,10 +248,10 @@ function SampleDrilldownSummary({ focus, rows = [], onClear }) {
       <div className="logV2QuickFilters"><button type="button" onClick={onClear}>Full period</button></div>
     </div>
     <div className="logV141SummaryGrid logV141SummaryGridCompact">
-      <div><span>{presentation.hostLabel}</span><strong>{metricText(focus.value, hostMetric.digits, hostMetric.suffix)}</strong><small>{presentation.hostNote}</small></div>
+      <div><span>{presentation.hostLabel}</span><strong>{metricText(focus.value, hostMetric.digits, hostMetric.suffix)}</strong></div>
       <div><span>Top Contributor</span><strong>{top?.workload || '—'}</strong><small>{top?.program || '—'}</small></div>
-      <div><span>{presentation.contributorLabel}</span><strong>{metricText(contribution, presentation.contributorDigits, presentation.contributorSuffix)}</strong><small>at selected sample</small></div>
-      <div><span>WP Type</span><strong>{top?.type || '—'}</strong><small>{rows.length} consumers observed</small></div>
+      <div><span>{presentation.contributorLabel}</span><strong>{metricText(contribution, presentation.contributorDigits, presentation.contributorSuffix)}</strong></div>
+      <div><span>WP Type</span><strong>{top?.type || '—'}</strong><small>{rows.length} rows</small></div>
     </div>
   </section>
 }
@@ -366,7 +366,7 @@ export default function ToolLogAutoSphereV5() {
       {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} topRow={trendTopConsumer} />)}
 
       {!pointInTime && <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Click any point or MAX marker to inspect metric-relevant contributors on that server at that sample.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
+        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Click point or MAX for contributors.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
         <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading trend…</div>}>
           <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} onSelectPoint={handleTrendPoint} />
         </React.Suspense>
@@ -376,7 +376,7 @@ export default function ToolLogAutoSphereV5() {
       {pointInTime ? <SnapshotStrip collection={selectedCollection} /> : null}
 
       <section className="logV2Panel" id="top-resource-consumers">
-        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `${samplePresentation.title} · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2><p>{sampleFocus ? `${shortTime(sampleFocus.timeLabel)} · ${samplePresentation.description}.` : pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
+        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `${samplePresentation.title} · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2>{sampleFocus ? <p>{shortTime(sampleFocus.timeLabel)}</p> : null}</div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
         {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
           <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} initialSortId={consumerSortId} sortResetKey={consumerSortResetKey} />
         </React.Suspense>}

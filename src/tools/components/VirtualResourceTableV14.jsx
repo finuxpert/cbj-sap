@@ -163,7 +163,8 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
   const activeSortId = sorting[0]?.id || normalizedSortId
-  const activeSortLabel = activeSortId === 'memory' ? (pointInTime ? 'memory' : 'peak memory') : activeSortId === 'dState' ? (pointInTime ? 'D-State WP' : 'D-State hits') : (pointInTime ? 'CPU' : 'peak CPU')
+  const activeSortLabel = activeSortId === 'memory' ? (pointInTime ? 'Memory' : 'Peak memory') : activeSortId === 'dState' ? (pointInTime ? 'D-State' : 'D-State hits') : (pointInTime ? 'CPU' : 'Peak CPU')
+  const activeSortArrow = sorting[0]?.desc === false ? '↑' : '↓'
   const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 12 })
   const gridTemplate = '128px minmax(300px,1.8fr) 88px 92px 145px 105px 185px 140px'
   const minWidth = 1183
@@ -172,7 +173,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
     <div className="logV2TableToolbar logV2BasisToolbar">
       <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search server, job, program, WP type…" />
       <div className="logV2QuickFilters">{QUICK_FILTERS.map(([key, label]) => <button key={key} type="button" className={quickFilter === key ? 'active' : ''} onClick={() => setQuickFilter(key)}>{label}</button>)}</div>
-      <span><b>{tableRows.length}</b> consumers · sorted by {activeSortLabel}</span>
+      <span className="logV2TableMeta"><b>{tableRows.length}</b><em>rows</em><strong>{activeSortLabel} {activeSortArrow}</strong></span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate, minWidth: `${minWidth}px` }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
