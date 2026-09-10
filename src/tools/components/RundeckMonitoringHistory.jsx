@@ -1,6 +1,7 @@
 import React from 'react'
 import * as echarts from './logEcharts.js'
 import RundeckJobHistory from './RundeckJobHistory.jsx'
+import SphereIcon from './SphereIcon.jsx'
 import { formatWib, numberText, shortHost } from './sapUiFormat.js'
 import './RundeckMonitoringHistory.css'
 import './RundeckEvidence.css'
@@ -42,7 +43,7 @@ const chartTheme = () => ({
   text: themeToken('--sphere-text', '#e7edf0'),
   secondary: themeToken('--sphere-text-secondary', '#a9b5bb'),
   muted: themeToken('--sphere-text-muted', '#718089'),
-  grid: themeToken('--sphere-chart-grid', 'rgba(126,147,158,.12)'),
+  grid: themeToken('--sphere-chart-grid', 'rgba(126,147,158,.10)'),
   panel: themeToken('--sphere-surface-1', '#141d23'),
   accentSoft: themeToken('--sphere-accent-soft', 'rgba(79,198,200,.14)'),
   warning: themeToken('--sphere-warning', '#d8b35f'),
@@ -125,10 +126,35 @@ function TrendChart({ trend, mode, range, onSelect }) {
     const thresholdLines = []
 
     if (trend?.warning !== null && trend?.warning !== undefined) {
-      thresholdLines.push({ yAxis: Number(trend.warning), name: 'WARNING', lineStyle: { color: palette.warning, type: 'dashed', opacity: .58 }, label: { formatter: `WARNING ${trend.warning}${suffix}`, color: palette.warning, fontSize: 8 } })
+      thresholdLines.push({
+        yAxis: Number(trend.warning),
+        name: 'Warn',
+        lineStyle: { color: palette.warning, type: 'dashed', opacity: .5 },
+        label: { formatter: `Warn ${trend.warning}${suffix}`, color: palette.warning, fontSize: 8, position: 'insideEndTop', distance: 4 },
+      })
     }
     if (trend?.critical !== null && trend?.critical !== undefined) {
-      thresholdLines.push({ yAxis: Number(trend.critical), name: 'CRITICAL', lineStyle: { color: palette.danger, type: 'dashed', opacity: .62 }, label: { formatter: `CRITICAL ${trend.critical}${suffix}`, color: palette.danger, fontSize: 8 } })
+      thresholdLines.push({
+        yAxis: Number(trend.critical),
+        name: 'Crit',
+        lineStyle: { color: palette.danger, type: 'dashed', opacity: .54 },
+        label: { formatter: `Crit ${trend.critical}${suffix}`, color: palette.danger, fontSize: 8, position: 'insideEndTop', distance: 4 },
+      })
+    }
+
+    const shortRange = range === '6h' || range === '24h'
+    const dataZoom = [{ type: 'inside', filterMode: 'none' }]
+    if (!shortRange) {
+      dataZoom.push({
+        type: 'slider',
+        bottom: 5,
+        height: 9,
+        filterMode: 'none',
+        borderColor: palette.grid,
+        backgroundColor: 'transparent',
+        fillerColor: palette.accentSoft,
+        textStyle: { color: palette.muted, fontSize: 8 },
+      })
     }
 
     return {
@@ -137,7 +163,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
       color: palette.series,
       textStyle: { color: palette.text },
       legend: { top: 0, type: 'scroll', itemWidth: 14, itemHeight: 8, data: hosts.map(shortHost), textStyle: { color: palette.secondary, fontSize: 9 }, pageTextStyle: { color: palette.muted } },
-      grid: { left: 52, right: 22, top: 38, bottom: 52 },
+      grid: { left: 52, right: 58, top: 38, bottom: shortRange ? 28 : 45 },
       tooltip: {
         trigger: 'axis',
         confine: true,
@@ -181,23 +207,23 @@ function TrendChart({ trend, mode, range, onSelect }) {
         splitLine: { lineStyle: { color: palette.grid, type: 'solid', width: 1 } },
         min: trend?.unit === '%' ? 0 : undefined,
         max: trend?.unit === '%' ? 100 : undefined,
-        splitNumber: 4,
+        splitNumber: 3,
       },
-      dataZoom: [
-        { type: 'inside', filterMode: 'none' },
-        { type: 'slider', bottom: 8, height: 10, filterMode: 'none', borderColor: palette.grid, backgroundColor: 'transparent', fillerColor: palette.accentSoft, textStyle: { color: palette.muted, fontSize: 8 } },
-      ],
-      series: hosts.map((host, index) => ({
-        name: shortHost(host),
-        type: 'line',
-        connectNulls: false,
-        showSymbol: (byHost.get(host)?.length || 0) <= 80,
-        symbolSize: 5,
-        lineStyle: { width: 1.5 },
-        emphasis: { focus: 'series', scale: 1.4 },
-        data: (byHost.get(host) || []).map((row) => ({ value: [row.bucket, row[valueKey]], bucket: row.bucket, peakAt: row.peak_at, peakCollectionId: row.peak_collection_id, host: row.host, avg: row.avg_value, max: row.max_value })),
-        markLine: index === 0 && thresholdLines.length ? { silent: true, symbol: ['none', 'none'], data: thresholdLines } : undefined,
-      })),
+      dataZoom,
+      series: hosts.map((host, index) => {
+        const hostRows = byHost.get(host) || []
+        return {
+          name: shortHost(host),
+          type: 'line',
+          connectNulls: false,
+          showSymbol: range === '6h' && hostRows.length <= 48,
+          symbolSize: 4,
+          lineStyle: { width: 1.45 },
+          emphasis: { focus: 'series', scale: 1.35 },
+          data: hostRows.map((row) => ({ value: [row.bucket, row[valueKey]], bucket: row.bucket, peakAt: row.peak_at, peakCollectionId: row.peak_collection_id, host: row.host, avg: row.avg_value, max: row.max_value })),
+          markLine: index === 0 && thresholdLines.length ? { silent: true, symbol: ['none', 'none'], data: thresholdLines } : undefined,
+        }
+      }),
     }
   }, [mode, range, trend])
 
@@ -243,7 +269,7 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
     <div className="rundeckRcaHeader">
       <div>
         <span>Selected Time</span>
-        <h4>{selected?.host ? shortHost(selected.host) : 'APP'}</h4>
+        <h4><SphereIcon name="target" /> {selected?.host ? shortHost(selected.host) : 'APP'}</h4>
         <small>{selected?.at ? `${formatWib(selected.at, true)} WIB` : 'Loading'}</small>
       </div>
       {selectedRow && <InlineStatus value={selectedRow.health} />}
@@ -283,8 +309,9 @@ export default function RundeckMonitoringHistory({
   currentWorkloadContent = null,
   incidentStart = '',
   latestCollectionId = '',
+  latestCollectionAt = '',
 }) {
-  const [range, setRange] = React.useState('24h')
+  const [range, setRange] = React.useState('6h')
   const [bucket, setBucket] = React.useState('auto')
   const [metric, setMetric] = React.useState('cpu')
   const [mode, setMode] = React.useState('max')
@@ -344,7 +371,7 @@ export default function RundeckMonitoringHistory({
   }, [])
 
   if (!databaseEnabled) {
-    return <section className="rundeckMonitoring"><div className="rundeckMonitoringHead"><h3>Server Trend</h3></div><div className="rundeckHistoryState">Trend data is not available yet.</div>{currentWorkloadContent}</section>
+    return <section className="rundeckMonitoring"><div className="rundeckMonitoringHead"><h3><SphereIcon name="trend" /> Server Trend</h3></div><div className="rundeckHistoryState">Trend data is not available yet.</div>{currentWorkloadContent}</section>
   }
 
   const recentCutoff = Date.now() - (RANGE_HOURS[range] || 24) * 60 * 60 * 1000
@@ -356,7 +383,7 @@ export default function RundeckMonitoringHistory({
   const warningCount = visibleAlerts.filter((row) => row.severity === 'WARNING').length
 
   return <section className="rundeckMonitoring">
-    <div className="rundeckMonitoringHead"><h3>Server Trend</h3></div>
+    <div className="rundeckMonitoringHead"><h3><SphereIcon name="trend" /> Server Trend</h3></div>
 
     <div className="rundeckTrendToolbar">
       <Segmented options={METRICS} value={metric} onChange={setMetric} ariaLabel="Performance metric" />
@@ -382,10 +409,10 @@ export default function RundeckMonitoringHistory({
 
     {currentWorkloadContent}
 
-    <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} />
+    <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} latestCollectionAt={latestCollectionAt} />
 
     <details className="rundeckEvidenceGroup">
-      <summary>SAP Alert History <span>{criticalCount} critical · {warningCount} warning events</span></summary>
+      <summary><SphereIcon name="alert" /> SAP Alert History <span>{criticalCount} critical · {warningCount} warning events</span></summary>
       <div className="rundeckEvidenceBody">
         <section className="rundeckOpsSection">
           <div className="rundeckMiniTableWrap">
