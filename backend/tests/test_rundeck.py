@@ -2,33 +2,80 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+
+from backend.rundeck_host_projection import parse_host_projection
 from backend.rundeck_poller import execution_matches
 from backend.rundeck_store import ingest, collections, validate, identifier
 
 HOSTS = ['fixture-a', 'fixture-b', 'fixture-c', 'fixture-d', 'fixture-e']
 
+
 def output(hosts):
-    return '\n'.join(f'## WP-SCOUT @ {h} SID=TST INSTS=00 TS=2026-09-10 01:00:00\n## RCA-SNAPSHOT-V2.2-BEGIN\nhostname\t{h}\nsnapshot_id\t{h}-1\nsnapshot_ts\t2026-09-10T01:00:00Z\nhost_cpu_pct\t10\n## RCA-SNAPSHOT-V2.2-END' for h in hosts).encode()
+    return '\n'.join(
+        f'## WP-SCOUT @ {h} SID=TST INSTS=00 TS=2026-09-10 01:00:00\n'
+        f'## RCA-SNAPSHOT-V2.2-BEGIN\n'
+        f'hostname\t{h}\n'
+        f'snapshot_id\t{h}-1\n'
+        f'snapshot_ts\t2026-09-10T01:00:00Z\n'
+        f'host_cpu_pct\t10\n'
+        f'## RCA-SNAPSHOT-V2.2-END'
+        for h in hosts
+    ).encode()
+
+
+def v22_segmented_output():
+    critical = [3, 2, 0, 0, 2]
+    parts = []
+    for index, host in enumerate(HOSTS):
+        parts.append(
+            f'snapshot @ {host} 2026-09-10 17:{index:02d}:00\n'
+            f'## WP-SCOUT @ {host} SID=TST INSTS=00 TS=2026-09-10 17:{index:02d}:00\n'
+            f'## RCA-SNAPSHOT-V2.2-BEGIN\n'
+            f'hostname\t{host}\n'
+            f'snapshot_id\t{host}-1\n'
+            f'snapshot_ts\t2026-09-10T10:{index:02d}:00Z\n'
+            f'host_cpu_pct\t{10 + index}\n'
+            f'memory_used_pct\t{50 + index}\n'
+            f'host_iowait_pct\t{index}\n'
+            f'swap_in_ps\t{index}\n'
+            f'swap_out_ps\t{index + 1}\n'
+            f'## RCA-SNAPSHOT-V2.2-END\n'
+            f'CPU WP Critical : {critical[index]}\n'
+            f'CPU WP Warn : 0\n'
+        )
+    return ''.join(parts).encode()
+
 
 def execution(eid=1, status='succeeded'):
-    return {'id': eid, 'status': status, 'date-started': {'date': '2026-09-10T01:00:00Z'}, 'date-ended': {'date': '2026-09-10T01:01:00Z'}}
+    return {
+        'id': eid,
+        'status': status,
+        'date-started': {'date': '2026-09-10T01:00:00Z'},
+        'date-ended': {'date': '2026-09-10T01:01:00Z'},
+    }
 
 
 class IngestionTests(unittest.TestCase):
     def test_ready_partial_failed_and_dedup(self):
         with TemporaryDirectory() as directory:
-            root=Path(directory)
-            ready=ingest(execution(), output(HOSTS), HOSTS, root)
+            root = Path(directory)
+            ready = ingest(execution(), output(HOSTS), HOSTS, root)
             self.assertEqual(ready['status'], 'READY')
             self.assertEqual(ingest(execution(), b'changed', HOSTS, root), ready)
             self.assertEqual(ingest(execution(2), output(HOSTS[:4]), HOSTS, root)['status'], 'PARTIAL')
             self.assertEqual(ingest(execution(3, 'failed'), output(HOSTS), HOSTS, root)['status'], 'FAILED')
-            self.assertEqual(next(row for row in collections(root) if row['status']=='READY')['execution_id'], '1')
-            self.assertEqual(len(list((root/'manifests').glob('*.json'))), 3)
-            self.assertTrue((root/ready['raw_path']).exists())
+            self.assertEqual(next(row for row in collections(root) if row['status'] == 'READY')['execution_id'], '1')
+            self.assertEqual(len(list((root / 'manifests').glob('*.json'))), 3)
+            self.assertTrue((root / ready['raw_path']).exists())
 
     def test_invalid_data(self):
-        for raw in [b'<html>login</html>', b'', b'\xff', output(['intruder']), output(HOSTS)+b'\n## RCA-WP-V2.2-BEGIN']:
+        for raw in [
+            b'<html>login</html>',
+            b'',
+            b'\xff',
+            output(['intruder']),
+            output(HOSTS) + b'\n## RCA-WP-V2.2-BEGIN',
+        ]:
             with self.assertRaises((ValueError, UnicodeError)):
                 validate(raw, HOSTS)
 
@@ -39,13 +86,20 @@ class IngestionTests(unittest.TestCase):
 
     def test_processing_resumes(self):
         with TemporaryDirectory() as directory:
-            root=Path(directory)
+            root = Path(directory)
             self.assertEqual(ingest(execution(status='running'), b'', HOSTS, root)['status'], 'PROCESSING')
             self.assertEqual(ingest(execution(), output(HOSTS), HOSTS, root)['status'], 'READY')
 
-    def test_no_mutating_routes(self):
+    def test_only_whitelisted_collect_now_is_mutating(self):
         from backend.rundeck_api import app
-        self.assertFalse(any(route.methods & {'POST','PUT','PATCH','DELETE'} for route in app.routes))
+
+        mutating = {
+            (route.path, method)
+            for route in app.routes
+            for method in route.methods
+            if method in {'POST', 'PUT', 'PATCH', 'DELETE'}
+        }
+        self.assertEqual(mutating, {('/collect-now', 'POST')})
 
     def test_job_identity_does_not_depend_on_uuid(self):
         group = 'SAP/AOP'
@@ -56,6 +110,13 @@ class IngestionTests(unittest.TestCase):
         self.assertTrue(execution_matches(old, group, name))
         self.assertTrue(execution_matches(new, group, name))
         self.assertFalse(execution_matches(wrong, group, name))
+
+    def test_v22_projection_keeps_wp_critical_with_its_snapshot_host(self):
+        rows = parse_host_projection(v22_segmented_output())
+        self.assertEqual([row['host'] for row in rows], [host.upper() for host in HOSTS])
+        self.assertEqual([row['wp_critical'] for row in rows], [3, 2, 0, 0, 2])
+        self.assertEqual([row['swap_activity'] for row in rows], [1.0, 3.0, 5.0, 7.0, 9.0])
+        self.assertEqual([row['iowait'] for row in rows], [0.0, 1.0, 2.0, 3.0, 4.0])
 
 
 if __name__ == '__main__':
