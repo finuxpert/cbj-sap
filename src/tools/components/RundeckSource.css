@@ -1,8 +1,9 @@
 .rundeckPanel {
   margin: 14px 0 22px;
-  border: 1px solid var(--line, #d8dee8);
-  border-radius: 16px;
-  background: var(--surface, #fff);
+  border: 1px solid var(--sphere-border, #323d48);
+  border-radius: var(--sphere-radius, 8px);
+  background: var(--sphere-surface-1, #192129);
+  color: var(--sphere-text, #edf1f4);
   padding: 14px;
 }
 
@@ -19,13 +20,14 @@
 .rundeckPanelHead h2,
 .rundeckSectionTitle h3 {
   margin: 2px 0 3px;
+  color: var(--sphere-text, #edf1f4);
 }
 
 .rundeckPanelHead p,
 .rundeckSectionTitle span,
 .rundeckHostCard small,
 .rundeckOpsStrip small {
-  color: var(--muted, #667085);
+  color: var(--sphere-text-secondary, #b1bbc4);
 }
 
 .rundeckPanelHead p {
@@ -34,6 +36,7 @@
 }
 
 .rundeckEyebrow {
+  color: var(--sphere-text-muted, #7f8c97);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .08em;
@@ -45,9 +48,11 @@
 
 .rundeckCollectButton {
   min-height: 34px;
-  border: 0;
-  border-radius: 9px;
+  border: 1px solid #315a61;
+  border-radius: 7px;
   padding: 0 13px;
+  background: var(--sphere-accent-soft, #17383f);
+  color: var(--sphere-text, #edf1f4);
   font-weight: 700;
   cursor: pointer;
 }
@@ -59,9 +64,10 @@
 
 .rundeckMessage {
   margin-top: 10px;
-  border: 1px solid var(--line, #d8dee8);
-  border-radius: 10px;
+  border: 1px solid var(--sphere-border, #323d48);
+  border-radius: 7px;
   padding: 9px 11px;
+  background: var(--sphere-surface-2, #1e2730);
 }
 
 .rundeckMetadata,
@@ -82,16 +88,17 @@
 .rundeckMetadata > div,
 .rundeckOpsStrip > div {
   min-width: 0;
-  border: 1px solid var(--line, #e3e7ee);
-  border-radius: 10px;
+  border: 1px solid var(--sphere-border-subtle, #28323c);
+  border-radius: 7px;
   padding: 8px 10px;
+  background: var(--sphere-surface-2, #1e2730);
 }
 
 .rundeckMetadata span,
 .rundeckOpsStrip span {
   display: block;
   margin-bottom: 3px;
-  color: var(--muted, #667085);
+  color: var(--sphere-text-muted, #7f8c97);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: .04em;
@@ -101,6 +108,7 @@
 .rundeckOpsStrip strong {
   display: block;
   overflow-wrap: anywhere;
+  color: var(--sphere-text, #edf1f4);
   font-size: 12px;
 }
 
@@ -117,27 +125,27 @@
 
 .rundeckStatus.is-normal,
 .rundeckStatus.is-ready {
-  color: #027a48;
-  background: #ecfdf3;
+  color: var(--sphere-positive, #78d6ad);
+  background: #17342a;
 }
 
 .rundeckStatus.is-warning,
 .rundeckStatus.is-partial,
 .rundeckStatus.is-waiting {
-  color: #b54708;
-  background: #fffaeb;
+  color: var(--sphere-warning, #e8c86b);
+  background: #3a331e;
 }
 
 .rundeckStatus.is-critical,
 .rundeckStatus.is-failed,
 .rundeckStatus.is-error {
-  color: #b42318;
-  background: #fef3f2;
+  color: var(--sphere-danger, #ef8a94);
+  background: #3a2024;
 }
 
 .rundeckStatus.is-unknown {
-  color: #475467;
-  background: #f2f4f7;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  background: var(--sphere-surface-3, #232e38);
 }
 
 .rundeckHostSection {
@@ -160,9 +168,10 @@
 }
 
 .rundeckHostCard {
-  border: 1px solid var(--line, #e3e7ee);
-  border-radius: 10px;
+  border: 1px solid var(--sphere-border-subtle, #28323c);
+  border-radius: 7px;
   padding: 10px;
+  background: var(--sphere-surface-2, #1e2730);
 }
 
 .rundeckHostCard > small {
@@ -178,38 +187,40 @@
 
 .rundeckHostCard dl div {
   min-width: 0;
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 .rundeckHostCard dl div.is-attention {
-  background: #fef3f2;
+  background: #3a2024;
   padding: 3px 5px;
   margin: -3px -5px;
 }
 
 .rundeckHostCard dl div.is-attention dd {
-  color: #b42318;
+  color: var(--sphere-danger, #ef8a94);
   font-weight: 850;
 }
 
 .rundeckHostCard dt {
-  color: var(--muted, #667085);
+  color: var(--sphere-text-muted, #7f8c97);
   font-size: 10px;
 }
 
 .rundeckHostCard dd {
   margin: 1px 0 0;
+  color: var(--sphere-text, #edf1f4);
   font-size: 12px;
   font-weight: 700;
 }
 
 .rundeckHistory {
   margin-top: 14px;
-  border-top: 1px solid var(--line, #e3e7ee);
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
   padding-top: 11px;
 }
 
 .rundeckHistory summary {
+  color: var(--sphere-text, #edf1f4);
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;
@@ -223,15 +234,20 @@
 .rundeckHistory table {
   width: 100%;
   border-collapse: collapse;
+  color: var(--sphere-text-secondary, #b1bbc4);
   font-size: 12px;
 }
 
 .rundeckHistory th,
 .rundeckHistory td {
   text-align: left;
-  border-bottom: 1px solid var(--line, #e3e7ee);
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
   padding: 8px;
   white-space: nowrap;
+}
+
+.rundeckHistory th {
+  color: var(--sphere-text-muted, #7f8c97);
 }
 
 @media (max-width: 1180px) {
