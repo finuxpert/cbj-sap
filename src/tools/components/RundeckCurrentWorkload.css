@@ -1,31 +1,29 @@
 .rundeckCurrentWorkload {
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--sphere-border-subtle, #28323c);
 }
 
 .rundeckCurrentWorkloadHead {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+}
+
+.rundeckCurrentWorkloadHead h3 {
+  margin: 0;
+  color: var(--sphere-text, #edf1f4);
+  font-size: 13px;
+  font-weight: 780;
 }
 
 .rundeckCurrentWorkloadHead span {
   display: block;
+  margin-top: 2px;
   color: var(--sphere-text-muted, #7f8c97);
   font-size: 9px;
-  font-weight: 800;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.rundeckCurrentWorkloadHead h3 {
-  margin: 3px 0 0;
-  color: var(--sphere-text, #edf1f4);
-  font-size: 15px;
-  font-weight: 780;
 }
 
 .rundeckCurrentWorkloadHead button,
@@ -38,9 +36,9 @@
 }
 
 .rundeckCurrentWorkloadHead button {
-  padding: 4px 0;
+  padding: 2px 0;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .rundeckCurrentWorkloadHead button:hover,
@@ -53,22 +51,23 @@
 
 .rundeckCurrentWorkloadTableWrap {
   overflow: auto;
-  max-height: 420px;
+  max-height: 330px;
 }
 
 .rundeckCurrentWorkload table {
   width: 100%;
   border-collapse: collapse;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-size: 9.5px;
 }
 
 .rundeckCurrentWorkload th,
 .rundeckCurrentWorkload td {
-  padding: 8px;
+  padding: 6px 7px;
   border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
   text-align: left;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .rundeckCurrentWorkload th {
@@ -79,15 +78,15 @@
   color: var(--sphere-text-muted, #7f8c97);
   font-size: 8px;
   font-weight: 750;
-  letter-spacing: .04em;
+  letter-spacing: .03em;
   text-transform: uppercase;
 }
 
 .rundeckCurrentWorkload td button {
-  max-width: 360px;
+  max-width: 320px;
   padding: 0;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   text-align: left;
   text-overflow: ellipsis;
@@ -100,12 +99,12 @@
 }
 
 .rundeckCurrentWorkload td b {
-  font-size: 9px;
+  font-size: 8.5px;
 }
 
 .rundeckCurrentWorkload td b.is-high-cpu,
-.rundeckCurrentWorkload td b.is-high-cpu--high-ram,
-.rundeckCurrentWorkload td b.is-high-ram {
+.rundeckCurrentWorkload td b.is-high-cpu--high-memory,
+.rundeckCurrentWorkload td b.is-high-memory {
   color: var(--sphere-warning, #e8c86b);
 }
 
@@ -114,9 +113,9 @@
 }
 
 .rundeckCurrentWorkloadState {
-  padding: 14px 0;
+  padding: 10px 0;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .rundeckCurrentWorkloadState.is-error {
