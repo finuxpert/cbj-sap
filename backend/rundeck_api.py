@@ -23,6 +23,7 @@ from backend.rundeck_monitoring import (
     top_consumer_history,
 )
 from backend.rundeck_store import ROOT, collections, identifier
+from backend.rundeck_trends import resolve_range, trend_series
 
 app = FastAPI(title="SPHERE Rundeck Development", docs_url=None, redoc_url=None)
 WIB = ZoneInfo("Asia/Jakarta")
@@ -140,6 +141,25 @@ def history_hosts(
 def history_hosts_latest():
     try:
         return {"items": latest_host_metrics()}
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+
+
+@app.get("/history/trend")
+def history_trend(
+    range_key: str = Query("24h", alias="range", pattern="^(6h|24h|7d|30d|90d)$"),
+    bucket: str = Query("auto", pattern="^(auto|10m|1h|6h|1d)$"),
+    metric: str = Query("cpu", pattern="^(cpu|ram|load|iowait|swap|wp)$"),
+):
+    try:
+        range_config = resolve_range(range_key)
+        since = datetime.now(timezone.utc) - timedelta(hours=range_config["hours"])
+        return {
+            **trend_series(since, range_key, bucket, metric),
+            "timezone": "Asia/Jakarta",
+        }
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from None
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 
