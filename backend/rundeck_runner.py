@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import ProxyHandler, Request, build_opener
 
+from backend.rundeck_credentials import credential_mode, read_credential
 from backend.rundeck_poller import API_VERSION, BASE, NoRedirect
 from backend.rundeck_store import ROOT, write_json
 
@@ -17,13 +18,7 @@ COOLDOWN_SECONDS = int(os.getenv("RUNDECK_COLLECT_COOLDOWN_SECONDS", "300"))
 
 
 def _token() -> str:
-    path = os.getenv("RUNDECK_RUNNER_TOKEN_FILE", "").strip()
-    if not path:
-        raise RuntimeError("Runner credential is not configured")
-    token = Path(path).read_text().strip()
-    if not token:
-        raise RuntimeError("Runner credential is empty")
-    return token
+    return read_credential("rundeck-runner", "RUNDECK_RUNNER_TOKEN_FILE")
 
 
 def _job_id() -> str:
@@ -104,8 +99,6 @@ def status() -> dict:
         except Exception:
             state["rundeck_status_check"] = "unavailable"
 
-    # Do not start a second copy when the scheduled Rundeck job (or an operator)
-    # already has the exact whitelisted job running.
     try:
         active = _latest_running_job()
         if active:
@@ -128,6 +121,7 @@ def status() -> dict:
         "cooldown_until": cooldown_until.isoformat() if cooldown_until else None,
         "allowed": not running and not cooldown,
         "job_id_configured": bool(os.getenv("RUNDECK_RUN_JOB_ID", "").strip()),
+        "credential_mode": credential_mode("rundeck-runner", "RUNDECK_RUNNER_TOKEN_FILE"),
     }
 
 
