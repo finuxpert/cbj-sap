@@ -1,28 +1,28 @@
 /* v1.3.2 header treatment: left-aligned workspace nav, no pill-switch look. */
-.rcaNavInner {
+.sphereNavInner {
   min-height: 56px;
   justify-content: flex-start;
   gap: 0;
 }
 
-.rcaBrand {
+.sphereBrand {
   min-width: 0;
   flex: 0 0 auto;
   gap: 9px;
 }
 
-.rcaBrand .brandTitle {
+.sphereBrand .brandTitle {
   font-size: 14px;
   letter-spacing: -0.018em;
 }
 
-.rcaBrand .brandSub {
+.sphereBrand .brandSub {
   margin-top: 2px;
   font-size: 9px;
   color: rgba(180, 197, 204, .56);
 }
 
-.rcaToolTabs {
+.sphereToolTabs {
   flex: 0 0 auto;
   justify-content: flex-start;
   gap: 1px;
@@ -31,8 +31,8 @@
   border-left: 1px solid rgba(145, 164, 173, .18);
 }
 
-.rcaToolTabs a,
-.appShell.isTool .rcaToolTabs a {
+.sphereToolTabs a,
+.appShell.isTool .sphereToolTabs a {
   min-height: 30px;
   padding: 6px 10px;
   border: 0;
@@ -45,8 +45,8 @@
   transform: none;
 }
 
-.rcaToolTabs a:hover,
-.appShell.isTool .rcaToolTabs a:hover {
+.sphereToolTabs a:hover,
+.appShell.isTool .sphereToolTabs a:hover {
   color: #e7eef2;
   border: 0;
   background: rgba(255, 255, 255, .035);
@@ -54,15 +54,15 @@
   transform: none;
 }
 
-.rcaToolTabs a[data-active="true"],
-.appShell.isTool .rcaToolTabs a[data-active="true"] {
+.sphereToolTabs a[data-active="true"],
+.appShell.isTool .sphereToolTabs a[data-active="true"] {
   color: #f3f7f8;
   border: 0;
   background: transparent;
   box-shadow: none;
 }
 
-.rcaToolTabs a[data-active="true"]::after {
+.sphereToolTabs a[data-active="true"]::after {
   left: 10px;
   right: 10px;
   bottom: -4px;
@@ -76,18 +76,18 @@
 }
 
 @media (max-width: 980px) {
-  .rcaToolTabs {
+  .sphereToolTabs {
     margin-left: 14px;
     padding-left: 12px;
   }
 }
 
 @media (max-width: 860px) {
-  .rcaNavInner {
+  .sphereNavInner {
     min-height: 54px;
   }
 
-  .rcaToolTabs {
+  .sphereToolTabs {
     display: none;
   }
 }

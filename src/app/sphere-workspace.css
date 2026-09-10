@@ -1,17 +1,17 @@
 /* SPHERE shell polish. CSS-only, no runtime patching. */
 
-.rcaNav {
+.sphereNav {
   border-bottom: 1px solid rgba(140, 255, 224, .12) !important;
   background: rgba(4, 12, 11, .88) !important;
   backdrop-filter: blur(18px) !important;
 }
 
-.rcaNavInner {
+.sphereNavInner {
   min-height: 64px !important;
   gap: 18px !important;
 }
 
-.rcaBrand .brandBadge {
+.sphereBrand .brandBadge {
   width: 38px !important;
   height: 38px !important;
   border-radius: 14px !important;
@@ -21,17 +21,17 @@
   font-weight: 950 !important;
 }
 
-.rcaBrand .brandTitle {
+.sphereBrand .brandTitle {
   font-size: 15px !important;
   letter-spacing: -.02em !important;
 }
 
-.rcaBrand .brandSub {
+.sphereBrand .brandSub {
   color: rgba(220,238,238,.58) !important;
   font-size: 11px !important;
 }
 
-.rcaToolTabs {
+.sphereToolTabs {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -39,8 +39,8 @@
   flex: 1 1 auto !important;
 }
 
-.rcaToolTabs a,
-.rcaNavLinks a {
+.sphereToolTabs a,
+.sphereNavLinks a {
   min-height: 34px !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -55,16 +55,16 @@
   text-decoration: none !important;
 }
 
-.rcaToolTabs a:hover,
-.rcaNavLinks a:hover,
-.rcaToolTabs a[data-active="true"],
-.rcaNavLinks a[data-active="true"] {
+.sphereToolTabs a:hover,
+.sphereNavLinks a:hover,
+.sphereToolTabs a[data-active="true"],
+.sphereNavLinks a[data-active="true"] {
   border-color: rgba(40,216,189,.35) !important;
   background: rgba(40,216,189,.12) !important;
   color: #f8fffd !important;
 }
 
-.rcaNavLinks {
+.sphereNavLinks {
   display: flex !important;
   gap: 8px !important;
 }
@@ -101,8 +101,8 @@
 }
 
 @media (max-width: 980px) {
-  .rcaToolTabs,
-  .rcaNavLinks {
+  .sphereToolTabs,
+  .sphereNavLinks {
     display: none !important;
   }
 }

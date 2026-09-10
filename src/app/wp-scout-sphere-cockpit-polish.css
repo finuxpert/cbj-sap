@@ -21,7 +21,7 @@
 }
 
 .appShell.isTool .cmpCleanShell .cmpCleanStats::before {
-  content: "EXECUTIVE RCA COCKPIT";
+  content: "EXECUTIVE SPHERE COCKPIT";
   display: block;
   margin: 0 0 8px 2px;
   color: rgba(94, 234, 212, .96);
@@ -157,7 +157,7 @@
   .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
   .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
   .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
-    content: "Compact after parse · focus on RCA below";
+    content: "Compact after parse · focus on SPHERE below";
     position: absolute;
     right: 12px;
     bottom: 10px;

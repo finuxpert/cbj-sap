@@ -65,7 +65,7 @@
 }
 
 @media (prefers-reduced-motion:no-preference){
-  .rcaNav{view-transition-name:rca-nav}
+  .sphereNav{view-transition-name:rca-nav}
   .rca26Head{view-transition-name:rca-workspace-head}
   ::view-transition-old(root),
   ::view-transition-new(root){

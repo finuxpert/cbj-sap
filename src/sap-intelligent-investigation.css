@@ -40,7 +40,7 @@ html body #root .appShell.isTool [class*="Panel"]:has(input[type="file"]){
 html body #root .appShell.isTool .cmpTopbar::after,
 html body #root .appShell.isTool .toolAnalyzer .card:first-of-type::after,
 html body #root .appShell.isTool .panel:has(input[type="file"])::after{
-  content:"RCA workflow: upload evidence → analyze → identify peak/offender → export incident report";
+  content:"SPHERE workflow: upload evidence → analyze → identify peak/offender → export incident report";
   display:block;
   margin-top:8px;
   padding:8px 10px;
@@ -128,7 +128,7 @@ html body #root .appShell.isTool .rcaEmpty{
 html body #root .appShell.isTool .cmpVtEmpty::after,
 html body #root .appShell.isTool [class*="Empty"]::after,
 html body #root .appShell.isTool .rcaEmpty::after{
-  content:"  · upload evidence to start RCA scoring";
+  content:"  · upload evidence to start SPHERE scoring";
   color:rgba(45,212,191,.66);
   font-weight:900;
 }

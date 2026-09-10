@@ -47,9 +47,9 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="navbar rcaNav">
-        <div className="navInner rcaNavInner">
-          <a className="brand rcaBrand" href="#/st03n" aria-label={`${APP_NAME} ${APP_DISPLAY_VERSION} ST03N analysis`}>
+      <header className="navbar sphereNav">
+        <div className="navInner sphereNavInner">
+          <a className="brand sphereBrand" href="#/st03n" aria-label={`${APP_NAME} ${APP_DISPLAY_VERSION} ST03N analysis`}>
             <SphereLogo />
             <span className="brandText">
               <span className="brandTitle">{APP_TAGLINE}</span>
@@ -57,7 +57,7 @@ export default function Navbar() {
             </span>
           </a>
 
-          <nav className="navQuick rcaToolTabs" aria-label={`${APP_NAME} SAP analysis workspaces`}>
+          <nav className="navQuick sphereToolTabs" aria-label={`${APP_NAME} SAP analysis workspaces`}>
             {tools.map((tool) => {
               const href = `/tool/${tool.slug}`
               const active = isActive(href)

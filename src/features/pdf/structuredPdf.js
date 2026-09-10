@@ -127,18 +127,18 @@ function detectToolTitle(slug) {
       ],
     },
     analyzer: {
-      title: 'SAP Intelligent ST03N Workload RCA Report',
+      title: 'SPHERE ST03N Workload Report',
       subtitle: 'ST03N Impact Evidence',
       filename: 'sphere-st03n-impact-report',
       actions: [
         'Review Top ST03N Evidence and dominant component.',
         'Validate whether response time is driven by DB, wait, CPU, or workload spike.',
-        'Check completeness of required ST03N files before final RCA conclusion.',
+        'Check completeness of required ST03N files before final root-cause conclusion.',
         'Attach source XLSX/CSV evidence with the incident record.',
       ],
     },
     logs: {
-      title: 'SAP Intelligent Log Evidence RCA Report',
+      title: 'SPHERE Log Evidence Report',
       subtitle: 'Log Evidence / Error Pattern Drilldown',
       filename: 'sphere-log-evidence-report',
       actions: [
@@ -557,7 +557,7 @@ export async function exportStructuredPdf(slug) {
     })
     y += 56
     drawNativeAnalytics()
-    line('Executive RCA narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, infra pressure, incident timeline, and recommended validation steps.', 10)
+    line('Executive analysis narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, infra pressure, incident timeline, and recommended validation steps.', 10)
   }
 
   drawCover()

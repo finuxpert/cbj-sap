@@ -355,7 +355,7 @@ export default function CaseAnalytics({ caseData }) {
           <ResourceChart data={rows.resources} />
           <SeverityCard data={rows.severity} />
           <BarCard title="Tool / Evidence Source" data={rows.tools} hint="Source coverage by tool" horizontal />
-          <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated RCA signals" horizontal />
+          <BarCard title="Top Error / Anomaly" data={rows.anomaly} hint="Most repeated SPHERE signals" horizontal />
           <BarCard title="Top JobName" data={rows.jobs} hint="Impacted job names" horizontal />
           <BarCard title="Top Program" data={rows.programs} hint="Impacted SAP programs" horizontal />
           <ConfidenceCard data={rows.confidence} />
