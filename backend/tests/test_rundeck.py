@@ -1,8 +1,11 @@
+import os
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
+from backend.rundeck_credentials import credential_mode, read_credential
 from backend.rundeck_host_projection import parse_host_projection
 from backend.rundeck_poller import execution_matches
 from backend.rundeck_store import ingest, collections, validate, identifier
@@ -117,6 +120,33 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual([row['wp_critical'] for row in rows], [3, 2, 0, 0, 2])
         self.assertEqual([row['swap_activity'] for row in rows], [1.0, 3.0, 5.0, 7.0, 9.0])
         self.assertEqual([row['iowait'] for row in rows], [0.0, 1.0, 2.0, 3.0, 4.0])
+
+    def test_systemd_credential_precedes_legacy_file(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            credentials = root / 'credentials'
+            credentials.mkdir()
+            systemd_token = credentials / 'rundeck-reader'
+            legacy_token = root / 'legacy.token'
+            systemd_token.write_text('systemd-fixture-token')
+            legacy_token.write_text('legacy-fixture-token')
+            with patch.dict(os.environ, {
+                'CREDENTIALS_DIRECTORY': str(credentials),
+                'RUNDECK_TOKEN_FILE': str(legacy_token),
+            }, clear=False):
+                self.assertEqual(credential_mode('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'systemd')
+                self.assertEqual(read_credential('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'systemd-fixture-token')
+
+    def test_legacy_credential_remains_rollout_fallback(self):
+        with TemporaryDirectory() as directory:
+            token = Path(directory) / 'legacy.token'
+            token.write_text('legacy-fixture-token')
+            with patch.dict(os.environ, {
+                'CREDENTIALS_DIRECTORY': '',
+                'RUNDECK_TOKEN_FILE': str(token),
+            }, clear=False):
+                self.assertEqual(credential_mode('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'file')
+                self.assertEqual(read_credential('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'legacy-fixture-token')
 
 
 if __name__ == '__main__':
