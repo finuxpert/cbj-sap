@@ -1,6 +1,7 @@
 [Unit]
 Description=SPHERE read-only Rundeck collection ingestion
 After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
@@ -10,7 +11,10 @@ WorkingDirectory=/opt/sphere-rundeck-dev/current
 Environment=SPHERE_INGESTION_ROOT=/var/lib/sphere/ingestion
 Environment=PYTHONDONTWRITEBYTECODE=1
 EnvironmentFile=-/etc/sphere/rundeck-dev.env
+LoadCredential=rundeck-reader:/etc/sphere/rundeck-readonly.token
 ExecStart=/opt/sphere-rundeck-dev/venv/bin/python -m backend.rundeck_poller
+TimeoutStartSec=150
+UMask=0027
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
