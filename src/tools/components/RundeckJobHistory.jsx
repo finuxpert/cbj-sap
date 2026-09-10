@@ -23,7 +23,7 @@ const palette = () => ({
   text: themeToken('--sphere-text', '#e7edf0'),
   secondary: themeToken('--sphere-text-secondary', '#a9b5bb'),
   muted: themeToken('--sphere-text-muted', '#718089'),
-  grid: themeToken('--sphere-chart-grid', 'rgba(126, 147, 158, .10)'),
+  grid: themeToken('--sphere-chart-grid', 'rgba(126, 147, 158, .08)'),
   panel: themeToken('--sphere-surface-1', '#141d23'),
   accent: themeToken('--sphere-accent', '#4fc6c8'),
   memory: themeToken('--sphere-memory', '#8ba7d9'),
@@ -129,9 +129,9 @@ function temporalText(issueStart, firstSeen) {
   const hours = Math.floor(absMinutes / 60)
   const minutes = absMinutes % 60
   const duration = [hours ? `${hours}h` : '', minutes ? `${minutes}m` : ''].filter(Boolean).join(' ') || '<1m'
-  if (delta > 0) return `Seen ${duration} after issue`
-  if (delta < 0) return `Seen ${duration} before issue`
-  return 'First seen when issue started'
+  if (delta > 0) return `${duration} after issue`
+  if (delta < 0) return `${duration} before issue`
+  return 'Same time as issue'
 }
 
 function nearestRow(rows, value) {
@@ -150,6 +150,20 @@ function metricSeriesData(rows, key) {
   return rows.map((row) => [row.collected_at, rowMetric(row, key)])
 }
 
+function chartProfile(rows = []) {
+  const pssValues = rows.map((row) => rowMetric(row, 'pss')).filter((value) => value !== null)
+  const readValues = rows.map((row) => rowMetric(row, 'read')).filter((value) => value !== null)
+  const writeValues = rows.map((row) => rowMetric(row, 'write')).filter((value) => value !== null)
+  const wpValues = rows.map((row) => rowMetric(row, 'wp')).filter((value) => value !== null)
+  return {
+    hasPss: pssValues.length > 0,
+    hasIo: [...readValues, ...writeValues].some((value) => Math.abs(value) > 0),
+    hasWp: wpValues.length > 0,
+    wpVariable: new Set(wpValues.map((value) => Number(value).toFixed(2))).size > 1,
+    hasCritical: rows.some((row) => Number(row.host_wp_critical || 0) > 0),
+  }
+}
+
 function SingleSamplePerformance({ row }) {
   const pss = rowMetric(row, 'pss')
   const read = rowMetric(row, 'read')
@@ -160,11 +174,12 @@ function SingleSamplePerformance({ row }) {
     <div className="rundeckSingleSampleTime">{formatWib(row.collected_at, true)} WIB</div>
     <div className="rundeckSingleSampleMetrics">
       <span><b>CPU</b>{numberText(rowMetric(row, 'cpu'), 1)}%</span>
-      <span><b>PSS</b>{pss === null ? '—' : `${numberText(pss, 2)} GB`}</span>
-      <span><b>IO Read</b>{read === null ? '—' : `${numberText(read, 2)} MiB/s`}</span>
-      <span><b>IO Write</b>{write === null ? '—' : `${numberText(write, 2)} MiB/s`}</span>
+      {pss !== null && <span><b>PSS</b>{numberText(pss, 2)} GB</span>}
+      {(Math.abs(read || 0) > 0 || Math.abs(write || 0) > 0)
+        ? <><span><b>IO Read</b>{numberText(read, 2)} MiB/s</span><span><b>IO Write</b>{numberText(write, 2)} MiB/s</span></>
+        : <span><b>IO</b>0 MiB/s</span>}
       <span><b>WP</b>{numberText(wp, 0)}</span>
-      <span className={critical > 0 ? 'is-attention' : ''}><b>APP Critical WP</b>{critical}</span>
+      {critical > 0 && <span className="is-attention"><b>APP Critical WP</b>{critical}</span>}
     </div>
     <div className="rundeckSingleSampleAxis"><i /><strong>{formatWib(row.collected_at, false)}</strong></div>
   </div>
@@ -172,14 +187,32 @@ function SingleSamplePerformance({ row }) {
 
 function UnifiedJobPerformanceChart({ items, incidentStart }) {
   const ref = React.useRef(null)
-  const option = React.useMemo(() => {
+  const chartConfig = React.useMemo(() => {
     const colors = palette()
     const rows = [...items].sort((left, right) => Date.parse(left.collected_at || '') - Date.parse(right.collected_at || ''))
+    const profile = chartProfile(rows)
     const firstTs = Date.parse(rows[0]?.collected_at || '')
     const lastTs = Date.parse(rows.at(-1)?.collected_at || '')
     const issueTs = Date.parse(incidentStart || '')
     const issueInRange = Number.isFinite(issueTs) && Number.isFinite(firstTs) && Number.isFinite(lastTs) && issueTs >= firstTs && issueTs <= lastTs
-    const hasIo = rows.some((row) => Math.abs(rowMetric(row, 'read') || 0) > 0 || Math.abs(rowMetric(row, 'write') || 0) > 0)
+
+    const lanes = [
+      { id: 'cpu', name: 'CPU %', height: 62 },
+      profile.hasPss ? { id: 'pss', name: 'PSS GB', height: 42 } : null,
+      profile.hasIo ? { id: 'io', name: 'IO MiB/s', height: 38 } : null,
+      profile.hasWp ? { id: 'wp', name: 'WP', height: profile.wpVariable ? 34 : 22 } : null,
+      profile.hasCritical ? { id: 'event', name: '', height: 16 } : null,
+    ].filter(Boolean)
+
+    let top = 16
+    const gap = 14
+    const grids = lanes.map((lane) => {
+      const grid = { left: 58, right: 18, top, height: lane.height }
+      top += lane.height + gap
+      return grid
+    })
+    const chartHeight = Math.max(170, top + 30)
+    const laneIndex = Object.fromEntries(lanes.map((lane, index) => [lane.id, index]))
 
     const axisBase = {
       type: 'time',
@@ -208,21 +241,25 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       axisLabel: { color: colors.muted, fontSize: 8.5, margin: 8 },
       nameTextStyle: { color: colors.muted, fontSize: 9, align: 'left' },
     }
-    const line = (name, key, xAxisIndex, yAxisIndex, color, extra = {}) => ({
-      name,
-      type: 'line',
-      xAxisIndex,
-      yAxisIndex,
-      showSymbol: rows.length <= 40,
-      symbolSize: 4,
-      smooth: false,
-      connectNulls: false,
-      lineStyle: { width: 1.6, color },
-      itemStyle: { color },
-      emphasis: { focus: 'series' },
-      data: metricSeriesData(rows, key),
-      ...extra,
-    })
+    const line = (name, key, laneId, color, extra = {}) => {
+      const index = laneIndex[laneId]
+      if (index === undefined) return null
+      return {
+        name,
+        type: 'line',
+        xAxisIndex: index,
+        yAxisIndex: index,
+        showSymbol: rows.length <= 36,
+        symbolSize: 4,
+        smooth: false,
+        connectNulls: false,
+        lineStyle: { width: 1.6, color },
+        itemStyle: { color },
+        emphasis: { focus: 'series' },
+        data: metricSeriesData(rows, key),
+        ...extra,
+      }
+    }
     const issueMark = issueInRange ? {
       silent: true,
       symbol: ['none', 'none'],
@@ -231,78 +268,77 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       data: [{ xAxis: incidentStart }],
     } : undefined
 
-    const ioHeight = hasIo ? 44 : 24
-    const wpTop = 176 + ioHeight
-    const eventTop = wpTop + 56
-    const totalBottom = eventTop + 38
+    const series = [
+      line('CPU', 'cpu', 'cpu', colors.accent, { markLine: issueMark }),
+      profile.hasPss ? line('PSS', 'pss', 'pss', colors.memory) : null,
+      profile.hasIo ? line('IO Read', 'read', 'io', colors.ioRead) : null,
+      profile.hasIo ? line('IO Write', 'write', 'io', colors.ioWrite) : null,
+      profile.hasWp ? line('WP Count', 'wp', 'wp', colors.wp, { step: 'middle' }) : null,
+      profile.hasCritical ? {
+        name: 'APP Critical WP',
+        type: 'scatter',
+        xAxisIndex: laneIndex.event,
+        yAxisIndex: laneIndex.event,
+        symbol: 'triangle',
+        symbolSize: (value, params) => Math.min(11, 6 + Number(params?.data?.critical || 0)),
+        itemStyle: { color: colors.danger },
+        data: rows.filter((row) => Number(row.host_wp_critical || 0) > 0).map((row) => ({ value: [row.collected_at, .5], critical: Number(row.host_wp_critical || 0) })),
+      } : null,
+    ].filter(Boolean)
 
     return {
-      animationDuration: 150,
-      backgroundColor: 'transparent',
-      textStyle: { color: colors.text },
-      grid: [
-        { left: 62, right: 18, top: 18, height: 70 },
-        { left: 62, right: 18, top: 105, height: 52 },
-        { left: 62, right: 18, top: 176, height: ioHeight },
-        { left: 62, right: 18, top: wpTop, height: 38 },
-        { left: 62, right: 18, top: eventTop, height: 18 },
-      ],
-      xAxis: [0, 1, 2, 3, 4].map((index) => ({
-        ...axisBase,
-        gridIndex: index,
-        axisLabel: index === 4 ? axisBase.axisLabel : { show: false },
-        axisLine: index === 4 ? axisBase.axisLine : { show: false },
-      })),
-      yAxis: [
-        { ...yBase, gridIndex: 0, name: 'CPU %' },
-        { ...yBase, gridIndex: 1, name: 'PSS GB' },
-        { ...yBase, gridIndex: 2, name: hasIo ? 'IO MiB/s' : 'IO 0 MiB/s', splitLine: { show: hasIo, lineStyle: { color: colors.grid } }, axisLabel: hasIo ? yBase.axisLabel : { show: false } },
-        { ...yBase, gridIndex: 3, name: 'WP', axisLabel: { ...yBase.axisLabel, formatter: (value) => Math.round(value) } },
-        { type: 'value', gridIndex: 4, min: 0, max: 1, show: false },
-      ],
-      axisPointer: { link: [{ xAxisIndex: 'all' }] },
-      tooltip: {
-        trigger: 'axis',
-        confine: true,
-        backgroundColor: colors.panel,
-        borderWidth: 0,
-        textStyle: { color: colors.text, fontSize: 10 },
-        formatter: (points = []) => {
-          if (!points.length) return ''
-          const row = nearestRow(rows, points[0]?.axisValue)
-          if (!row) return ''
-          const critical = Number(row.host_wp_critical || 0)
-          return [
-            `<b>${formatWib(row.collected_at, true)} WIB</b>`,
-            `CPU <b>${numberText(rowMetric(row, 'cpu'), 1)}%</b>`,
-            `PSS <b>${rowMetric(row, 'pss') === null ? '—' : `${numberText(rowMetric(row, 'pss'), 2)} GB`}</b>`,
-            `IO Read <b>${rowMetric(row, 'read') === null ? '—' : `${numberText(rowMetric(row, 'read'), 2)} MiB/s`}</b>`,
-            `IO Write <b>${rowMetric(row, 'write') === null ? '—' : `${numberText(rowMetric(row, 'write'), 2)} MiB/s`}</b>`,
-            `WP <b>${numberText(rowMetric(row, 'wp'), 0)}</b>`,
-            critical > 0 ? `APP Critical WP <b>${critical}</b>` : 'APP Critical WP 0',
-            `Run <b>#${row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</b>`,
-          ].join('<br/>')
+      height: chartHeight,
+      profile,
+      option: {
+        animationDuration: 150,
+        backgroundColor: 'transparent',
+        textStyle: { color: colors.text },
+        grid: grids,
+        xAxis: lanes.map((lane, index) => ({
+          ...axisBase,
+          gridIndex: index,
+          axisLabel: index === lanes.length - 1 ? axisBase.axisLabel : { show: false },
+          axisLine: index === lanes.length - 1 ? axisBase.axisLine : { show: false },
+        })),
+        yAxis: lanes.map((lane, index) => lane.id === 'event'
+          ? { type: 'value', gridIndex: index, min: 0, max: 1, show: false }
+          : {
+              ...yBase,
+              gridIndex: index,
+              name: lane.name,
+              splitLine: lane.id === 'wp' && !profile.wpVariable ? { show: false } : yBase.splitLine,
+              splitNumber: lane.id === 'wp' ? 1 : 2,
+              axisLabel: lane.id === 'wp'
+                ? { ...yBase.axisLabel, formatter: (value) => Math.round(value) }
+                : yBase.axisLabel,
+            }),
+        axisPointer: { link: [{ xAxisIndex: 'all' }] },
+        tooltip: {
+          trigger: 'axis',
+          confine: true,
+          backgroundColor: colors.panel,
+          borderWidth: 0,
+          textStyle: { color: colors.text, fontSize: 10 },
+          formatter: (points = []) => {
+            if (!points.length) return ''
+            const row = nearestRow(rows, points[0]?.axisValue)
+            if (!row) return ''
+            const critical = Number(row.host_wp_critical || 0)
+            return [
+              `<b>${formatWib(row.collected_at, true)} WIB</b>`,
+              `CPU <b>${numberText(rowMetric(row, 'cpu'), 1)}%</b>`,
+              profile.hasPss ? `PSS <b>${numberText(rowMetric(row, 'pss'), 2)} GB</b>` : '',
+              profile.hasIo ? `IO Read <b>${numberText(rowMetric(row, 'read'), 2)} MiB/s</b>` : 'IO <b>0 MiB/s</b>',
+              profile.hasIo ? `IO Write <b>${numberText(rowMetric(row, 'write'), 2)} MiB/s</b>` : '',
+              profile.hasWp ? `WP <b>${numberText(rowMetric(row, 'wp'), 0)}</b>` : '',
+              critical > 0 ? `APP Critical WP <b>${critical}</b>` : '',
+              `Run <b>#${row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</b>`,
+            ].filter(Boolean).join('<br/>')
+          },
         },
+        dataZoom: [{ type: 'inside', xAxisIndex: lanes.map((_, index) => index), filterMode: 'none' }],
+        series,
       },
-      dataZoom: [{ type: 'inside', xAxisIndex: [0, 1, 2, 3, 4], filterMode: 'none' }],
-      series: [
-        line('CPU', 'cpu', 0, 0, colors.accent, { markLine: issueMark }),
-        line('PSS', 'pss', 1, 1, colors.memory),
-        line('IO Read', 'read', 2, 2, colors.ioRead),
-        line('IO Write', 'write', 2, 2, colors.ioWrite),
-        line('WP Count', 'wp', 3, 3, colors.wp, { step: 'middle' }),
-        {
-          name: 'APP Critical WP',
-          type: 'scatter',
-          xAxisIndex: 4,
-          yAxisIndex: 4,
-          symbol: 'triangle',
-          symbolSize: (value, params) => Math.min(11, 6 + Number(params?.data?.critical || 0)),
-          itemStyle: { color: colors.danger },
-          data: rows.filter((row) => Number(row.host_wp_critical || 0) > 0).map((row) => ({ value: [row.collected_at, .5], critical: Number(row.host_wp_critical || 0) })),
-        },
-      ],
-      graphic: [{ type: 'text', right: 18, top: totalBottom - 10, style: { text: 'Time WIB', fill: colors.muted, fontSize: 8 } }],
     }
   }, [incidentStart, items])
 
@@ -310,7 +346,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     if (!ref.current) return undefined
     echarts.getInstanceByDom?.(ref.current)?.dispose()
     const chart = echarts.init(ref.current, null, { renderer: 'canvas' })
-    chart.setOption(option, true)
+    chart.setOption(chartConfig.option, true)
     const resize = () => chart.resize()
     window.addEventListener('resize', resize)
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
@@ -320,9 +356,12 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       window.removeEventListener('resize', resize)
       chart.dispose()
     }
-  }, [option])
+  }, [chartConfig.option])
 
-  return <div ref={ref} className="rundeckJobPerformanceChart" role="img" aria-label="CPU, PSS, IO, work process and APP critical work process timeline with WIB time axis" />
+  return <div className="rundeckJobPerformanceWrap">
+    {!chartConfig.profile.hasIo && <div className="rundeckHiddenMetric">IO 0 MiB/s</div>}
+    <div ref={ref} className="rundeckJobPerformanceChart" style={{ height: `${chartConfig.height}px` }} role="img" aria-label="Workload CPU, PSS, IO, work process and APP critical work process timeline with WIB time axis" />
+  </div>
 }
 
 export default function RundeckJobHistory({ job = null, refreshToken = '', incidentStart = '', latestCollectionId = '', latestCollectionAt = '' }) {
@@ -365,6 +404,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   const isCurrent = Boolean(latestCollectionId && latest?.collection_id === latestCollectionId)
   const correlation = temporalText(incidentStart, stats.firstSeen)
   const observed = durationText(stats.firstSeen, stats.lastSeen)
+  const profile = chartProfile(episodeItems)
 
   return <section className="rundeckJobHistory" aria-label="Selected workload performance">
     <div className="rundeckJobHistoryHead">
@@ -373,7 +413,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
         <h3><SphereIcon name="target" /> {jobKey}</h3>
         <small>{shortHost(jobHost || latest?.host || '')} · {workloadTypeLabel(jobConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
       </div>
-      <strong className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NOT SEEN IN LATEST CHECK'}</strong>
+      <strong className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NO LONGER SEEN'}</strong>
     </div>
 
     {loading && <div className="rundeckJobHistoryState">Loading workload history…</div>}
@@ -383,12 +423,10 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
       <div className="rundeckJobHistorySummary">
         <span><b>First Seen</b>{formatWib(stats.firstSeen, true)} WIB</span>
         <span><b>Last Seen</b>{formatWib(stats.lastSeen, true)} WIB</span>
-        <span><b>Observed</b>{observed}</span>
-        <span><b>Seen</b>{episodeItems.length} checks</span>
-        <span><b>Latest CPU</b>{numberText(latest?.cpu_pct)}%</span>
+        <span><b>Duration</b>{observed}</span>
+        <span><b>Checks</b>{episodeItems.length}</span>
         <span><b>Avg CPU</b>{numberText(stats.avgCpu)}%</span>
         <span><b>Peak CPU</b>{numberText(stats.peakCpu)}%</span>
-        {!isCurrent && latestCollectionAt && <span><b>Latest Check</b>{formatWib(latestCollectionAt, true)} WIB</span>}
       </div>
 
       {(incidentStart || correlation) && <div className="rundeckJobCorrelation">
@@ -399,7 +437,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
 
       <div className="rundeckJobPerformanceTitle">
         <h4><SphereIcon name="trend" /> Workload Performance</h4>
-        <span><i /> APP Critical WP</span>
+        {profile.hasCritical && <span><i /> APP Critical WP</span>}
       </div>
 
       {episodeItems.length === 1
