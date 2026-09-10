@@ -18,12 +18,16 @@ from backend.rundeck_monitoring import (
     disk_status,
     host_history,
     latest_host_metrics,
-    timeline,
     timescale_status,
     top_consumer_history,
 )
 from backend.rundeck_store import ROOT, collections, identifier
-from backend.rundeck_trends import collection_timeline, resolve_range, trend_series
+from backend.rundeck_trends import (
+    collection_timeline,
+    collection_timeline_at,
+    resolve_range,
+    trend_series,
+)
 
 app = FastAPI(title="SPHERE Rundeck Development", docs_url=None, redoc_url=None)
 WIB = ZoneInfo("Asia/Jakarta")
@@ -201,7 +205,13 @@ def history_timeline(
 ):
     target = _parse_time(at)
     try:
-        items = collection_timeline(collection_id) if collection_id else timeline(target, window_minutes)
+        resolved_collection_id = collection_id
+        if collection_id:
+            items = collection_timeline(collection_id)
+            correlation_mode = "collection"
+        else:
+            resolved_collection_id, items = collection_timeline_at(target, window_minutes)
+            correlation_mode = "nearest-collection"
         for item in items:
             item["top_consumers"] = timeline_consumers(
                 item["collection_id"],
@@ -212,8 +222,8 @@ def history_timeline(
         return {
             "at": target,
             "window_minutes": window_minutes,
-            "collection_id": collection_id,
-            "correlation_mode": "collection" if collection_id else "nearest-time",
+            "collection_id": resolved_collection_id,
+            "correlation_mode": correlation_mode,
             "items": items,
         }
     except RuntimeError as error:
