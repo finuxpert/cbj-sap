@@ -1,9 +1,11 @@
 import React from 'react'
 import * as echarts from './logEcharts.js'
+import SphereIcon from './SphereIcon.jsx'
 import { formatWib, numberText, shortHost, workloadTypeLabel } from './sapUiFormat.js'
 import './RundeckJobHistory.css'
 
 const API = `${import.meta.env.BASE_URL}api`
+const GAP_MS = 25 * 60 * 1000
 
 const numeric = (value) => {
   if (value === null || value === undefined || value === '') return null
@@ -21,7 +23,7 @@ const palette = () => ({
   text: themeToken('--sphere-text', '#e7edf0'),
   secondary: themeToken('--sphere-text-secondary', '#a9b5bb'),
   muted: themeToken('--sphere-text-muted', '#718089'),
-  grid: themeToken('--sphere-chart-grid', 'rgba(126, 147, 158, .12)'),
+  grid: themeToken('--sphere-chart-grid', 'rgba(126, 147, 158, .10)'),
   panel: themeToken('--sphere-surface-1', '#141d23'),
   accent: themeToken('--sphere-accent', '#4fc6c8'),
   memory: themeToken('--sphere-memory', '#8ba7d9'),
@@ -54,6 +56,18 @@ function rowMetric(row, key) {
   return null
 }
 
+function durationText(firstSeen, lastSeen) {
+  const first = Date.parse(firstSeen || '')
+  const last = Date.parse(lastSeen || '')
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last < first) return '—'
+  const minutes = Math.max(0, Math.round((last - first) / 60000))
+  if (minutes < 1) return '<1m'
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours}h ${rest}m` : `${hours}h`
+}
+
 function temporalText(issueStart, firstSeen) {
   const issue = Date.parse(issueStart || '')
   const first = Date.parse(firstSeen || '')
@@ -63,9 +77,9 @@ function temporalText(issueStart, firstSeen) {
   const hours = Math.floor(absMinutes / 60)
   const minutes = absMinutes % 60
   const duration = [hours ? `${hours}h` : '', minutes ? `${minutes}m` : ''].filter(Boolean).join(' ') || '<1m'
-  if (delta > 0) return `Workload appeared ${duration} after issue started`
-  if (delta < 0) return `Workload was already visible ${duration} before issue started`
-  return 'Workload first seen when issue started'
+  if (delta > 0) return `Seen ${duration} after issue`
+  if (delta < 0) return `Seen ${duration} before issue`
+  return 'First seen when issue started'
 }
 
 function nearestRow(rows, value) {
@@ -80,21 +94,66 @@ function nearestRow(rows, value) {
   }, null)
 }
 
+function metricSeriesData(rows, key) {
+  const output = []
+  rows.forEach((row, index) => {
+    if (index > 0) {
+      const previous = rows[index - 1]
+      const previousTs = Date.parse(previous.collected_at || '')
+      const currentTs = Date.parse(row.collected_at || '')
+      if (Number.isFinite(previousTs) && Number.isFinite(currentTs) && currentTs - previousTs > GAP_MS) {
+        output.push([new Date(previousTs + ((currentTs - previousTs) / 2)).toISOString(), null])
+      }
+    }
+    output.push([row.collected_at, rowMetric(row, key)])
+  })
+  return output
+}
+
+function SingleSamplePerformance({ row }) {
+  const pss = rowMetric(row, 'pss')
+  const read = rowMetric(row, 'read')
+  const write = rowMetric(row, 'write')
+  const wp = rowMetric(row, 'wp')
+  const critical = Number(row.host_wp_critical || 0)
+  return <div className="rundeckSingleSample" aria-label="Single workload sample">
+    <div className="rundeckSingleSampleTime">{formatWib(row.collected_at, true)} WIB</div>
+    <div className="rundeckSingleSampleMetrics">
+      <span><b>CPU</b>{numberText(rowMetric(row, 'cpu'), 1)}%</span>
+      <span><b>PSS</b>{pss === null ? '—' : `${numberText(pss, 2)} GB`}</span>
+      <span><b>IO Read</b>{read === null ? '—' : `${numberText(read, 2)} MiB/s`}</span>
+      <span><b>IO Write</b>{write === null ? '—' : `${numberText(write, 2)} MiB/s`}</span>
+      <span><b>WP</b>{numberText(wp, 0)}</span>
+      <span className={critical > 0 ? 'is-attention' : ''}><b>APP Critical WP</b>{critical}</span>
+    </div>
+    <div className="rundeckSingleSampleAxis"><i /><strong>{formatWib(row.collected_at, false)}</strong></div>
+  </div>
+}
+
 function UnifiedJobPerformanceChart({ items, incidentStart }) {
   const ref = React.useRef(null)
   const option = React.useMemo(() => {
     const colors = palette()
-    const rows = [...items].reverse()
+    const rows = [...items].sort((left, right) => Date.parse(left.collected_at || '') - Date.parse(right.collected_at || ''))
     const firstTs = Date.parse(rows[0]?.collected_at || '')
     const lastTs = Date.parse(rows.at(-1)?.collected_at || '')
     const issueTs = Date.parse(incidentStart || '')
     const issueInRange = Number.isFinite(issueTs) && Number.isFinite(firstTs) && Number.isFinite(lastTs) && issueTs >= firstTs && issueTs <= lastTs
+    const hasIo = rows.some((row) => Math.abs(rowMetric(row, 'read') || 0) > 0 || Math.abs(rowMetric(row, 'write') || 0) > 0)
+
     const axisBase = {
       type: 'time',
       axisLine: { lineStyle: { color: colors.grid } },
       axisTick: { show: false },
       splitLine: { show: false },
-      axisLabel: { color: colors.muted, fontSize: 9, hideOverlap: true, formatter: (value) => formatWib(value, false) },
+      axisLabel: {
+        color: colors.muted,
+        fontSize: 9,
+        hideOverlap: true,
+        showMinLabel: true,
+        showMaxLabel: true,
+        formatter: (value) => formatWib(value, false),
+      },
       axisPointer: { show: true, snap: true, lineStyle: { color: colors.muted, width: 1, type: 'dashed' } },
     }
     const yBase = {
@@ -103,7 +162,8 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       axisLine: { show: false },
       axisTick: { show: false },
       splitLine: { show: true, lineStyle: { color: colors.grid, width: 1 } },
-      axisLabel: { color: colors.muted, fontSize: 9, margin: 8 },
+      splitNumber: 2,
+      axisLabel: { color: colors.muted, fontSize: 8.5, margin: 8 },
       nameTextStyle: { color: colors.muted, fontSize: 9, align: 'left' },
     }
     const line = (name, key, xAxisIndex, yAxisIndex, color, extra = {}) => ({
@@ -111,34 +171,39 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       type: 'line',
       xAxisIndex,
       yAxisIndex,
-      showSymbol: rows.length <= 80,
+      showSymbol: rows.length <= 40,
       symbolSize: 4,
       smooth: false,
       connectNulls: false,
       lineStyle: { width: 1.6, color },
       itemStyle: { color },
       emphasis: { focus: 'series' },
-      data: rows.map((row) => [row.collected_at, rowMetric(row, key)]),
+      data: metricSeriesData(rows, key),
       ...extra,
     })
     const issueMark = issueInRange ? {
       silent: true,
       symbol: ['none', 'none'],
       lineStyle: { color: colors.warning, type: 'dashed', width: 1 },
-      label: { formatter: 'Issue started', color: colors.warning, fontSize: 8 },
+      label: { formatter: 'Issue', color: colors.warning, fontSize: 8 },
       data: [{ xAxis: incidentStart }],
     } : undefined
 
+    const ioHeight = hasIo ? 44 : 24
+    const wpTop = 176 + ioHeight
+    const eventTop = wpTop + 56
+    const totalBottom = eventTop + 38
+
     return {
-      animationDuration: 170,
+      animationDuration: 150,
       backgroundColor: 'transparent',
       textStyle: { color: colors.text },
       grid: [
-        { left: 58, right: 18, top: 18, height: 76 },
-        { left: 58, right: 18, top: 112, height: 58 },
-        { left: 58, right: 18, top: 188, height: 58 },
-        { left: 58, right: 18, top: 264, height: 54 },
-        { left: 58, right: 18, top: 336, height: 26 },
+        { left: 62, right: 18, top: 18, height: 70 },
+        { left: 62, right: 18, top: 105, height: 52 },
+        { left: 62, right: 18, top: 176, height: ioHeight },
+        { left: 62, right: 18, top: wpTop, height: 38 },
+        { left: 62, right: 18, top: eventTop, height: 18 },
       ],
       xAxis: [0, 1, 2, 3, 4].map((index) => ({
         ...axisBase,
@@ -149,7 +214,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       yAxis: [
         { ...yBase, gridIndex: 0, name: 'CPU %' },
         { ...yBase, gridIndex: 1, name: 'PSS GB' },
-        { ...yBase, gridIndex: 2, name: 'IO MiB/s' },
+        { ...yBase, gridIndex: 2, name: hasIo ? 'IO MiB/s' : 'IO 0 MiB/s', splitLine: { show: hasIo, lineStyle: { color: colors.grid } }, axisLabel: hasIo ? yBase.axisLabel : { show: false } },
         { ...yBase, gridIndex: 3, name: 'WP', axisLabel: { ...yBase.axisLabel, formatter: (value) => Math.round(value) } },
         { type: 'value', gridIndex: 4, min: 0, max: 1, show: false },
       ],
@@ -177,10 +242,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
           ].join('<br/>')
         },
       },
-      dataZoom: [
-        { type: 'inside', xAxisIndex: [0, 1, 2, 3, 4], filterMode: 'none' },
-        { type: 'slider', xAxisIndex: [0, 1, 2, 3, 4], bottom: 3, height: 10, filterMode: 'none', borderColor: colors.grid, backgroundColor: 'transparent', fillerColor: 'rgba(79,198,200,.14)', textStyle: { color: colors.muted, fontSize: 8 } },
-      ],
+      dataZoom: [{ type: 'inside', xAxisIndex: [0, 1, 2, 3, 4], filterMode: 'none' }],
       series: [
         line('CPU', 'cpu', 0, 0, colors.accent, { markLine: issueMark }),
         line('PSS', 'pss', 1, 1, colors.memory),
@@ -193,11 +255,12 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
           xAxisIndex: 4,
           yAxisIndex: 4,
           symbol: 'triangle',
-          symbolSize: (value, params) => Math.min(12, 6 + Number(params?.data?.critical || 0)),
+          symbolSize: (value, params) => Math.min(11, 6 + Number(params?.data?.critical || 0)),
           itemStyle: { color: colors.danger },
           data: rows.filter((row) => Number(row.host_wp_critical || 0) > 0).map((row) => ({ value: [row.collected_at, .5], critical: Number(row.host_wp_critical || 0) })),
         },
       ],
+      graphic: [{ type: 'text', right: 18, top: totalBottom - 10, style: { text: 'Time WIB', fill: colors.muted, fontSize: 8 } }],
     }
   }, [incidentStart, items])
 
@@ -217,10 +280,10 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     }
   }, [option])
 
-  return <div ref={ref} className="rundeckJobPerformanceChart" role="img" aria-label="CPU, PSS, IO, work process and APP critical work process timeline" />
+  return <div ref={ref} className="rundeckJobPerformanceChart" role="img" aria-label="CPU, PSS, IO, work process and APP critical work process timeline with WIB time axis" />
 }
 
-export default function RundeckJobHistory({ job = null, refreshToken = '', incidentStart = '', latestCollectionId = '' }) {
+export default function RundeckJobHistory({ job = null, refreshToken = '', incidentStart = '', latestCollectionId = '', latestCollectionAt = '' }) {
   const [history, setHistory] = React.useState(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
@@ -256,15 +319,16 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   const latestDetails = latest?.details || {}
   const isCurrent = Boolean(latestCollectionId && latest?.collection_id === latestCollectionId)
   const correlation = temporalText(incidentStart, history?.first_seen)
+  const observed = durationText(history?.first_seen, history?.last_seen)
 
   return <section className="rundeckJobHistory" aria-label="Selected workload performance">
     <div className="rundeckJobHistoryHead">
       <div>
         <span>Selected Workload</span>
-        <h3>{jobKey}</h3>
+        <h3><SphereIcon name="target" /> {jobKey}</h3>
         <small>{shortHost(jobHost || latest?.host || '')} · {workloadTypeLabel(jobConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
       </div>
-      <strong className={isCurrent ? 'is-current' : ''}>{isCurrent ? 'CURRENT' : 'LAST SEEN'}</strong>
+      <strong className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NO LONGER SEEN'}</strong>
     </div>
 
     {loading && <div className="rundeckJobHistoryState">Loading workload history…</div>}
@@ -274,29 +338,33 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
       <div className="rundeckJobHistorySummary">
         <span><b>First Seen</b>{formatWib(history.first_seen, true)} WIB</span>
         <span><b>Last Seen</b>{formatWib(history.last_seen, true)} WIB</span>
+        <span><b>Observed</b>{observed}</span>
         <span><b>Seen</b>{history.checks || 0} checks</span>
         <span><b>Latest CPU</b>{numberText(latest?.cpu_pct)}%</span>
         <span><b>Avg CPU</b>{numberText(history.avg_cpu_pct)}%</span>
         <span><b>Peak CPU</b>{numberText(history.peak_cpu_pct)}%</span>
+        {!isCurrent && latestCollectionAt && <span><b>Latest Check</b>{formatWib(latestCollectionAt, true)} WIB</span>}
       </div>
 
       {(incidentStart || correlation) && <div className="rundeckJobCorrelation">
         {incidentStart && <span>Issue {formatWib(incidentStart, true)} WIB</span>}
-        {history.first_seen && <span>First seen {formatWib(history.first_seen, true)} WIB</span>}
+        {history.first_seen && <span>First Seen {formatWib(history.first_seen, true)} WIB</span>}
         {correlation && <strong>{correlation}</strong>}
       </div>}
 
       <div className="rundeckJobPerformanceTitle">
-        <h4>Job Performance</h4>
+        <h4><SphereIcon name="trend" /> Workload Performance</h4>
         <span><i /> APP Critical WP</span>
       </div>
 
-      {items.length > 0
-        ? <UnifiedJobPerformanceChart items={items} incidentStart={incidentStart} />
-        : <div className="rundeckJobHistoryState">No stored history for this workload yet.</div>}
+      {items.length === 1
+        ? <SingleSamplePerformance row={items[0]} />
+        : items.length > 1
+          ? <UnifiedJobPerformanceChart items={items} incidentStart={incidentStart} />
+          : <div className="rundeckJobHistoryState">No stored history for this workload yet.</div>}
 
       <details className="rundeckJobExecutionHistory">
-        <summary>Execution History <span>{items.length} samples</span></summary>
+        <summary><SphereIcon name="history" /> Execution History <span>{items.length} samples</span></summary>
         <div className="rundeckJobHistoryTableWrap">
           <table>
             <thead><tr><th>Time WIB</th><th>Run</th><th>APP</th><th>CPU</th><th>PSS</th><th>WP</th><th>Critical WP</th></tr></thead>
