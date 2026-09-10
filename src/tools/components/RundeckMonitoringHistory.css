@@ -68,12 +68,12 @@
 .rundeckSegmented button:hover,
 .rundeckAdvancedControls button:hover {
   color: var(--sphere-text, #e7edf0);
-  background: color-mix(in srgb, var(--sphere-accent-soft, #17383f) 35%, transparent);
+  background: rgba(79, 198, 200, .06);
 }
 
 .rundeckSegmented button.is-active,
 .rundeckAdvancedControls button.is-active {
-  background: color-mix(in srgb, var(--sphere-accent, #4fc6c8) 13%, transparent);
+  background: rgba(79, 198, 200, .11);
   color: var(--sphere-accent, #4fc6c8);
 }
 
@@ -290,14 +290,14 @@
 .rundeckMiniTableWrap th,
 .rundeckMiniTableWrap td {
   padding: 5px 7px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sphere-border-subtle, #28323c) 55%, transparent);
+  border-bottom: 1px solid rgba(113, 128, 137, .12);
   text-align: left;
 }
 
 .rundeckMiniTableWrap th {
   position: sticky;
   top: 0;
-  background: var(--sphere-page, #10161b);
+  background: var(--sphere-page, #0f151a);
   color: var(--sphere-text-muted, #718089);
   font-size: 7.8px;
   text-transform: uppercase;
