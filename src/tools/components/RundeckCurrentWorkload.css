@@ -1,6 +1,6 @@
 .rundeckCurrentWorkload {
-  margin-top: 10px;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 6px;
 }
 
 .rundeckCurrentWorkloadHead {
@@ -8,7 +8,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .rundeckCurrentWorkloadHead h3 {
@@ -37,7 +37,7 @@
 .rundeckCurrentWorkloadHead button {
   padding: 2px 0;
   color: var(--sphere-text-muted, #718089);
-  font-size: 9px;
+  font-size: 8.8px;
 }
 
 .rundeckCurrentWorkloadHead button:hover,
@@ -50,20 +50,20 @@
 
 .rundeckCurrentWorkloadTableWrap {
   overflow: auto;
-  max-height: 320px;
+  max-height: 305px;
 }
 
 .rundeckCurrentWorkload table {
   width: 100%;
   border-collapse: collapse;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 9.5px;
+  font-size: 9.4px;
 }
 
 .rundeckCurrentWorkload th,
 .rundeckCurrentWorkload td {
-  padding: 5px 7px;
-  border-bottom: 1px solid rgba(113, 128, 137, .10);
+  padding: 4px 7px;
+  border-bottom: 1px solid rgba(113, 128, 137, .08);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
@@ -85,7 +85,7 @@
   max-width: 430px;
   padding: 0;
   overflow: hidden;
-  font-size: 9.5px;
+  font-size: 9.4px;
   font-weight: 700;
   text-align: left;
   text-overflow: ellipsis;
@@ -93,15 +93,20 @@
 }
 
 .rundeckCurrentWorkload tbody tr {
-  transition: background-color 140ms ease;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
 }
 
 .rundeckCurrentWorkload tbody tr:hover {
-  background: rgba(79, 198, 200, .045);
+  background: rgba(79, 198, 200, .04);
 }
 
 .rundeckCurrentWorkload tbody tr.is-selected {
-  background: rgba(79, 198, 200, .09);
+  background: rgba(79, 198, 200, .085);
+  box-shadow: inset 2px 0 0 var(--sphere-accent, #4fc6c8);
+}
+
+.rundeckCurrentWorkload tbody tr.is-selected td button {
+  color: var(--sphere-accent, #4fc6c8);
 }
 
 .rundeckCurrentWorkload td.is-attention {
@@ -110,7 +115,7 @@
 }
 
 .rundeckCurrentWorkloadState {
-  padding: 8px 0;
+  padding: 7px 0;
   color: var(--sphere-text-secondary, #a9b5bb);
   font-size: 10px;
 }
