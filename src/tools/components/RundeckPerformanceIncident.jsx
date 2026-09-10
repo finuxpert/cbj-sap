@@ -39,6 +39,27 @@ function StatusPill({ value = 'UNKNOWN' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
 }
 
+function WorkloadFacts({ workload, persistent = false }) {
+  const details = workload?.details || {}
+  const job = details.job_name || (workload?.consumer_type === 'JOB' ? workload.consumer_key : '—')
+  const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '—')
+  const workProcess = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
+
+  return <dl className="rundeckIncidentFacts">
+    <div><dt>Background Job</dt><dd>{job}</dd></div>
+    <div><dt>ABAP Program</dt><dd>{program}</dd></div>
+    <div><dt>Work Process</dt><dd>{workProcess}</dd></div>
+    <div><dt>SAP User</dt><dd>{details.user || '—'}</dd></div>
+    <div><dt>OS PID</dt><dd>{details.pid || '—'}</dd></div>
+    <div>
+      <dt>{persistent ? 'Aggregated CPU' : 'Workload CPU'}</dt>
+      <dd>{persistent
+        ? `${metric(workload?.avg_cpu_pct, '%')} avg · ${metric(workload?.peak_cpu_pct, '%')} peak`
+        : metric(workload?.cpu_pct, '%')}</dd>
+    </div>
+  </dl>
+}
+
 export default function RundeckPerformanceIncident({ refreshToken = '' }) {
   const [summary, setSummary] = React.useState(null)
   const [error, setError] = React.useState('')
@@ -74,7 +95,7 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
         </div>
         <StatusPill value="UNKNOWN" />
       </div>
-      <p className="rundeckIncidentAssessment">Supporting telemetry remains available below.</p>
+      <p className="rundeckIncidentAssessment">Last known collector telemetry remains available below.</p>
     </section>
   }
 
@@ -97,15 +118,11 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
   }
 
   const signal = summary.primary_signal || {}
-  const workload = summary.primary_workload
-  const details = workload?.details || {}
+  const current = summary.current_workload
+  const persistent = summary.persistent_workload || summary.primary_workload
   const hostMetrics = summary.current_host_metrics || {}
-  const job = details.job_name || (workload?.consumer_type === 'JOB' ? workload.consumer_key : '—')
-  const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '—')
-  const workProcess = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
-  const user = details.user || '—'
-  const pid = details.pid || '—'
   const signalValue = metric(signal.value, signal.unit || '')
+  const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
 
   return <section className="rundeckIncident" aria-label="SAP performance incident">
     <div className="rundeckIncidentHeader">
@@ -117,29 +134,35 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
     </div>
 
     <div className="rundeckIncidentMeta">
-      <span><b>Detected Since</b>{formatTime(summary.detected_since, true)} WIB</span>
+      <span><b>Signal Active Since</b>{formatTime(summary.signal_active_since || summary.detected_since, true)} WIB</span>
       <span><b>Last Observed</b>{formatTime(summary.last_observed, true)} WIB</span>
       <span><b>Duration</b>{duration(summary.duration_seconds)}</span>
       <span><b>Affected Server</b>{shortHost(summary.affected_server)}</span>
       <span><b>Evidence</b>{summary.incident_samples || 1} collection{Number(summary.incident_samples) === 1 ? '' : 's'}</span>
     </div>
 
-    <div className="rundeckIncidentWorkload">
-      <div className="rundeckIncidentWorkloadLead">
-        <span>Primary SAP Workload Candidate</span>
-        <strong>{workload?.consumer_key || 'No normalized workload candidate'}</strong>
-        {workload && <small>
-          Seen in {workload.occurrences}/{workload.affected_samples} affected collections · {metric(workload.presence_pct, '%')} presence
-        </small>}
-      </div>
-      <dl className="rundeckIncidentFacts">
-        <div><dt>Background Job</dt><dd>{job}</dd></div>
-        <div><dt>ABAP Program</dt><dd>{program}</dd></div>
-        <div><dt>Work Process</dt><dd>{workProcess}</dd></div>
-        <div><dt>SAP User</dt><dd>{user}</dd></div>
-        <div><dt>OS PID</dt><dd>{pid}</dd></div>
-        <div><dt>Aggregated CPU</dt><dd>{workload ? `${metric(workload.avg_cpu_pct, '%')} avg · ${metric(workload.peak_cpu_pct, '%')} peak` : '—'}</dd></div>
-      </dl>
+    <div className="rundeckIncidentComparison">
+      <section className="rundeckIncidentWorkloadBlock is-current">
+        <div className="rundeckIncidentWorkloadLead">
+          <span>Current Top SAP Workload</span>
+          <strong>{current?.consumer_key || 'No normalized workload in current collection'}</strong>
+          {current && <small>
+            Exact Collection Cycle #{summary.execution_id || '—'} · rank #{current.rank || 1} · CPU {metric(current.cpu_pct, '%')}
+          </small>}
+        </div>
+        {current && <WorkloadFacts workload={current} />}
+      </section>
+
+      <section className="rundeckIncidentWorkloadBlock is-persistent">
+        <div className="rundeckIncidentWorkloadLead">
+          <span>Persistent Correlated Workload</span>
+          <strong>{persistent?.consumer_key || 'No persistent workload candidate'}</strong>
+          {persistent && <small>
+            {sameWorkload ? 'Also current top workload · ' : ''}{persistent.occurrences}/{persistent.affected_samples} collections · {metric(persistent.presence_pct, '%')} presence
+          </small>}
+        </div>
+        {persistent && <WorkloadFacts workload={persistent} persistent />}
+      </section>
     </div>
 
     <div className="rundeckIncidentHostContext">
@@ -148,9 +171,10 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
       <span><b>Load 1M</b>{metric(hostMetrics.load_1)}</span>
       <span><b>I/O Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
       <span><b>Swap I/O</b>{metric(hostMetrics.swap_pct, ' p/s')}</span>
-      <span><b>Host Saturation</b>{summary.host_saturation ? 'DETECTED' : 'NOT DETECTED'}</span>
+      <span><b>Resource Pressure</b>{summary.host_resource_pressure ? 'DETECTED' : 'NOT DETECTED'}</span>
     </div>
 
+    <p className="rundeckIncidentResourceAssessment">{summary.resource_assessment || 'CPU / Memory / I/O Wait assessment unavailable.'}</p>
     <p className="rundeckIncidentAssessment">{summary.assessment}</p>
   </section>
 }
