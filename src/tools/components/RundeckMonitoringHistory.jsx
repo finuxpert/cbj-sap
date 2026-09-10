@@ -1,7 +1,7 @@
 import React from 'react'
 import * as echarts from './logEcharts.js'
 import RundeckJobHistory from './RundeckJobHistory.jsx'
-import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
+import { formatWib, numberText, shortHost } from './sapUiFormat.js'
 import './RundeckMonitoringHistory.css'
 import './RundeckEvidence.css'
 
@@ -26,35 +26,12 @@ const BUCKETS = [
 const METRICS = [
   ['cpu', 'CPU'],
   ['ram', 'RAM'],
-  ['load', 'Load 1M'],
+  ['load', 'Load'],
   ['iowait', 'IO Wait'],
-  ['swap', 'Swap IO'],
   ['wp', 'Critical WP'],
 ]
 
 const RANGE_HOURS = { '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
-const EXPECTED_HOSTS = 5
-
-const number = (value, digits = 1) => {
-  if (value === null || value === undefined || value === '') return '—'
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed.toLocaleString('en-US', { maximumFractionDigits: digits }) : '—'
-}
-
-const shortHost = (host = '') => {
-  const match = String(host).match(/APP(\d+)/i)
-  return match ? `APP${match[1]}` : String(host)
-}
-
-const formatWib = (value, compact = false) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
-  return new Intl.DateTimeFormat('id-ID', compact
-    ? { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }
-    : { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
-  ).format(date)
-}
 
 const themeToken = (name, fallback) => {
   if (typeof window === 'undefined') return fallback
@@ -90,19 +67,15 @@ function useEChart(option, onChartClick) {
   React.useEffect(() => {
     if (!ref.current) return undefined
     echarts.getInstanceByDom?.(ref.current)?.dispose()
-
     const chart = echarts.init(ref.current, null, { renderer: 'canvas' })
     chart.setOption(option, true)
-
     const handleChartClick = (event) => onChartClick?.(chart, event)
     chart.getZr().on('click', handleChartClick)
     chart.getZr().setCursorStyle('crosshair')
-
     const resize = () => chart.resize()
     window.addEventListener('resize', resize)
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
     observer?.observe(ref.current)
-
     return () => {
       observer?.disconnect()
       window.removeEventListener('resize', resize)
@@ -121,7 +94,6 @@ function nearestTrendPoint(chart, event, option) {
 
   let nearest = null
   let nearestDistance = Number.POSITIVE_INFINITY
-
   ;(option?.series || []).forEach((series, seriesIndex) => {
     ;(series?.data || []).forEach((item, dataIndex) => {
       const point = chart.convertToPixel({ seriesIndex }, item.value)
@@ -135,7 +107,6 @@ function nearestTrendPoint(chart, event, option) {
       }
     })
   })
-
   return nearest
 }
 
@@ -150,34 +121,18 @@ function TrendChart({ trend, mode, range, onSelect }) {
     const thresholdLines = []
 
     if (trend?.warning !== null && trend?.warning !== undefined) {
-      thresholdLines.push({
-        yAxis: Number(trend.warning),
-        name: 'WARNING',
-        lineStyle: { color: palette.warning, type: 'dashed' },
-        label: { formatter: `WARNING ${trend.warning}${suffix}`, color: palette.warning },
-      })
+      thresholdLines.push({ yAxis: Number(trend.warning), name: 'WARNING', lineStyle: { color: palette.warning, type: 'dashed' }, label: { formatter: `WARNING ${trend.warning}${suffix}`, color: palette.warning } })
     }
     if (trend?.critical !== null && trend?.critical !== undefined) {
-      thresholdLines.push({
-        yAxis: Number(trend.critical),
-        name: 'CRITICAL',
-        lineStyle: { color: palette.danger, type: 'dashed' },
-        label: { formatter: `CRITICAL ${trend.critical}${suffix}`, color: palette.danger },
-      })
+      thresholdLines.push({ yAxis: Number(trend.critical), name: 'CRITICAL', lineStyle: { color: palette.danger, type: 'dashed' }, label: { formatter: `CRITICAL ${trend.critical}${suffix}`, color: palette.danger } })
     }
 
     return {
-      animationDuration: 180,
+      animationDuration: 150,
       backgroundColor: 'transparent',
       textStyle: { color: palette.text },
-      legend: {
-        top: 0,
-        type: 'scroll',
-        data: hosts.map(shortHost),
-        textStyle: { color: palette.secondary },
-        pageTextStyle: { color: palette.muted },
-      },
-      grid: { left: 62, right: 28, top: 46, bottom: 68 },
+      legend: { top: 0, type: 'scroll', data: hosts.map(shortHost), textStyle: { color: palette.secondary }, pageTextStyle: { color: palette.muted } },
+      grid: { left: 56, right: 22, top: 42, bottom: 56 },
       tooltip: {
         trigger: 'axis',
         axisPointer: { type: 'cross', lineStyle: { color: palette.muted } },
@@ -187,13 +142,13 @@ function TrendChart({ trend, mode, range, onSelect }) {
         formatter: (items = []) => {
           if (!items.length) return ''
           const first = items[0]?.data || {}
-          const title = `<b>${formatWib(first.bucket || first.value?.[0])} WIB</b>`
+          const title = `<b>${formatWib(first.bucket || first.value?.[0], true)} WIB</b>`
           const body = items.map((item) => {
             const row = item.data || {}
             const value = mode === 'max' ? row.max : row.avg
-            return `${item.marker}${item.seriesName}: <b>${number(value, trend?.metric === 'wp' ? 0 : 1)}${suffix}</b>`
+            return `${item.marker}${item.seriesName}: <b>${numberText(value, trend?.metric === 'wp' ? 0 : 1)}${suffix}</b>`
           }).join('<br/>')
-          return `${title}<br/>${body}<br/><span style="opacity:.72">Click graph to inspect the SAP job.</span>`
+          return `${title}<br/>${body}`
         },
       },
       xAxis: {
@@ -201,13 +156,9 @@ function TrendChart({ trend, mode, range, onSelect }) {
         axisLabel: {
           color: palette.muted,
           hideOverlap: true,
-          formatter: (value) => {
-            const date = new Date(value)
-            if (range === '6h' || range === '24h') {
-              return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
-            }
-            return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', hour12: false }).format(date)
-          },
+          formatter: (value) => range === '6h' || range === '24h'
+            ? formatWib(value, false)
+            : new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', hour12: false }).format(new Date(value)),
         },
         axisLine: { lineStyle: { color: palette.border } },
         splitLine: { show: false },
@@ -224,40 +175,17 @@ function TrendChart({ trend, mode, range, onSelect }) {
       },
       dataZoom: [
         { type: 'inside', filterMode: 'none' },
-        {
-          type: 'slider',
-          bottom: 14,
-          height: 16,
-          filterMode: 'none',
-          borderColor: palette.border,
-          backgroundColor: palette.panel,
-          fillerColor: palette.accentSoft,
-          textStyle: { color: palette.muted },
-        },
+        { type: 'slider', bottom: 10, height: 12, filterMode: 'none', borderColor: palette.border, backgroundColor: palette.panel, fillerColor: palette.accentSoft, textStyle: { color: palette.muted } },
       ],
       series: hosts.map((host, index) => ({
         name: shortHost(host),
         type: 'line',
         connectNulls: false,
         showSymbol: (byHost.get(host)?.length || 0) <= 80,
-        symbolSize: 8,
+        symbolSize: 7,
         emphasis: { focus: 'series', scale: 1.5 },
-        data: (byHost.get(host) || []).map((row) => ({
-          value: [row.bucket, row[valueKey]],
-          bucket: row.bucket,
-          peakAt: row.peak_at,
-          peakCollectionId: row.peak_collection_id,
-          host: row.host,
-          avg: row.avg_value,
-          max: row.max_value,
-        })),
-        markLine: index === 0 && thresholdLines.length ? {
-          silent: true,
-          symbol: ['none', 'none'],
-          lineStyle: { type: 'dashed', width: 1.1 },
-          label: { position: 'insideEndTop', fontSize: 9 },
-          data: thresholdLines,
-        } : undefined,
+        data: (byHost.get(host) || []).map((row) => ({ value: [row.bucket, row[valueKey]], bucket: row.bucket, peakAt: row.peak_at, peakCollectionId: row.peak_collection_id, host: row.host, avg: row.avg_value, max: row.max_value })),
+        markLine: index === 0 && thresholdLines.length ? { silent: true, symbol: ['none', 'none'], lineStyle: { type: 'dashed', width: 1 }, label: { position: 'insideEndTop', fontSize: 8 }, data: thresholdLines } : undefined,
       })),
     }
   }, [mode, range, trend])
@@ -265,26 +193,9 @@ function TrendChart({ trend, mode, range, onSelect }) {
   const click = React.useCallback((chart, event) => {
     const nearest = nearestTrendPoint(chart, event, option)
     if (!nearest?.data) return
-
-    chart.dispatchAction({
-      type: 'showTip',
-      seriesIndex: nearest.seriesIndex,
-      dataIndex: nearest.dataIndex,
-    })
-
+    chart.dispatchAction({ type: 'showTip', seriesIndex: nearest.seriesIndex, dataIndex: nearest.dataIndex })
     const data = nearest.data
-    onSelect?.({
-      host: data.host,
-      at: data.peakAt || data.bucket,
-      collectionId: data.peakCollectionId || '',
-      bucket: data.bucket,
-      avg: data.avg,
-      max: data.max,
-      value: mode === 'max' ? data.max : data.avg,
-      mode,
-      metricLabel: trend?.metric_label || '',
-      unit: trend?.unit || '',
-    })
+    onSelect?.({ host: data.host, at: data.peakAt || data.bucket, collectionId: data.peakCollectionId || '', bucket: data.bucket, avg: data.avg, max: data.max, value: mode === 'max' ? data.max : data.avg, mode, metricLabel: trend?.metric_label || '', unit: trend?.unit || '' })
   }, [mode, onSelect, option, trend?.metric_label, trend?.unit])
 
   const ref = useEChart(option, click)
@@ -293,11 +204,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
 
 function Segmented({ options, value, onChange, ariaLabel }) {
   return <div className="rundeckSegmented" role="group" aria-label={ariaLabel}>
-    {options.map(([key, label]) => (
-      <button key={key} type="button" className={value === key ? 'is-active' : ''} aria-pressed={value === key} onClick={() => onChange(key)}>
-        {label}
-      </button>
-    ))}
+    {options.map(([key, label]) => <button key={key} type="button" className={value === key ? 'is-active' : ''} aria-pressed={value === key} onClick={() => onChange(key)}>{label}</button>)}
   </div>
 }
 
@@ -306,53 +213,43 @@ function InlineStatus({ value = 'UNKNOWN' }) {
 }
 
 function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, onSelectJob }) {
-  if (!selected && !loading && !error) {
-    return <div className="rundeckRcaHint"><strong>Tip:</strong> Click the graph to inspect the SAP job at that time.</div>
-  }
+  if (!selected && !loading && !error) return <div className="rundeckRcaHint">Click graph to inspect workload at that time.</div>
 
   const rows = data?.items || []
   const selectedRow = rows.find((row) => row.host === selected?.host) || rows[0] || null
   const consumer = selectedRow?.top_consumers?.[0] || null
   const details = consumer?.details || {}
-  const selectedJobContext = consumer?.consumer_key ? {
-    key: consumer.consumer_key,
-    host: selectedRow?.host || selected?.host || '',
-    consumerType: consumer.consumer_type || '',
-    source: 'selected-time',
-  } : null
+  const selectedJobContext = consumer?.consumer_key ? { key: consumer.consumer_key, host: selectedRow?.host || selected?.host || '', consumerType: consumer.consumer_type || '', source: 'selected-time' } : null
   const jobSelected = selectedJobContext && selectedJob?.key === selectedJobContext.key && selectedJob?.host === selectedJobContext.host
+  const selectedMetricIsCpu = String(selected?.metricLabel || '').toUpperCase() === 'CPU'
 
   return <section ref={panelRef} tabIndex="-1" className="rundeckRcaSection" aria-live="polite">
     <div className="rundeckRcaHeader">
       <div>
-        <span>SAP Job at Selected Time</span>
-        <h4>{selected?.host ? shortHost(selected.host) : 'Selected server'}</h4>
-        <small>{selected?.at ? `${formatWib(selected.at)} WIB` : 'Loading selected time'}</small>
+        <span>Selected Time</span>
+        <h4>{selected?.host ? shortHost(selected.host) : 'APP'}</h4>
+        <small>{selected?.at ? `${formatWib(selected.at, true)} WIB` : 'Loading'}</small>
       </div>
       {selectedRow && <InlineStatus value={selectedRow.health} />}
     </div>
 
-    {loading && <div className="rundeckHistoryState">Loading SAP Job detail…</div>}
+    {loading && <div className="rundeckHistoryState">Loading workload…</div>}
     {error && <div className="rundeckHistoryState is-error">{error}</div>}
 
     {!loading && !error && selectedRow && <>
       <div className="rundeckRcaMetricStrip">
-        <span><b>{selected?.metricLabel || 'Metric'}</b>{number(selected?.value)}{selected?.unit ? ` ${selected.unit}` : ''}</span>
-        <span><b>CPU</b>{number(selectedRow.cpu_pct)}%</span>
-        <span><b>RAM</b>{number(selectedRow.ram_pct)}%</span>
-        <span><b>IO Wait</b>{number(selectedRow.io_wait_pct)}%</span>
-        <span><b>Critical WP</b>{number(selectedRow.wp_critical, 0)}</span>
+        <span><b>{selected?.metricLabel || 'Metric'}</b>{numberText(selected?.value)}{selected?.unit ? ` ${selected.unit}` : ''}</span>
+        {!selectedMetricIsCpu && <span><b>CPU</b>{numberText(selectedRow.cpu_pct)}%</span>}
+        <span><b>RAM</b>{numberText(selectedRow.ram_pct)}%</span>
+        <span><b>IO Wait</b>{numberText(selectedRow.io_wait_pct)}%</span>
+        <span><b>Critical WP</b>{numberText(selectedRow.wp_critical, 0)}</span>
       </div>
 
       <div className="rundeckRcaWorkload">
         <div className="rundeckRcaWorkloadTitle">
-          <span>Top SAP Job</span>
-          {selectedJobContext ? <button
-            type="button"
-            className={`rundeckRcaJobButton ${jobSelected ? 'is-selected' : ''}`}
-            onClick={() => onSelectJob?.(selectedJobContext)}
-          >{consumer.consumer_key}</button> : <strong>No SAP job found</strong>}
-          {consumer && <small>CPU {number(consumer.cpu_pct)}% · RAM {number(consumer.ram_pct)}%</small>}
+          <span>Top Workload</span>
+          {selectedJobContext ? <button type="button" className={`rundeckRcaJobButton ${jobSelected ? 'is-selected' : ''}`} onClick={() => onSelectJob?.(selectedJobContext)}>{consumer.consumer_key}</button> : <strong>No workload found</strong>}
+          {consumer && <small>CPU {numberText(consumer.cpu_pct)}% · PSS {numberText(details.pss_gb, 2)} GB</small>}
         </div>
         <dl>
           <div><dt>Background Job</dt><dd>{details.job_name || '—'}</dd></div>
@@ -364,7 +261,7 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
       </div>
     </>}
 
-    {!loading && !error && data && !selectedRow && <div className="rundeckHistoryState">No SAP data found for this point.</div>}
+    {!loading && !error && data && !selectedRow && <div className="rundeckHistoryState">No SAP data found for this time.</div>}
   </section>
 }
 
@@ -374,6 +271,8 @@ export default function RundeckMonitoringHistory({
   selectedJob = null,
   onSelectJob,
   currentWorkloadContent = null,
+  incidentStart = '',
+  latestCollectionId = '',
 }) {
   const [range, setRange] = React.useState('24h')
   const [bucket, setBucket] = React.useState('auto')
@@ -396,12 +295,8 @@ export default function RundeckMonitoringHistory({
     setTrendError('')
     json(`${API}/history/trend?range=${encodeURIComponent(range)}&bucket=${encodeURIComponent(bucket)}&metric=${encodeURIComponent(metric)}`, controller.signal)
       .then(setTrend)
-      .catch((error) => {
-        if (error.name !== 'AbortError') setTrendError(error.message || 'Unable to load trend.')
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setTrendLoading(false)
-      })
+      .catch((error) => { if (error.name !== 'AbortError') setTrendError(error.message || 'Unable to load trend.') })
+      .finally(() => { if (!controller.signal.aborted) setTrendLoading(false) })
     return () => controller.abort()
   }, [bucket, databaseEnabled, metric, range, refreshToken])
 
@@ -409,9 +304,7 @@ export default function RundeckMonitoringHistory({
     if (!databaseEnabled) return undefined
     const controller = new AbortController()
     const alertDays = Math.max(1, Math.ceil((RANGE_HOURS[range] || 24) / 24))
-    json(`${API}/history/alerts?days=${alertDays}&limit=500`, controller.signal)
-      .then((result) => setAlerts(result.items || []))
-      .catch(() => {})
+    json(`${API}/history/alerts?days=${alertDays}&limit=500`, controller.signal).then((result) => setAlerts(result.items || [])).catch(() => {})
     return () => controller.abort()
   }, [databaseEnabled, range, refreshToken])
 
@@ -423,10 +316,7 @@ export default function RundeckMonitoringHistory({
 
   React.useEffect(() => {
     if (!selected) return
-    const frame = window.requestAnimationFrame(() => {
-      rcaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      rcaRef.current?.focus({ preventScroll: true })
-    })
+    const frame = window.requestAnimationFrame(() => rcaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
     return () => window.cancelAnimationFrame(frame)
   }, [selected])
 
@@ -439,16 +329,12 @@ export default function RundeckMonitoringHistory({
     const collectionQuery = point.collectionId ? `&collection_id=${encodeURIComponent(point.collectionId)}` : ''
     json(`${API}/history/timeline?at=${encodeURIComponent(point.at)}&window_minutes=5${collectionQuery}`)
       .then(setTimeline)
-      .catch((error) => setTimelineError(error.message || 'Unable to load SAP Job detail.'))
+      .catch((error) => setTimelineError(error.message || 'Unable to load workload.'))
       .finally(() => setTimelineLoading(false))
   }, [])
 
   if (!databaseEnabled) {
-    return <section className="rundeckMonitoring">
-      <div className="rundeckMonitoringHead"><h3>{TERMS.resourceTrend}</h3></div>
-      <div className="rundeckHistoryState">Trend data is not available yet.</div>
-      {currentWorkloadContent}
-    </section>
+    return <section className="rundeckMonitoring"><div className="rundeckMonitoringHead"><h3>Server Trend</h3></div><div className="rundeckHistoryState">Trend data is not available yet.</div>{currentWorkloadContent}</section>
   }
 
   const recentCutoff = Date.now() - (RANGE_HOURS[range] || 24) * 60 * 60 * 1000
@@ -458,24 +344,22 @@ export default function RundeckMonitoringHistory({
   })
   const criticalCount = visibleAlerts.filter((row) => row.severity === 'CRITICAL').length
   const warningCount = visibleAlerts.filter((row) => row.severity === 'WARNING').length
-  const trendItems = trend?.items || []
-  const hostCount = new Set(trendItems.map((row) => row.host).filter(Boolean)).size
 
   return <section className="rundeckMonitoring">
-    <div className="rundeckMonitoringHead">
-      <h3>{TERMS.resourceTrend}</h3>
-      <div className="rundeckMonitoringCoverage"><strong>{hostCount || 0} of {EXPECTED_HOSTS}</strong><span>Servers</span></div>
-    </div>
+    <div className="rundeckMonitoringHead"><h3>Server Trend</h3></div>
 
     <div className="rundeckTrendToolbar">
-      <div className="rundeckControlGroup"><span>Metric</span><Segmented options={METRICS} value={metric} onChange={setMetric} ariaLabel="Performance metric" /></div>
-      <div className="rundeckControlGroup"><span>Period</span><Segmented options={RANGES} value={range} onChange={setRange} ariaLabel="Time period" /></div>
-      <div className="rundeckControlGroup"><span>View</span><Segmented options={[["avg", "AVG"], ["max", "PEAK"]]} value={mode} onChange={setMode} ariaLabel="Trend view" /></div>
+      <Segmented options={METRICS} value={metric} onChange={setMetric} ariaLabel="Performance metric" />
+      <Segmented options={RANGES} value={range} onChange={setRange} ariaLabel="Time period" />
+      <Segmented options={[["avg", "Avg"], ["max", "Peak"]]} value={mode} onChange={setMode} ariaLabel="Trend view" />
     </div>
 
     <details className="rundeckAdvancedControls">
       <summary>Advanced</summary>
-      <div><span>Interval</span><Segmented options={BUCKETS} value={bucket} onChange={setBucket} ariaLabel="Trend interval" /></div>
+      <div>
+        <button type="button" className={metric === 'swap' ? 'is-active' : ''} onClick={() => setMetric('swap')}>Swap IO</button>
+        <span>Interval</span><Segmented options={BUCKETS} value={bucket} onChange={setBucket} ariaLabel="Trend interval" />
+      </div>
     </details>
 
     {trendLoading && <div className="rundeckHistoryState">Loading trend…</div>}
@@ -483,33 +367,25 @@ export default function RundeckMonitoringHistory({
     {!trendLoading && !trendError && trend && trend.items?.length > 0 && <TrendChart trend={trend} mode={mode} range={range} onSelect={selectPoint} />}
     {!trendLoading && !trendError && trend && !trend.items?.length && <div className="rundeckHistoryState">Trend data will appear after new Rundeck runs are stored.</div>}
 
-    <HistoricalRca
-      selected={selected}
-      data={timeline}
-      loading={timelineLoading}
-      error={timelineError}
-      panelRef={rcaRef}
-      selectedJob={selectedJob}
-      onSelectJob={onSelectJob}
-    />
+    <HistoricalRca selected={selected} data={timeline} loading={timelineLoading} error={timelineError} panelRef={rcaRef} selectedJob={selectedJob} onSelectJob={onSelectJob} />
 
     {currentWorkloadContent}
 
-    <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} />
+    <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} />
 
     <details className="rundeckEvidenceGroup">
-      <summary>SAP Alerts <span>{criticalCount} critical · {warningCount} warning</span></summary>
+      <summary>SAP Alert History <span>{criticalCount} critical · {warningCount} warning events</span></summary>
       <div className="rundeckEvidenceBody">
         <section className="rundeckOpsSection">
           <div className="rundeckMiniTableWrap">
             <table>
-              <thead><tr><th>Time WIB</th><th>Server</th><th>Severity</th><th>Signal</th></tr></thead>
+              <thead><tr><th>Time WIB</th><th>APP</th><th>Severity</th><th>Signal</th></tr></thead>
               <tbody>
                 {visibleAlerts.slice(0, 10).map((row) => <tr key={row.id}>
                   <td>{formatWib(row.collected_at, true)}</td>
                   <td>{shortHost(row.host || 'COLLECTOR')}</td>
                   <td><InlineStatus value={row.severity} /></td>
-                  <td>{row.code === 'WP_CRITICAL' ? TERMS.criticalWorkProcess : row.code === 'IOWAIT_HIGH' ? 'IO Wait' : row.message}</td>
+                  <td>{row.code === 'WP_CRITICAL' ? 'Critical WP' : row.code === 'IOWAIT_HIGH' ? 'IO Wait' : row.message}</td>
                 </tr>)}
                 {!visibleAlerts.length && <tr><td colSpan="4">No alerts in this period.</td></tr>}
               </tbody>
