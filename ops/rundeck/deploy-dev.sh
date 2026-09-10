@@ -6,9 +6,18 @@ API_CURRENT=/opt/sphere-rundeck-dev/current
 WEB_CURRENT=/var/www/sphere-dev/current
 NGINX_SITE=/etc/nginx/sites-available/sphere.astraotoparts.co.id
 
-# Guard the isolated development deployment.
-test "$(git -C "$SOURCE" branch --show-current)" = rundeck-sphere-dev
-test -z "$(git -C "$SOURCE" status --porcelain)"
+# Guard the isolated development deployment with explicit diagnostics.
+CURRENT_BRANCH="$(git -C "$SOURCE" branch --show-current)"
+if [[ "$CURRENT_BRANCH" != "rundeck-sphere-dev" ]]; then
+  echo "DEPLOY BLOCKED: expected branch rundeck-sphere-dev, found ${CURRENT_BRANCH:-unknown}" >&2
+  exit 2
+fi
+if [[ -n "$(git -C "$SOURCE" status --porcelain)" ]]; then
+  echo "DEPLOY BLOCKED: working tree is not clean" >&2
+  git -C "$SOURCE" status --short >&2
+  exit 2
+fi
+
 REVISION=$(git -C "$SOURCE" rev-parse HEAD)
 RELEASE=/opt/sphere-rundeck-dev/releases/$REVISION
 WEB=/var/www/sphere-dev/releases/$REVISION
@@ -149,8 +158,6 @@ done
 test "$HEALTH_OK" = 1
 cat /tmp/sphere-dev-health.json
 
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/api/platform/health -o /tmp/sphere-dev-platform.json
-cat /tmp/sphere-dev-platform.json
 curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/ -o /tmp/sphere-dev-smoke.html
 grep -q '/dev/assets/' /tmp/sphere-dev-smoke.html
 
@@ -186,6 +193,10 @@ prune_releases() {
 }
 prune_releases /opt/sphere-rundeck-dev/releases "$(readlink -f "$API_CURRENT")" "$KEEP"
 prune_releases /var/www/sphere-dev/releases "$(readlink -f "$WEB_CURRENT")" "$KEEP"
+
+# Report platform health only after release cleanup so the visible count is final.
+curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/api/platform/health -o /tmp/sphere-dev-platform.json
+cat /tmp/sphere-dev-platform.json
 
 trap - ERR
 printf '\nPRODUCTION UNCHANGED\nDEV REVISION %s\nROLLBACK READY %s\nRELEASES RETAINED %s\n' \
