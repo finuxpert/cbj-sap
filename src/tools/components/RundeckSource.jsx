@@ -1,5 +1,6 @@
 import React from 'react'
 import RundeckMonitoringHistory from './RundeckMonitoringHistory.jsx'
+import RundeckPerformanceIncident from './RundeckPerformanceIncident.jsx'
 import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
 import './RundeckSource.css'
 import './RundeckPlatformHealth.css'
@@ -213,6 +214,8 @@ export default function RundeckSource({ onCollection }) {
       <span><b>Platform</b><StatusPill value={platformState} /></span>
       <span><b>Execution</b>#{latest?.execution_id || '—'}</span>
     </div>
+
+    <RundeckPerformanceIncident refreshToken={latest?.collection_id || ''} />
 
     {operationalHosts.length > 0 && <section className="rundeckServerSection">
       <div className="rundeckSectionTitle">
