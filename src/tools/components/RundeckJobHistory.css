@@ -74,7 +74,7 @@
   margin: 3px 0 7px;
   padding: 5px 8px;
   border-radius: 5px;
-  background: color-mix(in srgb, var(--sphere-warning, #d8b35f) 7%, transparent);
+  background: rgba(216, 179, 95, .06);
   color: var(--sphere-text-secondary, #a9b5bb);
   font-size: 9px;
 }
@@ -153,7 +153,7 @@
 .rundeckJobHistory th,
 .rundeckJobHistory td {
   padding: 5px 7px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sphere-border-subtle, #28323c) 56%, transparent);
+  border-bottom: 1px solid rgba(113, 128, 137, .12);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
@@ -163,7 +163,7 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--sphere-page, #10161b);
+  background: var(--sphere-page, #0f151a);
   color: var(--sphere-text-muted, #718089);
   font-size: 8px;
   font-weight: 750;
@@ -172,7 +172,7 @@
 }
 
 .rundeckJobHistory tbody tr:hover {
-  background: color-mix(in srgb, var(--sphere-accent-soft, #17383f) 22%, transparent);
+  background: rgba(79, 198, 200, .05);
 }
 
 .rundeckJobHistoryState {
