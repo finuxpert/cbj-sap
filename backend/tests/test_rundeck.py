@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
+from backend.rundeck_alert_incidents import build_incidents
 from backend.rundeck_credentials import credential_mode, read_credential
 from backend.rundeck_host_projection import parse_host_projection
 from backend.rundeck_incident import continuous_incident_samples, incident_severity, primary_signal
@@ -58,6 +59,18 @@ def execution(eid=1, status='succeeded'):
         'status': status,
         'date-started': {'date': '2026-09-10T01:00:00Z'},
         'date-ended': {'date': '2026-09-10T01:01:00Z'},
+    }
+
+
+def incident_sample(minute, wp=0, cpu=10, host='APP1'):
+    return {
+        'collection_id': f'c-{host}-{minute}',
+        'collected_at': datetime(2026, 9, 10, 11, minute, tzinfo=timezone.utc),
+        'host': host,
+        'cpu_pct': cpu,
+        'ram_pct': 50,
+        'io_wait_pct': 0,
+        'wp_critical': wp,
     }
 
 
@@ -117,6 +130,7 @@ class IngestionTests(unittest.TestCase):
         }
         self.assertEqual(methods_by_path['/history/job'], {'GET'})
         self.assertEqual(methods_by_path['/history/jobs/current'], {'GET'})
+        self.assertEqual(methods_by_path['/history/incidents'], {'GET'})
 
     def test_job_identity_does_not_depend_on_uuid(self):
         group = 'SAP/AOP'
@@ -204,6 +218,78 @@ class IngestionTests(unittest.TestCase):
         rows_with_gap = [sample(8, 3), sample(38, 3)]
         incident = continuous_incident_samples(rows_with_gap, 'WP_CRITICAL')
         self.assertEqual([row['collection_id'] for row in incident], ['c-38'])
+
+    def test_alert_incident_tolerates_one_clear_check_without_flapping(self):
+        rows = [
+            incident_sample(0, wp=2),
+            incident_sample(10, wp=0),
+            incident_sample(20, wp=3),
+        ]
+        incidents = [item for item in build_incidents(rows) if item['code'] == 'WP_CRITICAL']
+        self.assertEqual(len(incidents), 1)
+        incident = incidents[0]
+        self.assertEqual(incident['state'], 'ACTIVE')
+        self.assertEqual(incident['checks'], 2)
+        self.assertEqual(incident['peak_value'], 3)
+        self.assertEqual(incident['latest_value'], 3)
+        self.assertEqual(incident['first_seen'].minute, 0)
+        self.assertEqual(incident['last_seen'].minute, 20)
+        self.assertEqual(incident['severity'], 'WARNING')
+
+    def test_alert_incident_two_clear_checks_confirm_resolution(self):
+        rows = [
+            incident_sample(0, wp=2),
+            incident_sample(10, wp=0),
+            incident_sample(20, wp=0),
+        ]
+        incident = next(item for item in build_incidents(rows) if item['code'] == 'WP_CRITICAL')
+        self.assertEqual(incident['state'], 'RESOLVED')
+        self.assertEqual(incident['checks'], 1)
+        self.assertEqual(incident['last_seen'].minute, 0)
+        self.assertEqual(incident['resolved_at'].minute, 20)
+        self.assertEqual(incident['resolution_reason'], 'HEALTHY_CHECKS')
+
+    def test_alert_incident_gap_separates_observation_episodes(self):
+        incidents = [
+            item for item in build_incidents([
+                incident_sample(0, wp=2),
+                incident_sample(30, wp=3),
+            ])
+            if item['code'] == 'WP_CRITICAL'
+        ]
+        self.assertEqual(len(incidents), 2)
+        old = next(item for item in incidents if item['first_seen'].minute == 0)
+        new = next(item for item in incidents if item['first_seen'].minute == 30)
+        self.assertEqual(old['state'], 'RESOLVED')
+        self.assertIsNone(old['resolved_at'])
+        self.assertEqual(old['resolution_reason'], 'OBSERVATION_GAP')
+        self.assertEqual(new['state'], 'ACTIVE')
+        self.assertNotEqual(old['id'], new['id'])
+
+    def test_alert_incident_keeps_wp_severity_separate_from_resource_severity(self):
+        incidents = build_incidents([incident_sample(0, wp=4, cpu=95)])
+        cpu = next(item for item in incidents if item['code'] == 'CPU_HIGH')
+        wp = next(item for item in incidents if item['code'] == 'WP_CRITICAL')
+        self.assertEqual(cpu['severity'], 'CRITICAL')
+        self.assertEqual(wp['severity'], 'WARNING')
+
+    def test_alert_incident_preserves_raw_evidence(self):
+        sample = incident_sample(0, wp=2)
+        evidence = [{
+            'id': 'alert-1',
+            'collection_id': sample['collection_id'],
+            'execution_id': '521700',
+            'collected_at': sample['collected_at'],
+            'host': sample['host'],
+            'code': 'WP_CRITICAL',
+            'severity': 'WARNING',
+            'message': 'Critical work process threshold exceeded on APP1',
+            'details': {'value': 2, 'warning': 1, 'critical': 3},
+        }]
+        incident = next(item for item in build_incidents([sample], evidence) if item['code'] == 'WP_CRITICAL')
+        self.assertEqual(incident['evidence_count'], 1)
+        self.assertEqual(incident['evidence'][0], evidence[0])
+        self.assertEqual(incident['evidence'][0]['collected_at'], sample['collected_at'])
 
     def test_auto_trend_buckets_reduce_longer_ranges(self):
         self.assertEqual(resolve_bucket('6h', 'auto')[0], '10m')
