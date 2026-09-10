@@ -16,7 +16,7 @@ function confidenceText(row = {}) {
 }
 
 function memoryValue(row = {}, pointInTime = false) {
-  if (pointInTime) return row.targetPssGb ?? row.targetMaxPidRss ?? null
+  if (pointInTime) return row.targetPssGb ?? row.targetRss ?? row.targetMaxPidRss ?? null
   return row.peakMaxPidRss ?? row.peakRss ?? row.targetPssGb ?? row.targetMaxPidRss ?? null
 }
 
@@ -120,15 +120,16 @@ const QUICK_FILTERS = [
   ['ERROR', 'Error'],
 ]
 
-export default function VirtualResourceTableV14({ rows = [], selectedKey = '', onSelect, pointInTime = false }) {
-  const [sorting, setSorting] = React.useState([{ id: 'cpuValue', desc: true }])
+export default function VirtualResourceTableV14({ rows = [], selectedKey = '', onSelect, pointInTime = false, initialSortId = 'cpuValue', sortResetKey = '' }) {
+  const normalizedSortId = ['cpuValue', 'memory', 'dState'].includes(initialSortId) ? initialSortId : 'cpuValue'
+  const [sorting, setSorting] = React.useState([{ id: normalizedSortId, desc: true }])
   const [globalFilter, setGlobalFilter] = React.useState('')
   const [quickFilter, setQuickFilter] = React.useState('ALL')
 
   React.useEffect(() => {
-    setSorting([{ id: 'cpuValue', desc: true }])
+    setSorting([{ id: normalizedSortId, desc: true }])
     setQuickFilter('ALL')
-  }, [pointInTime])
+  }, [pointInTime, normalizedSortId, sortResetKey])
 
   const filteredRows = React.useMemo(() => rows.filter((row) => quickFilterMatch(row, quickFilter, pointInTime)), [rows, quickFilter, pointInTime])
   const columns = React.useMemo(() => [
@@ -161,6 +162,8 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
 
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
+  const activeSortId = sorting[0]?.id || normalizedSortId
+  const activeSortLabel = activeSortId === 'memory' ? (pointInTime ? 'memory' : 'peak memory') : activeSortId === 'dState' ? (pointInTime ? 'D-State WP' : 'D-State hits') : (pointInTime ? 'CPU' : 'peak CPU')
   const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 12 })
   const gridTemplate = '128px minmax(300px,1.8fr) 88px 92px 145px 105px 185px 140px'
   const minWidth = 1183
@@ -169,7 +172,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
     <div className="logV2TableToolbar logV2BasisToolbar">
       <input value={globalFilter ?? ''} onChange={(event) => setGlobalFilter(event.target.value)} placeholder="Search server, job, program, WP type…" />
       <div className="logV2QuickFilters">{QUICK_FILTERS.map(([key, label]) => <button key={key} type="button" className={quickFilter === key ? 'active' : ''} onClick={() => setQuickFilter(key)}>{label}</button>)}</div>
-      <span><b>{tableRows.length}</b> consumers · sorted by {pointInTime ? 'CPU' : 'peak CPU'}</span>
+      <span><b>{tableRows.length}</b> consumers · sorted by {activeSortLabel}</span>
     </div>
     <div className="logV2TableHeader" style={{ gridTemplateColumns: gridTemplate, minWidth: `${minWidth}px` }}>
       {table.getFlatHeaders().map((header) => <button key={header.id} type="button" onClick={header.column.getToggleSortingHandler()} className={header.column.getCanSort() ? 'sortable' : ''}>
