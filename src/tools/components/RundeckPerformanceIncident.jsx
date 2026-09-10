@@ -133,7 +133,7 @@ export default function RundeckPerformanceIncident({
 
   return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
-      <h3>{shortHost(summary.affected_server)} · {shortSignal(signal.label)} {signalValue}</h3>
+      <h3>Primary Issue · {shortHost(summary.affected_server)} · {shortSignal(signal.label)} {signalValue}</h3>
       {showStatus && <StatusPill value={summary.status || 'WARNING'} />}
     </div>
 
@@ -151,7 +151,7 @@ export default function RundeckPerformanceIncident({
             className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
             onClick={() => onSelectJob?.(currentContext)}
           >{current.consumer_key}</button> : <strong>No current workload found</strong>}
-          {current && <small>CPU {metric(current.cpu_pct, '%')} · Run #{summary.execution_id || '—'}</small>}
+          {current && <small>Process CPU {metric(current.cpu_pct, '%')} · Run #{summary.execution_id || '—'}</small>}
         </div>
         {current && <CurrentJobFacts workload={current} />}
       </section>
@@ -164,11 +164,11 @@ export default function RundeckPerformanceIncident({
             className={`rundeckIncidentJobButton ${selectedJob?.key === persistentContext.key && selectedJob?.host === persistentContext.host ? 'is-selected' : ''}`}
             onClick={() => onSelectJob?.(persistentContext)}
           >{persistent.consumer_key}</button> : <strong>No recurring workload found</strong>}
-          {persistent && <small>{sameWorkload ? 'Also current · ' : ''}Seen {persistent.occurrences} of {persistent.affected_samples} checks</small>}
+          {persistent && <small>{sameWorkload ? 'Also current · ' : ''}Seen {persistent.occurrences}/{persistent.affected_samples} checks</small>}
         </div>
         {persistent && <dl className="rundeckIncidentFacts is-compact">
-          <div><dt>Avg CPU</dt><dd>{metric(persistent.avg_cpu_pct, '%')}</dd></div>
-          <div><dt>Peak CPU</dt><dd>{metric(persistent.peak_cpu_pct, '%')}</dd></div>
+          <div><dt>Avg Process CPU</dt><dd>{metric(persistent.avg_cpu_pct, '%')}</dd></div>
+          <div><dt>Peak Process CPU</dt><dd>{metric(persistent.peak_cpu_pct, '%')}</dd></div>
         </dl>}
       </section>
     </div>
