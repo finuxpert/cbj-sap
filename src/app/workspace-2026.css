@@ -38,7 +38,7 @@ label {
 }
 
 /* ===== Application shell ===== */
-.rcaNav {
+.sphereNav {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -49,7 +49,7 @@ label {
   -webkit-backdrop-filter: blur(18px) saturate(135%);
 }
 
-.rcaNavInner {
+.sphereNavInner {
   width: min(calc(100% - (var(--rca-gutter) * 2)), var(--rca-page-max));
   min-height: var(--rca-nav-h);
   margin-inline: auto;
@@ -59,22 +59,22 @@ label {
   gap: 18px;
 }
 
-.rcaBrand {
+.sphereBrand {
   min-width: 0;
 }
 
-.rcaBrand .brandText {
+.sphereBrand .brandText {
   min-width: 0;
 }
 
-.rcaBrand .brandTitle,
-.rcaBrand .brandSub {
+.sphereBrand .brandTitle,
+.sphereBrand .brandSub {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.rcaToolTabs {
+.sphereToolTabs {
   justify-self: end;
   display: flex;
   align-items: center;
@@ -82,7 +82,7 @@ label {
   min-width: 0;
 }
 
-.rcaToolTabs a {
+.sphereToolTabs a {
   min-height: 40px;
   display: inline-flex;
   align-items: center;
@@ -97,12 +97,12 @@ label {
   white-space: nowrap;
 }
 
-.rcaToolTabs a:hover {
+.sphereToolTabs a:hover {
   color: rgba(248, 250, 252, 0.96);
   background: rgba(255, 255, 255, 0.04);
 }
 
-.rcaToolTabs a[data-active='true'] {
+.sphereToolTabs a[data-active='true'] {
   color: #f8fafc;
   border-color: rgba(56, 189, 248, 0.22);
   background: rgba(56, 189, 248, 0.09);
@@ -329,11 +329,11 @@ label {
 
 /* ===== Intermediate screens: laptop/tablet ===== */
 @media (max-width: 1180px) {
-  .rcaNavInner {
+  .sphereNavInner {
     grid-template-columns: minmax(190px, 1fr) auto;
   }
 
-  .rcaToolTabs {
+  .sphereToolTabs {
     grid-column: 2;
   }
 
@@ -376,24 +376,24 @@ label {
     --rca-nav-h: 52px;
   }
 
-  .rcaNav {
+  .sphereNav {
     min-height: var(--rca-nav-h);
   }
 
-  .rcaNavInner {
+  .sphereNavInner {
     width: calc(100% - 20px);
     min-height: var(--rca-nav-h);
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
   }
 
-  .rcaBrand .brandSub,
-  .rcaToolTabs,
+  .sphereBrand .brandSub,
+  .sphereToolTabs,
   .rcaMobileToggle {
     display: none !important;
   }
 
-  .rcaBrand .brandTitle {
+  .sphereBrand .brandTitle {
     font-size: 13px;
   }
 

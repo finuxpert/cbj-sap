@@ -26,7 +26,7 @@
   height: 30px;
 }
 
-.rcaBrand .brandTitle {
+.sphereBrand .brandTitle {
   max-width: min(420px, 34vw);
 }
 
@@ -36,7 +36,7 @@
     height: 31px;
   }
 
-  .rcaBrand .brandTitle {
+  .sphereBrand .brandTitle {
     max-width: 260px;
   }
 }
@@ -47,7 +47,7 @@
     height: 30px;
   }
 
-  .rcaBrand .brandText {
+  .sphereBrand .brandText {
     display: none !important;
   }
 }

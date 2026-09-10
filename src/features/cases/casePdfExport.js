@@ -89,14 +89,14 @@ export async function exportCaseHistoryListPdf(cases = [], filters = {}) {
   const generatedAt = new Date().toLocaleString('id-ID')
   const { page, line, section, header } = createWriter(pdf)
 
-  header('SPHERE Case History Report', 'Persistent RCA Investigation Workspace')
+  header('SPHERE Case History Report', 'Persistent SPHERE Investigation Workspace')
 
   section('1. Executive Summary')
   line(`Generated: ${generatedAt}`, 9)
   line(`Total visible cases: ${cases.length}`, 9)
   if (filters.query) line(`Search filter: ${filters.query}`, 9)
   if (filters.status) line(`Status filter: ${filters.status}`, 9)
-  line('This report summarizes visible RCA cases from the mobile-friendly Case History endpoint. Use it as a management snapshot and attach source evidence for technical validation.', 10)
+  line('This report summarizes visible SPHERE cases from the mobile-friendly Case History endpoint. Use it as a management snapshot and attach source evidence for technical validation.', 10)
 
   section('2. Case List')
   if (!cases.length) {

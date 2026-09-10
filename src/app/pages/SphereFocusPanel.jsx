@@ -10,7 +10,7 @@ import {
 export default function SphereFocusPanel({ caseData, correlation }) {
   const severity = String(correlation?.severity || caseData?.severity || 'INFO').toUpperCase()
   const confidence = Number(correlation?.confidence || 0)
-  const rootCause = correlation?.top_root_cause || caseData?.top_suspect || caseData?.top_anomaly || 'Need more evidence before final RCA.'
+  const rootCause = correlation?.top_root_cause || caseData?.top_suspect || caseData?.top_anomaly || 'Need more evidence before final root-cause conclusion.'
   const hostState = sanitizeCorrelationHosts(correlation?.affected_hosts, 3)
   const workprocessState = sanitizeWorkprocesses(correlation?.related_workprocesses, 4)
   const sourceState = normalizeCorrelationSources(correlation?.correlation_sources || correlation?.tools, 4)
