@@ -46,6 +46,14 @@ Manual Upload Logs remains supported. LOG parsing currently runs in the browser 
 
 The Rundeck branch family is reserved for automatic collection ingestion. SPHERE must not connect directly to SAP application servers. Rundeck remains responsible for collecting SAP server data.
 
+## Rundeck integration runbook
+
+Operational notes for the read-only Rundeck API integration, ACL model, token rotation, workflow recreation, collection readiness, and security guardrails are documented in:
+
+`docs/RUNDECK_INTEGRATION_RUNBOOK.md`
+
+The current SPHERE read-only API token must be rotated before its documented expiration. Never commit the token value to GitHub.
+
 ## Development validation
 
 Before promotion, run:
