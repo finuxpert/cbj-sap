@@ -96,7 +96,7 @@
 .rundeckIncidentJobButton:hover,
 .rundeckIncidentJobButton:focus-visible,
 .rundeckIncidentJobButton.is-selected {
-  border-bottom-color: color-mix(in srgb, var(--sphere-accent, #4fc6c8) 68%, transparent);
+  border-bottom-color: rgba(79, 198, 200, .7);
   color: var(--sphere-accent, #4fc6c8);
   outline: none;
 }
@@ -141,7 +141,7 @@
 .rundeckIncidentHostContext {
   margin-top: 6px;
   padding-top: 4px;
-  border-top: 1px solid color-mix(in srgb, var(--sphere-border-subtle, #28323c) 56%, transparent);
+  border-top: 1px solid rgba(113, 128, 137, .12);
 }
 
 @media (max-width: 980px) {
