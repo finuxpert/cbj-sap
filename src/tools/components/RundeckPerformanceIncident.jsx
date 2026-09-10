@@ -44,7 +44,7 @@ function workloadLabel(workload, recurring = false) {
   return recurring ? 'Recurring SAP Job' : 'Current Top SAP Job'
 }
 
-function WorkloadFacts({ workload, persistent = false }) {
+function CurrentJobFacts({ workload }) {
   const details = workload?.details || {}
   const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '—')
   const workProcess = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
@@ -54,12 +54,6 @@ function WorkloadFacts({ workload, persistent = false }) {
     <div><dt>Work Process</dt><dd>{workProcess}</dd></div>
     <div><dt>SAP User</dt><dd>{details.user || '—'}</dd></div>
     <div><dt>PID</dt><dd>{details.pid || '—'}</dd></div>
-    <div>
-      <dt>CPU</dt>
-      <dd>{persistent
-        ? `${metric(workload?.avg_cpu_pct, '%')} avg · ${metric(workload?.peak_cpu_pct, '%')} peak`
-        : metric(workload?.cpu_pct, '%')}</dd>
-    </div>
   </dl>
 }
 
@@ -137,7 +131,6 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
 
     <div className="rundeckIncidentMeta">
       <span><b>Since</b>{formatTime(summary.signal_active_since || summary.detected_since, true)} WIB</span>
-      <span><b>Last Seen</b>{formatTime(summary.last_observed, true)} WIB</span>
       <span><b>Duration</b>{duration(summary.duration_seconds)}</span>
     </div>
 
@@ -148,7 +141,7 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
           <strong>{current?.consumer_key || 'No SAP job found in current run'}</strong>
           {current && <small>Run #{summary.execution_id || '—'} · CPU {metric(current.cpu_pct, '%')}</small>}
         </div>
-        {current && <WorkloadFacts workload={current} />}
+        {current && <CurrentJobFacts workload={current} />}
       </section>
 
       <section className="rundeckIncidentWorkloadBlock is-persistent">
@@ -159,7 +152,10 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
             {sameWorkload ? 'Also current top job · ' : ''}{persistent.occurrences} of {persistent.affected_samples} checks · seen {metric(persistent.presence_pct, '%')}
           </small>}
         </div>
-        {persistent && <WorkloadFacts workload={persistent} persistent />}
+        {persistent && <dl className="rundeckIncidentFacts">
+          <div><dt>Avg CPU</dt><dd>{metric(persistent.avg_cpu_pct, '%')}</dd></div>
+          <div><dt>Peak CPU</dt><dd>{metric(persistent.peak_cpu_pct, '%')}</dd></div>
+        </dl>}
       </section>
     </div>
 
