@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from backend.rundeck_consumers import timeline_consumers
+from backend.rundeck_incident import performance_incident_summary
 from backend.rundeck_latest import latest_ready_host_metrics
 from backend.rundeck_monitoring import (
     alert_history,
@@ -96,6 +97,16 @@ def platform_health_endpoint():
         return platform_health(ROOT)
     except Exception as error:
         raise HTTPException(503, f"Platform health unavailable: {type(error).__name__}") from None
+
+
+@app.get("/analysis/performance")
+def performance_analysis():
+    try:
+        return performance_incident_summary()
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+    except Exception as error:
+        raise HTTPException(503, f"Performance analysis unavailable: {type(error).__name__}") from None
 
 
 @app.get("/collections")
