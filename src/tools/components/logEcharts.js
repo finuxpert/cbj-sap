@@ -7,3 +7,4 @@ import { CanvasRenderer } from 'echarts/renderers'
 echarts.use([LineChart, TooltipComponent, LegendComponent, GridComponent, DataZoomComponent, MarkLineComponent, MarkPointComponent, CanvasRenderer])
 
 export const init = echarts.init
+export const getInstanceByDom = echarts.getInstanceByDom
