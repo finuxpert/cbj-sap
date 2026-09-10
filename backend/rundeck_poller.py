@@ -62,9 +62,12 @@ def poll():
     initialize()
     try:
         maybe_run_retention(ROOT)
-    except Exception:
-        # Retention failure is surfaced by Platform Health and must not block fresh telemetry.
-        pass
+    except Exception as error:
+        # Retention failure must be visible to Platform Health but must not block ingestion.
+        write_json(ROOT / "maintenance-error.json", {
+            "failed_at": now(),
+            "error_type": type(error).__name__,
+        })
 
     with (ROOT / "poller.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
