@@ -1,0 +1,452 @@
+.rundeckMonitoring {
+  margin-top: 18px;
+  border-top: 1px solid var(--line, #e4e7ec);
+  padding-top: 18px;
+}
+
+.rundeckMonitoringHead,
+.rundeckMiniPanelHead,
+.rundeckTimelineCardHead,
+.rundeckTrendMeta,
+.rundeckMonitoringSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rundeckMonitoringHead > div:first-child > span,
+.rundeckMiniPanelHead > div > span {
+  display: block;
+  color: var(--muted, #667085);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.rundeckMonitoringHead h3,
+.rundeckMiniPanelHead h4,
+.rundeckTimeline h4 {
+  margin: 3px 0 4px;
+}
+
+.rundeckMonitoringHead p,
+.rundeckSectionTitle span {
+  margin: 0;
+  color: var(--muted, #667085);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.rundeckMonitoringSummary {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  min-width: 120px;
+}
+
+.rundeckMonitoringSummary strong {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.rundeckMonitoringSummary span,
+.rundeckMonitoringSummary small {
+  color: var(--muted, #667085);
+  font-size: 11px;
+}
+
+.rundeckMonitoringControls {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.2fr auto;
+  gap: 12px;
+  margin-top: 14px;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 12px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.rundeckMonitoringControls > div > span {
+  display: block;
+  margin: 0 0 6px 2px;
+  color: var(--muted, #667085);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.rundeckSegmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rundeckSegmented button {
+  min-height: 30px;
+  border: 1px solid var(--line, #d0d5dd);
+  border-radius: 8px;
+  padding: 4px 9px;
+  background: #fff;
+  color: #475467;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.rundeckSegmented button:hover {
+  border-color: #98a2b3;
+}
+
+.rundeckSegmented button.is-active {
+  border-color: #344054;
+  background: #344054;
+  color: #fff;
+}
+
+.rundeckTrendShell,
+.rundeckTimeline,
+.rundeckTimelineEmpty,
+.rundeckMiniPanel {
+  margin-top: 12px;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.rundeckTrendShell {
+  overflow: hidden;
+}
+
+.rundeckTrendMeta {
+  display: grid;
+  grid-template-columns: minmax(150px, 2fr) repeat(3, minmax(80px, .65fr));
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  background: #fbfcfe;
+}
+
+.rundeckTrendMeta > div {
+  min-width: 0;
+}
+
+.rundeckTrendMeta > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.rundeckTrendMeta span {
+  display: block;
+  color: var(--muted, #667085);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.rundeckTrendMeta > div:first-child span {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.rundeckTrendMeta strong {
+  font-size: 12px;
+}
+
+.rundeckTrendChart {
+  width: 100%;
+  height: 390px;
+  min-height: 340px;
+}
+
+.rundeckHistoryState,
+.rundeckTimelineEmpty {
+  padding: 22px;
+  color: var(--muted, #667085);
+  font-size: 12px;
+  text-align: center;
+}
+
+.rundeckHistoryState.is-error {
+  font-weight: 700;
+}
+
+.rundeckTimelineEmpty {
+  border-style: dashed;
+  background: #fcfcfd;
+}
+
+.rundeckTimeline {
+  padding: 12px;
+}
+
+.rundeckTimeline .rundeckSectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rundeckTimelineGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.rundeckTimelineCard {
+  min-width: 0;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.rundeckTimelineCard.is-selected {
+  border-width: 2px;
+  border-color: #667085;
+  padding: 9px;
+  background: #f8fafc;
+}
+
+.rundeckTimelineCard > small {
+  color: var(--muted, #667085);
+  font-size: 10px;
+}
+
+.rundeckInlineStatus {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.rundeckInlineStatus.is-normal,
+.rundeckInlineStatus.is-ready {
+  color: #027a48;
+}
+
+.rundeckInlineStatus.is-warning,
+.rundeckInlineStatus.is-partial {
+  color: #b54708;
+}
+
+.rundeckInlineStatus.is-critical,
+.rundeckInlineStatus.is-failed,
+.rundeckInlineStatus.is-error {
+  color: #b42318;
+}
+
+.rundeckTimelineMetrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+  margin: 10px 0 0;
+}
+
+.rundeckTimelineMetrics div,
+.rundeckTimelineConsumer dl div {
+  min-width: 0;
+}
+
+.rundeckTimelineMetrics dt,
+.rundeckTimelineConsumer dt {
+  color: var(--muted, #667085);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.rundeckTimelineMetrics dd {
+  margin: 1px 0 0;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.rundeckTimelineConsumer {
+  margin-top: 10px;
+  border-top: 1px solid var(--line, #e4e7ec);
+  padding-top: 9px;
+}
+
+.rundeckTimelineConsumer > span {
+  display: block;
+  color: var(--muted, #667085);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.rundeckTimelineConsumer > strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rundeckTimelineConsumer > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted, #667085);
+  font-size: 9px;
+}
+
+.rundeckTimelineConsumer dl {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  margin: 8px 0 0;
+}
+
+.rundeckTimelineConsumer dl div {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 6px;
+}
+
+.rundeckTimelineConsumer dd {
+  overflow: hidden;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rundeckMonitoringLower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.rundeckMiniPanel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.rundeckMiniPanelHead {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  background: #fbfcfe;
+}
+
+.rundeckMiniPanelHead h4 {
+  font-size: 13px;
+}
+
+.rundeckMiniPanelHead > strong {
+  font-size: 18px;
+}
+
+.rundeckAlertCounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 10px;
+}
+
+.rundeckAlertCounts strong {
+  color: #b42318;
+}
+
+.rundeckAlertCounts span {
+  color: #b54708;
+}
+
+.rundeckMiniTableWrap {
+  max-height: 300px;
+  overflow: auto;
+}
+
+.rundeckMiniTableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.rundeckMiniTableWrap th,
+.rundeckMiniTableWrap td {
+  border-bottom: 1px solid var(--line, #eef1f5);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rundeckMiniTableWrap th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+  color: var(--muted, #667085);
+  font-size: 9px;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.rundeckMiniTableWrap td strong {
+  display: block;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rundeckMiniTableWrap td small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted, #667085);
+}
+
+@media (max-width: 1280px) {
+  .rundeckMonitoringControls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rundeckTimelineGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .rundeckMonitoringHead,
+  .rundeckTimeline .rundeckSectionTitle {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rundeckMonitoringSummary {
+    align-items: flex-start;
+  }
+
+  .rundeckTrendMeta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .rundeckMonitoringLower {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .rundeckMonitoringControls,
+  .rundeckTimelineGrid,
+  .rundeckTrendMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .rundeckSegmented button {
+    flex: 1 1 auto;
+  }
+
+  .rundeckTrendChart {
+    height: 340px;
+  }
+}
