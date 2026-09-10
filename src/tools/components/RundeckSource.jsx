@@ -113,7 +113,10 @@ export default function RundeckSource({ onCollection }) {
     setActionBusy(true)
     setError('')
     try {
-      const result = await json(`${API}/collect-now`, { method: 'POST' })
+      const result = await json(`${API}/collect-now`, {
+        method: 'POST',
+        headers: { 'X-SPHERE-Action': 'collect-now' },
+      })
       setRunState(result)
       await refreshMeta()
     } catch (failure) {
@@ -176,9 +179,9 @@ export default function RundeckSource({ onCollection }) {
         <small>{health?.stale_after_minutes ? `threshold ${health.stale_after_minutes} min` : '—'}</small>
       </div>
       <div>
-        <span>90-day Collections</span>
+        <span>Recent Collections</span>
         <strong>{collectionCount || '—'}</strong>
-        <small>latest rows loaded</small>
+        <small>90-day history enabled</small>
       </div>
     </div>
 

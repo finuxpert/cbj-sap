@@ -24,20 +24,34 @@ for folder in inbox processing archive rejected manifests; do
 done
 ln -sfn "$RELEASE" /opt/sphere-rundeck-dev/current
 ln -sfn "$WEB" /var/www/sphere-dev/current
+
+# Database migration is explicitly opt-in during /dev rollout. migrate-dev.sh
+# refuses any DATABASE_URL that does not name the isolated Rundeck dev database.
+RUN_DEV_MIGRATIONS="$(sed -n 's/^SPHERE_RUN_DEV_MIGRATIONS=//p' /etc/sphere/rundeck-dev.env 2>/dev/null | tail -n 1 | tr -d '\r' || true)"
+if [[ "$RUN_DEV_MIGRATIONS" == "true" ]]; then
+  "$RELEASE/ops/rundeck/migrate-dev.sh" "$RELEASE"
+fi
+
 install -m 0644 "$RELEASE/ops/rundeck/sphere-rundeck-api.service" /etc/systemd/system/
 install -m 0644 "$RELEASE/ops/rundeck/sphere-rundeck-poller.service" /etc/systemd/system/
 install -m 0644 "$RELEASE/ops/rundeck/sphere-rundeck-poller.timer" /etc/systemd/system/
 python3 - <<'PY'
 from pathlib import Path
-p=Path('/etc/nginx/sites-available/sphere.astraotoparts.co.id')
-s=p.read_text()
-marker='    # SPHERE isolated Rundeck development\n'
-if marker not in s:
-    snippet=Path('/opt/sphere-rundeck-dev/current/ops/rundeck/nginx-dev.conf').read_text()
-    anchor='    location = /sap-api'
-    assert anchor in s
-    Path('/root/sphere-nginx-before-dev.conf').write_text(s)
-    p.write_text(s.replace(anchor, marker+snippet+'\n'+anchor, 1))
+
+p = Path('/etc/nginx/sites-available/sphere.astraotoparts.co.id')
+s = p.read_text()
+marker = '    # SPHERE isolated Rundeck development\n'
+anchor = '    location = /sap-api'
+snippet = Path('/opt/sphere-rundeck-dev/current/ops/rundeck/nginx-dev.conf').read_text().rstrip() + '\n'
+assert anchor in s
+Path('/root/sphere-nginx-before-dev.conf').write_text(s)
+if marker in s:
+    start = s.index(marker)
+    end = s.index(anchor, start)
+    s = s[:start] + marker + snippet + '\n' + s[end:]
+else:
+    s = s.replace(anchor, marker + snippet + '\n' + anchor, 1)
+p.write_text(s)
 PY
 if ! nginx -t; then
   cp /root/sphere-nginx-before-dev.conf /etc/nginx/sites-available/sphere.astraotoparts.co.id

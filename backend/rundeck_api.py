@@ -196,6 +196,8 @@ def collect_now_status():
 def trigger_collect_now(request: Request):
     if os.getenv("RUNDECK_COLLECT_NOW_ENABLED", "false").lower() != "true":
         raise HTTPException(503, "Collect Now is disabled")
+    if request.headers.get("X-SPHERE-Action") != "collect-now":
+        raise HTTPException(403, "Missing SPHERE action header")
     from backend.rundeck_runner import collect_now
     actor = request.headers.get("X-Forwarded-User") or request.headers.get("X-Remote-User") or "sphere"
     try:

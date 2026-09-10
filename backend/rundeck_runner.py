@@ -74,6 +74,19 @@ def _parse_time(value: str | None) -> datetime | None:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
+def _latest_running_job() -> dict | None:
+    """Detect the whitelisted job even when it was started outside SPHERE."""
+    job_id = _job_id()
+    page = _request(f"/api/{API_VERSION}/job/{job_id}/executions?status=running&max=20")
+    executions = [
+        item for item in page.get("executions", [])
+        if str(item.get("status") or "").lower() in ("running", "scheduled")
+    ]
+    if not executions:
+        return None
+    return max(executions, key=lambda item: int(item.get("id") or 0))
+
+
 def status() -> dict:
     state = _read_state()
     execution_id = state.get("execution_id")
@@ -90,6 +103,18 @@ def status() -> dict:
                 write_json(_state_file(), state)
         except Exception:
             state["rundeck_status_check"] = "unavailable"
+
+    # Do not start a second copy when the scheduled Rundeck job (or an operator)
+    # already has the exact whitelisted job running.
+    try:
+        active = _latest_running_job()
+        if active:
+            state["execution_id"] = str(active.get("id") or "")
+            state["job_id"] = _job_id()
+            state["status"] = str(active.get("status") or "running").lower()
+            state["external_running_execution"] = True
+    except Exception:
+        state["rundeck_job_check"] = "unavailable"
 
     requested = _parse_time(state.get("requested_at"))
     cooldown_until = requested + timedelta(seconds=COOLDOWN_SECONDS) if requested else None
@@ -121,6 +146,7 @@ def collect_now(requested_by: str = "sphere") -> dict:
         "requested_at": datetime.now(timezone.utc).isoformat(),
         "requested_by": requested_by[:120],
         "status": str(execution.get("status") or "running").lower(),
+        "external_running_execution": False,
     }
     write_json(_state_file(), state)
     return status()
