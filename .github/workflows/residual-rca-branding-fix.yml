@@ -1,0 +1,129 @@
+name: Temporary Residual RCA Branding Fix
+
+on:
+  push:
+    branches:
+      - cleanup-residual-rca-branding
+    paths:
+      - .github/workflows/residual-rca-branding-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cleanup-residual-rca-branding
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply targeted SPHERE branding replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              'rcaNavInner': 'sphereNavInner',
+              'rcaToolTabs': 'sphereToolTabs',
+              'rcaBrand': 'sphereBrand',
+              'rcaNav': 'sphereNav',
+              'LogAutoRcaV5': 'LogAutoSphereV5',
+              'EXECUTIVE RCA COCKPIT': 'EXECUTIVE SPHERE COCKPIT',
+              'focus on RCA below': 'focus on SPHERE below',
+              'Persistent RCA Investigation Workspace': 'Persistent SPHERE Investigation Workspace',
+              'SAP Intelligent ST03N Workload RCA Report': 'SPHERE ST03N Workload Report',
+              'SAP Intelligent Log Evidence RCA Report': 'SPHERE Log Evidence Report',
+              'RCA workflow: upload evidence': 'SPHERE workflow: upload evidence',
+              'upload evidence to start RCA scoring': 'upload evidence to start SPHERE scoring',
+              'Need more evidence before final RCA.': 'Need more evidence before final root-cause conclusion.',
+              'Correlation engine is analyzing RCA signals...': 'SPHERE correlation engine is analyzing signals...',
+              'Collect more cross-tool evidence before final RCA.': 'Collect more cross-tool evidence before final root-cause conclusion.',
+              'Most repeated RCA signals': 'Most repeated SPHERE signals',
+              'final RCA conclusion': 'final root-cause conclusion',
+              'Executive RCA narrative:': 'Executive analysis narrative:',
+              'visible RCA cases': 'visible SPHERE cases',
+          }
+
+          changed = []
+          for path in Path('src').rglob('*'):
+              if not path.is_file() or path.suffix.lower() not in {'.js', '.jsx', '.css'}:
+                  continue
+              text = path.read_text(encoding='utf-8')
+              new = text
+              for old, replacement in replacements.items():
+                  new = new.replace(old, replacement)
+              if new != text:
+                  path.write_text(new, encoding='utf-8')
+                  changed.append(str(path))
+
+          print('Changed files:')
+          for path in changed:
+              print(path)
+          if not changed:
+              raise SystemExit('No targeted branding changes found')
+          PY
+
+          echo '=== Diff stat ==='
+          git diff --stat
+          echo '=== Diff ==='
+          git diff -- src
+
+      - name: Verify protected compatibility markers and removed stale targets
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -RInI -F 'RCA-SNAPSHOT-V2.2' src/tools/logAnalysisV15.js >/dev/null
+          grep -RInI -F 'RCA-WP-V2.2' src/tools/logAnalysisV15.js >/dev/null
+          grep -RInI -F 'RCA-EXT' src/tools/logAnalysisV14.js >/dev/null
+
+          if grep -RInI -E 'rcaNav|rcaBrand|rcaToolTabs|LogAutoRcaV5|Persistent RCA Investigation Workspace|EXECUTIVE RCA COCKPIT|SAP Intelligent ST03N Workload RCA Report|SAP Intelligent Log Evidence RCA Report' src; then
+            echo 'Targeted stale branding remains.' >&2
+            exit 1
+          fi
+          echo 'Compatibility markers preserved and targeted stale branding cleared.'
+
+      - name: Validate dependency install
+        run: npm ci
+      - name: Validate lint
+        run: npm run lint
+      - name: Validate production build
+        run: npm run build
+      - name: Validate tests
+        run: npm test
+      - name: Require zero npm audit findings
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm audit --json > /tmp/npm-audit.json || true
+          node <<'NODE'
+          const fs = require('fs')
+          const a = JSON.parse(fs.readFileSync('/tmp/npm-audit.json', 'utf8'))
+          const m = a.metadata?.vulnerabilities || {}
+          console.log(JSON.stringify(m))
+          if (m.total !== 0) throw new Error('npm audit is not zero')
+          NODE
+
+      - name: Show remaining meaningful RCA tokens
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -RInI --include='*.js' --include='*.jsx' --include='*.css' -E '\bRCA\b|Rca[A-Z]|rca[A-Z0-9_-]|--rca-|\.rca|data-rca|sap_rca|cbjRca|RCA-' src | head -250 || true
+
+      - name: Commit targeted branding cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Zactos-lab'
+          git config user.email 'fikrirtc12@gmail.com'
+          git add src
+          git diff --cached --quiet && { echo 'No source changes'; exit 1; }
+          git commit -m 'refactor: clean residual RCA product branding'
+          git push origin HEAD:cleanup-residual-rca-branding
