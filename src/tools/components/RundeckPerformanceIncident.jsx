@@ -44,6 +44,16 @@ function workloadLabel(workload, recurring = false) {
   return recurring ? 'Recurring SAP Job' : 'Current Top SAP Job'
 }
 
+function jobContext(workload, host, source) {
+  if (!workload?.consumer_key) return null
+  return {
+    key: workload.consumer_key,
+    host: host || workload.host || '',
+    consumerType: workload.consumer_type || '',
+    source,
+  }
+}
+
 function CurrentJobFacts({ workload }) {
   const details = workload?.details || {}
   const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '—')
@@ -57,7 +67,13 @@ function CurrentJobFacts({ workload }) {
   </dl>
 }
 
-export default function RundeckPerformanceIncident({ refreshToken = '' }) {
+export default function RundeckPerformanceIncident({
+  refreshToken = '',
+  selectedJob = null,
+  onSelectJob,
+  onDefaultJob,
+  showStatus = true,
+}) {
   const [summary, setSummary] = React.useState(null)
   const [error, setError] = React.useState('')
 
@@ -81,6 +97,12 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
     return () => controller.abort()
   }, [refreshToken])
 
+  React.useEffect(() => {
+    const current = summary?.current_workload
+    if (!summary?.active || !current?.consumer_key) return
+    onDefaultJob?.(jobContext(current, summary.affected_server, 'current'))
+  }, [onDefaultJob, summary?.active, summary?.affected_server, summary?.collection_id, summary?.current_workload])
+
   if (!summary && !error) return null
 
   if (error) {
@@ -90,7 +112,7 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
           <span className="rundeckIncidentEyebrow">SAP Performance</span>
           <h3>RCA data unavailable</h3>
         </div>
-        <StatusPill value="UNKNOWN" />
+        {showStatus && <StatusPill value="UNKNOWN" />}
       </div>
       <p className="rundeckIncidentAssessment">Last good SAP data is still shown below.</p>
     </section>
@@ -104,7 +126,7 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
           <span className="rundeckIncidentEyebrow">SAP Performance</span>
           <h3>{waiting ? 'Waiting for SAP performance data' : 'No active SAP performance issue'}</h3>
         </div>
-        <StatusPill value={summary.status || 'NORMAL'} />
+        {showStatus && <StatusPill value={summary.status || 'NORMAL'} />}
       </div>
     </section>
   }
@@ -112,6 +134,8 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
   const signal = summary.primary_signal || {}
   const current = summary.current_workload
   const persistent = summary.persistent_workload || summary.primary_workload
+  const currentContext = jobContext(current, summary.affected_server, 'current')
+  const persistentContext = jobContext(persistent, summary.affected_server, 'recurring')
   const hostMetrics = summary.current_host_metrics || {}
   const signalValue = metric(signal.value, signal.unit || '')
   const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
@@ -126,7 +150,7 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
         <span className="rundeckIncidentEyebrow">SAP Performance Issue</span>
         <h3>{shortHost(summary.affected_server)} · {signal.label || 'Performance signal'} {signalValue}</h3>
       </div>
-      <StatusPill value={summary.status || 'WARNING'} />
+      {showStatus && <StatusPill value={summary.status || 'WARNING'} />}
     </div>
 
     <div className="rundeckIncidentMeta">
@@ -138,7 +162,11 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
       <section className="rundeckIncidentWorkloadBlock is-current">
         <div className="rundeckIncidentWorkloadLead">
           <span>{workloadLabel(current)}</span>
-          <strong>{current?.consumer_key || 'No SAP job found in current run'}</strong>
+          {currentContext ? <button
+            type="button"
+            className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
+            onClick={() => onSelectJob?.(currentContext)}
+          >{current.consumer_key}</button> : <strong>No SAP job found in current run</strong>}
           {current && <small>Run #{summary.execution_id || '—'} · CPU {metric(current.cpu_pct, '%')}</small>}
         </div>
         {current && <CurrentJobFacts workload={current} />}
@@ -147,7 +175,11 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
       <section className="rundeckIncidentWorkloadBlock is-persistent">
         <div className="rundeckIncidentWorkloadLead">
           <span>{workloadLabel(persistent, true)}</span>
-          <strong>{persistent?.consumer_key || 'No recurring SAP job found'}</strong>
+          {persistentContext ? <button
+            type="button"
+            className={`rundeckIncidentJobButton ${selectedJob?.key === persistentContext.key && selectedJob?.host === persistentContext.host ? 'is-selected' : ''}`}
+            onClick={() => onSelectJob?.(persistentContext)}
+          >{persistent.consumer_key}</button> : <strong>No recurring SAP job found</strong>}
           {persistent && <small>
             {sameWorkload ? 'Also current top job · ' : ''}{persistent.occurrences} of {persistent.affected_samples} checks · seen {metric(persistent.presence_pct, '%')}
           </small>}
