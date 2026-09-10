@@ -76,7 +76,7 @@ function findingText(row = {}, pointInTime = false) {
   const cpu = Number(cpuValue(row, pointInTime) || 0)
   const memory = Number(memoryValue(row, pointInTime) || 0)
   const dState = Number(pointInTime ? row.targetDState : row.dStateHits || 0)
-  if (dState > 0) return 'D-STATE'
+  if (dState > 0) return 'I/O WAIT'
   if (cpu >= 80 && memory >= 2) return 'HIGH CPU · HIGH MEMORY'
   if (cpu >= 80) return 'HIGH CPU'
   if (memory >= 2) return 'HIGH MEMORY'
@@ -116,7 +116,7 @@ const QUICK_FILTERS = [
   ['DIA', 'Dialog'],
   ['HIGH_CPU', 'High CPU'],
   ['HIGH_MEMORY', 'High Memory'],
-  ['D_STATE', 'D-State'],
+  ['D_STATE', 'I/O Wait'],
   ['ERROR', 'Error'],
 ]
 
@@ -138,7 +138,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
     { accessorKey: 'type', header: 'WP Type', size: 88, cell: ({ getValue }) => getValue() || '—' },
     { id: 'cpuValue', accessorFn: (row) => cpuValue(row, pointInTime) ?? -1, header: pointInTime ? 'CPU' : 'Peak CPU', size: 92, cell: ({ row }) => hasMetric(cpuValue(row.original, pointInTime)) ? `${fmt(cpuValue(row.original, pointInTime), 1)}%` : '—' },
     { id: 'memory', accessorFn: (row) => memoryValue(row, pointInTime) ?? -1, header: pointInTime ? 'Memory' : 'Peak Memory', size: 145, cell: ({ row }) => memoryText(row.original, pointInTime) },
-    { id: 'dState', accessorFn: (row) => Number(pointInTime ? row.targetDState : row.dStateHits || 0), header: pointInTime ? 'D-State WP' : 'D-State Hits', size: 105, cell: ({ row }) => blockingText(row.original, pointInTime) },
+    { id: 'dState', accessorFn: (row) => Number(pointInTime ? row.targetDState : row.dStateHits || 0), header: pointInTime ? 'I/O Wait WP' : 'I/O Wait Hits', size: 105, cell: ({ row }) => blockingText(row.original, pointInTime) },
     { id: 'finding', accessorFn: (row) => findingText(row, pointInTime), header: 'Finding', size: 185, cell: ({ row }) => <b className={`logV2Finding ${findingText(row.original, pointInTime).toLowerCase().replaceAll(' ', '-').replaceAll('·', '')}`}>{findingText(row.original, pointInTime)}</b> },
     { id: 'observed', accessorFn: (row) => pointInTime ? row.targetTime || '' : row.presenceCount || 0, header: pointInTime ? 'Sample Time' : 'Observed', size: 140, cell: ({ row }) => observedText(row.original, pointInTime) },
   ], [pointInTime])
@@ -163,7 +163,7 @@ export default function VirtualResourceTableV14({ rows = [], selectedKey = '', o
   const bodyRef = React.useRef(null)
   const tableRows = table.getRowModel().rows
   const activeSortId = sorting[0]?.id || normalizedSortId
-  const activeSortLabel = activeSortId === 'memory' ? (pointInTime ? 'Memory' : 'Peak memory') : activeSortId === 'dState' ? (pointInTime ? 'D-State' : 'D-State hits') : (pointInTime ? 'CPU' : 'Peak CPU')
+  const activeSortLabel = activeSortId === 'memory' ? (pointInTime ? 'Memory' : 'Peak memory') : activeSortId === 'dState' ? (pointInTime ? 'I/O Wait' : 'I/O Wait hits') : (pointInTime ? 'CPU' : 'Peak CPU')
   const activeSortArrow = sorting[0]?.desc === false ? '↑' : '↓'
   const virtualizer = useVirtualizer({ count: tableRows.length, getScrollElement: () => bodyRef.current, estimateSize: () => 42, overscan: 12 })
   const gridTemplate = '128px minmax(300px,1.8fr) 88px 92px 145px 105px 185px 140px'

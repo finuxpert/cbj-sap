@@ -1,0 +1,131 @@
+/* SPHERE v1.16.2 - Operations UX */
+
+.logV2Inner { container-type: inline-size; }
+
+/* Compact context strip */
+.logV2StatsCompact {
+  display: grid !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
+  min-height: 58px;
+  margin-bottom: 8px !important;
+  background: transparent !important;
+  border: 0 !important;
+  gap: 1px;
+}
+.logV2StatsCompact > :nth-child(1) { grid-column: span 3; }
+.logV2StatsCompact > :nth-child(2) { grid-column: span 6; }
+.logV2StatsCompact > :nth-child(3) { grid-column: span 3; }
+.logV2StatsCompact .logV2Stat {
+  background: var(--sphere-surface-1) !important;
+  padding: 10px 14px !important;
+  border: 0 !important;
+  border-right: 1px solid var(--sphere-border-subtle) !important;
+}
+.logV2StatsCompact .logV2Stat:first-child { border-radius: var(--sphere-radius) 0 0 var(--sphere-radius); }
+.logV2StatsCompact .logV2Stat:last-child { border-radius: 0 var(--sphere-radius) var(--sphere-radius) 0; border-right: 0 !important; }
+.logV2StatsCompact .logV2Stat strong { font-size: 15px !important; margin-top: 3px !important; }
+.logV2StatsCompact .logV2Stat small { margin-top: 2px !important; }
+
+/* Findings strip uses a 12-column grid and subgrid for stable alignment. */
+.logV2TrendSummary {
+  display: grid !important;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  background: var(--sphere-surface-1) !important;
+  border: 0 !important;
+  border-left: 3px solid rgba(73, 200, 209, .48) !important;
+  margin-bottom: 22px !important;
+}
+.logV2TrendSummary .logV141SummaryGridTrend {
+  grid-column: 1 / -1;
+  display: grid !important;
+  grid-template-columns: subgrid !important;
+  border-top: 0 !important;
+}
+.logV2TrendSummary .logV141SummaryGridTrend > :nth-child(1) { grid-column: span 4; }
+.logV2TrendSummary .logV141SummaryGridTrend > :nth-child(2) { grid-column: span 3; }
+.logV2TrendSummary .logV141SummaryGridTrend > :nth-child(3) { grid-column: span 5; }
+.logV2TrendSummary .logV141SummaryGridTrend > div { padding: 10px 14px !important; }
+.logV2TrendSummary .logV141SummaryGridTrend strong { font-size: 14px !important; }
+.logV2TrendSummary .logV141SummaryGridTrend > div:first-child strong { color: #dcefe9 !important; }
+
+/* Radix accordion inspector */
+.logOpsAccordion { border-top: 1px solid var(--sphere-border-subtle); }
+.logOpsAccordion:last-child { border-bottom: 1px solid var(--sphere-border-subtle); }
+.logOpsAccordionItem { overflow: visible; }
+.logOpsAccordionHeader { margin: 0; }
+.logOpsAccordionTrigger {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--sphere-text-secondary);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+.logOpsAccordionTrigger:hover { color: var(--sphere-text); }
+.logOpsAccordionTrigger:focus-visible {
+  outline: none;
+  color: var(--sphere-text);
+  box-shadow: inset 3px 0 0 rgba(73, 200, 209, .65);
+  padding-left: 10px;
+}
+.logOpsAccordionChevron { color: var(--sphere-text-muted); font-size: 14px; transition: transform 140ms ease; }
+.logOpsAccordionTrigger[data-state='open'] .logOpsAccordionChevron { transform: rotate(180deg); }
+.logOpsAccordionContent { overflow: hidden; }
+.logOpsAccordionContent[data-state='open'] { animation: logOpsReveal 140ms ease-out; }
+@keyframes logOpsReveal { from { opacity: .6; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+
+/* Friendly diagnostics */
+.logOpsDiagGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--sphere-border-subtle);
+  margin-bottom: 8px;
+}
+.logOpsDiagGrid > div { background: var(--sphere-surface-1); padding: 12px 14px; min-height: 58px; }
+.logOpsDiagGrid span { display: block; color: var(--sphere-text-muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .055em; }
+.logOpsDiagGrid strong { display: block; margin-top: 5px; color: var(--sphere-text); font-size: 11px; line-height: 1.35; }
+.logOpsDiagResult { grid-column: 1 / -1; border-left: 3px solid rgba(73, 200, 209, .48); }
+.logOpsAdvancedDiagnostics { margin: 0 0 10px; border-top-color: rgba(148, 163, 184, .12); }
+.logOpsDiagAdvanced table { width: 100%; border-collapse: collapse; }
+.logOpsDiagAdvanced th, .logOpsDiagAdvanced td { padding: 8px 10px; border-bottom: 1px solid rgba(148, 163, 184, .09); text-align: left; font-size: 10px; }
+.logOpsDiagAdvanced th { width: 230px; color: var(--sphere-text-muted); font-weight: 700; }
+
+/* Source audit defaults to 12 rows; View all expands into the page instead of nested scrolling. */
+.logOpsSourceToolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 4px 10px; color: var(--sphere-text-muted); font-size: 10px; }
+.logOpsSourceToolbar button { border: 1px solid var(--sphere-border); background: var(--sphere-surface-2); color: var(--sphere-text-secondary); border-radius: 5px; padding: 5px 9px; font-size: 10px; cursor: pointer; }
+.logOpsSourceTableWrap { overflow-x: auto; overflow-y: visible; }
+.logOpsSourceTable { width: 100%; min-width: 1050px; border-collapse: collapse; table-layout: fixed; }
+.logOpsSourceTable thead { position: sticky; top: 0; z-index: 2; }
+.logOpsSourceTable th { background: var(--sphere-surface-2); color: var(--sphere-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .05em; text-align: left; }
+.logOpsSourceTable th, .logOpsSourceTable td { padding: 8px 9px; border-bottom: 1px solid rgba(148, 163, 184, .08); font-size: 10px; }
+.logOpsSourceTable th:nth-child(1), .logOpsSourceTable td:nth-child(1) { width: 42px; }
+.logOpsSourceTable th:nth-child(2), .logOpsSourceTable td:nth-child(2) { width: 190px; }
+.logOpsSourceTable th:nth-child(4), .logOpsSourceTable td:nth-child(4) { width: 260px; }
+.logOpsSourceTable td:nth-child(3) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--sphere-text-secondary); }
+
+/* More familiar Basis/Infra terminology in the table. */
+.logV2TableHeader button, .logV2VirtualRow > span { font-variant-numeric: tabular-nums; }
+
+@container (max-width: 980px) {
+  .logV2StatsCompact > :nth-child(1), .logV2StatsCompact > :nth-child(2), .logV2StatsCompact > :nth-child(3) { grid-column: span 12; border-radius: 0 !important; border-right: 0 !important; border-bottom: 1px solid var(--sphere-border-subtle) !important; }
+  .logV2StatsCompact > :first-child { border-radius: var(--sphere-radius) var(--sphere-radius) 0 0 !important; }
+  .logV2StatsCompact > :last-child { border-radius: 0 0 var(--sphere-radius) var(--sphere-radius) !important; border-bottom: 0 !important; }
+  .logV2TrendSummary .logV141SummaryGridTrend { grid-template-columns: 1fr !important; }
+  .logV2TrendSummary .logV141SummaryGridTrend > :nth-child(n) { grid-column: 1 !important; }
+  .logOpsDiagGrid { grid-template-columns: 1fr 1fr; }
+}
+
+@container (max-width: 680px) {
+  .logOpsDiagGrid { grid-template-columns: 1fr; }
+  .logOpsDiagResult { grid-column: 1; }
+}
