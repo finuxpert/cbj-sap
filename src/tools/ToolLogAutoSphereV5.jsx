@@ -1,9 +1,11 @@
 import React from 'react'
+import * as Accordion from '@radix-ui/react-accordion'
 import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
 import { buildLogAnalysis, parseLogText, telemetryCapabilitiesV15 } from './logAnalysisV15.js'
 import { buildAutoPeakSphereV3 } from './logSphereEngineV3.js'
 import { rankResourceConsumersV5 } from './workloadAnalyticsV5.js'
 import { LOG_V14_METRICS } from './components/logChartMetrics.js'
+import { drilldownMeta, sampleConsumerContribution, sortSampleConsumers } from './logSampleDrilldown.js'
 import './LogAutoSphereV2.css'
 import './LogAutoSphereV141.css'
 
@@ -37,6 +39,19 @@ function Status({ value = 'NORMAL' }) {
 
 function Stat({ label, value, meta, tone = '' }) {
   return <article className={`logV2Stat ${tone}`}><span>{label}</span><strong>{value}</strong>{meta ? <small>{meta}</small> : null}</article>
+}
+
+function InspectorSection({ title, children, defaultOpen = false, className = '' }) {
+  return <Accordion.Root type="single" collapsible defaultValue={defaultOpen ? 'content' : undefined} className={`logOpsAccordion ${className}`}>
+    <Accordion.Item value="content" className="logOpsAccordionItem">
+      <Accordion.Header className="logOpsAccordionHeader">
+        <Accordion.Trigger className="logOpsAccordionTrigger">
+          <span>{title}</span><span className="logOpsAccordionChevron" aria-hidden="true">⌄</span>
+        </Accordion.Trigger>
+      </Accordion.Header>
+      <Accordion.Content className="logOpsAccordionContent">{children}</Accordion.Content>
+    </Accordion.Item>
+  </Accordion.Root>
 }
 
 function collectionSkew(collection) {
@@ -116,13 +131,12 @@ function HostPeakSummary({ rca, selectedHost, onSelectHost }) {
 }
 
 function ServerDetails({ rca, collection, selectedHost, onSelectHost }) {
-  return <details className="logV2SourceAudit logV2ServerDetails">
-    <summary>Server Details</summary>
+  return <InspectorSection title="Server Details" className="logV2ServerDetails">
     <div className="logV2ServerDetailsBody">
       <SnapshotStrip collection={collection} />
       <HostPeakSummary rca={rca} selectedHost={selectedHost} onSelectHost={onSelectHost} />
     </div>
-  </details>
+  </InspectorSection>
 }
 
 function WorkloadDetail({ item, capabilities, pointInTime = false }) {
@@ -133,8 +147,7 @@ function WorkloadDetail({ item, capabilities, pointInTime = false }) {
   const taxonomy = item.errorTaxonomy || {}
   const errorLabel = taxonomy.strongest?.category && taxonomy.strongest.category !== 'NONE' ? operatorLabel(taxonomy.strongest.category) : (item.errors || []).filter((value) => value && value !== '?').join(' · ') || 'None'
   const memory = consumerMemory(item)
-  return <details className="logV2SourceAudit logV2ConsumerDetail">
-    <summary>Selected Consumer Details · {item.workload}</summary>
+  return <InspectorSection title={`Selected Consumer Details · ${item.workload}`} className="logV2ConsumerDetail">
     <div className="logV2ConsumerDetailBody"><section className="logV2Panel">
       <div className="logV2PanelHead"><div><span className="logV141Kicker">CONSUMER DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {item.type || '—'}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">{item.type || 'WP'}</span><span className="logV2ScoreBadge">CPU {metricText(sampleMode ? item.targetCpu : item.peakCpu, 1, '%')}</span></div></div>
       <div className="logV2DetailGrid" style={pointInTime ? { gridTemplateColumns: '1fr' } : undefined}>
@@ -142,7 +155,7 @@ function WorkloadDetail({ item, capabilities, pointInTime = false }) {
           <div><dt>Application Server</dt><dd>{item.host || '—'}</dd></div><div><dt>WP Type</dt><dd>{item.type || '—'}</dd></div>
           <div><dt>ABAP Program</dt><dd>{item.program || '—'}</dd></div><div><dt>{sampleMode ? 'Sample Time' : 'Observed'}</dt><dd>{sampleMode ? shortTime(item.targetTime) : `${item.presenceCount || 0} of ${item.hostSampleCount || 0} samples`}</dd></div>
           {sampleMode ? <><div><dt>CPU at Sample</dt><dd>{metricText(item.targetCpu, 1, '%')}</dd></div><div><dt>Memory at Sample</dt><dd>{metricText(memory, 2, ' GB')}</dd></div></> : <><div><dt>Average CPU</dt><dd>{metricText(item.avgCpu, 1, '%')}</dd></div><div><dt>Peak CPU</dt><dd>{metricText(item.peakCpu, 1, '%')}</dd></div><div><dt>Peak Memory</dt><dd>{metricText(memory, 2, ' GB')}</dd></div><div><dt>First Seen</dt><dd>{shortTime(item.firstSeen)}</dd></div></>}
-          <div><dt>D-State WP</dt><dd>{metricText(sampleMode ? item.targetDState : item.dStateHits)}</dd></div><div><dt>Error or Short Dump</dt><dd>{errorLabel}</dd></div>
+          <div><dt>I/O Wait (D-State)</dt><dd>{metricText(sampleMode ? item.targetDState : item.dStateHits)}</dd></div><div><dt>Error or Short Dump</dt><dd>{errorLabel}</dd></div>
           {enhancedDetailsAvailable && !sampleFocus && <>
             <div><dt>Kernel Wait</dt><dd>{operatorLabel(item.wchanClass || 'NONE')} · {item.targetWchan || '—'}</dd></div><div><dt>PSS</dt><dd>{metricText(item.targetPssGb, 2, ' GB')}</dd></div>
             <div><dt>Read Rate</dt><dd>{metricText(item.targetReadMiBps, 2, ' MiB/s')}</dd></div><div><dt>Write Rate</dt><dd>{metricText(item.targetWriteMiBps, 2, ' MiB/s')}</dd></div>
@@ -153,31 +166,72 @@ function WorkloadDetail({ item, capabilities, pointInTime = false }) {
         </React.Suspense>}
       </div>
     </section></div>
-  </details>
+  </InspectorSection>
 }
 
 function AnalyticsDiagnostics({ diagnostics, capabilities, mapping, verdict, rca, analysis }) {
   const parity = diagnostics?.parity || {}
   const attributionIssues = (rca?.hostPeaks || []).filter((item) => !hostPeakAttributionValid(item)).map((item) => item.host)
   const source = analysis?.sourceHostProvenance || {}
-  const sourceText = source.totalBlocks
-    ? `${source.status || 'WARN'} · verified ${source.verifiedBlocks || 0}/${source.totalBlocks} · unverified ${source.unverifiedBlocks || 0} · mismatch ${source.mismatchBlocks || 0} · dropped T/P ${source.droppedTelemetryRows || 0}/${source.droppedProcessRows || 0}`
+  const exact = mapping?.counts?.EXACT || 0
+  const nearest2m = mapping?.counts?.NEAREST_2M || 0
+  const nearest5m = mapping?.counts?.NEAREST_5M || 0
+  const unmapped = mapping?.counts?.UNMAPPED || 0
+  const mapped = exact + nearest2m + nearest5m
+  const processingModeRaw = diagnostics?.engineDiagnostics?.coreAggregator || diagnostics?.engineDiagnostics?.activeEngine || '—'
+  const processingMode = String(processingModeRaw).replace(/^JS\b/i, 'JavaScript')
+  const duckDbStatus = String(diagnostics?.engineDiagnostics?.duckDbStatus || '')
+  const localAnalytics = /fail|timeout|unavailable/i.test(duckDbStatus) ? 'Fallback active' : (duckDbStatus || 'Available')
+  const sourceValidation = source.totalBlocks
+    ? `${source.verifiedBlocks || 0}/${source.totalBlocks} verified${source.mismatchBlocks ? ` · ${source.mismatchBlocks} mismatch` : ""}`
+    : 'Source headers unavailable'
+  const peakMapping = attributionIssues.length ? `Review required · ${attributionIssues.join(", ")}` : 'PASS'
+  const telemetry = capabilities?.mode === 'LEGACY'
+    ? 'Legacy mode · additional Linux telemetry unavailable'
+    : `${capabilities?.mode || "Enhanced"} · ${capabilities?.coveragePct || 0}% coverage`
+  const analysisResult = verdict?.status === 'SINGLE_CULPRIT_SUPPORTED'
+    ? `Primary consumer identified${verdict?.topWorkload ? ` · ${verdict.topWorkload}` : ""}`
+    : 'No single dominant root cause'
+  const sourceRaw = source.totalBlocks
+    ? `${source.status || "WARN"} · verified ${source.verifiedBlocks || 0}/${source.totalBlocks} · unverified ${source.unverifiedBlocks || 0} · mismatch ${source.mismatchBlocks || 0} · dropped T/P ${source.droppedTelemetryRows || 0}/${source.droppedProcessRows || 0}`
     : 'WARN · raw source-host headers unavailable'
-  return <details className="logV2SourceAudit"><summary>Diagnostics</summary><div><table><tbody>
-    <tr><th>SPHERE engine</th><td>{diagnostics?.engineDiagnostics?.rcaEngine || 'SPHERE v3.6.3'}</td></tr>
-    <tr><th>Core aggregator</th><td>{diagnostics?.engineDiagnostics?.coreAggregator || diagnostics?.engineDiagnostics?.activeEngine || '—'}</td></tr>
-    <tr><th>DuckDB</th><td>{diagnostics?.engineDiagnostics?.duckDbStatus || '—'} · {diagnostics?.engineReason || diagnostics?.engineDiagnostics?.reason || 'no error'}</td></tr>
-    <tr><th>Parity</th><td>{parity.status || 'NOT_RUN'} · compared {parity.compared || 0} · mismatches {parity.mismatchCount || 0}</td></tr>
-    <tr><th>Process mapping</th><td>EXACT {mapping?.counts?.EXACT || 0} · ≤2m {mapping?.counts?.NEAREST_2M || 0} · ≤5m {mapping?.counts?.NEAREST_5M || 0} · unmapped {mapping?.counts?.UNMAPPED || 0}</td></tr>
-    <tr><th>Source host provenance</th><td>{sourceText}</td></tr>
-    <tr><th>Host peak attribution</th><td>{attributionIssues.length ? `FAIL · ${attributionIssues.join(', ')}` : 'PASS'}</td></tr>
-    <tr><th>Telemetry</th><td>{capabilities?.mode || 'LEGACY'} · coverage {capabilities?.coveragePct || 0}% · host {capabilities?.hostCoveragePct || 0}% · process {capabilities?.processCoveragePct || 0}%</td></tr>
-    <tr><th>Verdict rules</th><td>{verdict?.reasons?.join(' · ') || 'none'}</td></tr>
-  </tbody></table></div></details>
+
+  return <InspectorSection title="Diagnostics" className="logOpsDiagnostics">
+    <div className="logOpsDiagGrid">
+      <div><span>Analysis Engine</span><strong>{diagnostics?.engineDiagnostics?.rcaEngine || 'SPHERE v3.6.3'}</strong></div>
+      <div><span>Processing Mode</span><strong>{processingMode}</strong></div>
+      <div><span>Process Mapping</span><strong>{mapped.toLocaleString()} mapped · {unmapped} unmapped</strong></div>
+      <div><span>Source Validation</span><strong>{sourceValidation}</strong></div>
+      <div><span>Peak Host Mapping</span><strong>{peakMapping}</strong></div>
+      <div><span>Telemetry Coverage</span><strong>{telemetry}</strong></div>
+      <div className="logOpsDiagResult"><span>Analysis Result</span><strong>{analysisResult}</strong></div>
+    </div>
+    <InspectorSection title="Advanced Diagnostics" className="logOpsAdvancedDiagnostics">
+      <div className="logOpsDiagAdvanced"><table><tbody>
+        <tr><th>Local analytics engine</th><td>{localAnalytics}</td></tr>
+        <tr><th>DuckDB detail</th><td>{duckDbStatus || '—'} · {diagnostics?.engineReason || diagnostics?.engineDiagnostics?.reason || 'no error'}</td></tr>
+        <tr><th>Validation parity</th><td>{parity.status || 'NOT_RUN'} · compared {parity.compared || 0} · mismatches {parity.mismatchCount || 0}</td></tr>
+        <tr><th>Mapping detail</th><td>Exact {exact} · ≤2 min {nearest2m} · ≤5 min {nearest5m} · unmapped {unmapped}</td></tr>
+        <tr><th>Source validation detail</th><td>{sourceRaw}</td></tr>
+        <tr><th>Verdict rules</th><td>{verdict?.reasons?.join(' · ') || 'none'}</td></tr>
+      </tbody></table></div>
+    </InspectorSection>
+  </InspectorSection>
 }
 
 function SourceAudit({ collections = [] }) {
-  return <details className="logV2SourceAudit"><summary>Source Audit</summary><div><table><thead><tr><th>#</th><th>Collection</th><th>Host samples</th><th>Source file</th></tr></thead><tbody>{collections.map((item, index) => <tr key={item.key}><td>{index + 1}</td><td>{item.timeLabel}{item.endTime !== item.timeLabel ? ` → ${item.endTime}` : ''}</td><td>{item.rows.map((row) => `${row.host}@${row.timeLabel || row.snapshot}${row.sourceHostStatus ? ` [${row.sourceHostStatus}]` : ''}`).join(' · ')}</td><td>{item.fileName}</td></tr>)}</tbody></table></div></details>
+  const [viewAll, setViewAll] = React.useState(false)
+  const visibleCollections = viewAll ? collections : collections.slice(0, 12)
+  return <InspectorSection title={`Source Audit · ${collections.length} collections`} className="logOpsSourceAudit">
+    <div className="logOpsSourceToolbar">
+      <span>Verified input collections and source files.</span>
+      {collections.length > 12 ? <button type="button" onClick={() => setViewAll((value) => !value)}>{viewAll ? 'Show first 12' : `View all ${collections.length}`}</button> : null}
+    </div>
+    <div className="logOpsSourceTableWrap"><table className="logOpsSourceTable"><thead><tr><th>#</th><th>Collection</th><th>Host samples</th><th>Source file</th></tr></thead><tbody>{visibleCollections.map((item, index) => {
+      const hostSamples = item.rows.map((row) => `${row.host}@${row.timeLabel || row.snapshot}${row.sourceHostStatus ? ` [${row.sourceHostStatus}]` : ""}`).join(' · ')
+      return <tr key={item.key}><td>{index + 1}</td><td>{item.timeLabel}{item.endTime !== item.timeLabel ? ` → ${item.endTime}` : ''}</td><td title={hostSamples}>{hostSamples}</td><td>{item.fileName}</td></tr>
+    })}</tbody></table></div>
+  </InspectorSection>
 }
 
 function topObservedConsumer(rows = []) {
@@ -190,7 +244,7 @@ function topObservedConsumer(rows = []) {
 
 function scopedConsumerRows(rows = [], focus = null) {
   if (!focus?.host || !focus?.collectionKey) return []
-  return rows.flatMap((row) => {
+  const scoped = rows.flatMap((row) => {
     if (row.host !== focus.host) return []
     const sample = (row.samples || []).find((item) => item.collectionKey === focus.collectionKey)
     if (!sample) return []
@@ -231,22 +285,26 @@ function scopedConsumerRows(rows = [], focus = null) {
       errorTaxonomy: { strongest: { category: 'NONE' } },
       sampleFocus: true,
     }]
-  }).sort((a, b) => Number(b.targetCpu ?? -1) - Number(a.targetCpu ?? -1) || Number(consumerMemory(b) ?? -1) - Number(consumerMemory(a) ?? -1))
+  })
+  return sortSampleConsumers(scoped, focus.metric)
 }
 
 function SampleDrilldownSummary({ focus, rows = [], onClear }) {
   if (!focus) return null
   const top = rows[0] || null
+  const presentation = drilldownMeta(focus.metric)
+  const hostMetric = LOG_V14_METRICS[focus.metric] || LOG_V14_METRICS.cpuPct
+  const contribution = top ? sampleConsumerContribution(top, focus.metric) : null
   return <section className="logV2Panel logV141Summary">
     <div className="logV141SummaryTop">
-      <div><span className="logV141Kicker">CPU SAMPLE DRILLDOWN</span><h2>{focus.host} · {shortTime(focus.timeLabel)}</h2></div>
+      <div><span className="logV141Kicker">{presentation.kicker}</span><h2>{focus.host} · {shortTime(focus.timeLabel)}</h2></div>
       <div className="logV2QuickFilters"><button type="button" onClick={onClear}>Full period</button></div>
     </div>
     <div className="logV141SummaryGrid logV141SummaryGridCompact">
-      <div><span>Host CPU</span><strong>{metricText(focus.value, 1, '%')}</strong><small>application server CPU</small></div>
-      <div><span>Top Consumer</span><strong>{top?.workload || '—'}</strong><small>{top?.program || '—'}</small></div>
-      <div><span>Process CPU</span><strong>{metricText(top?.targetCpu, 1, '%')}</strong><small>at selected sample</small></div>
-      <div><span>WP Type</span><strong>{top?.type || '—'}</strong><small>{rows.length} consumers observed</small></div>
+      <div><span>{presentation.hostLabel}</span><strong>{metricText(focus.value, hostMetric.digits, hostMetric.suffix)}</strong></div>
+      <div><span>Top Contributor</span><strong>{top?.workload || '—'}</strong><small>{top?.program || '—'}</small></div>
+      <div><span>{presentation.contributorLabel}</span><strong>{metricText(contribution, presentation.contributorDigits, presentation.contributorSuffix)}</strong></div>
+      <div><span>WP Type</span><strong>{top?.type || '—'}</strong><small>{rows.length} rows</small></div>
     </div>
   </section>
 }
@@ -317,6 +375,9 @@ export default function ToolLogAutoSphereV5() {
   const focusedRows = React.useMemo(() => scopedConsumerRows(resourceRows, sampleFocus), [resourceRows, sampleFocus])
   const consumerRows = sampleFocus ? focusedRows : resourceRows
   const consumerPointInTime = pointInTime || Boolean(sampleFocus)
+  const samplePresentation = sampleFocus ? drilldownMeta(sampleFocus.metric) : null
+  const consumerSortId = samplePresentation?.sortId || 'cpuValue'
+  const consumerSortResetKey = sampleFocus ? `${sampleFocus.metric}:${sampleFocus.host}:${sampleFocus.collectionKey}` : (pointInTime ? selectedCollectionKey : 'full-period')
 
   const clearSampleFocus = React.useCallback(() => {
     setSampleFocus(null)
@@ -330,7 +391,7 @@ export default function ToolLogAutoSphereV5() {
     if (!point?.collectionKey) return
     setSelectedCollectionKey(point.collectionKey)
     if (point.host) setSelectedHost(point.host)
-    if (point.metric !== 'cpuPct' || !point.host) return
+    if (!point.host) return
     setSampleFocus(point)
     const scoped = scopedConsumerRows(resourceRows, point)
     if (scoped[0]) setSelectedResource(scoped[0])
@@ -358,7 +419,7 @@ export default function ToolLogAutoSphereV5() {
       {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} topRow={trendTopConsumer} />)}
 
       {!pointInTime && <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>{metric === 'cpuPct' ? 'Click a CPU point to inspect consumers on that server at that sample.' : 'Resource trend by log timestamp.'}</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (key !== 'cpuPct' && sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
+        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Click point or MAX for contributors.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
         <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading trend…</div>}>
           <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} onSelectPoint={handleTrendPoint} />
         </React.Suspense>
@@ -368,9 +429,9 @@ export default function ToolLogAutoSphereV5() {
       {pointInTime ? <SnapshotStrip collection={selectedCollection} /> : null}
 
       <section className="logV2Panel" id="top-resource-consumers">
-        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `Top CPU Consumers · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2><p>{sampleFocus ? `Processes observed at ${shortTime(sampleFocus.timeLabel)}. CPU values are process CPU at the selected sample.` : pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
+        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `${samplePresentation.title} · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2>{sampleFocus ? <p>{shortTime(sampleFocus.timeLabel)}</p> : null}</div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
         {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
-          <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} />
+          <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} initialSortId={consumerSortId} sortResetKey={consumerSortResetKey} />
         </React.Suspense>}
       </section>
 

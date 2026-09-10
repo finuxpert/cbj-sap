@@ -81,10 +81,10 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
     const series = hosts.map((host, index) => ({
       name: host,
       type: 'line',
-      cursor: metric === 'cpuPct' ? 'pointer' : 'default',
+      cursor: 'pointer',
       triggerLineEvent: true,
       showSymbol: times.length <= 40,
-      symbolSize: metric === 'cpuPct' ? 9 : 6,
+      symbolSize: 9,
       connectNulls: false,
       emphasis: { focus: 'series', scale: true },
       data: collections.map((collection) => metricValue(collection.byHost?.get?.(host)?.[metric])),
@@ -106,13 +106,27 @@ export function LandscapeResourceEChartV14({ rca, metric = 'memoryPct', onSelect
           const incident = collection?.key === resourcePeak?.key
           const title = `<b>${items[0].axisValue}</b>${collection?.endTime && collection.endTime !== collection.timeLabel ? `<br/><span>${collection.endTime}</span>` : ''}${incident ? `<br/><span>Incident: ${resourceAnchorHost || 'host unknown'} · ${shortStamp(resourceActualTime)}</span>` : ''}`
           const body = items.filter((item) => item.value !== null && item.value !== undefined).map((item) => `${item.marker}${item.seriesName}: <b>${Number(item.value).toFixed(meta.digits)}${meta.suffix}</b>`).join('<br/>')
-          const hint = metric === 'cpuPct' ? '<br/><span style="opacity:.72">Click a CPU point or MAX marker to inspect consumers</span>' : ''
+          const hint = '<br/><span style="opacity:.72">Click a point or MAX marker to inspect metric-relevant contributors</span>'
           return `${title}<br/>${body || 'No metric evidence'}${hint}`
         },
       },
       xAxis: { type: 'category', boundaryGap: false, data: times, axisLabel: { color: '#81979f', hideOverlap: true }, axisLine: { lineStyle: { color: '#2a3b40' } } },
       yAxis: { type: 'value', name: meta.label, nameTextStyle: { color: '#81979f' }, axisLabel: { color: '#81979f', formatter: (value) => `${value}${meta.suffix}` }, splitLine: { lineStyle: { color: '#183036', type: 'dashed' } } },
-      dataZoom: [{ type: 'inside', filterMode: 'none' }, { type: 'slider', bottom: 18, height: 18, borderColor: '#294047', fillerColor: 'rgba(49,199,207,.16)', textStyle: { color: '#81979f' } }],
+      dataZoom: [
+        { type: 'inside', filterMode: 'none' },
+        {
+          type: 'slider',
+          left: 58,
+          right: 34,
+          bottom: 18,
+          height: 18,
+          filterMode: 'none',
+          showDetail: false,
+          borderColor: '#294047',
+          fillerColor: 'rgba(49,199,207,.16)',
+          textStyle: { color: '#81979f' },
+        },
+      ],
       series,
     }
   }, [collections, rca?.hosts, rca?.resourceLandscapePeak, rca?.landscapePeak, rca?.resourceIncidentAnchor, metric, meta.digits, meta.label, meta.suffix])
