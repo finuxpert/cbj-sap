@@ -1,4 +1,4 @@
-# SAP RCA CSS Cleanup Audit
+# SPHERE CSS Cleanup Audit
 
 Date: 2026-05-08  
 Target: sapdev  
@@ -408,7 +408,7 @@ Verify:
 
 - no blank screen
 - navbar desktop/mobile still works
-- SAP RCA logo still visible
+- SPHERE logo still visible
 - homepage Investigation Workspace still readable
 - comparer layout is not broken
 - old floating/shortcut nav does not reappear

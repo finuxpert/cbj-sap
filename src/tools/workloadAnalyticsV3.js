@@ -3,7 +3,7 @@ import duckdbMvpWasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url'
 import duckdbEhWasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url'
 import duckdbMvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url'
 import duckdbEhWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url'
-import { resourceSignalScoresV3 } from './logRcaEngineV3.js'
+import { resourceSignalScoresV3 } from './logSphereEngineV3.js'
 
 const UNKNOWN = '?'
 const DUCKDB_TIMEOUT_MS = 5000
@@ -257,9 +257,9 @@ async function aggregateSnapshotsDuckDb(rows = []) {
       }
     })
   } finally {
-    try { await conn?.close?.() } catch {}
-    try { await db?.terminate?.() } catch {}
-    try { worker?.terminate() } catch {}
+    try { await conn?.close?.() } catch { /* best-effort cleanup */ }
+    try { await db?.terminate?.() } catch { /* best-effort cleanup */ }
+    try { worker?.terminate() } catch { /* best-effort cleanup */ }
   }
 }
 

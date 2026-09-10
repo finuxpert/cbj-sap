@@ -19,7 +19,7 @@ export async function rankResourceConsumersV5(processes = [], rca = {}, analysis
   const verdict = verdictV14(rows, base.verdict || {}, anchor, capabilities)
   const engineDiagnostics = {
     ...(base.engineDiagnostics || {}),
-    rcaEngine: 'RCA v3.6.1',
+    rcaEngine: 'SPHERE v3.6.1',
     coreAggregator: base.engineDiagnostics?.activeEngine || base.engine || 'JS core',
     telemetryMode: capabilities.mode,
     telemetryCapabilities: capabilities,
@@ -28,7 +28,7 @@ export async function rankResourceConsumersV5(processes = [], rca = {}, analysis
     patternVersion: 'v2.1',
   }
   const collector = capabilities.collectorV22 ? ' · collector v2.2' : ''
-  const engine = `RCA v3.6.1 · core ${base.engine || 'JS analytics'} · telemetry ${capabilities.mode.toLowerCase()}${collector} · pattern v2.1`
+  const engine = `SPHERE v3.6.1 · core ${base.engine || 'JS analytics'} · telemetry ${capabilities.mode.toLowerCase()}${collector} · pattern v2.1`
 
   rows.verdict = verdict
   rows.incidentAnchor = anchor

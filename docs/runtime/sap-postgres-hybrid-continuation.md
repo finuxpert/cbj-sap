@@ -3,7 +3,7 @@
 Last updated: 2026-05-10
 
 Repo:
-- GitHub: finuxpert/cbj-sap
+- GitHub: finuxpert/sphere
 - Branch: dev
 - Local path: /home/sadmin/sap
 - DEV URL: https://sapdev.cbj-kontruksi.com
@@ -50,7 +50,7 @@ Important commits:
 - 06f8e00 Extract DB-first read helpers
 - 77cf204 Add DB-first parsed results history endpoint
 - c36a3f4 Add DB-backed evidence history panel
-- 4fecd9c Add PostgreSQL-first reads for SAP RCA hybrid mode
+- 4fecd9c Add PostgreSQL-first reads for SPHERE hybrid mode
 - 84a50b9 Add JSON to PostgreSQL migration script
 - 35a03cc Stabilize SAP hybrid DB scripts
 
@@ -158,7 +158,7 @@ Expected UI:
 
 GitHub Actions / Workflow Status:
 - Operational deploy workflow:
-  - Name: Deploy SAP RCA Workspace to sapdev
+  - Name: Deploy SPHERE to sapdev
   - File: .github/workflows/deploy-sapdev.yml
   - Workflow ID: 273264105
   - Trigger: push to dev and workflow_dispatch
@@ -192,14 +192,14 @@ Deploy:
 
 GitHub DEV Deploy Workflow:
 - Current operational workflow file: .github/workflows/deploy-sapdev.yml
-- Workflow name: Deploy SAP RCA Workspace to sapdev
+- Workflow name: Deploy SPHERE to sapdev
 - Workflow ID: 273264105
 - Trigger: push to dev or workflow_dispatch.
 - Runner: self-hosted sapdev-pc-runner.
 - Manual command:
 
 ```bash
-gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
+gh workflow run 273264105 --repo finuxpert/sphere --ref dev
 ```
 
 Backend Safe Refactor Workflow:
@@ -330,7 +330,7 @@ Recommended next development:
 
 Latest validated DEV/sapdev manual deploy uses the registered GitHub Actions workflow:
 
-- Workflow name: Deploy SAP RCA Workspace to sapdev
+- Workflow name: Deploy SPHERE to sapdev
 - Workflow file: `.github/workflows/deploy-sapdev.yml`
 - Workflow ID: `273264105`
 - Trigger: `workflow_dispatch`
@@ -340,7 +340,7 @@ Latest validated DEV/sapdev manual deploy uses the registered GitHub Actions wor
 Command used:
 
 ```bash
-gh workflow run 273264105 --repo finuxpert/cbj-sap --ref dev
+gh workflow run 273264105 --repo finuxpert/sphere --ref dev
 ```
 
 Latest validation after deploy:

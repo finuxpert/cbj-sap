@@ -1,11 +1,11 @@
-# SAP RCA Workspace QA Checklist
+# SPHERE QA Checklist
 
-Use this checklist for every SAP RCA Workspace DEV deployment and for future web app audits.
+Use this checklist for every SPHERE DEV deployment and for future web app audits.
 
 ## Scope
 
 ```text
-Repo   : finuxpert/cbj-sap
+Repo   : finuxpert/sphere
 Branch : dev
 Target : sapdev
 URL    : https://sapdev.cbj-kontruksi.com
@@ -87,7 +87,7 @@ Most recent known green validation after CSS consolidation:
 
 ```text
 Commit : 9df3a9a
-Subject: Update SAP RCA current status after CSS consolidation
+Subject: Update SPHERE current status after CSS consolidation
 Status : green
 ```
 
@@ -133,7 +133,7 @@ https://sapdev.cbj-kontruksi.com/sap/
 Check:
 
 - page loads without blank screen
-- custom SAP RCA badge appears in navbar
+- custom SPHERE badge appears in navbar
 - navbar tabs are visible on desktop
 - mobile menu works on small screen
 - dashboard cards/panels are readable
@@ -260,7 +260,7 @@ Check desktop and mobile widths.
 
 ### Navbar
 
-- custom SAP RCA badge visible
+- custom SPHERE badge visible
 - active tab visible
 - no overlap between logo and tool tabs
 - mobile menu opens and closes
@@ -390,7 +390,7 @@ src/app/sap-rca-logo.css
 Note:
 
 ```text
-Custom internal SAP RCA badge only. Not official SAP logo asset.
+Custom internal SPHERE badge only. Not official SAP logo asset.
 ```
 
 ## Regression red flags

@@ -37,7 +37,7 @@ function TimelineList({ items = [] }) {
       {items.map((item, index) => (
         <article key={item.id || `${item.time || item.created_at || 'timeline'}-${index}`}>
           <span>{formatDate(item.time || item.created_at)}</span>
-          <strong>{item.title || item.tool || 'RCA event'}</strong>
+          <strong>{item.title || item.tool || 'SPHERE event'}</strong>
           <p>{item.description || item.summary || item.reason || '-'}</p>
         </article>
       ))}
@@ -223,7 +223,7 @@ export default function CaseDetail({ caseId }) {
         <>
           <div className="caseDetailHero">
             <div>
-              <p className="sectionKicker">Management RCA Snapshot</p>
+              <p className="sectionKicker">Management SPHERE Snapshot</p>
               <h1>{caseData.title || caseData.case_no || caseData.id}</h1>
               <p>{summary}</p>
             </div>

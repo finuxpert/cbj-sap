@@ -1,4 +1,4 @@
-# SAP RCA Frontend Audit & Development Plan
+# SPHERE Frontend Audit & Development Plan
 
 Generated: 2026-05-10
 Branch: `dev`

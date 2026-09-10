@@ -4,7 +4,7 @@ import {
   normalizeCorrelationSources,
   sanitizeCorrelationHosts,
   sanitizeWorkprocesses,
-} from './rca-panel-utils.js'
+} from './sphere-panel-utils.js'
 
 export default function CorrelationSummary({ correlation, loading }) {
   const [showAllHosts, setShowAllHosts] = React.useState(false)
@@ -12,7 +12,7 @@ export default function CorrelationSummary({ correlation, loading }) {
   if (loading) {
     return (
       <article className="caseDetailPanel caseDetailAnalyticsPanel">
-        <div className="caseDetailChartEmpty">Correlation engine is analyzing RCA signals...</div>
+        <div className="caseDetailChartEmpty">SPHERE correlation engine is analyzing signals...</div>
       </article>
     )
   }
@@ -29,13 +29,13 @@ export default function CorrelationSummary({ correlation, loading }) {
   const actions = Array.isArray(correlation?.recommended_actions)
     ? correlation.recommended_actions.slice(0, 3)
     : []
-  const nextCheck = actions[0] || correlation?.next_check || 'Collect more cross-tool evidence before final RCA.'
+  const nextCheck = actions[0] || correlation?.next_check || 'Collect more cross-tool evidence before final root-cause conclusion.'
 
   return (
     <article className="caseDetailPanel caseDetailAnalyticsPanel caseCorrelationSummary" data-rca-correlation="true">
       <div className="intelHead">
         <div>
-          <span>RCA Analytics</span>
+          <span>SPHERE Analytics</span>
           <small className="rcaPanelSubtext">Backend-generated analytics from Case History API</small>
         </div>
         <strong className={`rcaSeverityBadge is${severity.toLowerCase()}`} data-correlation-severity>{severity}</strong>

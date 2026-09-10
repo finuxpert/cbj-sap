@@ -116,9 +116,9 @@ function detectToolTitle(slug) {
   const activeTitle = textOf('h1', '')
   const map = {
     comparer: {
-      title: 'SAP Intelligent RCA Comparator Report',
+      title: 'SPHERE Comparator Report',
       subtitle: 'WP-SCOUT Process Evidence',
-      filename: 'sap-comparator-wpscout-rca-report',
+      filename: 'sphere-comparator-wpscout-report',
       actions: [
         'Validate top PID/WP in SM50 or SM66.',
         'Check JobName owner and latest execution in SM37.',
@@ -127,20 +127,20 @@ function detectToolTitle(slug) {
       ],
     },
     analyzer: {
-      title: 'SAP Intelligent ST03N Workload RCA Report',
+      title: 'SPHERE ST03N Workload Report',
       subtitle: 'ST03N Impact Evidence',
-      filename: 'sap-st03n-impact-rca-report',
+      filename: 'sphere-st03n-impact-report',
       actions: [
         'Review Top ST03N Evidence and dominant component.',
         'Validate whether response time is driven by DB, wait, CPU, or workload spike.',
-        'Check completeness of required ST03N files before final RCA conclusion.',
+        'Check completeness of required ST03N files before final root-cause conclusion.',
         'Attach source XLSX/CSV evidence with the incident record.',
       ],
     },
     logs: {
-      title: 'SAP Intelligent Log Evidence RCA Report',
+      title: 'SPHERE Log Evidence Report',
       subtitle: 'Log Evidence / Error Pattern Drilldown',
-      filename: 'sap-log-evidence-rca-report',
+      filename: 'sphere-log-evidence-report',
       actions: [
         'Group repeated error patterns by ErrorCode, JobName, and Program.',
         'Confirm owner direction before assigning Basis, ABAP, DB, or Functional action.',
@@ -151,9 +151,9 @@ function detectToolTitle(slug) {
   }
 
   const meta = map[slug] || {
-    title: 'SAP Intelligent RCA Workspace Report',
+    title: 'SPHERE Report',
     subtitle: 'Evidence Pack Summary',
-    filename: 'sap-intelligent-rca-report',
+    filename: 'sphere-report',
     actions: [
       'Validate uploaded evidence completeness.',
       'Confirm primary suspect before escalation.',
@@ -285,7 +285,7 @@ function addFooter(pdf, page, report) {
     pdf.setTextColor(110, 120, 125)
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(7.5)
-    pdf.text(`SAP Intelligent RCA Workspace • ${report.generatedAt}`, page.m, page.h - 7)
+    pdf.text(`SPHERE • ${report.generatedAt}`, page.m, page.h - 7)
     pdf.text(`Page ${i} / ${count}`, page.w - page.m - 20, page.h - 7)
   }
 }
@@ -456,7 +456,7 @@ export async function exportStructuredPdf(slug) {
     pdf.setTextColor(0, 90, 84)
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(10)
-    pdf.text('RCA Visual Summary', x + 5, boxY + 8)
+    pdf.text('SPHERE Visual Summary', x + 5, boxY + 8)
 
     drawSafeGauge(x + 22, boxY + 31, 13, report.executive.confidenceValue || 55, sev)
     pdf.setTextColor(25, 35, 35)
@@ -557,7 +557,7 @@ export async function exportStructuredPdf(slug) {
     })
     y += 56
     drawNativeAnalytics()
-    line('Executive RCA narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, infra pressure, incident timeline, and recommended validation steps.', 10)
+    line('Executive analysis narrative: this PDF is generated from structured tool state and embedded chart graphics, prioritizing decision summary, visual evidence, infra pressure, incident timeline, and recommended validation steps.', 10)
   }
 
   drawCover()
@@ -565,10 +565,10 @@ export async function exportStructuredPdf(slug) {
   section('1. Executive Summary')
   if (report.session) line(`Session: ${report.session}`, 9)
   if (report.status) line(`Status: ${report.status}`, 9)
-  line('Purpose: structured SAP RCA report generated from the active tool state. It combines executive summary, native chart captures, top evidence, and recommended checks.', 10)
+  line('Purpose: structured SPHERE report generated from the active tool state. It combines executive summary, native chart captures, top evidence, and recommended checks.', 10)
 
   if (report.correlation) {
-    section('2. RCA Correlation Summary')
+    section('2. SPHERE Correlation Summary')
     if (report.correlation.severity) line(`Severity: ${report.correlation.severity}`, 9.5, 'bold')
     if (report.correlation.confidence) line(`Confidence: ${report.correlation.confidence}`, 9.5, 'bold')
     if (report.correlation.rootCause) line(`Top Root Cause: ${report.correlation.rootCause}`, 9.6)
@@ -619,12 +619,12 @@ export async function exportStructuredPdf(slug) {
     line('No visible finding panel detected.', 10, 'italic')
   }
 
-  section(`${sectionNo(chartImages.length ? '6' : '5', chartImages.length ? '7' : '6')}. Recommended Basis / RCA Actions`)
+  section(`${sectionNo(chartImages.length ? '6' : '5', chartImages.length ? '7' : '6')}. Recommended Basis / SPHERE Actions`)
   report.actions.forEach((action, index) => bullet(action, index, 9.8))
 
   section(`${sectionNo(chartImages.length ? '7' : '6', chartImages.length ? '8' : '7')}. Evidence Handling Notes`)
   ;[
-    'Use this PDF as a readable RCA summary, not as replacement for raw evidence.',
+    'Use this PDF as a readable SPHERE summary, not as replacement for raw evidence.',
     'Attach original WP-SCOUT, ST03N, SM21/ST22, or job log files to the incident record.',
     'If confidence is low, collect another evidence snapshot from the same incident window.',
   ].forEach((note, index) => bullet(note, index, 9.2))

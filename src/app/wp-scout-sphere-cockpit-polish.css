@@ -1,0 +1,463 @@
+/* WP-SCOUT RCA cockpit polish
+   Incremental CSS-only layer: no API, parser, DB, PDF, or runtime-injector changes. */
+
+.appShell.isTool .cmpCleanShell {
+  --rca-panel-bg: rgba(13, 24, 29, .96);
+  --rca-panel-border: rgba(148, 163, 184, .14);
+  --rca-soft-line: rgba(45, 212, 191, .18);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanStats {
+  position: sticky;
+  top: 12px;
+  z-index: 11;
+  padding: 10px;
+  border: 1px solid rgba(45, 212, 191, .20);
+  border-left: 4px solid rgba(45, 212, 191, .84);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(8, 20, 24, .96), rgba(9, 35, 32, .92));
+  box-shadow: 0 16px 44px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255,255,255,.05);
+  backdrop-filter: blur(14px);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanStats::before {
+  content: "EXECUTIVE SPHERE COCKPIT";
+  display: block;
+  margin: 0 0 8px 2px;
+  color: rgba(94, 234, 212, .96);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .16em;
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanStats > div {
+  min-width: 0;
+  border-radius: 14px;
+  background: rgba(255,255,255,.045);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanHeader,
+.appShell.isTool .cmpCleanShell .cmpCleanEvidenceIntake,
+.appShell.isTool .cmpCleanShell .cmpCleanIntakeCard,
+.appShell.isTool .cmpCleanShell .cmpCleanSideRail,
+.appShell.isTool .cmpCleanShell .cmpCleanPanel,
+.appShell.isTool .cmpCleanShell .rcaReadableChartPanel,
+.appShell.isTool .cmpRcaInsightPanel {
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanPanelHead h2,
+.appShell.isTool .cmpCleanShell .chartTitleBlock h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -.01em;
+}
+
+.appShell.isTool .cmpCleanShell .cmpCleanPanelHead h2::before,
+.appShell.isTool .cmpCleanShell .chartTitleBlock h2::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 999px;
+  background: rgba(45, 212, 191, .92);
+  box-shadow: 0 0 18px rgba(45, 212, 191, .62);
+}
+
+.appShell.isTool .cmpCleanTableWrap {
+  border-radius: 16px;
+  background: rgba(0,0,0,.18);
+}
+
+.appShell.isTool .cmpCleanTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(5, 21, 23, .98);
+  backdrop-filter: blur(10px);
+}
+
+.appShell.isTool .cmpCleanTable tbody tr {
+  border-bottom: 1px solid rgba(148, 163, 184, .08);
+}
+
+.appShell.isTool .cmpCleanTable tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, .015);
+}
+
+.appShell.isTool .cmpCleanTable tbody tr:hover {
+  background: rgba(45, 212, 191, .075);
+  box-shadow: inset 3px 0 0 rgba(45, 212, 191, .75);
+}
+
+.appShell.isTool .cmpCleanTable td:first-child {
+  border-left: 3px solid transparent;
+}
+
+.appShell.isTool .cmpCleanTable tr:has(.cmpCleanBadge.crit) td:first-child {
+  border-left-color: rgba(248,113,113,.86);
+}
+
+.appShell.isTool .cmpCleanTable tr:has(.cmpCleanBadge.warn) td:first-child {
+  border-left-color: rgba(250,204,21,.78);
+}
+
+.appShell.isTool .rcaReadableChartPanel .cmpCleanChart,
+.appShell.isTool .rcaReadableChartPanel .cmpResourceTrendChart {
+  border-radius: 16px;
+  background: radial-gradient(circle at 12% 0%, rgba(45, 212, 191, .10), transparent 34%), rgba(2, 12, 16, .58);
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text,
+.appShell.isTool .rcaReadableChartPanel .recharts-text {
+  fill: rgba(226, 245, 245, .82);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-label-list text {
+  fill: rgba(235,255,250,.96);
+  font-size: 12px;
+  font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(0,0,0,.55);
+  stroke-width: 2px;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-legend-wrapper {
+  color: rgba(226,245,245,.92) !important;
+}
+
+.appShell.isTool .rcaReadableChartPanel .recharts-default-legend {
+  font-size: 13px !important;
+  font-weight: 800;
+}
+
+.appShell.isTool .sapPdfDock {
+  border: 1px solid rgba(45, 212, 191, .30);
+  box-shadow: 0 14px 40px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.04) inset;
+}
+
+/* safer fallback state */
+.appShell.isTool .cmpCleanEvidenceIntake,
+.appShell.isTool .cmpCleanIntakeCard,
+.appShell.isTool .cmpCleanSideRail {
+  transition: max-height .22s ease, opacity .22s ease;
+}
+
+@supports(selector(:has(*))) {
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail {
+    position: relative;
+  }
+
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake::after,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard::after,
+  .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail::after {
+    content: "Compact after parse · focus on SPHERE below";
+    position: absolute;
+    right: 12px;
+    bottom: 10px;
+    padding: 5px 8px;
+    border: 1px solid rgba(45,212,191,.20);
+    border-radius: 999px;
+    background: rgba(2,12,16,.70);
+    color: rgba(153,246,228,.88);
+    font-size: 10px;
+    font-weight: 850;
+    pointer-events: none;
+  }
+}
+
+.appShell.isTool .cmpRcaInsightPanel {
+  width: min(1200px, calc(100% - 32px));
+  margin: 18px auto 0;
+  min-height: 260px;
+  padding: 20px 22px;
+  border: 1px solid rgba(45,212,191,.18);
+  border-left: 4px solid rgba(45,212,191,.80);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top left, rgba(45,212,191,.16), transparent 36%),
+    radial-gradient(circle at bottom right, rgba(56,189,248,.10), transparent 34%),
+    linear-gradient(135deg, rgba(9,22,25,.98), rgba(3,12,16,.96));
+  color: rgba(226,245,245,.88);
+}
+
+.appShell.isTool .cmpRcaInsightEyebrow {
+  display: block;
+  margin-bottom: 10px;
+  color: rgba(153,246,228,.90);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.appShell.isTool .cmpRcaInsightPanel h2 {
+  margin: 0 0 16px;
+  color: rgba(248,250,252,.96);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.appShell.isTool .cmpRcaInsightSections {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.appShell.isTool .cmpRcaInsightSection {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(148,163,184,.12);
+  border-radius: 16px;
+  background: rgba(255,255,255,.035);
+}
+
+.appShell.isTool .cmpRcaInsightSection strong {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(248,250,252,.96);
+  font-size: 14px;
+}
+
+.appShell.isTool .cmpRcaInsightSection ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.appShell.isTool .cmpRcaInsightSection li {
+  margin: 6px 0;
+  color: rgba(203,213,225,.88);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.appShell.isTool .cmpCleanExecutiveRibbon {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(220px, .9fr) minmax(260px, 1fr);
+  gap: 14px;
+  margin: 14px 0 16px;
+  padding: 16px;
+  border: 1px solid rgba(45,212,191,.22);
+  border-left: 5px solid rgba(45,212,191,.86);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(45,212,191,.18), transparent 34%),
+    radial-gradient(circle at 92% 18%, rgba(56,189,248,.10), transparent 32%),
+    linear-gradient(135deg, rgba(4,20,24,.98), rgba(5,13,19,.96));
+  box-shadow: 0 20px 48px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.055);
+}
+
+.appShell.isTool .cmpCleanExecutiveRibbon.crit {
+  border-left-color: rgba(248,113,113,.92);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(248,113,113,.18), transparent 32%),
+    radial-gradient(circle at 92% 18%, rgba(45,212,191,.10), transparent 30%),
+    linear-gradient(135deg, rgba(31,12,17,.98), rgba(5,13,19,.96));
+}
+
+.appShell.isTool .cmpCleanExecutiveRibbon.warn {
+  border-left-color: rgba(250,204,21,.86);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(250,204,21,.15), transparent 30%),
+    radial-gradient(circle at 92% 18%, rgba(45,212,191,.10), transparent 30%),
+    linear-gradient(135deg, rgba(30,24,10,.98), rgba(5,13,19,.96));
+}
+
+.appShell.isTool .cmpExecutiveRibbonMain,
+.appShell.isTool .cmpExecutiveRibbonTarget,
+.appShell.isTool .cmpExecutiveRibbonAction {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(148,163,184,.12);
+  border-radius: 18px;
+  background: rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+.appShell.isTool .cmpExecutiveEyebrow,
+.appShell.isTool .cmpExecutiveLabel {
+  display: block;
+  margin-bottom: 8px;
+  color: rgba(153,246,228,.90);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.appShell.isTool .cmpExecutiveRibbonMain strong {
+  display: block;
+  color: rgba(248,250,252,.98);
+  font-size: clamp(20px, 2.1vw, 30px);
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
+
+.appShell.isTool .cmpExecutiveRibbonMain p,
+.appShell.isTool .cmpExecutiveRibbonAction p {
+  margin: 9px 0 0;
+  color: rgba(203,213,225,.86);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.appShell.isTool .cmpExecutivePills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.appShell.isTool .cmpExecutivePills span,
+.appShell.isTool .cmpExecutiveTargetMeta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 5px 8px;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 999px;
+  background: rgba(2,12,16,.58);
+  color: rgba(226,245,245,.90);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.appShell.isTool .cmpExecutiveTargetLine {
+  color: rgba(248,250,252,.96);
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.appShell.isTool .cmpExecutiveTargetMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.appShell.isTool .cmpExecutiveRibbonAction strong {
+  display: block;
+  color: rgba(248,250,252,.96);
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+@media (min-width: 1200px) {
+  .appShell.isTool .cmpCleanShell .cmpCleanGrid {
+    align-items: stretch;
+  }
+
+  .appShell.isTool .cmpCleanShell .rcaReadableChartPanel .cmpCleanChart,
+  .appShell.isTool .cmpCleanShell .cmpResourceTrendPanel .cmpResourceTrendChart {
+    min-height: 275px;
+    height: 275px;
+  }
+}
+
+@media (max-width: 980px) {
+  .appShell.isTool .cmpCleanExecutiveRibbon,
+  .appShell.isTool .cmpRcaInsightSections {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .appShell.isTool .cmpCleanShell {
+    padding-inline: 8px;
+  }
+
+  .appShell.isTool .cmpCleanShell .cmpCleanStats {
+    top: 8px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  @supports(selector(:has(*))) {
+    .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanEvidenceIntake,
+    .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanIntakeCard,
+    .appShell.isTool .cmpCleanShell:has(.cmpCleanStats) .cmpCleanSideRail {
+      max-height: 136px;
+      overflow: hidden;
+      opacity: .90;
+      border-radius: 16px;
+    }
+  }
+
+  .appShell.isTool .cmpCleanTableWrap {
+    max-height: 420px;
+    overflow: auto;
+  }
+
+  .appShell.isTool .cmpCleanTable {
+    min-width: 640px;
+  }
+
+  .appShell.isTool .cmpCleanTable th,
+  .appShell.isTool .cmpCleanTable td {
+    padding: 7px 8px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .appShell.isTool .cmpCleanTable th:nth-child(6),
+  .appShell.isTool .cmpCleanTable td:nth-child(6),
+  .appShell.isTool .cmpCleanTable th:nth-child(8),
+  .appShell.isTool .cmpCleanTable td:nth-child(8) {
+    display: none;
+  }
+
+  .appShell.isTool .rcaReadableChartPanel .cmpCleanChart,
+  .appShell.isTool .cmpResourceTrendPanel .cmpResourceTrendChart {
+    min-height: 252px;
+    height: 252px;
+  }
+
+  .appShell.isTool .rcaReadableChartPanel .recharts-cartesian-axis-tick text,
+  .appShell.isTool .rcaReadableChartPanel .recharts-text,
+  .appShell.isTool .rcaReadableChartPanel .recharts-label-list text {
+    font-size: 9px;
+  }
+
+  .appShell.isTool .cmpCleanExecutiveRibbon {
+    margin-top: 10px;
+    padding: 10px;
+    gap: 10px;
+    border-radius: 18px;
+  }
+
+  .appShell.isTool .cmpRcaInsightPanel {
+    width: calc(100% - 16px);
+    min-height: auto;
+    padding: 12px;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .appShell.isTool .cmpRcaInsightPanel h2 {
+    font-size: 18px;
+  }
+
+  .appShell.isTool .cmpExecutiveRibbonMain,
+  .appShell.isTool .cmpExecutiveRibbonTarget,
+  .appShell.isTool .cmpExecutiveRibbonAction {
+    padding: 11px;
+    border-radius: 15px;
+  }
+
+  .appShell.isTool .cmpExecutiveRibbonMain strong {
+    font-size: 20px;
+  }
+
+  .appShell.isTool .cmpExecutiveTargetLine {
+    font-size: 15px;
+  }
+}

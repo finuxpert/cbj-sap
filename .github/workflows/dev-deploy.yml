@@ -56,6 +56,8 @@ jobs:
         working-directory: /home/sadmin/sap
         run: |
           set -euo pipefail
+          git remote set-url origin https://github.com/finuxpert/sphere.git
+          echo "Origin: $(git remote get-url origin)"
           git fetch origin dev
           git checkout dev
           git reset --hard origin/dev

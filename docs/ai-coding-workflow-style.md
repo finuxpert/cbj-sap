@@ -1,6 +1,6 @@
 # AI Coding Workflow Style
 
-This document describes the preferred coding workflow for SAP RCA Workspace and other CBJ/Finuxpert web apps.
+This document describes the preferred coding workflow for SPHERE and other CBJ/Finuxpert web apps.
 
 The goal is to improve web apps continuously while keeping the codebase clean, auditable, and easy to continue in a new ChatGPT prompt.
 
@@ -41,10 +41,10 @@ big rewrite -> many files changed -> hard to debug -> hard rollback
 
 ### 2. DEV first
 
-For SAP RCA Workspace:
+For SPHERE:
 
 ```text
-Repo   : finuxpert/cbj-sap
+Repo   : finuxpert/sphere
 Branch : dev
 Target : sapdev
 URL    : https://sapdev.cbj-kontruksi.com
@@ -59,7 +59,7 @@ The DEV deploy workflow should run automatically on push to branch `dev`.
 Expected file:
 
 ```text
-.github/workflows/deploy-dev.yml
+.github/workflows/dev-deploy.yml
 ```
 
 Expected behavior:
@@ -72,7 +72,7 @@ Manual workflow is acceptable, but the preferred flow is no manual clicking when
 
 ### 4. Keep UI changes structured
 
-For SAP RCA Workspace, newer UI polish layers must be centralized through:
+For SPHERE, newer UI polish layers must be centralized through:
 
 ```text
 src/app/enterprise-theme.css
@@ -153,7 +153,7 @@ APP_BUILD_STAMP
 Example:
 
 ```js
-const APP_BUILD_STAMP = 'sap-20260508-pdf-export-ux'
+const APP_BUILD_STAMP = 'sphere-20260909-pdf-export-ux'
 ```
 
 Use meaningful names, not random text.
@@ -165,7 +165,7 @@ Use short imperative commit messages:
 ```text
 Add Comparator UX polish
 Import enterprise theme
-Upgrade structured RCA PDF report export
+Upgrade structured SPHERE PDF report export
 Auto deploy sapdev on dev branch push
 Document enterprise theme structure
 ```
@@ -251,8 +251,8 @@ Next recommended step
 Use this when starting a new prompt for this repo:
 
 ```text
-Lanjut SAP RCA Workspace coding style.
-Repo: finuxpert/cbj-sap
+Lanjut SPHERE coding style.
+Repo: finuxpert/sphere
 Branch: dev
 Target: sapdev
 URL: https://sapdev.cbj-kontruksi.com
@@ -299,7 +299,7 @@ Start by checking repo structure, build workflow, deploy target, CSS layers, and
 Then propose or apply the safest first patch.
 ```
 
-## Current SAP RCA Workspace UI layers
+## Current SPHERE UI layers
 
 Current newer polish layers:
 
@@ -314,11 +314,12 @@ src/app/comparer-process-ux.css
 src/app/pdf-export-ux.css
 ```
 
-Current PDF export source:
+Current PDF export sources:
 
 ```text
 src/features/pdf/structuredPdf.js
-src/features/pdf/ToolExportDock.jsx
+src/features/cases/casePdfExport.js
+src/tools/sphereExport.js
 ```
 
 Current core tools:

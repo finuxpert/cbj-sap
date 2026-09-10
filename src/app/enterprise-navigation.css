@@ -1,20 +1,20 @@
 /*
- * SAP RCA Workspace - Enterprise navigation polish.
+ * SPHERE - Enterprise navigation polish.
  * CSS-only: improves top tabs, mobile dock, active state, and tool-mode scanability.
  */
-.rcaNavInner {
+.sphereNavInner {
   min-height: 62px;
 }
 
-.rcaBrand {
+.sphereBrand {
   min-width: 220px;
 }
 
-.rcaBrand .brandTitle {
+.sphereBrand .brandTitle {
   letter-spacing: -0.02em;
 }
 
-.rcaToolTabs {
+.sphereToolTabs {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -23,7 +23,7 @@
   min-width: 0;
 }
 
-.rcaToolTabs a {
+.sphereToolTabs a {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -41,7 +41,7 @@
   transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease, transform 0.14s ease;
 }
 
-.rcaToolTabs a span {
+.sphereToolTabs a span {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -52,21 +52,21 @@
   font-size: 12px;
 }
 
-.rcaToolTabs a:hover {
+.sphereToolTabs a:hover {
   transform: translateY(-1px);
   color: rgba(250, 255, 253, 0.96);
   border-color: rgba(45, 212, 191, 0.28);
   background: rgba(45, 212, 191, 0.075);
 }
 
-.rcaToolTabs a[data-active="true"] {
+.sphereToolTabs a[data-active="true"] {
   color: #effffb;
   border-color: rgba(45, 212, 191, 0.44);
   background: linear-gradient(135deg, rgba(45, 212, 191, 0.22), rgba(56, 189, 248, 0.10));
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.rcaToolTabs a[data-active="true"]::after {
+.sphereToolTabs a[data-active="true"]::after {
   content: "";
   position: absolute;
   left: 16px;
@@ -77,11 +77,11 @@
   background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.86), transparent);
 }
 
-.rcaNavLinks {
+.sphereNavLinks {
   flex: 0 0 auto;
 }
 
-.rcaNavLinks a {
+.sphereNavLinks a {
   min-height: 36px;
   display: inline-flex;
   align-items: center;
@@ -219,32 +219,32 @@
   position: sticky;
 }
 
-.appShell.isTool .rcaToolTabs a {
+.appShell.isTool .sphereToolTabs a {
   background: rgba(255, 255, 255, 0.035);
 }
 
-.appShell.isTool .rcaToolTabs a[data-active="true"] {
+.appShell.isTool .sphereToolTabs a[data-active="true"] {
   background: linear-gradient(135deg, rgba(45, 212, 191, 0.26), rgba(56, 189, 248, 0.12));
 }
 
 @media (max-width: 1180px) {
-  .rcaBrand {
+  .sphereBrand {
     min-width: 190px;
   }
 
-  .rcaToolTabs a {
+  .sphereToolTabs a {
     padding-inline: 10px;
     font-size: 11px;
   }
 
-  .rcaNavLinks a {
+  .sphereNavLinks a {
     padding-inline: 9px !important;
     font-size: 12px !important;
   }
 }
 
 @media (max-width: 980px) {
-  .rcaToolTabs {
+  .sphereToolTabs {
     order: 5;
     flex: 1 1 100%;
     justify-content: flex-start;
@@ -253,22 +253,22 @@
     scrollbar-width: none;
   }
 
-  .rcaToolTabs::-webkit-scrollbar {
+  .sphereToolTabs::-webkit-scrollbar {
     display: none;
   }
 
-  .rcaNavInner {
+  .sphereNavInner {
     flex-wrap: wrap;
     row-gap: 8px;
   }
 
-  .rcaToolTabs a[data-active="true"]::after {
+  .sphereToolTabs a[data-active="true"]::after {
     bottom: -5px;
   }
 }
 
 @media (max-width: 860px) {
-  .rcaNavInner {
+  .sphereNavInner {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 44px;
     align-items: center;
@@ -276,28 +276,28 @@
     padding: 8px 12px;
   }
 
-  .rcaNavLinks {
+  .sphereNavLinks {
     display: none !important;
   }
 
-  .rcaBrand {
+  .sphereBrand {
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
   }
 
-  .rcaBrand .brandText {
+  .sphereBrand .brandText {
     min-width: 0;
     overflow: hidden;
   }
 
-  .rcaBrand .brandTitle {
+  .sphereBrand .brandTitle {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .rcaToolTabs {
+  .sphereToolTabs {
     display: none;
   }
 
@@ -359,12 +359,12 @@
     display: none !important;
   }
 
-  .rcaNavInner {
+  .sphereNavInner {
     min-height: 56px;
     padding-inline: 8px;
   }
 
-  .rcaBrand {
+  .sphereBrand {
     gap: 8px;
   }
 

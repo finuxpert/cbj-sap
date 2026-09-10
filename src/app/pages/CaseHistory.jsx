@@ -229,7 +229,7 @@ export default function CaseHistory() {
       <div className="caseHistoryHero">
         <div>
           <p className="sectionKicker">Case History V1</p>
-          <h1>Persistent RCA Investigation Workspace</h1>
+          <h1>Persistent SPHERE Investigation Workspace</h1>
           <p>
             Buka ulang investigation case dari mobile, cek anomaly summary, linked evidence,
             parsed result, dan maintenance status tanpa upload ulang.
@@ -265,7 +265,7 @@ export default function CaseHistory() {
           </select>
         </label>
         <label>
-          <span>RCA Stage</span>
+          <span>SPHERE Stage</span>
           <select value={stage} onChange={(event) => setStage(event.target.value)}>
             <option value="all">All stages</option>
             <option value="intake">INTAKE</option>

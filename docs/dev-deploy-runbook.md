@@ -1,19 +1,19 @@
-# SAP RCA Workspace DEV Deploy Runbook
+# SPHERE DEV Deploy Runbook
 
-This document explains how the SAP RCA Workspace is built and deployed to the DEV server.
+This document explains how the SPHERE is built and deployed to the DEV server.
 
 ## Current Deploy Model
 
 The project uses GitHub Actions with a self-hosted runner on the DEV server.
 
-1. **Build SAP RCA Workspace**
+1. **Build SPHERE**
    - File: `.github/workflows/build.yml`
    - Runs on GitHub-hosted runner.
    - Executes `npm install` and `npm run build`.
    - Validates that the React/Vite app can build successfully.
    - Runs for `main` and `dev` branches.
 
-2. **Deploy SAP RCA Workspace to DEV**
+2. **Deploy SPHERE to DEV**
    - File: `.github/workflows/deploy-dev.yml`
    - Runs on the DEV server using a self-hosted runner.
    - Runner label: `sapdev`
@@ -26,7 +26,7 @@ The DEV server is behind Cloudflare Tunnel and does not expose SSH publicly. Bec
 ## Repository and Server Paths
 
 ```text
-Repository: finuxpert/cbj-sap
+Repository: finuxpert/sphere
 Active DEV branch: dev
 Local project path: /home/sadmin/sap
 Deploy root: /var/www/svr01-dev/sap
@@ -73,7 +73,7 @@ Preferred automatic DEV flow:
 
 ```text
 Commit/push to dev
-→ Deploy SAP RCA Workspace to DEV
+→ Deploy SPHERE to DEV
 → Self-hosted runner executes deploy locally on server
 → npm install
 → npm run build
@@ -85,7 +85,7 @@ Commit/push to dev
 Manual deploy flow remains available:
 
 ```text
-GitHub → Actions → Deploy SAP RCA Workspace to DEV → Run workflow → branch dev
+GitHub → Actions → Deploy SPHERE to DEV → Run workflow → branch dev
 ```
 
 ## Concurrency
@@ -277,7 +277,7 @@ Safer unattended config:
 cd /home/sadmin/actions-runner
 
 sudo -u sadmin ./config.sh \
-  --url https://github.com/finuxpert/cbj-sap \
+  --url https://github.com/finuxpert/sphere \
   --token TOKEN_FROM_GITHUB \
   --name sapdev-pc-runner \
   --labels sapdev \
@@ -374,7 +374,7 @@ curl https://sapdev.cbj-kontruksi.com/sap-api/health
 
 - Production deploy is not automated.
 - DEV deploy is safe to trigger from GitHub Actions because it targets only `/var/www/svr01-dev/sap`.
-- Current default working branch for SAP RCA UI iteration is `dev`.
+- Current default working branch for SPHERE UI iteration is `dev`.
 - Keep the runner service running; otherwise deploy jobs will stay queued.
 - If the server reboots, confirm the runner service is active before pushing or triggering deploy.
 - Do not expose SSH publicly just for GitHub Actions. The self-hosted runner is the correct model for this server because the app is served through Cloudflare Tunnel.

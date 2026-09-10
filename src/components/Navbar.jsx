@@ -2,7 +2,7 @@ import React from 'react'
 import { getCurrentHashRoute } from '../app/routeUtils.js'
 import { APP_DISPLAY_VERSION, APP_NAME, APP_TAGLINE, APP_VERSION } from '../app/version.js'
 import { tools, preloadTool } from '../tools'
-import SapRcaLogo from './SapRcaLogo.jsx'
+import SphereLogo from './SphereLogo.jsx'
 
 const MOBILE_TOOL_LABELS = {
   analyzer: 'ST03N',
@@ -47,17 +47,17 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="navbar rcaNav">
-        <div className="navInner rcaNavInner">
-          <a className="brand rcaBrand" href="#/st03n" aria-label={`${APP_NAME} ${APP_DISPLAY_VERSION} ST03N analysis`}>
-            <SapRcaLogo />
+      <header className="navbar sphereNav">
+        <div className="navInner sphereNavInner">
+          <a className="brand sphereBrand" href="#/st03n" aria-label={`${APP_NAME} ${APP_DISPLAY_VERSION} ST03N analysis`}>
+            <SphereLogo />
             <span className="brandText">
               <span className="brandTitle">{APP_TAGLINE}</span>
               <span className="brandSub">Performance analysis tools · {APP_DISPLAY_VERSION}</span>
             </span>
           </a>
 
-          <nav className="navQuick rcaToolTabs" aria-label={`${APP_NAME} SAP analysis workspaces`}>
+          <nav className="navQuick sphereToolTabs" aria-label={`${APP_NAME} SAP analysis workspaces`}>
             {tools.map((tool) => {
               const href = `/tool/${tool.slug}`
               const active = isActive(href)

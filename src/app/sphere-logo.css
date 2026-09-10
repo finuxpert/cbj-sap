@@ -1,0 +1,60 @@
+/* SPHERE navbar logo. Asset paths are resolved in the React component via Vite BASE_URL. */
+.sphereLogo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+  width: 138px;
+  height: 34px;
+  overflow: hidden;
+}
+
+.sphereLogo picture,
+.sphereLogoImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sphereLogoImage {
+  object-fit: contain;
+  object-position: left center;
+}
+
+.sphereLogo.compact {
+  width: 118px;
+  height: 30px;
+}
+
+.sphereBrand .brandTitle {
+  max-width: min(420px, 34vw);
+}
+
+@media (max-width: 900px) {
+  .sphereLogo {
+    width: 122px;
+    height: 31px;
+  }
+
+  .sphereBrand .brandTitle {
+    max-width: 260px;
+  }
+}
+
+@media (max-width: 760px) {
+  .sphereLogo {
+    width: 112px;
+    height: 30px;
+  }
+
+  .sphereBrand .brandText {
+    display: none !important;
+  }
+}
+
+@media (max-width: 460px) {
+  .sphereLogo {
+    width: 98px;
+    height: 27px;
+  }
+}

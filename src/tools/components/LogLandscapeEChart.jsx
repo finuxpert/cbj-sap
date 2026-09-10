@@ -40,7 +40,7 @@ function useEChart(option, onClick) {
 
 export function LandscapeResourceEChart({ rca, metric = 'memoryPct', onSelectTime, onSelectCollection }) {
   const meta = METRICS[metric] || METRICS.memoryPct
-  const collections = rca?.collections || []
+  const collections = React.useMemo(() => rca?.collections || [], [rca?.collections])
   const option = React.useMemo(() => {
     const times = collections.map((row) => row.timeLabel)
     const hosts = rca?.hosts || []
