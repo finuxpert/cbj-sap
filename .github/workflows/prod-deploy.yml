@@ -95,7 +95,7 @@ jobs:
             ssh ${SSH_OPTS} "${REMOTE}" "set -Eeuo pipefail; \
               sudo rm -rf '${PROD_WEBROOT}'; \
               sudo tar -xzf '${BACKUP_FILE}' -C /var/www/html; \
-              sudo chown -R www-data:www-data '${PROD_WEBROOT}'; \
+              sudo chown -R root:root '${PROD_WEBROOT}'; \
               sudo find '${PROD_WEBROOT}' -type d -exec chmod 755 {} +; \
               sudo find '${PROD_WEBROOT}' -type f -exec chmod 644 {} +; \
               sudo nginx -t; \
@@ -106,7 +106,7 @@ jobs:
           echo "Publishing main build to ${PROD_WEBROOT}"
           ssh ${SSH_OPTS} "${REMOTE}" "set -Eeuo pipefail; \
             sudo rsync -a --delete '${REMOTE_STAGE}/' '${PROD_WEBROOT}/'; \
-            sudo chown -R www-data:www-data '${PROD_WEBROOT}'; \
+            sudo chown -R root:root '${PROD_WEBROOT}'; \
             sudo find '${PROD_WEBROOT}' -type d -exec chmod 755 {} +; \
             sudo find '${PROD_WEBROOT}' -type f -exec chmod 644 {} +; \
             sudo grep -R -m1 '1.15.4' '${PROD_WEBROOT}/assets' >/dev/null; \
