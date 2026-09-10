@@ -55,7 +55,15 @@ async function json(url, options = {}) {
   return response.json()
 }
 
-export default function RundeckSource({ onCollection }) {
+export default function RundeckSource({
+  onCollection,
+  selectedJob = null,
+  onSelectJob,
+  onDefaultJob,
+  currentWorkloadContent = null,
+  diagnosticsContent = null,
+  sourceAuditContent = null,
+}) {
   const [latest, setLatest] = React.useState(null)
   const [health, setHealth] = React.useState(null)
   const [platform, setPlatform] = React.useState(null)
@@ -206,7 +214,13 @@ export default function RundeckSource({ onCollection }) {
       <span><b>Run</b>#{latest?.execution_id || '—'}</span>
     </div>
 
-    <RundeckPerformanceIncident refreshToken={latest?.collection_id || ''} />
+    <RundeckPerformanceIncident
+      refreshToken={latest?.collection_id || ''}
+      selectedJob={selectedJob}
+      onSelectJob={onSelectJob}
+      onDefaultJob={onDefaultJob}
+      showStatus={false}
+    />
 
     {operationalHosts.length > 0 && <section className="rundeckServerSection">
       <div className="rundeckSectionTitle">
@@ -248,7 +262,13 @@ export default function RundeckSource({ onCollection }) {
     <RundeckMonitoringHistory
       refreshToken={latest?.collection_id || ''}
       databaseEnabled={Boolean(health?.database)}
+      selectedJob={selectedJob}
+      onSelectJob={onSelectJob}
+      currentWorkloadContent={currentWorkloadContent}
     />
+
+    {diagnosticsContent}
+    {sourceAuditContent}
 
     <details className="rundeckHistory">
       <summary>Rundeck Run History <span>{collectionCount} runs · {partialCount} partial · {failedCount} failed</span></summary>
