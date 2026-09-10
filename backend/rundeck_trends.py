@@ -8,9 +8,12 @@ from sqlalchemy import text
 
 from backend.db.session import get_engine
 
+# Keep the short operational view detailed, then progressively reduce chart points.
+# Peak timestamp and collection id remain attached to every bucket so RCA drill-down
+# can always resolve a rendered point back to exact raw evidence.
 RANGES = {
     "6h": {"hours": 6, "auto_bucket": "10m"},
-    "24h": {"hours": 24, "auto_bucket": "10m"},
+    "24h": {"hours": 24, "auto_bucket": "30m"},
     "7d": {"hours": 24 * 7, "auto_bucket": "1h"},
     "30d": {"hours": 24 * 30, "auto_bucket": "6h"},
     "90d": {"hours": 24 * 90, "auto_bucket": "1d"},
@@ -18,6 +21,7 @@ RANGES = {
 
 BUCKETS = {
     "10m": "10 minutes",
+    "30m": "30 minutes",
     "1h": "1 hour",
     "6h": "6 hours",
     "1d": "1 day",
@@ -101,9 +105,9 @@ def trend_series(
     """Aggregate host metrics by logical Rundeck collection time.
 
     APP1 -> APP5 are collected sequentially, so their raw host timestamps can cross a
-    10-minute wall-clock boundary. Bucketing by the Rundeck execution start keeps all
-    hosts from the same collection aligned on one x-axis point while peak_at preserves
-    the exact host sample time used for RCA drill-down.
+    wall-clock boundary. Bucketing by the Rundeck execution start keeps all hosts from
+    the same collection aligned while peak_at preserves the exact host sample used for
+    RCA drill-down.
     """
     engine = get_engine()
     if engine is None:
