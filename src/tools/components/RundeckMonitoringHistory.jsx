@@ -2,6 +2,7 @@ import React from 'react'
 import * as echarts from './logEcharts.js'
 import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
 import './RundeckMonitoringHistory.css'
+import './RundeckEvidence.css'
 
 const API = `${import.meta.env.BASE_URL}api`
 
@@ -454,47 +455,49 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
 
     <HistoricalRca selected={selected} data={timeline} loading={timelineLoading} error={timelineError} />
 
-    <section className="rundeckOpsSection">
-      <div className="rundeckOpsHead">
-        <h4>Active SAP Alerts</h4>
-        <span>{criticalCount} critical · {warningCount} warning</span>
+    <details className="rundeckEvidenceGroup">
+      <summary>Historical Alert Evidence <span>{criticalCount} critical · {warningCount} warning in selected range</span></summary>
+      <div className="rundeckEvidenceBody">
+        <section className="rundeckOpsSection">
+          <div className="rundeckMiniTableWrap">
+            <table>
+              <thead><tr><th>Time WIB</th><th>Server</th><th>Severity</th><th>Signal</th></tr></thead>
+              <tbody>
+                {visibleAlerts.slice(0, 10).map((row) => <tr key={row.id}>
+                  <td>{formatWib(row.collected_at, true)}</td>
+                  <td>{shortHost(row.host || 'COLLECTOR')}</td>
+                  <td><InlineStatus value={row.severity} /></td>
+                  <td>{row.code === 'WP_CRITICAL' ? TERMS.criticalWorkProcess : row.code === 'IOWAIT_HIGH' ? 'I/O Wait Threshold' : row.message}</td>
+                </tr>)}
+                {!visibleAlerts.length && <tr><td colSpan="4">No threshold alerts in this range.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
-      <div className="rundeckMiniTableWrap">
-        <table>
-          <thead><tr><th>Time WIB</th><th>Server</th><th>Severity</th><th>Signal</th></tr></thead>
-          <tbody>
-            {visibleAlerts.slice(0, 10).map((row) => <tr key={row.id}>
-              <td>{formatWib(row.collected_at, true)}</td>
-              <td>{shortHost(row.host || 'COLLECTOR')}</td>
-              <td><InlineStatus value={row.severity} /></td>
-              <td>{row.code === 'WP_CRITICAL' ? TERMS.criticalWorkProcess : row.code === 'IOWAIT_HIGH' ? 'I/O Wait Threshold' : row.message}</td>
-            </tr>)}
-            {!visibleAlerts.length && <tr><td colSpan="4">No active threshold alerts in this range.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </details>
 
-    <section className="rundeckOpsSection">
-      <div className="rundeckOpsHead">
-        <h4>{TERMS.historicalWorkload}</h4>
-        <span>90-day workload frequency</span>
+    <details className="rundeckEvidenceGroup">
+      <summary>{TERMS.historicalWorkload} <span>90-day workload frequency · top 10</span></summary>
+      <div className="rundeckEvidenceBody">
+        <section className="rundeckOpsSection">
+          <div className="rundeckMiniTableWrap">
+            <table>
+              <thead><tr><th>Workload</th><th>Server</th><th>Seen</th><th>Avg Aggregated CPU</th><th>Peak Aggregated CPU</th></tr></thead>
+              <tbody>
+                {consumers.slice(0, 10).map((row) => <tr key={`${row.consumer_type}-${row.consumer_key}-${row.host}`}>
+                  <td title={row.consumer_key}><strong>{row.consumer_key}</strong><small>{row.consumer_type}</small></td>
+                  <td>{shortHost(row.host)}</td>
+                  <td>{row.occurrences}</td>
+                  <td>{number(row.avg_cpu_pct)}%</td>
+                  <td>{number(row.peak_cpu_pct)}%</td>
+                </tr>)}
+                {!consumers.length && <tr><td colSpan="5">Historical SAP workload will populate from new collection cycles.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
-      <div className="rundeckMiniTableWrap">
-        <table>
-          <thead><tr><th>Workload</th><th>Server</th><th>Seen</th><th>Avg CPU</th><th>Peak CPU</th></tr></thead>
-          <tbody>
-            {consumers.slice(0, 10).map((row) => <tr key={`${row.consumer_type}-${row.consumer_key}-${row.host}`}>
-              <td title={row.consumer_key}><strong>{row.consumer_key}</strong><small>{row.consumer_type}</small></td>
-              <td>{shortHost(row.host)}</td>
-              <td>{row.occurrences}</td>
-              <td>{number(row.avg_cpu_pct)}%</td>
-              <td>{number(row.peak_cpu_pct)}%</td>
-            </tr>)}
-            {!consumers.length && <tr><td colSpan="5">Historical SAP workload will populate from new collection cycles.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    </details>
   </section>
 }
