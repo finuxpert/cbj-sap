@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import quote, urlencode
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
+from backend.rundeck_credentials import credential_mode, read_credential
 from backend.rundeck_store import ROOT, collections, identifier, ingest, initialize, now, write_json
 
 BASE = "http://10.14.55.205:4440"
@@ -59,29 +60,29 @@ def poll():
     from backend.rundeck_monitoring import maybe_run_retention
 
     initialize()
-    # Automatic retention is time-gated (default every 6h), despite the poller running each minute.
     try:
         maybe_run_retention(ROOT)
     except Exception:
-        # Retention errors must not block fresh collection ingestion.
+        # Retention failure is surfaced by Platform Health and must not block fresh telemetry.
         pass
 
     with (ROOT / "poller.lock").open("w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         try:
-            token_file = os.environ.get("RUNDECK_TOKEN_FILE", "").strip()
             project = os.environ.get("RUNDECK_PROJECT", "Linux").strip()
             group = os.environ.get("RUNDECK_JOB_GROUP", "").strip()
             job_name = os.environ.get("RUNDECK_JOB_NAME", "").strip()
             expected = [host.strip() for host in os.environ.get("RUNDECK_EXPECTED_HOSTS", "").split(",") if host.strip()]
-            if not token_file or not project or not group or not job_name or len(set(expected)) != 5:
-                write_json(ROOT / "poller.json", {"status": "NOT_CONFIGURED", "checked_at": now()})
+            auth_mode = credential_mode("rundeck-reader", "RUNDECK_TOKEN_FILE")
+            if not project or not group or not job_name or len(set(expected)) != 5 or auth_mode == "missing":
+                write_json(ROOT / "poller.json", {
+                    "status": "NOT_CONFIGURED",
+                    "checked_at": now(),
+                    "credential_mode": auth_mode,
+                })
                 return
 
-            token = Path(token_file).read_text().strip()
-            if not token:
-                raise ValueError("Empty credential file")
-
+            token = read_credential("rundeck-reader", "RUNDECK_TOKEN_FILE")
             query = urlencode({
                 "groupPathExact": group,
                 "jobFilter": job_name,
@@ -99,6 +100,7 @@ def poll():
                 write_json(ROOT / "poller.json", {
                     "status": "NO_MATCH",
                     "checked_at": now(),
+                    "credential_mode": auth_mode,
                     "project": project,
                     "job_group": group,
                     "job_name": job_name,
@@ -114,6 +116,7 @@ def poll():
                 write_json(ROOT / "poller.json", {
                     "status": "WAITING",
                     "checked_at": now(),
+                    "credential_mode": auth_mode,
                     "latest_execution": eid,
                     "latest_execution_status": state,
                 })
@@ -124,6 +127,7 @@ def poll():
                 write_json(ROOT / "poller.json", {
                     "status": "OK",
                     "checked_at": now(),
+                    "credential_mode": auth_mode,
                     "processed": 0,
                     "latest_execution": eid,
                     "latest_execution_status": state,
@@ -135,6 +139,7 @@ def poll():
             write_json(ROOT / "poller.json", {
                 "status": "OK",
                 "checked_at": now(),
+                "credential_mode": auth_mode,
                 "processed": 1,
                 "latest_execution": eid,
                 "latest_execution_status": state,
@@ -146,10 +151,10 @@ def poll():
         except BlockingIOError:
             write_json(ROOT / "poller.json", {"status": "BUSY", "checked_at": now()})
         except Exception as error:
-            # Never persist credential-bearing requests or server response bodies.
             write_json(ROOT / "poller.json", {
                 "status": "ERROR",
                 "checked_at": now(),
+                "credential_mode": credential_mode("rundeck-reader", "RUNDECK_TOKEN_FILE"),
                 "error_type": type(error).__name__,
             })
             raise RuntimeError(
