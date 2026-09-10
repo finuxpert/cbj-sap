@@ -83,7 +83,7 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 5px 9px;
+  gap: 6px 10px;
 }
 
 .rundeckLandscapeMeta {
@@ -123,13 +123,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 23px;
+  min-height: 27px;
   border: 0;
-  padding: 0 3px;
+  padding: 0 5px;
   background: transparent;
   color: var(--sphere-text-muted);
   font-family: inherit;
-  font-size: 8.9px;
+  font-size: 9.7px;
   font-weight: 720;
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease, border-color 140ms ease;
@@ -138,8 +138,8 @@
 .rundeckModeSwitch button .sphereIcon,
 .rundeckPdfButton .sphereIcon,
 .rundeckCollectButton .sphereIcon {
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
 }
 
 .rundeckModeSwitch button {
@@ -159,7 +159,7 @@
 .rundeckPdfButton,
 .rundeckCollectButton {
   border-radius: 4px;
-  padding: 0 5px;
+  padding: 0 7px;
 }
 
 .rundeckPdfButton {
