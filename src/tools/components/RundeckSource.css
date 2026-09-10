@@ -9,10 +9,10 @@
   --sphere-text: #e7edf0;
   --sphere-text-secondary: #a9b5bb;
   --sphere-text-muted: #718089;
-  --sphere-border-subtle: rgba(113, 128, 137, .16);
-  --sphere-chart-grid: rgba(126, 147, 158, .09);
+  --sphere-border-subtle: rgba(113, 128, 137, .13);
+  --sphere-chart-grid: rgba(126, 147, 158, .075);
   --sphere-accent: #4fc6c8;
-  --sphere-accent-soft: rgba(79, 198, 200, .10);
+  --sphere-accent-soft: rgba(79, 198, 200, .09);
   --sphere-positive: #75cfa5;
   --sphere-warning: #d8b35f;
   --sphere-danger: #db7d86;
@@ -20,11 +20,11 @@
   --sphere-io-read: #7bb89c;
   --sphere-io-write: #b49ac8;
   --sphere-wp: #d0a96c;
-  --sphere-chart-1: #6f9fd8;
-  --sphere-chart-2: #89b47e;
-  --sphere-chart-3: #9a94c7;
-  --sphere-chart-4: #d39a69;
-  --sphere-chart-5: #62b8bd;
+  --sphere-chart-1: #72a9e8;
+  --sphere-chart-2: #8cc985;
+  --sphere-chart-3: #aaa0df;
+  --sphere-chart-4: #e1a16c;
+  --sphere-chart-5: #5dcbd1;
 }
 
 .sphereIcon {
@@ -34,7 +34,7 @@
 }
 
 .rundeckPanel {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -47,12 +47,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 9px;
+  gap: 8px;
 }
 
 .rundeckLandscapeHeader {
-  min-height: 44px;
-  padding: 3px 0 6px;
+  min-height: 42px;
+  padding: 3px 0 5px;
   border-bottom: 1px solid var(--sphere-border-subtle);
 }
 
@@ -83,6 +83,7 @@
   flex: 0 0 auto;
   flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 5px 9px;
 }
 
 .rundeckLandscapeMeta {
@@ -90,13 +91,13 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 12px;
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 .rundeckLandscapeMeta > span {
   position: relative;
   color: var(--sphere-text-muted);
-  font-size: 8.8px;
+  font-size: 9.2px;
   white-space: nowrap;
 }
 
@@ -105,13 +106,13 @@
   position: absolute;
   left: -8px;
   color: var(--sphere-text-muted);
-  opacity: .55;
+  opacity: .5;
 }
 
 .rundeckModeSwitch {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   padding: 0;
   background: transparent;
 }
@@ -122,13 +123,13 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 24px;
+  min-height: 23px;
   border: 0;
   padding: 0 3px;
   background: transparent;
   color: var(--sphere-text-muted);
   font-family: inherit;
-  font-size: 8.8px;
+  font-size: 8.9px;
   font-weight: 720;
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease, border-color 140ms ease;
@@ -158,7 +159,7 @@
 .rundeckPdfButton,
 .rundeckCollectButton {
   border-radius: 4px;
-  padding: 0 6px;
+  padding: 0 5px;
 }
 
 .rundeckPdfButton {
@@ -169,7 +170,7 @@
 .rundeckPdfButton:focus-visible,
 .rundeckCollectButton:hover,
 .rundeckCollectButton:focus-visible {
-  background: rgba(79, 198, 200, .07);
+  background: rgba(79, 198, 200, .065);
   color: var(--sphere-text);
   outline: none;
 }
@@ -181,7 +182,7 @@
 }
 
 .rundeckMessage {
-  padding: 6px 0;
+  padding: 5px 0;
   color: var(--sphere-danger);
   font-size: 9.5px;
 }
@@ -198,7 +199,7 @@
   border: 1px solid currentColor;
   border-radius: 999px;
   background: transparent;
-  font-size: 7.8px;
+  font-size: 7.9px;
   font-weight: 850;
   line-height: 1.2;
 }
@@ -214,7 +215,7 @@
 .rundeckStatus.is-unknown { color: var(--sphere-text-secondary); }
 
 .rundeckServerSection {
-  padding: 8px 0 2px;
+  padding: 7px 0 1px;
 }
 
 .rundeckSectionTitle {
@@ -227,7 +228,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 12.2px;
   font-weight: 750;
 }
 
@@ -257,8 +258,8 @@
 .rundeckServerTable td,
 .rundeckHistory th,
 .rundeckHistory td {
-  padding: 5px 7px;
-  border-bottom: 1px solid rgba(113, 128, 137, .09);
+  padding: 4px 7px;
+  border-bottom: 1px solid rgba(113, 128, 137, .075);
   text-align: left;
   white-space: nowrap;
 }
@@ -273,13 +274,17 @@
 }
 
 .rundeckServerTable tbody tr {
-  transition: background-color 140ms ease;
+  transition: background-color 140ms ease, box-shadow 140ms ease;
 }
 
 .rundeckServerTable tbody tr:hover,
-.rundeckServerTable tbody tr.is-selected,
 .rundeckHistory tbody tr:hover {
-  background: rgba(79, 198, 200, .045);
+  background: rgba(79, 198, 200, .038);
+}
+
+.rundeckServerTable tbody tr.is-selected {
+  background: rgba(79, 198, 200, .065);
+  box-shadow: inset 2px 0 0 var(--sphere-accent);
 }
 
 .rundeckServerTable td:first-child strong {
@@ -325,13 +330,17 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0;
+  min-width: 30px;
+  min-height: 22px;
+  padding: 1px 5px;
   border: 0;
+  border-radius: 4px;
   background: transparent;
   color: inherit;
   font: inherit;
   font-weight: 820;
   cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease;
 }
 
 .rundeckWpButton .sphereIcon {
@@ -341,13 +350,14 @@
 
 .rundeckWpButton:hover,
 .rundeckWpButton:focus-visible {
+  background: rgba(216, 179, 95, .08);
   color: var(--sphere-accent);
   outline: none;
 }
 
 .rundeckWpDrilldown {
-  margin: 6px 0 2px;
-  padding: 7px 0 3px;
+  margin: 5px 0 1px;
+  padding: 6px 0 2px;
   border-top: 1px solid var(--sphere-border-subtle);
 }
 
@@ -381,7 +391,7 @@
 }
 
 .rundeckWpDrilldown > p {
-  margin: 3px 0 6px;
+  margin: 3px 0 5px;
   color: var(--sphere-text-muted);
   font-size: 8.6px;
 }
@@ -398,7 +408,7 @@
 
 .rundeckWpDrilldownTableWrap {
   overflow: auto;
-  max-height: 220px;
+  max-height: 210px;
 }
 
 .rundeckWpDrilldown table {
@@ -411,7 +421,7 @@
 .rundeckWpDrilldown th,
 .rundeckWpDrilldown td {
   padding: 4px 7px;
-  border-bottom: 1px solid rgba(113, 128, 137, .08);
+  border-bottom: 1px solid rgba(113, 128, 137, .07);
   text-align: left;
   white-space: nowrap;
 }
@@ -441,15 +451,15 @@
 }
 
 .rundeckSupportingData {
-  margin-top: 8px;
-  padding-top: 6px;
+  margin-top: 6px;
+  padding-top: 5px;
   border-top: 1px solid var(--sphere-border-subtle);
 }
 
 .rundeckSupportingTitle {
-  margin-bottom: 1px;
+  margin-bottom: 0;
   color: var(--sphere-text-muted);
-  font-size: 7.8px;
+  font-size: 7.6px;
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -458,7 +468,7 @@
 .rundeckHistory,
 .rundeckSupportingData .rundeckPlatformHealth {
   margin-top: 0 !important;
-  padding: 3px 0 !important;
+  padding: 2px 0 !important;
   border: 0 !important;
 }
 
@@ -469,7 +479,7 @@
   gap: 5px;
   color: var(--sphere-text-secondary);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 8.9px;
   font-weight: 680;
 }
 
@@ -486,7 +496,7 @@
 }
 
 .rundeckHistoryTableWrap {
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .logV2Inner:has(.rundeckPanel) > .logV2Header {
@@ -511,7 +521,7 @@
   }
 
   .rundeckActions {
-    max-width: 58%;
+    max-width: 60%;
   }
 }
 
