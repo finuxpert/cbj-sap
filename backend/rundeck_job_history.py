@@ -88,10 +88,14 @@ def sap_job_history(
                    t.rank,
                    t.cpu_pct,
                    t.ram_pct,
-                   t.details
+                   t.details,
+                   h.wp_critical AS host_wp_critical
               FROM rundeck_top_consumers t
               LEFT JOIN rundeck_collections c
                 ON c.collection_id = t.collection_id
+              LEFT JOIN rundeck_host_metrics h
+                ON h.collection_id = t.collection_id
+               AND h.host = t.host
              WHERE {where_sql}
              ORDER BY t.collected_at DESC, t.host ASC
              LIMIT :limit
