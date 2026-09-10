@@ -3,12 +3,14 @@ import RundeckCurrentWorkload from './RundeckCurrentWorkload.jsx'
 import RundeckMonitoringHistory from './RundeckMonitoringHistory.jsx'
 import RundeckPerformanceIncident from './RundeckPerformanceIncident.jsx'
 import SphereIcon from './SphereIcon.jsx'
-import { APP_DISPLAY_VERSION } from '../../app/version.js'
+import { APP_DISPLAY_VERSION, APP_TAGLINE } from '../../app/version.js'
 import { numberText, shortHost, workloadTypeLabel } from './sapUiFormat.js'
 import './RundeckSource.css'
 import './RundeckPlatformHealth.css'
 
 const API = `${import.meta.env.BASE_URL}api`
+const BRAND_LOGO = `${import.meta.env.BASE_URL}branding/logo/sphere-logo-navbar-dark.png`
+const REPORT_URL = 'https://sphere.astraotoparts.co.id/dev/#/st03n'
 
 const formatTime = (value, compact = false) => {
   if (!value) return '—'
@@ -47,8 +49,8 @@ const pssText = (row = {}) => {
 
 const wpText = (row = {}) => [row.details?.wp_type, row.details?.wp].filter(Boolean).join(' ') || '—'
 
-function StatusPill({ value = 'UNKNOWN' }) {
-  return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
+function StatusPill({ value = 'UNKNOWN', title = '' }) {
+  return <span className={`rundeckStatus is-${String(value).toLowerCase()}`} title={title || undefined}>{value}</span>
 }
 
 function conservativeHostState(host = {}) {
@@ -79,6 +81,15 @@ async function json(url, options = {}) {
   return response.json()
 }
 
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => resolve(null)
+    image.src = src
+  })
+}
+
 function pdfStatusColor(status) {
   if (status === 'CRITICAL') return [190, 65, 73]
   if (status === 'WARNING') return [182, 132, 31]
@@ -88,6 +99,16 @@ function pdfStatusColor(status) {
 function clipped(value, length = 44) {
   const text = String(value || '—')
   return text.length > length ? `${text.slice(0, length - 1)}…` : text
+}
+
+function reportDuration(seconds) {
+  const value = Number(seconds)
+  if (!Number.isFinite(value) || value < 0) return '—'
+  const minutes = Math.floor(value / 60)
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours}h ${rest}m` : `${hours}h`
 }
 
 export default function RundeckSource({ onCollection }) {
@@ -228,11 +249,11 @@ export default function RundeckSource({ onCollection }) {
     setExporting(true)
     setError('')
     try {
-      const [{ default: html2canvas }, { jsPDF }, workloadResult, alertResult] = await Promise.all([
+      const [{ default: html2canvas }, { jsPDF }, workloadResult, brandLogo] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
         latest?.collection_id ? json(`${API}/history/jobs/current?collection_id=${encodeURIComponent(latest.collection_id)}&limit=5`) : Promise.resolve({ items: [] }),
-        json(`${API}/history/alerts?days=1&limit=500`).catch(() => ({ items: [] })),
+        loadImage(BRAND_LOGO),
       ])
 
       const capture = async (selector) => {
@@ -252,55 +273,74 @@ export default function RundeckSource({ onCollection }) {
       const contentW = W - margin * 2
       pdf.setFillColor(248, 250, 251)
       pdf.rect(0, 0, W, H, 'F')
-      pdf.setTextColor(22, 31, 38)
+
+      pdf.setFillColor(15, 21, 26)
+      pdf.roundedRect(margin, 7, contentW, 16, 2, 2, 'F')
+      let brandX = margin + 4
+      if (brandLogo?.naturalWidth && brandLogo?.naturalHeight) {
+        const logoH = 8
+        const logoW = Math.min(31, logoH * (brandLogo.naturalWidth / brandLogo.naturalHeight))
+        pdf.addImage(brandLogo, 'PNG', brandX, 11, logoW, logoH, undefined, 'FAST')
+        brandX += logoW + 5
+      } else {
+        pdf.setFont('helvetica', 'bold')
+        pdf.setFontSize(12)
+        pdf.setTextColor(240, 245, 247)
+        pdf.text('SPHERE', brandX, 17)
+        brandX += 25
+      }
+      pdf.setTextColor(232, 238, 241)
       pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(15)
-      pdf.text('SPHERE  SAP PERFORMANCE RCA', margin, 13)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(7.5)
-      pdf.setTextColor(92, 105, 114)
-      pdf.text(`${formatTime(latest?.finished_at)} WIB  ·  Run #${latest?.execution_id || '—'}  ·  ${APP_DISPLAY_VERSION}`, margin, 18)
+      pdf.setFontSize(10.5)
+      if (typeof pdf.textWithLink === 'function') pdf.textWithLink(APP_TAGLINE, brandX, 17, { url: REPORT_URL })
+      else pdf.text(APP_TAGLINE, brandX, 17)
 
       const status = incidentSummary?.status || 'NORMAL'
       const [sr, sg, sb] = pdfStatusColor(status)
       pdf.setFillColor(sr, sg, sb)
-      pdf.roundedRect(W - margin - 24, 8, 24, 7, 2, 2, 'F')
+      pdf.roundedRect(W - margin - 25, 11, 21, 7, 2, 2, 'F')
       pdf.setTextColor(255, 255, 255)
       pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(7)
-      pdf.text(status, W - margin - 12, 12.7, { align: 'center' })
+      pdf.setFontSize(6.8)
+      pdf.text(status, W - margin - 14.5, 15.7, { align: 'center' })
+
+      pdf.setFont('helvetica', 'normal')
+      pdf.setFontSize(7.3)
+      pdf.setTextColor(92, 105, 114)
+      pdf.text(`${formatTime(latest?.finished_at)} WIB  ·  Run #${latest?.execution_id || '—'}  ·  ${APP_DISPLAY_VERSION}`, margin, 29)
 
       const affected = shortHost(incidentSummary?.affected_server || '')
       const signal = incidentSummary?.primary_signal || {}
+      const since = incidentSummary?.signal_active_since || incidentSummary?.detected_since
       pdf.setTextColor(22, 31, 38)
-      pdf.setFontSize(10)
-      pdf.text(`${affected || 'SAP'}${signal.label ? ` · ${String(signal.label).replace(/Critical Work Process/gi, 'Critical WP')} ${metric(signal.value, signal.unit || '')}` : ''}`, margin, 26)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setFontSize(9.5)
+      pdf.text(`${affected || 'SAP'}${signal.label ? ` · ${String(signal.label).replace(/Critical Work Process/gi, 'Critical WP')} ${metric(signal.value, signal.unit || '')}` : ''}`, margin, 36)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(7)
       pdf.setTextColor(92, 105, 114)
-      const since = incidentSummary?.signal_active_since || incidentSummary?.detected_since
-      pdf.text(`Since ${formatTime(since)} WIB  ·  Confidence ${incidentSummary?.confidence || '—'}  ·  ${clipped(incidentSummary?.severity_reason || '', 92)}`, margin, 31)
+      pdf.text(`Since ${formatTime(since)} WIB  ·  Duration ${reportDuration(incidentSummary?.duration_seconds)}`, margin, 41)
 
       const current = incidentSummary?.current_workload || {}
       const recurring = incidentSummary?.persistent_workload || {}
       pdf.setFillColor(235, 240, 242)
-      pdf.roundedRect(margin, 35, contentW, 22, 2, 2, 'F')
+      pdf.roundedRect(margin, 45, contentW, 21, 2, 2, 'F')
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(7)
       pdf.setTextColor(71, 87, 97)
-      pdf.text('CURRENT WORKLOAD', margin + 4, 40)
-      pdf.text('RECURRING WORKLOAD', margin + contentW / 2 + 4, 40)
+      pdf.text('CURRENT WORKLOAD', margin + 4, 50)
+      pdf.text('RECURRING WORKLOAD', margin + contentW / 2 + 4, 50)
       pdf.setTextColor(22, 31, 38)
       pdf.setFontSize(9)
-      pdf.text(clipped(current.consumer_key, 42), margin + 4, 46)
-      pdf.text(clipped(recurring.consumer_key, 42), margin + contentW / 2 + 4, 46)
+      pdf.text(clipped(current.consumer_key, 42), margin + 4, 56)
+      pdf.text(clipped(recurring.consumer_key, 42), margin + contentW / 2 + 4, 56)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(6.8)
       pdf.setTextColor(92, 105, 114)
-      pdf.text(`CPU ${metric(current.cpu_pct, '%')}  ·  ${wpText(current)}`, margin + 4, 52)
-      pdf.text(recurring.consumer_key ? `Seen ${recurring.occurrences || 0} of ${recurring.affected_samples || 0} checks  ·  Avg ${metric(recurring.avg_cpu_pct, '%')}  ·  Peak ${metric(recurring.peak_cpu_pct, '%')}` : '—', margin + contentW / 2 + 4, 52)
+      pdf.text(`CPU ${metric(current.cpu_pct, '%')}  ·  ${wpText(current)}`, margin + 4, 62)
+      pdf.text(recurring.consumer_key ? `Seen ${recurring.occurrences || 0} of ${recurring.affected_samples || 0} checks  ·  Avg ${metric(recurring.avg_cpu_pct, '%')}  ·  Peak ${metric(recurring.peak_cpu_pct, '%')}` : '—', margin + contentW / 2 + 4, 62)
 
-      let y = 63
+      let y = 73
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(8)
       pdf.setTextColor(22, 31, 38)
@@ -322,30 +362,29 @@ export default function RundeckSource({ onCollection }) {
         y += 4
       })
 
-      const chartY = 91
-      const chartW = contentW
+      const chartY = 101
       if (serverChart) {
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(8)
         pdf.text('SERVER TREND', margin, chartY - 3)
-        const ratio = Math.min(chartW / serverChart.width, 58 / serverChart.height)
+        const ratio = Math.min(contentW / serverChart.width, 49 / serverChart.height)
         pdf.addImage(serverChart.toDataURL('image/jpeg', .9), 'JPEG', margin, chartY, serverChart.width * ratio, serverChart.height * ratio, undefined, 'FAST')
       }
 
-      const workY = 151
-      const leftW = contentW * .64
+      const workY = 154
+      const leftW = contentW * .66
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(8)
       pdf.text(`SELECTED WORKLOAD  ${clipped(selectedJob?.key || current.consumer_key, 54)}`, margin, workY - 3)
       if (workloadChart) {
-        const ratio = Math.min(leftW / workloadChart.width, 44 / workloadChart.height)
+        const ratio = Math.min(leftW / workloadChart.width, 39 / workloadChart.height)
         pdf.addImage(workloadChart.toDataURL('image/jpeg', .9), 'JPEG', margin, workY, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
       }
 
       const sideX = margin + leftW + 7
       pdf.setFontSize(7.5)
-      pdf.text('TOP CURRENT WORKLOAD', sideX, workY - 3)
+      pdf.text('CURRENT WORKLOAD', sideX, workY - 3)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(6.3)
       let sideY = workY + 3
@@ -357,19 +396,16 @@ export default function RundeckSource({ onCollection }) {
         sideY += 8
       })
 
-      const alerts = alertResult.items || []
-      const criticalAlerts = alerts.filter((row) => row.severity === 'CRITICAL').length
-      const warningAlerts = alerts.filter((row) => row.severity === 'WARNING').length
       pdf.setDrawColor(210, 217, 221)
       pdf.line(margin, H - 12, W - margin, H - 12)
       pdf.setFontSize(6.5)
       pdf.setTextColor(92, 105, 114)
-      pdf.text(`Alerts last 24h: ${criticalAlerts} critical · ${warningAlerts} warning  ·  Source: Rundeck  ·  First Seen means first SPHERE observation, not exact SAP start time.`, margin, H - 7)
+      pdf.text(`Source: Rundeck  ·  Run #${latest?.execution_id || '—'}  ·  ${APP_DISPLAY_VERSION}  ·  First Seen = first SPHERE observation.`, margin, H - 7)
 
       const host = shortHost(selectedJob?.host || incidentSummary?.affected_server || 'SAP') || 'SAP'
       const stamp = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
         .format(new Date()).replaceAll('-', '').replace(', ', '_').replace(':', '')
-      pdf.save(`SPHERE_RCA_${host}_${stamp}_Run${latest?.execution_id || 'NA'}.pdf`)
+      pdf.save(`SPHERE_Performance_${host}_${stamp}_Run${latest?.execution_id || 'NA'}.pdf`)
     } catch (failure) {
       setError(failure.message || 'PDF export failed.')
     } finally {
@@ -399,6 +435,9 @@ export default function RundeckSource({ onCollection }) {
   const appCount = latest?.received_hosts?.length || operationalHosts.length || 0
   const incidentStart = incidentSummary?.signal_active_since || incidentSummary?.detected_since || ''
   const latestCollectionAt = latest?.collection_time_wib || latest?.finished_at || ''
+  const statusHint = incidentSummary?.active
+    ? `${String(incidentSummary?.primary_signal?.label || 'Performance signal').replace(/Critical Work Process/gi, 'Critical WP')}. ${incidentSummary?.host_resource_pressure ? 'Host resource pressure detected.' : 'Host CPU, RAM and IO are below pressure thresholds.'}`
+    : 'No active performance issue in the latest complete run.'
 
   const currentWorkload = <RundeckCurrentWorkload
     collectionId={latest?.collection_id || ''}
@@ -417,12 +456,12 @@ export default function RundeckSource({ onCollection }) {
         </div>
       </div>
       <div className="rundeckActions">
-        <StatusPill value={overallHealth} />
+        <StatusPill value={overallHealth} title={statusHint} />
         <div className="rundeckModeSwitch" role="group" aria-label="Data source">
-          <button type="button" className="is-active" aria-pressed="true"><SphereIcon name="refresh" /> Rundeck</button>
-          <button type="button" onClick={() => switchParentSource('manual')}><SphereIcon name="upload" /> Manual Upload</button>
+          <button type="button" className="is-active" aria-pressed="true" title="Automatic Rundeck source"><SphereIcon name="refresh" /> Rundeck</button>
+          <button type="button" onClick={() => switchParentSource('manual')} title="Manual Upload Logs"><SphereIcon name="upload" /> Manual</button>
         </div>
-        <button type="button" className="rundeckPdfButton" disabled={exporting} onClick={exportPdf}><SphereIcon name="pdf" /> {exporting ? 'Exporting…' : 'Export PDF'}</button>
+        <button type="button" className="rundeckPdfButton" disabled={exporting} onClick={exportPdf} title="Export one-page performance report"><SphereIcon name="pdf" /> {exporting ? 'Exporting…' : 'PDF'}</button>
         {runState.enabled && (
           <button
             type="button"
@@ -468,7 +507,7 @@ export default function RundeckSource({ onCollection }) {
                 <td>{metric(host.io_wait_pct, '%')}</td>
                 <td className={wpCount > 0 ? 'is-attention' : ''}>
                   {wpCount > 0
-                    ? <button type="button" className="rundeckWpButton" onClick={() => toggleCriticalWp(host)} aria-expanded={wpDrilldown?.host === host.host}><SphereIcon name="alert" /> {wpCount}</button>
+                    ? <button type="button" className="rundeckWpButton" onClick={() => toggleCriticalWp(host)} aria-expanded={wpDrilldown?.host === host.host} title={`${wpCount} Critical WP reported on ${shortHost(host.host)}. Click to inspect workload context.`}><SphereIcon name="alert" /> {wpCount}</button>
                     : '0'}
                 </td>
               </tr>
