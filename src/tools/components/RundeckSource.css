@@ -231,9 +231,18 @@
   margin-top: 5px;
 }
 
-/* Automatic Rundeck uses the normalized PostgreSQL view as the single source
-   for the operator UI. Legacy browser-parser presentation remains available
-   only in Manual Upload mode. */
+/* Automatic Rundeck uses the normalized PostgreSQL view as the single operator UI. */
+.logV2Inner:has(.rundeckPanel) > .logV2Header {
+  min-height: 28px;
+  padding-top: 0;
+  padding-bottom: 4px;
+  justify-content: flex-end;
+}
+
+.logV2Inner:has(.rundeckPanel) > .logV2Header > div:first-child {
+  display: none !important;
+}
+
 .logV2Inner:has(.rundeckPanel) > .logV2Stats,
 .logV2Inner:has(.rundeckPanel) > .logV141Summary,
 .logV2Inner:has(.rundeckPanel) > .logV2SnapshotPanel,
