@@ -1,5 +1,6 @@
 import React from 'react'
 import * as echarts from './logEcharts.js'
+import RundeckJobHistory from './RundeckJobHistory.jsx'
 import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
 import './RundeckMonitoringHistory.css'
 import './RundeckEvidence.css'
@@ -88,9 +89,6 @@ function useEChart(option, onChartClick) {
 
   React.useEffect(() => {
     if (!ref.current) return undefined
-
-    // React StrictMode can mount effects twice in development. Always dispose an
-    // existing ECharts instance first so one DOM node never keeps two canvases.
     echarts.getInstanceByDom?.(ref.current)?.dispose()
 
     const chart = echarts.init(ref.current, null, { renderer: 'canvas' })
@@ -195,7 +193,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
             const value = mode === 'max' ? row.max : row.avg
             return `${item.marker}${item.seriesName}: <b>${number(value, trend?.metric === 'wp' ? 0 : 1)}${suffix}</b>`
           }).join('<br/>')
-          return `${title}<br/>${body}<br/><span style="opacity:.72">Click anywhere in the graph to open SAP Job detail.</span>`
+          return `${title}<br/>${body}<br/><span style="opacity:.72">Click graph to inspect the SAP job.</span>`
         },
       },
       xAxis: {
@@ -307,15 +305,22 @@ function InlineStatus({ value = 'UNKNOWN' }) {
   return <span className={`rundeckInlineStatus is-${String(value).toLowerCase()}`}>{value}</span>
 }
 
-function HistoricalRca({ selected, data, loading, error, panelRef }) {
+function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, onSelectJob }) {
   if (!selected && !loading && !error) {
-    return <div className="rundeckRcaHint"><strong>How to use:</strong> Click anywhere in the graph. SPHERE will pick the nearest server sample and show its SAP Job below.</div>
+    return <div className="rundeckRcaHint"><strong>Tip:</strong> Click the graph to inspect the SAP job at that time.</div>
   }
 
   const rows = data?.items || []
   const selectedRow = rows.find((row) => row.host === selected?.host) || rows[0] || null
   const consumer = selectedRow?.top_consumers?.[0] || null
   const details = consumer?.details || {}
+  const selectedJobContext = consumer?.consumer_key ? {
+    key: consumer.consumer_key,
+    host: selectedRow?.host || selected?.host || '',
+    consumerType: consumer.consumer_type || '',
+    source: 'selected-time',
+  } : null
+  const jobSelected = selectedJobContext && selectedJob?.key === selectedJobContext.key && selectedJob?.host === selectedJobContext.host
 
   return <section ref={panelRef} tabIndex="-1" className="rundeckRcaSection" aria-live="polite">
     <div className="rundeckRcaHeader">
@@ -342,7 +347,11 @@ function HistoricalRca({ selected, data, loading, error, panelRef }) {
       <div className="rundeckRcaWorkload">
         <div className="rundeckRcaWorkloadTitle">
           <span>Top SAP Job</span>
-          <strong title={consumer?.consumer_key || ''}>{consumer?.consumer_key || 'No SAP job found'}</strong>
+          {selectedJobContext ? <button
+            type="button"
+            className={`rundeckRcaJobButton ${jobSelected ? 'is-selected' : ''}`}
+            onClick={() => onSelectJob?.(selectedJobContext)}
+          >{consumer.consumer_key}</button> : <strong>No SAP job found</strong>}
           {consumer && <small>CPU {number(consumer.cpu_pct)}% · RAM {number(consumer.ram_pct)}%</small>}
         </div>
         <dl>
@@ -359,7 +368,13 @@ function HistoricalRca({ selected, data, loading, error, panelRef }) {
   </section>
 }
 
-export default function RundeckMonitoringHistory({ refreshToken = '', databaseEnabled = false }) {
+export default function RundeckMonitoringHistory({
+  refreshToken = '',
+  databaseEnabled = false,
+  selectedJob = null,
+  onSelectJob,
+  currentWorkloadContent = null,
+}) {
   const [range, setRange] = React.useState('24h')
   const [bucket, setBucket] = React.useState('auto')
   const [metric, setMetric] = React.useState('cpu')
@@ -368,7 +383,6 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
   const [trendLoading, setTrendLoading] = React.useState(false)
   const [trendError, setTrendError] = React.useState('')
   const [alerts, setAlerts] = React.useState([])
-  const [consumers, setConsumers] = React.useState([])
   const [selected, setSelected] = React.useState(null)
   const [timeline, setTimeline] = React.useState(null)
   const [timelineLoading, setTimelineLoading] = React.useState(false)
@@ -395,14 +409,9 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     if (!databaseEnabled) return undefined
     const controller = new AbortController()
     const alertDays = Math.max(1, Math.ceil((RANGE_HOURS[range] || 24) / 24))
-    Promise.allSettled([
-      json(`${API}/history/alerts?days=${alertDays}&limit=500`, controller.signal),
-      json(`${API}/history/top-consumers?days=90&limit=20`, controller.signal),
-    ]).then(([alertResult, consumerResult]) => {
-      if (controller.signal.aborted) return
-      if (alertResult.status === 'fulfilled') setAlerts(alertResult.value.items || [])
-      if (consumerResult.status === 'fulfilled') setConsumers(consumerResult.value.items || [])
-    })
+    json(`${API}/history/alerts?days=${alertDays}&limit=500`, controller.signal)
+      .then((result) => setAlerts(result.items || []))
+      .catch(() => {})
     return () => controller.abort()
   }, [databaseEnabled, range, refreshToken])
 
@@ -438,6 +447,7 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     return <section className="rundeckMonitoring">
       <div className="rundeckMonitoringHead"><h3>{TERMS.resourceTrend}</h3></div>
       <div className="rundeckHistoryState">Trend data is not available yet.</div>
+      {currentWorkloadContent}
     </section>
   }
 
@@ -473,7 +483,19 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     {!trendLoading && !trendError && trend && trend.items?.length > 0 && <TrendChart trend={trend} mode={mode} range={range} onSelect={selectPoint} />}
     {!trendLoading && !trendError && trend && !trend.items?.length && <div className="rundeckHistoryState">Trend data will appear after new Rundeck runs are stored.</div>}
 
-    <HistoricalRca selected={selected} data={timeline} loading={timelineLoading} error={timelineError} panelRef={rcaRef} />
+    <HistoricalRca
+      selected={selected}
+      data={timeline}
+      loading={timelineLoading}
+      error={timelineError}
+      panelRef={rcaRef}
+      selectedJob={selectedJob}
+      onSelectJob={onSelectJob}
+    />
+
+    {currentWorkloadContent}
+
+    <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} />
 
     <details className="rundeckEvidenceGroup">
       <summary>SAP Alerts <span>{criticalCount} critical · {warningCount} warning</span></summary>
@@ -490,29 +512,6 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
                   <td>{row.code === 'WP_CRITICAL' ? TERMS.criticalWorkProcess : row.code === 'IOWAIT_HIGH' ? 'IO Wait' : row.message}</td>
                 </tr>)}
                 {!visibleAlerts.length && <tr><td colSpan="4">No alerts in this period.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </details>
-
-    <details className="rundeckEvidenceGroup">
-      <summary>{TERMS.historicalWorkload} <span>Top 10</span></summary>
-      <div className="rundeckEvidenceBody">
-        <section className="rundeckOpsSection">
-          <div className="rundeckMiniTableWrap">
-            <table>
-              <thead><tr><th>SAP Job</th><th>Server</th><th>Seen</th><th>Avg Job CPU</th><th>Peak Job CPU</th></tr></thead>
-              <tbody>
-                {consumers.slice(0, 10).map((row) => <tr key={`${row.consumer_type}-${row.consumer_key}-${row.host}`}>
-                  <td title={row.consumer_key}><strong>{row.consumer_key}</strong><small>{row.consumer_type}</small></td>
-                  <td>{shortHost(row.host)}</td>
-                  <td>{row.occurrences}</td>
-                  <td>{number(row.avg_cpu_pct)}%</td>
-                  <td>{number(row.peak_cpu_pct)}%</td>
-                </tr>)}
-                {!consumers.length && <tr><td colSpan="5">No SAP job history yet.</td></tr>}
               </tbody>
             </table>
           </div>
