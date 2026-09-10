@@ -23,7 +23,7 @@ from backend.rundeck_monitoring import (
     top_consumer_history,
 )
 from backend.rundeck_store import ROOT, collections, identifier
-from backend.rundeck_trends import resolve_range, trend_series
+from backend.rundeck_trends import collection_timeline, resolve_range, trend_series
 
 app = FastAPI(title="SPHERE Rundeck Development", docs_url=None, redoc_url=None)
 WIB = ZoneInfo("Asia/Jakarta")
@@ -194,10 +194,14 @@ def history_collections(days: int = Query(90, ge=1, le=90), limit: int = Query(2
 
 
 @app.get("/history/timeline")
-def history_timeline(at: str, window_minutes: int = Query(5, ge=1, le=30)):
+def history_timeline(
+    at: str,
+    window_minutes: int = Query(5, ge=1, le=30),
+    collection_id: str | None = Query(None, max_length=96),
+):
     target = _parse_time(at)
     try:
-        items = timeline(target, window_minutes)
+        items = collection_timeline(collection_id) if collection_id else timeline(target, window_minutes)
         for item in items:
             item["top_consumers"] = timeline_consumers(
                 item["collection_id"],
@@ -205,7 +209,13 @@ def history_timeline(at: str, window_minutes: int = Query(5, ge=1, le=30)):
                 item["collected_at"],
                 limit=5,
             )
-        return {"at": target, "window_minutes": window_minutes, "items": items}
+        return {
+            "at": target,
+            "window_minutes": window_minutes,
+            "collection_id": collection_id,
+            "correlation_mode": "collection" if collection_id else "nearest-time",
+            "items": items,
+        }
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 
