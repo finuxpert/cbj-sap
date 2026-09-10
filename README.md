@@ -29,7 +29,7 @@ rundeck-sphere-dev
 rundeck-sphere-prod
 ```
 
-New development must use the matching development branch. Legacy `main`, `dev`, release, fix, verify, cleanup, audit, and temporary UI branches are not part of the active branch model.
+New development must use the matching development branch. Only the four branches above are active.
 
 ## Current application
 

@@ -1,0 +1,17 @@
+[Unit]
+Description=SPHERE Rundeck development read-only collections API
+After=network.target
+[Service]
+User=sphere
+Group=sphere
+WorkingDirectory=/opt/sphere-rundeck-dev/current
+Environment=SPHERE_INGESTION_ROOT=/var/lib/sphere/ingestion
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/sphere-rundeck-dev/venv/bin/python -m uvicorn backend.rundeck_api:app --host 127.0.0.1 --port 8091
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

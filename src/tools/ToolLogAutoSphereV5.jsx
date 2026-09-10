@@ -1,3 +1,4 @@
+import RundeckSource from './components/RundeckSource.jsx'
 import React from 'react'
 import * as Accordion from '@radix-ui/react-accordion'
 import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
@@ -310,6 +311,7 @@ function SampleDrilldownSummary({ focus, rows = [], onClear }) {
 }
 
 export default function ToolLogAutoSphereV5() {
+  const [source, setSource] = React.useState('automatic')
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('')
   const [analysis, setAnalysis] = React.useState(null)
@@ -406,7 +408,8 @@ export default function ToolLogAutoSphereV5() {
   }, [resourceRows])
 
   return <section className="logV2Shell"><div className="logV2Inner">
-    <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
+    <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label>Source <select value={source} disabled={busy} onChange={(event) => { setSource(event.target.value); setAnalysis(null); setRca(null); setStatus('') }}><option value="automatic">Automatic — Rundeck</option><option value="manual">Manual — Upload Logs</option></select></label>{source === 'manual' && <label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" disabled={busy} onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label>}</header>
+    {source === 'automatic' && <RundeckSource onCollection={upload} />}
     {status ? <div className="logV2StatusBar">{status}</div> : null}
 
     {!rca ? <div className="logV2EmptyState"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div> : <>

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-API="${SAPDEV_API:-https://sapdev.cbj-kontruksi.com/sap-api}"
-WEB_ROOT="${SAPDEV_WEB_ROOT:-/var/www/svr01-dev/sap}"
+API="${SAPDEV_API:-https://sphere.astraotoparts.co.id/dev/api}"
+WEB_ROOT="${SAPDEV_WEB_ROOT:-/var/www/sphere-dev/current}"
 RUN_ID="${GITHUB_RUN_ID:-local}"
 RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}"
 TITLE="QA Backend Frontend Case ${RUN_ID}-${RUN_ATTEMPT}"

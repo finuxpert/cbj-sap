@@ -1,0 +1,8 @@
+[Unit]
+Description=Check Rundeck for SPHERE collections every minute
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+Unit=sphere-rundeck-poller.service
+[Install]
+WantedBy=timers.target
