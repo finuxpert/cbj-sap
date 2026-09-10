@@ -30,6 +30,16 @@ def _json_file(path: Path) -> dict | None:
     return None
 
 
+def _parse_iso(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
 def _tree_usage(path: Path) -> dict:
     if not path.exists():
         return {"files": 0, "bytes": 0}
@@ -79,7 +89,9 @@ def _release_state(root: Path, current: Path) -> dict:
         current_revision = current.resolve().name if current.exists() else None
     except OSError:
         current_revision = None
+    status = "WARNING" if len(releases) > RELEASES_KEEP + 2 else "NORMAL"
     return {
+        "status": status,
         "count": len(releases),
         "retain": RELEASES_KEEP,
         "current_revision": current_revision,
@@ -119,37 +131,64 @@ def _database_stats() -> dict:
                 ), {"name": name}).scalar()
                 tables[name] = int(size or 0)
             result["table_bytes"] = tables
-            try:
-                result["wal_bytes"] = int(conn.execute(text("SELECT COALESCE(sum(size),0) FROM pg_ls_waldir()" )).scalar() or 0)
-            except Exception:
-                result["wal_bytes"] = None
+        try:
+            with engine.connect() as wal_conn:
+                result["wal_bytes"] = int(wal_conn.execute(text(
+                    "SELECT COALESCE(sum(size),0) FROM pg_ls_waldir()"
+                )).scalar() or 0)
+        except Exception:
+            result["wal_bytes"] = None
     except Exception as error:
         result["status"] = "error"
         result["error_type"] = type(error).__name__
     return result
 
 
+def _collector_state(root: Path) -> dict:
+    state = _json_file(root / "poller.json") or {}
+    raw_status = str(state.get("status") or "UNKNOWN").upper()
+    if raw_status == "ERROR":
+        status = "CRITICAL"
+    elif raw_status in {"NOT_CONFIGURED", "NO_MATCH"}:
+        status = "WARNING"
+    elif raw_status in {"OK", "WAITING", "BUSY"}:
+        status = "NORMAL"
+    else:
+        status = "UNKNOWN"
+    return {
+        "status": status,
+        "poller_status": raw_status,
+        "checked_at": state.get("checked_at"),
+        "credential_mode": state.get("credential_mode") or "unknown",
+        "error_type": state.get("error_type"),
+    }
+
+
 def _maintenance_state(root: Path) -> dict:
     state = _json_file(root / "maintenance.json")
-    if not state:
-        return {"status": "UNKNOWN", "last_run": None}
-    last_run = state.get("ran_at")
+    error = _json_file(root / "maintenance-error.json")
+    if not state and not error:
+        return {"status": "UNKNOWN", "last_run": None, "last_error": None}
+
+    last_run = state.get("ran_at") if state else None
+    last_error = error.get("failed_at") if error else None
+    success_dt = _parse_iso(last_run)
+    error_dt = _parse_iso(last_error)
     age_seconds = None
-    try:
-        parsed = datetime.fromisoformat(str(last_run).replace("Z", "+00:00"))
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        age_seconds = max(0, int((datetime.now(timezone.utc) - parsed.astimezone(timezone.utc)).total_seconds()))
-    except (TypeError, ValueError):
-        pass
+    if success_dt:
+        age_seconds = max(0, int((datetime.now(timezone.utc) - success_dt.astimezone(timezone.utc)).total_seconds()))
+
     stale_after = MAINTENANCE_INTERVAL_SECONDS * 2
-    status = "WARNING" if age_seconds is None or age_seconds > stale_after else "NORMAL"
+    newer_error = bool(error_dt and (success_dt is None or error_dt > success_dt))
+    status = "WARNING" if newer_error or age_seconds is None or age_seconds > stale_after else "NORMAL"
     return {
         "status": status,
         "last_run": last_run,
+        "last_error": last_error if newer_error else None,
+        "error_type": error.get("error_type") if newer_error and error else None,
         "age_seconds": age_seconds,
-        "removed_files": int(state.get("removed_files") or 0),
-        "retention_days": int(state.get("retention_days") or 0),
+        "removed_files": int((state or {}).get("removed_files") or 0),
+        "retention_days": int((state or {}).get("retention_days") or 0),
     }
 
 
@@ -178,15 +217,26 @@ def platform_health(root: Path) -> dict:
     inode = _inode_usage(root)
     archive = _tree_usage(root / "archive")
     rejected = _tree_usage(root / "rejected")
+    collector = _collector_state(root)
     maintenance = _maintenance_state(root)
     backup = _backup_state(root)
     database = _database_stats()
     backend_releases = _release_state(Path("/opt/sphere-rundeck-dev/releases"), Path("/opt/sphere-rundeck-dev/current"))
     web_releases = _release_state(Path("/var/www/sphere-dev/releases"), Path("/var/www/sphere-dev/current"))
 
-    states = [filesystem.get("status"), inode.get("status"), maintenance.get("status")]
+    states = [
+        filesystem.get("status"),
+        inode.get("status"),
+        collector.get("status"),
+        maintenance.get("status"),
+        backend_releases.get("status"),
+        web_releases.get("status"),
+    ]
     if db_enabled():
         states.append("NORMAL" if database.get("status") == "ok" else "CRITICAL")
+    if backup.get("status") in {"FAILED", "ERROR"}:
+        states.append("WARNING")
+
     if "CRITICAL" in states:
         status = "CRITICAL"
     elif "WARNING" in states:
@@ -201,6 +251,7 @@ def platform_health(root: Path) -> dict:
         "inode": inode,
         "archive": archive,
         "rejected": rejected,
+        "collector": collector,
         "maintenance": maintenance,
         "backup": backup,
         "database": database,
