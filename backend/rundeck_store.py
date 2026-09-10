@@ -80,6 +80,7 @@ def validate(raw, expected):
 
 def ingest(execution, raw, expected, root=ROOT):
     from backend.rundeck_consumers import persist_top_consumers
+    from backend.rundeck_host_projection import enrich_host_metrics
     from backend.rundeck_monitoring import compress_file, persist_collection
 
     initialize(root)
@@ -147,6 +148,12 @@ def ingest(execution, raw, expected, root=ROOT):
         row["database_error_type"] = type(error).__name__
 
     if row.get("database_status") == "STORED" and row["status"] in ("READY", "PARTIAL"):
+        try:
+            row["host_projection_rows"] = enrich_host_metrics(cid, raw)
+            row["host_projection_status"] = "STORED"
+        except Exception as error:
+            row["host_projection_status"] = "ERROR"
+            row["host_projection_error_type"] = type(error).__name__
         try:
             row["top_consumer_rows"] = persist_top_consumers(cid, raw)
             row["top_consumer_status"] = "STORED"
