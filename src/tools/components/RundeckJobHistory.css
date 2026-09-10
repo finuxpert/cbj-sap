@@ -1,0 +1,127 @@
+.rundeckJobHistory {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckJobHistoryHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rundeckJobHistoryHead > div > span {
+  display: block;
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.rundeckJobHistoryHead h3 {
+  margin: 3px 0 0;
+  color: var(--sphere-text, #edf1f4);
+  font-size: 15px;
+  font-weight: 780;
+  overflow-wrap: anywhere;
+}
+
+.rundeckJobHistoryHead small,
+.rundeckJobHistoryHead > strong {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 10px;
+}
+
+.rundeckJobHistorySummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckJobHistorySummary > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 7px 12px;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 10px;
+}
+
+.rundeckJobHistorySummary > span:first-child {
+  padding-left: 0;
+}
+
+.rundeckJobHistorySummary > span + span {
+  border-left: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckJobHistorySummary b {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.rundeckJobHistoryTableWrap {
+  overflow: auto;
+  max-height: 300px;
+}
+
+.rundeckJobHistory table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 10px;
+}
+
+.rundeckJobHistory th,
+.rundeckJobHistory td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.rundeckJobHistory th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sphere-page, #11161c);
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckJobHistory tbody tr:hover {
+  background: var(--sphere-surface-2, #1e2730);
+}
+
+.rundeckJobHistoryState {
+  padding: 14px 0;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 11px;
+}
+
+.rundeckJobHistoryState.is-error {
+  color: var(--sphere-danger, #ef8a94);
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .rundeckJobHistoryHead {
+    flex-direction: column;
+  }
+
+  .rundeckJobHistorySummary > span {
+    flex: 1 1 45%;
+    padding-left: 0;
+    border-left: 0 !important;
+  }
+}
