@@ -244,20 +244,22 @@
   margin-top: 8px;
 }
 
-/* In Automatic Rundeck mode the normalized SAP view is authoritative.
-   Hide legacy point-in-time summaries that repeat the same host state. */
+/* Automatic Rundeck uses the normalized PostgreSQL view as the single source
+   for the operator UI. The browser parser still runs for compatibility but its
+   legacy presentation is intentionally hidden to avoid duplicate evidence. */
 .logV2Inner:has(.rundeckPanel) > .logV2Stats,
 .logV2Inner:has(.rundeckPanel) > .logV141Summary,
-.logV2Inner:has(.rundeckPanel) > .logV2SnapshotPanel {
+.logV2Inner:has(.rundeckPanel) > .logV2SnapshotPanel,
+.logV2Inner:has(.rundeckPanel) > .logOpsCurrentWorkload,
+.logV2Inner:has(.rundeckPanel) > .logV2ConsumerDetail,
+.logV2Inner:has(.rundeckPanel) > .logV2ServerDetails,
+.logV2Inner:has(.rundeckPanel) > .logOpsDiagnostics,
+.logV2Inner:has(.rundeckPanel) > .logOpsSourceAudit {
   display: none !important;
 }
 
 .logV2Inner:has(.rundeckPanel) > #top-resource-consumers {
-  margin-top: 18px;
-  border-left: 0 !important;
-  border-right: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  display: none !important;
 }
 
 @media (max-width: 1100px) {
