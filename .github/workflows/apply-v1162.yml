@@ -23,6 +23,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Repair temporary patcher escaping
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-v1162.mjs')
+          s = p.read_text()
+          s = s.replace('${tone}', r'\${tone}')
+          s = s.replace('${className}', r'\${className}')
+          p.write_text(s)
+          PY
       - name: Apply v1.16.2 source patch
         run: node scripts/apply-v1162.mjs
       - name: Add Radix accordion primitive
