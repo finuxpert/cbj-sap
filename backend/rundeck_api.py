@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
+from backend.rundeck_alert_incidents import incident_history
 from backend.rundeck_consumers import timeline_consumers
 from backend.rundeck_incident import performance_incident_summary
 from backend.rundeck_job_history import current_sap_jobs, sap_job_history
@@ -194,6 +195,24 @@ def history_alerts(days: int = Query(7, ge=1, le=90), limit: int = Query(500, ge
     since = datetime.now(timezone.utc) - timedelta(days=days)
     try:
         return {"since": since, "days": days, "items": alert_history(since, limit)}
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+
+
+@app.get("/history/incidents")
+def history_incidents(days: int = Query(7, ge=1, le=90), limit: int = Query(200, ge=1, le=1000)):
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    try:
+        items = incident_history(since, limit=limit)
+        active = sum(1 for item in items if item.get("state") == "ACTIVE")
+        resolved = sum(1 for item in items if item.get("state") == "RESOLVED")
+        return {
+            "since": since,
+            "days": days,
+            "active": active,
+            "resolved": resolved,
+            "items": items,
+        }
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 
