@@ -8,6 +8,36 @@ from sqlalchemy import text
 from backend.db.session import get_engine
 
 
+def current_sap_jobs(collection_id: str, limit: int = 50) -> list[dict]:
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT t.collection_id,
+                   c.execution_id,
+                   t.collected_at,
+                   t.host,
+                   t.consumer_type,
+                   t.consumer_key,
+                   t.rank,
+                   t.cpu_pct,
+                   t.ram_pct,
+                   t.details
+              FROM rundeck_top_consumers t
+              LEFT JOIN rundeck_collections c
+                ON c.collection_id = t.collection_id
+             WHERE t.collection_id = :collection_id
+             ORDER BY t.cpu_pct DESC NULLS LAST,
+                      t.ram_pct DESC NULLS LAST,
+                      t.host ASC,
+                      t.rank ASC
+             LIMIT :limit
+        """), {"collection_id": collection_id, "limit": limit})
+        return [dict(row._mapping) for row in rows]
+
+
 def sap_job_history(
     consumer_key: str,
     since: datetime,
