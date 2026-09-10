@@ -1,6 +1,6 @@
 .rundeckMonitoring {
-  margin-top: 18px;
-  padding-top: 18px;
+  margin-top: 12px;
+  padding-top: 10px;
   border-top: 1px solid var(--sphere-border-subtle, #28323c);
   color: var(--sphere-text, #edf1f4);
 }
@@ -11,7 +11,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
 }
 
 .rundeckMonitoringHead h3,
@@ -22,75 +22,48 @@
 }
 
 .rundeckMonitoringHead h3 {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 760;
-}
-
-.rundeckMonitoringCoverage {
-  display: grid;
-  justify-items: end;
-  gap: 1px;
-  min-width: 160px;
-}
-
-.rundeckMonitoringCoverage strong {
-  font-size: 13px;
-}
-
-.rundeckMonitoringCoverage span,
-.rundeckMonitoringCoverage small {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
 }
 
 .rundeckTrendToolbar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 14px 20px;
-  margin-top: 14px;
-  padding: 0 0 11px;
+  gap: 5px 14px;
+  margin-top: 7px;
+  padding-bottom: 7px;
   border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
-.rundeckControlGroup {
-  display: grid;
-  gap: 5px;
-}
-
-.rundeckControlGroup > span,
-.rundeckAdvancedControls > div > span {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: .05em;
-  text-transform: uppercase;
 }
 
 .rundeckSegmented {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: 2px;
 }
 
-.rundeckSegmented button {
-  min-height: 28px;
-  padding: 3px 9px;
+.rundeckSegmented button,
+.rundeckAdvancedControls button {
+  min-height: 25px;
+  padding: 2px 8px;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 3px;
   background: transparent;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-family: inherit;
+  font-size: 9px;
   font-weight: 700;
   cursor: pointer;
 }
 
-.rundeckSegmented button:hover {
+.rundeckSegmented button:hover,
+.rundeckAdvancedControls button:hover {
   color: var(--sphere-text, #edf1f4);
   background: var(--sphere-surface-2, #1e2730);
 }
 
-.rundeckSegmented button.is-active {
+.rundeckSegmented button.is-active,
+.rundeckAdvancedControls button.is-active {
   border-color: #315a61;
   background: var(--sphere-accent-soft, #17383f);
   color: #e8fbfc;
@@ -98,77 +71,42 @@
 
 .rundeckAdvancedControls {
   width: fit-content;
-  margin-top: 8px;
+  margin-top: 5px;
 }
 
 .rundeckAdvancedControls summary {
   color: var(--sphere-text-muted, #7f8c97);
   cursor: pointer;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .rundeckAdvancedControls > div {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 7px;
+  gap: 6px;
+  margin-top: 5px;
 }
 
-.rundeckTrendMeta,
-.rundeckRcaMetricStrip {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0;
-}
-
-.rundeckTrendMeta {
-  min-height: 38px;
-  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
-.rundeckTrendMeta > span,
-.rundeckRcaMetricStrip > span {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  padding: 3px 12px;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-.rundeckTrendMeta > span:first-child,
-.rundeckRcaMetricStrip > span:first-child {
-  padding-left: 0;
-}
-
-.rundeckTrendMeta > span + span,
-.rundeckRcaMetricStrip > span + span {
-  border-left: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
-.rundeckTrendMeta b,
-.rundeckRcaMetricStrip b {
+.rundeckAdvancedControls > div > span {
+  margin-left: 6px;
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 750;
   text-transform: uppercase;
 }
 
 .rundeckTrendChart {
   width: 100%;
-  height: 410px;
-  min-height: 350px;
-  background: transparent;
+  height: 330px;
+  min-height: 300px;
 }
 
 .rundeckHistoryState,
 .rundeckRcaHint {
-  padding: 18px 0;
+  padding: 10px 0;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 11px;
+  font-size: 9.5px;
 }
 
 .rundeckHistoryState.is-error {
@@ -177,16 +115,22 @@
 }
 
 .rundeckRcaHint {
-  margin-top: 10px;
+  margin-top: 4px;
+  padding: 6px 0;
   border-top: 1px dashed var(--sphere-border-subtle, #28323c);
-  border-bottom: 1px dashed var(--sphere-border-subtle, #28323c);
   color: var(--sphere-text-muted, #7f8c97);
 }
 
 .rundeckRcaSection {
-  margin-top: 16px;
-  padding: 14px 0 4px;
+  margin-top: 8px;
+  padding: 8px 0 2px;
   border-top: 1px solid var(--sphere-border, #323d48);
+  outline: none;
+}
+
+.rundeckRcaSection:focus,
+.rundeckRcaSection:focus-visible {
+  outline: none;
 }
 
 .rundeckRcaHeader {
@@ -195,108 +139,122 @@
 
 .rundeckRcaHeader > div > span {
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
-  letter-spacing: .07em;
+  letter-spacing: .05em;
   text-transform: uppercase;
 }
 
 .rundeckRcaHeader h4 {
-  margin-top: 2px;
-  font-size: 16px;
+  margin-top: 1px;
+  font-size: 14px;
 }
 
 .rundeckRcaHeader small {
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .rundeckRcaMetricStrip {
-  min-height: 40px;
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 32px;
+  margin-top: 4px;
   border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckRcaMetricStrip > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 9px;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.rundeckRcaMetricStrip > span:first-child {
+  padding-left: 0;
+}
+
+.rundeckRcaMetricStrip > span + span {
+  border-left: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckRcaMetricStrip b {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 8px;
+  font-weight: 750;
+  text-transform: uppercase;
 }
 
 .rundeckRcaWorkload {
   display: grid;
-  grid-template-columns: minmax(220px, 1.3fr) minmax(420px, 2fr);
-  gap: 26px;
-  padding: 14px 0;
+  grid-template-columns: minmax(210px, 1.1fr) minmax(380px, 2fr);
+  gap: 18px;
+  padding: 8px 0;
 }
 
 .rundeckRcaWorkloadTitle > span {
   display: block;
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 750;
-  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
 .rundeckRcaWorkloadTitle > strong {
   display: block;
+  margin-top: 2px;
   overflow: hidden;
-  margin-top: 4px;
   color: var(--sphere-text, #edf1f4);
-  font-size: 14px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .rundeckRcaWorkloadTitle > small {
   display: block;
-  margin-top: 3px;
+  margin-top: 2px;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .rundeckRcaWorkload dl {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px 18px;
+  gap: 4px 14px;
   margin: 0;
 }
 
 .rundeckRcaWorkload dl div {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 6px;
   min-width: 0;
 }
 
 .rundeckRcaWorkload dt {
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .rundeckRcaWorkload dd {
   overflow: hidden;
   margin: 0;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.rundeckRcaContext {
-  margin-bottom: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
-.rundeckRcaContext summary {
-  color: var(--sphere-text-muted, #7f8c97);
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 700;
-}
-
 .rundeckInlineStatus {
   display: inline-flex;
   align-items: center;
-  min-height: 20px;
-  padding: 1px 6px;
+  min-height: 18px;
+  padding: 1px 5px;
   border: 1px solid currentColor;
   border-radius: 999px;
   background: transparent;
@@ -305,118 +263,79 @@
 }
 
 .rundeckInlineStatus.is-normal,
-.rundeckInlineStatus.is-ready {
-  color: var(--sphere-positive, #78d6ad);
-}
-
+.rundeckInlineStatus.is-ready { color: var(--sphere-positive, #78d6ad); }
 .rundeckInlineStatus.is-warning,
-.rundeckInlineStatus.is-partial {
-  color: var(--sphere-warning, #e8c86b);
-}
-
+.rundeckInlineStatus.is-partial { color: var(--sphere-warning, #e8c86b); }
 .rundeckInlineStatus.is-critical,
 .rundeckInlineStatus.is-failed,
-.rundeckInlineStatus.is-error {
-  color: var(--sphere-danger, #ef8a94);
-}
+.rundeckInlineStatus.is-error { color: var(--sphere-danger, #ef8a94); }
 
 .rundeckOpsSection {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--sphere-border-subtle, #28323c);
-}
-
-.rundeckOpsHead {
-  margin-bottom: 7px;
-}
-
-.rundeckOpsHead h4 {
-  font-size: 13px;
-  font-weight: 750;
-}
-
-.rundeckOpsHead span {
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 9px;
+  margin-top: 8px;
 }
 
 .rundeckMiniTableWrap {
   overflow: auto;
-  max-height: 300px;
+  max-height: 250px;
 }
 
 .rundeckMiniTableWrap table {
   width: 100%;
   border-collapse: collapse;
   color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .rundeckMiniTableWrap th,
 .rundeckMiniTableWrap td {
-  padding: 7px 8px;
+  padding: 6px 7px;
   border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
   text-align: left;
-  vertical-align: middle;
 }
 
 .rundeckMiniTableWrap th {
   position: sticky;
   top: 0;
-  z-index: 1;
   background: var(--sphere-page, #11161c);
   color: var(--sphere-text-muted, #7f8c97);
   font-size: 8px;
-  font-weight: 750;
-  letter-spacing: .04em;
   text-transform: uppercase;
 }
 
-.rundeckMiniTableWrap tbody tr:hover,
-.rundeckMiniTableWrap tbody tr.is-selected {
-  background: var(--sphere-surface-2, #1e2730);
+.rundeckEvidenceGroup {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
 }
 
-.rundeckMiniTableWrap td strong {
-  display: block;
-  max-width: 420px;
-  overflow: hidden;
-  color: var(--sphere-text, #edf1f4);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.rundeckEvidenceGroup summary {
+  color: var(--sphere-text-secondary, #b1bbc4);
+  cursor: pointer;
+  font-size: 9.5px;
+  font-weight: 700;
 }
 
-.rundeckMiniTableWrap td small {
-  display: block;
-  margin-top: 2px;
+.rundeckEvidenceGroup summary span {
+  margin-left: 6px;
   color: var(--sphere-text-muted, #7f8c97);
+  font-weight: 500;
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 900px) {
   .rundeckRcaWorkload {
     grid-template-columns: 1fr;
-  }
-
-  .rundeckRcaWorkload dl {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
 @media (max-width: 760px) {
   .rundeckMonitoringHead,
-  .rundeckOpsHead,
   .rundeckRcaHeader {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .rundeckMonitoringCoverage {
-    justify-items: start;
-  }
-
   .rundeckTrendToolbar {
     align-items: flex-start;
-    flex-direction: column;
   }
 
   .rundeckRcaWorkload dl {
@@ -424,6 +343,6 @@
   }
 
   .rundeckTrendChart {
-    height: 350px;
+    height: 300px;
   }
 }
