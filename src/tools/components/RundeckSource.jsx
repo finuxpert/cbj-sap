@@ -1,40 +1,32 @@
 import React from 'react'
 import RundeckMonitoringHistory from './RundeckMonitoringHistory.jsx'
+import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
 import './RundeckSource.css'
 
 const API = `${import.meta.env.BASE_URL}api`
 
-const formatTime = (value) => {
+const formatTime = (value, compact = false) => {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return String(value)
-  const formatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Jakarta',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  })
-  const parts = Object.fromEntries(
-    formatter.formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]),
-  )
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} WIB`
+  return new Intl.DateTimeFormat('id-ID', compact
+    ? { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
+    : { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
+  ).format(date)
 }
 
-const formatUiTime = () => new Intl.DateTimeFormat('id-ID', {
-  timeZone: 'Asia/Jakarta',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-}).format(new Date())
+const formatUiTime = () => formatTime(new Date(), true)
 
 const metric = (value, suffix = '') => (
-  value === null || value === undefined || value === '' ? '—' : `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 })}${suffix}`
+  value === null || value === undefined || value === ''
+    ? '—'
+    : `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 })}${suffix}`
 )
+
+const shortHost = (host = '') => {
+  const match = String(host).match(/APP(\d+)/i)
+  return match ? `APP${match[1]}` : String(host)
+}
 
 function StatusPill({ value = 'UNKNOWN' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
@@ -124,7 +116,7 @@ export default function RundeckSource({ onCollection }) {
     const onReady = () => refreshAll()
     source.addEventListener('collection_ready', onReady)
     source.onerror = () => {
-      // The 60-second polling fallback remains active while EventSource reconnects.
+      // 60-second polling remains the fallback while EventSource reconnects.
     }
     return () => {
       source.removeEventListener('collection_ready', onReady)
@@ -149,7 +141,6 @@ export default function RundeckSource({ onCollection }) {
     }
   }
 
-  const sourceStatus = health?.rundeck_stale ? 'WARNING' : (latest?.status || 'WAITING')
   const overallHealth = hosts.some((host) => host.health === 'CRITICAL')
     ? 'CRITICAL'
     : hosts.some((host) => host.health === 'WARNING') || health?.rundeck_stale
@@ -157,86 +148,82 @@ export default function RundeckSource({ onCollection }) {
       : hosts.length
         ? 'NORMAL'
         : 'WAITING'
+
   const collectionCount = history.length
   const partialCount = history.filter((row) => row.status === 'PARTIAL').length
   const failedCount = history.filter((row) => row.status === 'FAILED').length
+  const collectorState = health?.rundeck_stale ? 'STALE' : 'CURRENT'
+  const databaseState = health?.database ? 'ONLINE' : 'FILE FALLBACK'
 
-  return <section className="rundeckPanel" aria-label="Rundeck collection" aria-live="polite">
-    <div className="rundeckPanelHead">
+  return <section className="rundeckPanel" aria-label="SAP infrastructure monitoring" aria-live="polite">
+    <header className="rundeckLandscapeHeader">
       <div>
-        <span className="rundeckEyebrow">AUTOMATIC COLLECTION</span>
-        <h2>Rundeck · SPHERE /dev</h2>
-        <p>Rundeck ingestion · PostgreSQL 90-day history · Manual Upload remains fallback.</p>
+        <span className="rundeckEyebrow">{TERMS.collector}</span>
+        <h2>{TERMS.landscapeHealth}</h2>
       </div>
       <div className="rundeckActions">
-        <StatusPill value={sourceStatus} />
+        <StatusPill value={overallHealth} />
         {runState.enabled && (
           <button
             type="button"
             className="rundeckCollectButton"
             disabled={actionBusy || !runState.allowed}
             onClick={collectNow}
-            title={runState.running ? 'Rundeck job is still running' : runState.cooldown ? 'Collect Now is in 5-minute cooldown' : 'Run the whitelisted SPHERE Rundeck job'}
+            title={runState.running ? 'Rundeck job is still running' : runState.cooldown ? 'Collect Now is in cooldown' : 'Run the approved SPHERE Rundeck job'}
           >
             {actionBusy ? 'Starting…' : runState.running ? `Running #${runState.execution_id || ''}` : runState.cooldown ? 'Cooldown' : 'Collect Now'}
           </button>
         )}
       </div>
-    </div>
+    </header>
 
     {error && <div className="rundeckMessage" role="status">{error}</div>}
 
-    <div className="rundeckMetadata">
-      <div><span>Execution</span><strong>#{latest?.execution_id || '—'}</strong></div>
-      <div><span>Collection Time · WIB</span><strong>{formatTime(latest?.collection_time_wib || latest?.finished_at)}</strong></div>
-      <div><span>Hosts</span><strong>{latest?.host_count || '—'}</strong></div>
-      <div><span>Collection</span><strong><StatusPill value={latest?.status || 'WAITING'} /></strong></div>
-      <div><span>System Health</span><strong><StatusPill value={overallHealth} /></strong></div>
-      <div><span>UI Updated · WIB</span><strong>{lastUpdate || '—'}</strong></div>
+    <div className="rundeckLandscapeMeta" aria-label="Landscape telemetry status">
+      <span><b>{TERMS.lastCollection}</b>{formatTime(latest?.collection_time_wib || latest?.finished_at)}</span>
+      <span><b>{TERMS.telemetryCoverage}</b>{latest?.host_count || '—'}</span>
+      <span><b>Rundeck</b>{collectorState}</span>
+      <span><b>{TERMS.database}</b>{databaseState}</span>
+      <span><b>Execution</b>#{latest?.execution_id || '—'}</span>
+      <span className="rundeckUiUpdated"><b>UI Updated</b>{lastUpdate || '—'} WIB</span>
     </div>
 
-    <div className="rundeckOpsStrip">
-      <div>
-        <span>Database</span>
-        <strong>{health?.database ? (health?.timescaledb ? 'PostgreSQL + TimescaleDB' : 'PostgreSQL') : 'File fallback'}</strong>
-      </div>
-      <div>
-        <span>Storage</span>
-        <strong><StatusPill value={health?.storage?.status || 'UNKNOWN'} /></strong>
-        <small>{health?.storage?.used_pct !== undefined ? `${health.storage.used_pct}% used` : '—'}</small>
-      </div>
-      <div>
-        <span>Rundeck Freshness</span>
-        <strong>{health?.rundeck_stale ? 'STALE' : 'CURRENT'}</strong>
-        <small>{health?.stale_after_minutes ? `threshold ${health.stale_after_minutes} min` : '—'}</small>
-      </div>
-      <div>
-        <span>Recent Collections</span>
-        <strong>{collectionCount || '—'}</strong>
-        <small>{partialCount} partial · {failedCount} failed</small>
-      </div>
-    </div>
-
-    {hosts.length > 0 && <div className="rundeckHostSection">
+    {hosts.length > 0 && <section className="rundeckServerSection">
       <div className="rundeckSectionTitle">
-        <div><h3>Application Server Health</h3><span>Latest normalized snapshot · worst-state summary</span></div>
-        <StatusPill value={overallHealth} />
+        <h3>{TERMS.applicationServers}</h3>
+        <span>Latest normalized telemetry</span>
       </div>
-      <div className="rundeckHostGrid">
-        {hosts.map((host) => <article key={host.host} className="rundeckHostCard">
-          <div><strong>{host.host}</strong><StatusPill value={host.health} /></div>
-          <small>{formatTime(host.collected_at)}</small>
-          <dl>
-            <div><dt>CPU</dt><dd>{metric(host.cpu_pct, '%')}</dd></div>
-            <div><dt>RAM</dt><dd>{metric(host.ram_pct, '%')}</dd></div>
-            <div><dt>Load 1M</dt><dd>{metric(host.load_1)}</dd></div>
-            <div><dt>I/O Wait</dt><dd>{metric(host.io_wait_pct, '%')}</dd></div>
-            <div><dt>Swap I/O</dt><dd>{metric(host.swap_pct, ' p/s')}</dd></div>
-            <div className={Number(host.wp_critical || 0) > 0 ? 'is-attention' : ''}><dt>WP Critical</dt><dd>{metric(host.wp_critical)}</dd></div>
-          </dl>
-        </article>)}
+      <div className="rundeckServerTableWrap">
+        <table className="rundeckServerTable">
+          <thead>
+            <tr>
+              <th>Server</th>
+              <th>State</th>
+              <th>CPU</th>
+              <th>Memory</th>
+              <th>Load 1M</th>
+              <th>I/O Wait</th>
+              <th>Swap I/O</th>
+              <th>{TERMS.criticalWorkProcess}</th>
+              <th>Sample WIB</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hosts.map((host) => <tr key={host.host}>
+              <td><strong title={host.host}>{shortHost(host.host)}</strong></td>
+              <td><StatusPill value={host.health} /></td>
+              <td>{metric(host.cpu_pct, '%')}</td>
+              <td>{metric(host.ram_pct, '%')}</td>
+              <td>{metric(host.load_1)}</td>
+              <td>{metric(host.io_wait_pct, '%')}</td>
+              <td>{metric(host.swap_pct, ' p/s')}</td>
+              <td className={Number(host.wp_critical || 0) > 0 ? 'is-attention' : ''}>{metric(host.wp_critical)}</td>
+              <td className="rundeckSampleTime">{formatTime(host.collected_at, true)}</td>
+            </tr>)}
+          </tbody>
+        </table>
       </div>
-    </div>}
+    </section>}
 
     <RundeckMonitoringHistory
       refreshToken={latest?.collection_id || ''}
@@ -244,15 +231,15 @@ export default function RundeckSource({ onCollection }) {
     />
 
     <details className="rundeckHistory">
-      <summary>Collection History · 90 days · {collectionCount} recent · {partialCount} partial · {failedCount} failed</summary>
+      <summary>{TERMS.collectionCycle} History <span>{collectionCount} recent, {partialCount} partial, {failedCount} failed</span></summary>
       <div className="rundeckHistoryTableWrap">
         <table>
-          <thead><tr><th>Execution</th><th>Collection Time · WIB</th><th>Hosts</th><th>Status</th></tr></thead>
+          <thead><tr><th>Execution</th><th>Collection Time WIB</th><th>Coverage</th><th>Status</th></tr></thead>
           <tbody>
             {history.slice(0, 15).map((row) => <tr key={row.collection_id || row.execution_id}>
               <td>#{row.execution_id}</td>
               <td>{formatTime(row.collection_time_wib || row.finished_at)}</td>
-              <td>{row.host_count || `${row.received_host_count ?? '—'} / ${row.expected_host_count ?? 5}`}</td>
+              <td>{row.host_count || `${row.received_host_count ?? '—'} of ${row.expected_host_count ?? 5}`}</td>
               <td><StatusPill value={row.status || 'UNKNOWN'} /></td>
             </tr>)}
             {!history.length && <tr><td colSpan="4">No collection history yet.</td></tr>}
