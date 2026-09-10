@@ -1,0 +1,69 @@
+.rundeckPlatformHealth {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckPlatformHealth summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--sphere-text, #edf1f4);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.rundeckPlatformHealth summary > span:last-child {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-weight: 500;
+}
+
+.rundeckPlatformTableWrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.rundeckPlatformTable {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 11px;
+}
+
+.rundeckPlatformTable th,
+.rundeckPlatformTable td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  text-align: left;
+  vertical-align: top;
+}
+
+.rundeckPlatformTable th {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckPlatformTable td:first-child {
+  color: var(--sphere-text, #edf1f4);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rundeckPlatformTable tbody tr:hover {
+  background: color-mix(in srgb, var(--sphere-surface-2, #1e2730) 74%, transparent);
+}
+
+@media (max-width: 720px) {
+  .rundeckPlatformHealth summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .rundeckPlatformHealth summary > span:last-child {
+    flex-basis: 100%;
+  }
+}
