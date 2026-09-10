@@ -6,9 +6,31 @@ const API = `${import.meta.env.BASE_URL}api`
 
 const formatTime = (value) => {
   if (!value) return '—'
-  const text = String(value).replace('T', ' ')
-  return text.replace(/([+-]\d{2}:\d{2}|Z)$/, '')
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date).filter((part) => part.type !== 'literal').map((part) => [part.type, part.value]),
+  )
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second} WIB`
 }
+
+const formatUiTime = () => new Intl.DateTimeFormat('id-ID', {
+  timeZone: 'Asia/Jakarta',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+}).format(new Date())
 
 const metric = (value, suffix = '') => (
   value === null || value === undefined || value === '' ? '—' : `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 1 })}${suffix}`
@@ -78,7 +100,7 @@ export default function RundeckSource({ onCollection }) {
     if (hostsResult.status === 'fulfilled') setHosts(hostsResult.value.items || [])
     if (historyResult.status === 'fulfilled') setHistory(historyResult.value.items || [])
     if (runResult.status === 'fulfilled') setRunState(runResult.value)
-    setLastUpdate(new Date().toLocaleTimeString('id-ID', { hour12: false }))
+    setLastUpdate(formatUiTime())
   }, [])
 
   const refreshAll = React.useCallback(async () => {
@@ -166,11 +188,11 @@ export default function RundeckSource({ onCollection }) {
 
     <div className="rundeckMetadata">
       <div><span>Execution</span><strong>#{latest?.execution_id || '—'}</strong></div>
-      <div><span>Collection Time · WIB</span><strong>{formatTime(latest?.collection_time_wib)}</strong></div>
+      <div><span>Collection Time · WIB</span><strong>{formatTime(latest?.collection_time_wib || latest?.finished_at)}</strong></div>
       <div><span>Hosts</span><strong>{latest?.host_count || '—'}</strong></div>
       <div><span>Collection</span><strong><StatusPill value={latest?.status || 'WAITING'} /></strong></div>
       <div><span>System Health</span><strong><StatusPill value={overallHealth} /></strong></div>
-      <div><span>UI Updated</span><strong>{lastUpdate || '—'}</strong></div>
+      <div><span>UI Updated · WIB</span><strong>{lastUpdate || '—'}</strong></div>
     </div>
 
     <div className="rundeckOpsStrip">
@@ -225,7 +247,7 @@ export default function RundeckSource({ onCollection }) {
       <summary>Collection History · 90 days · {collectionCount} recent · {partialCount} partial · {failedCount} failed</summary>
       <div className="rundeckHistoryTableWrap">
         <table>
-          <thead><tr><th>Execution</th><th>Collection Time</th><th>Hosts</th><th>Status</th></tr></thead>
+          <thead><tr><th>Execution</th><th>Collection Time · WIB</th><th>Hosts</th><th>Status</th></tr></thead>
           <tbody>
             {history.slice(0, 15).map((row) => <tr key={row.collection_id || row.execution_id}>
               <td>#{row.execution_id}</td>
