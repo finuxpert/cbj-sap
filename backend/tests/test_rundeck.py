@@ -106,6 +106,17 @@ class IngestionTests(unittest.TestCase):
         }
         self.assertEqual(mutating, {('/collect-now', 'POST')})
 
+    def test_job_history_routes_are_read_only(self):
+        from backend.rundeck_api import app
+
+        methods_by_path = {
+            route.path: set(route.methods)
+            for route in app.routes
+            if getattr(route, 'methods', None)
+        }
+        self.assertEqual(methods_by_path['/history/job'], {'GET'})
+        self.assertEqual(methods_by_path['/history/jobs/current'], {'GET'})
+
     def test_job_identity_does_not_depend_on_uuid(self):
         group = 'SAP/AOP'
         name = '[Critical]-[Daily Check] SPHERE SAP Work Proccess Check'
