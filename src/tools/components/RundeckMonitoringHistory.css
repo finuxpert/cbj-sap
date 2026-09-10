@@ -1,6 +1,6 @@
 .rundeckMonitoring {
-  margin-top: 10px;
-  padding-top: 8px;
+  margin-top: 9px;
+  padding-top: 7px;
   color: var(--sphere-text, #e7edf0);
 }
 
@@ -21,17 +21,25 @@
 }
 
 .rundeckMonitoringHead h3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12.5px;
   font-weight: 760;
+}
+
+.rundeckMonitoringHead h3 .sphereIcon,
+.rundeckRcaHeader h4 .sphereIcon {
+  color: var(--sphere-text-muted, #718089);
 }
 
 .rundeckTrendToolbar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-top: 5px;
-  padding-bottom: 2px;
+  gap: 3px 9px;
+  margin-top: 4px;
+  padding-bottom: 1px;
 }
 
 .rundeckControlGroup {
@@ -52,14 +60,14 @@
 
 .rundeckSegmented button,
 .rundeckAdvancedControls button {
-  min-height: 23px;
+  min-height: 22px;
   padding: 2px 7px;
   border: 0;
   border-radius: 4px;
   background: transparent;
   color: var(--sphere-text-muted, #718089);
   font-family: inherit;
-  font-size: 8.5px;
+  font-size: 8.4px;
   font-weight: 700;
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease;
@@ -68,18 +76,18 @@
 .rundeckSegmented button:hover,
 .rundeckAdvancedControls button:hover {
   color: var(--sphere-text, #e7edf0);
-  background: rgba(79, 198, 200, .06);
+  background: rgba(79, 198, 200, .05);
 }
 
 .rundeckSegmented button.is-active,
 .rundeckAdvancedControls button.is-active {
-  background: rgba(79, 198, 200, .11);
+  background: rgba(79, 198, 200, .10);
   color: var(--sphere-accent, #4fc6c8);
 }
 
 .rundeckAdvancedControls {
   width: fit-content;
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .rundeckAdvancedControls summary {
@@ -102,13 +110,13 @@
 
 .rundeckTrendChart {
   width: 100%;
-  height: 305px;
-  min-height: 285px;
+  height: 275px;
+  min-height: 260px;
 }
 
 .rundeckHistoryState,
 .rundeckRcaHint {
-  padding: 7px 0;
+  padding: 6px 0;
   color: var(--sphere-text-secondary, #a9b5bb);
   font-size: 9px;
 }
@@ -120,14 +128,14 @@
 
 .rundeckRcaHint {
   margin-top: 0;
-  padding: 2px 0 4px;
+  padding: 1px 0 3px;
   color: var(--sphere-text-muted, #718089);
   font-size: 8.5px;
 }
 
 .rundeckRcaSection {
-  margin-top: 5px;
-  padding: 5px 0 1px;
+  margin-top: 4px;
+  padding: 4px 0 1px;
   outline: none;
 }
 
@@ -149,6 +157,9 @@
 }
 
 .rundeckRcaHeader h4 {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   margin-top: 1px;
   font-size: 12.5px;
 }
@@ -187,7 +198,7 @@
   display: grid;
   grid-template-columns: minmax(210px, 1.05fr) minmax(380px, 2fr);
   gap: 16px;
-  padding: 4px 0 6px;
+  padding: 4px 0 5px;
 }
 
 .rundeckRcaWorkloadTitle > span {
@@ -272,12 +283,12 @@
 .rundeckInlineStatus.is-error { color: var(--sphere-danger, #db7d86); }
 
 .rundeckOpsSection {
-  margin-top: 5px;
+  margin-top: 4px;
 }
 
 .rundeckMiniTableWrap {
   overflow: auto;
-  max-height: 230px;
+  max-height: 210px;
 }
 
 .rundeckMiniTableWrap table {
@@ -289,8 +300,8 @@
 
 .rundeckMiniTableWrap th,
 .rundeckMiniTableWrap td {
-  padding: 5px 7px;
-  border-bottom: 1px solid rgba(113, 128, 137, .12);
+  padding: 4px 7px;
+  border-bottom: 1px solid rgba(113, 128, 137, .09);
   text-align: left;
 }
 
@@ -304,24 +315,26 @@
 }
 
 .rundeckEvidenceGroup {
-  margin-top: 6px;
-  padding-top: 3px;
+  margin-top: 5px;
+  padding-top: 2px;
 }
 
 .rundeckEvidenceGroup summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--sphere-text-secondary, #a9b5bb);
   cursor: pointer;
-  font-size: 0;
+  font-size: 9px;
   font-weight: 680;
 }
 
-.rundeckEvidenceGroup summary::before {
-  content: 'SAP Alert History';
-  font-size: 9px;
+.rundeckEvidenceGroup summary .sphereIcon {
+  color: var(--sphere-text-muted, #718089);
 }
 
 .rundeckEvidenceGroup summary span {
-  margin-left: 6px;
+  margin-left: 2px;
   color: var(--sphere-text-muted, #718089);
   font-size: 8.5px;
   font-weight: 500;
@@ -349,6 +362,6 @@
   }
 
   .rundeckTrendChart {
-    height: 285px;
+    height: 265px;
   }
 }
