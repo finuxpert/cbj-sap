@@ -30,6 +30,7 @@ const METRICS = [
 ]
 
 const RANGE_HOURS = { '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
+const EXPECTED_HOSTS = 5
 
 const number = (value, digits = 1) => {
   if (value === null || value === undefined || value === '') return '—'
@@ -51,6 +52,25 @@ const formatWib = (value, compact = false) => {
     : { timeZone: 'Asia/Jakarta', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }
   ).format(date)
 }
+
+const themeToken = (name, fallback) => {
+  if (typeof window === 'undefined') return fallback
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  return value || fallback
+}
+
+const chartTheme = () => ({
+  text: themeToken('--sphere-text', '#edf1f4'),
+  secondary: themeToken('--sphere-text-secondary', '#b1bbc4'),
+  muted: themeToken('--sphere-text-muted', '#7f8c97'),
+  border: themeToken('--sphere-border', '#323d48'),
+  grid: themeToken('--sphere-border-subtle', '#28323c'),
+  panel: themeToken('--sphere-surface-1', '#192129'),
+  panelStrong: themeToken('--sphere-surface-2', '#1e2730'),
+  accentSoft: themeToken('--sphere-accent-soft', '#17383f'),
+  warning: themeToken('--sphere-warning', '#e8c86b'),
+  danger: themeToken('--sphere-danger', '#ef8a94'),
+})
 
 async function json(url, signal) {
   const response = await fetch(url, { cache: 'no-store', signal })
@@ -85,6 +105,7 @@ function useEChart(option, onClick) {
 
 function TrendChart({ trend, mode, range, onSelect }) {
   const option = React.useMemo(() => {
+    const palette = chartTheme()
     const rows = trend?.items || []
     const hosts = Array.from(new Set(rows.map((row) => row.host))).sort()
     const byHost = new Map(hosts.map((host) => [host, rows.filter((row) => row.host === host)]))
@@ -92,21 +113,40 @@ function TrendChart({ trend, mode, range, onSelect }) {
     const valueKey = mode === 'max' ? 'max_value' : 'avg_value'
     const thresholdLines = []
     if (trend?.warning !== null && trend?.warning !== undefined) {
-      thresholdLines.push({ yAxis: Number(trend.warning), name: 'WARNING', label: { formatter: `WARNING ${trend.warning}${suffix}` } })
+      thresholdLines.push({
+        yAxis: Number(trend.warning),
+        name: 'WARNING',
+        lineStyle: { color: palette.warning, type: 'dashed' },
+        label: { formatter: `WARNING ${trend.warning}${suffix}`, color: palette.warning },
+      })
     }
     if (trend?.critical !== null && trend?.critical !== undefined) {
-      thresholdLines.push({ yAxis: Number(trend.critical), name: 'CRITICAL', label: { formatter: `CRITICAL ${trend.critical}${suffix}` } })
+      thresholdLines.push({
+        yAxis: Number(trend.critical),
+        name: 'CRITICAL',
+        lineStyle: { color: palette.danger, type: 'dashed' },
+        label: { formatter: `CRITICAL ${trend.critical}${suffix}`, color: palette.danger },
+      })
     }
 
     return {
       animationDuration: 220,
       backgroundColor: 'transparent',
-      textStyle: { color: '#344054' },
-      legend: { top: 0, type: 'scroll', data: hosts.map(shortHost), textStyle: { color: '#475467' } },
+      textStyle: { color: palette.text },
+      legend: {
+        top: 0,
+        type: 'scroll',
+        data: hosts.map(shortHost),
+        textStyle: { color: palette.secondary },
+        pageTextStyle: { color: palette.muted },
+      },
       grid: { left: 64, right: 28, top: 48, bottom: 74 },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'cross' },
+        axisPointer: { type: 'cross', lineStyle: { color: palette.muted } },
+        backgroundColor: palette.panelStrong,
+        borderColor: palette.border,
+        textStyle: { color: palette.text },
         formatter: (items = []) => {
           if (!items.length) return ''
           const first = items[0]?.data || {}
@@ -118,13 +158,13 @@ function TrendChart({ trend, mode, range, onSelect }) {
             const min = number(row.min, trend?.metric === 'wp' ? 0 : 1)
             return `${item.marker}${item.seriesName}: <b>${mode === 'max' ? peak : avg}${suffix}</b><br/><span style="opacity:.72">avg ${avg}${suffix} · peak ${peak}${suffix} · min ${min}${suffix} · ${row.samples || 0} samples</span>`
           }).join('<br/>')
-          return `${title}<br/>${body}<br/><span style="opacity:.62">Click a point to inspect the peak sample in this bucket.</span>`
+          return `${title}<br/>${body}<br/><span style="opacity:.62">Click a point to inspect the exact peak collection.</span>`
         },
       },
       xAxis: {
         type: 'time',
         axisLabel: {
-          color: '#667085',
+          color: palette.muted,
           hideOverlap: true,
           formatter: (value) => {
             const date = new Date(value)
@@ -134,20 +174,33 @@ function TrendChart({ trend, mode, range, onSelect }) {
             return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', hour12: false }).format(date)
           },
         },
-        axisLine: { lineStyle: { color: '#d0d5dd' } },
+        axisLine: { lineStyle: { color: palette.border } },
+        splitLine: { show: false },
       },
       yAxis: {
         type: 'value',
         name: `${trend?.metric_label || ''}${trend?.unit ? ` (${trend.unit})` : ''}`,
-        nameTextStyle: { color: '#667085' },
-        axisLabel: { color: '#667085', formatter: (value) => `${value}${trend?.unit === '%' ? '%' : ''}` },
-        splitLine: { lineStyle: { color: '#e4e7ec', type: 'dashed' } },
+        nameTextStyle: { color: palette.muted },
+        axisLabel: { color: palette.muted, formatter: (value) => `${value}${trend?.unit === '%' ? '%' : ''}` },
+        axisLine: { lineStyle: { color: palette.border } },
+        splitLine: { lineStyle: { color: palette.grid, type: 'dashed' } },
         min: trend?.unit === '%' ? 0 : undefined,
         max: trend?.unit === '%' ? 100 : undefined,
       },
       dataZoom: [
         { type: 'inside', filterMode: 'none' },
-        { type: 'slider', bottom: 18, height: 18, filterMode: 'none' },
+        {
+          type: 'slider',
+          bottom: 18,
+          height: 18,
+          filterMode: 'none',
+          borderColor: palette.border,
+          backgroundColor: palette.panel,
+          fillerColor: palette.accentSoft,
+          dataBackground: { lineStyle: { color: palette.muted }, areaStyle: { color: palette.grid } },
+          selectedDataBackground: { lineStyle: { color: palette.secondary }, areaStyle: { color: palette.accentSoft } },
+          textStyle: { color: palette.muted },
+        },
       ],
       series: hosts.map((host, index) => ({
         name: shortHost(host),
@@ -160,6 +213,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
           value: [row.bucket, row[valueKey]],
           bucket: row.bucket,
           peakAt: row.peak_at,
+          peakCollectionId: row.peak_collection_id,
           host: row.host,
           avg: row.avg_value,
           max: row.max_value,
@@ -183,6 +237,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
     onSelect?.({
       host: params.data.host,
       at: params.data.peakAt || params.data.bucket,
+      collectionId: params.data.peakCollectionId || '',
       bucket: params.data.bucket,
       avg: params.data.avg,
       max: params.data.max,
@@ -211,14 +266,14 @@ function Segmented({ options, value, onChange, ariaLabel }) {
 
 function Timeline({ selected, data, loading, error }) {
   if (!selected && !loading && !error) {
-    return <div className="rundeckTimelineEmpty">Click a graph point to correlate that bucket with the nearest raw APP1–APP5 snapshot and Top Job / Program / WP / User / PID.</div>
+    return <div className="rundeckTimelineEmpty">Click a graph point to correlate that bucket with the exact Rundeck collection and Top Job / Program / WP / User / PID.</div>
   }
 
   return <section className="rundeckTimeline">
     <div className="rundeckSectionTitle">
       <div>
         <h4>Timeline Correlation</h4>
-        <span>{selected?.at ? `${formatWib(selected.at)} WIB · peak sample from selected bucket` : 'Loading selected timestamp…'}</span>
+        <span>{selected?.at ? `${formatWib(selected.at)} WIB · ${selected.collectionId || 'nearest collection'}` : 'Loading selected timestamp…'}</span>
       </div>
       {selected?.host && <strong>{shortHost(selected.host)}</strong>}
     </div>
@@ -318,7 +373,8 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
     setTimelineError('')
     if (!point?.at) return
     setTimelineLoading(true)
-    json(`${API}/history/timeline?at=${encodeURIComponent(point.at)}&window_minutes=5`)
+    const collectionQuery = point.collectionId ? `&collection_id=${encodeURIComponent(point.collectionId)}` : ''
+    json(`${API}/history/timeline?at=${encodeURIComponent(point.at)}&window_minutes=5${collectionQuery}`)
       .then(setTimeline)
       .catch((error) => setTimelineError(error.message || 'Unable to correlate selected timestamp.'))
       .finally(() => setTimelineLoading(false))
@@ -340,18 +396,24 @@ export default function RundeckMonitoringHistory({ refreshToken = '', databaseEn
   })
   const criticalCount = visibleAlerts.filter((row) => row.severity === 'CRITICAL').length
   const warningCount = visibleAlerts.filter((row) => row.severity === 'WARNING').length
+  const trendItems = trend?.items || []
+  const timeBuckets = new Set(trendItems.map((row) => row.bucket).filter(Boolean)).size
+  const hostCount = new Set(trendItems.map((row) => row.host).filter(Boolean)).size
+  const populatedPoints = trendItems.filter((row) => Number(row.samples || 0) > 0).length
+  const expectedPoints = timeBuckets * EXPECTED_HOSTS
+  const coveragePct = expectedPoints ? Math.round((populatedPoints / expectedPoints) * 100) : 0
 
   return <section className="rundeckMonitoring">
     <div className="rundeckMonitoringHead">
       <div>
         <span>HISTORICAL MONITORING</span>
         <h3>APP1–APP5 Trend & RCA Correlation</h3>
-        <p>Normalized PostgreSQL history. AUTO resolution keeps 90-day queries bounded; click a point to inspect the peak raw sample.</p>
+        <p>Logical Rundeck collection alignment. AUTO resolution keeps 90-day queries bounded; click a point to inspect its exact peak collection.</p>
       </div>
       <div className="rundeckMonitoringSummary">
-        <strong>{trend?.items?.length || 0}</strong>
-        <span>chart points</span>
-        <small>{trend?.bucket ? `${trend.bucket} bucket` : '—'}</small>
+        <strong>{timeBuckets}</strong>
+        <span>time buckets · {hostCount}/{EXPECTED_HOSTS} hosts</span>
+        <small>{populatedPoints}/{expectedPoints || 0} coverage · {coveragePct}% · {trend?.bucket || '—'}</small>
       </div>
     </div>
 
