@@ -159,13 +159,18 @@ export default function RundeckSource({ onCollection }) {
     }
   }
 
-  const overallHealth = hosts.some((host) => host.health === 'CRITICAL')
-    ? 'CRITICAL'
-    : hosts.some((host) => host.health === 'WARNING') || health?.rundeck_stale
-      ? 'WARNING'
-      : hosts.length
-        ? 'NORMAL'
-        : 'WAITING'
+  const currentCollection = hostSnapshot?.collection_id || latest?.collection_id
+  const collectionAligned = !currentCollection || currentCollection === latest?.collection_id
+  const operationalHosts = collectionAligned ? hosts : []
+  const overallHealth = !collectionAligned
+    ? 'WARNING'
+    : operationalHosts.some((host) => host.health === 'CRITICAL')
+      ? 'CRITICAL'
+      : operationalHosts.some((host) => host.health === 'WARNING') || health?.rundeck_stale
+        ? 'WARNING'
+        : operationalHosts.length
+          ? 'NORMAL'
+          : 'WAITING'
 
   const collectionCount = history.length
   const partialCount = history.filter((row) => row.status === 'PARTIAL').length
@@ -173,8 +178,7 @@ export default function RundeckSource({ onCollection }) {
   const collectorState = health?.rundeck_stale ? 'STALE' : 'CURRENT'
   const databaseState = health?.database ? 'ONLINE' : 'FILE FALLBACK'
   const platformState = platform?.status || 'UNKNOWN'
-  const currentCollection = hostSnapshot?.collection_id || latest?.collection_id
-  const collectionAligned = !currentCollection || currentCollection === latest?.collection_id
+  const releaseState = platform?.releases?.backend?.status === 'WARNING' || platform?.releases?.web?.status === 'WARNING' ? 'WARNING' : 'NORMAL'
 
   return <section className="rundeckPanel" aria-label="SAP infrastructure monitoring" aria-live="polite">
     <header className="rundeckLandscapeHeader">
@@ -199,7 +203,7 @@ export default function RundeckSource({ onCollection }) {
     </header>
 
     {error && <div className="rundeckMessage" role="status">{error}</div>}
-    {!collectionAligned && <div className="rundeckMessage" role="status">Operational telemetry is waiting for one complete Collection Cycle.</div>}
+    {!collectionAligned && <div className="rundeckMessage" role="status">Latest database projection does not match the current Collection Cycle. Host telemetry is withheld until one complete cycle is available.</div>}
 
     <div className="rundeckLandscapeMeta" aria-label="Landscape telemetry status">
       <span><b>{TERMS.lastCollection}</b>{formatTime(latest?.collection_time_wib || latest?.finished_at)}</span>
@@ -210,7 +214,7 @@ export default function RundeckSource({ onCollection }) {
       <span><b>Execution</b>#{latest?.execution_id || '—'}</span>
     </div>
 
-    {hosts.length > 0 && <section className="rundeckServerSection">
+    {operationalHosts.length > 0 && <section className="rundeckServerSection">
       <div className="rundeckSectionTitle">
         <h3>{TERMS.applicationServers}</h3>
         <span>Collection #{hostSnapshot?.execution_id || latest?.execution_id || '—'} · one-cycle telemetry</span>
@@ -231,7 +235,7 @@ export default function RundeckSource({ onCollection }) {
             </tr>
           </thead>
           <tbody>
-            {hosts.map((host) => <tr key={host.host}>
+            {operationalHosts.map((host) => <tr key={host.host}>
               <td><strong title={host.host}>{shortHost(host.host)}</strong></td>
               <td><StatusPill value={host.health} /></td>
               <td>{metric(host.cpu_pct, '%')}</td>
@@ -276,13 +280,14 @@ export default function RundeckSource({ onCollection }) {
         <table className="rundeckPlatformTable">
           <thead><tr><th>Signal</th><th>State</th><th>Operational Detail</th></tr></thead>
           <tbody>
+            <tr><td>Rundeck Collector</td><td>{platform?.collector?.status || 'UNKNOWN'}</td><td>{platform?.collector ? `${platform.collector.poller_status} · ${platform.collector.credential_mode} credential · ${formatTime(platform.collector.checked_at)}` : '—'}</td></tr>
             <tr><td>Filesystem</td><td>{platform?.filesystem?.status || 'UNKNOWN'}</td><td>{metric(platform?.filesystem?.used_pct, '% used')}</td></tr>
             <tr><td>Inode</td><td>{platform?.inode?.status || 'UNKNOWN'}</td><td>{metric(platform?.inode?.used_pct, '% used')}</td></tr>
             <tr><td>Raw Evidence</td><td>{platform?.filesystem?.status || 'UNKNOWN'}</td><td>{platform?.archive ? `${platform.archive.files} files · ${formatBytes(platform.archive.bytes)}` : '—'}</td></tr>
             <tr><td>PostgreSQL</td><td>{platform?.database?.status === 'ok' ? 'NORMAL' : String(platform?.database?.status || 'UNKNOWN').toUpperCase()}</td><td>{platform?.database ? `${formatBytes(platform.database.database_bytes)} · ${platform.database.connections ?? '—'} connections · ${platform.database.long_transactions ?? '—'} long tx` : '—'}</td></tr>
-            <tr><td>Retention</td><td>{platform?.maintenance?.status || 'UNKNOWN'}</td><td>{platform?.maintenance?.last_run ? `${formatTime(platform.maintenance.last_run)} · ${platform.maintenance.retention_days} days` : 'No maintenance result yet'}</td></tr>
+            <tr><td>Retention</td><td>{platform?.maintenance?.status || 'UNKNOWN'}</td><td>{platform?.maintenance?.last_error ? `Last failure ${formatTime(platform.maintenance.last_error)} · ${platform.maintenance.error_type || 'error'}` : platform?.maintenance?.last_run ? `${formatTime(platform.maintenance.last_run)} · ${platform.maintenance.retention_days} days` : 'No maintenance result yet'}</td></tr>
             <tr><td>Backup</td><td>{platform?.backup?.status || 'NOT_CONFIGURED'}</td><td>{platform?.backup?.last_success ? `Last success ${formatTime(platform.backup.last_success)}` : 'Backup status marker not configured'}</td></tr>
-            <tr><td>Release Window</td><td>NORMAL</td><td>{platform?.releases ? `${platform.releases.backend.count} backend · ${platform.releases.web.count} web · retain ${platform.releases.backend.retain}` : '—'}</td></tr>
+            <tr><td>Release Window</td><td>{releaseState}</td><td>{platform?.releases ? `${platform.releases.backend.count} backend · ${platform.releases.web.count} web · retain ${platform.releases.backend.retain}` : '—'}</td></tr>
           </tbody>
         </table>
       </div>
