@@ -230,7 +230,6 @@ export default function RundeckSource({ onCollection }) {
   const collectionCount = history.length
   const partialCount = history.filter((row) => row.status === 'PARTIAL').length
   const failedCount = history.filter((row) => row.status === 'FAILED').length
-  const collectorState = health?.rundeck_stale ? 'STALE' : 'OK'
   const platformState = platform?.status || 'UNKNOWN'
   const releaseState = platform?.releases?.backend?.status === 'WARNING' || platform?.releases?.web?.status === 'WARNING' ? 'WARNING' : 'NORMAL'
   const appCount = latest?.received_hosts?.length || operationalHosts.length || 0
