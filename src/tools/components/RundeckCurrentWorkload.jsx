@@ -80,7 +80,7 @@ export default function RundeckCurrentWorkload({ collectionId = '', selectedJob 
 
     {!loading && !error && <div className="rundeckCurrentWorkloadTableWrap">
       <table>
-        <thead><tr><th>APP</th><th>Type</th><th>Workload</th><th>ABAP Program</th><th>WP</th><th>CPU</th><th>PSS</th></tr></thead>
+        <thead><tr><th>APP</th><th>Type</th><th>Workload</th><th>ABAP Program</th><th>WP</th><th>Process CPU</th><th>PSS</th></tr></thead>
         <tbody>
           {visible.map((row) => {
             const details = row.details || {}
