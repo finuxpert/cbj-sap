@@ -79,6 +79,22 @@ function displayHostState(row = {}) {
 
 const displayAlertSeverity = (row = {}) => row.code === 'WP_CRITICAL' ? 'WARNING' : (row.severity || 'WARNING')
 
+const durationText = (seconds) => {
+  const value = Number(seconds)
+  if (!Number.isFinite(value) || value < 0) return '—'
+  if (value < 60) return '<1m'
+  const minutes = Math.floor(value / 60)
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return rest ? `${hours}h ${rest}m` : `${hours}h`
+}
+
+const incidentMetric = (value, unit = '') => {
+  if (value === null || value === undefined || value === '') return '—'
+  return `${numberText(value, unit === '%' ? 1 : 0)}${unit}`
+}
+
 function useEChart(option, onChartClick) {
   const ref = React.useRef(null)
 
@@ -334,6 +350,7 @@ export default function RundeckMonitoringHistory({
   const [trendLoading, setTrendLoading] = React.useState(false)
   const [trendError, setTrendError] = React.useState('')
   const [alerts, setAlerts] = React.useState([])
+  const [alertError, setAlertError] = React.useState('')
   const [selected, setSelected] = React.useState(null)
   const [timeline, setTimeline] = React.useState(null)
   const [timelineLoading, setTimelineLoading] = React.useState(false)
@@ -361,7 +378,10 @@ export default function RundeckMonitoringHistory({
     if (!databaseEnabled) return undefined
     const controller = new AbortController()
     const alertDays = Math.max(1, Math.ceil((RANGE_HOURS[range] || 24) / 24))
-    json(`${API}/history/alerts?days=${alertDays}&limit=500`, controller.signal).then((result) => setAlerts(result.items || [])).catch(() => {})
+    setAlertError('')
+    json(`${API}/history/incidents?days=${alertDays}&limit=200`, controller.signal)
+      .then((result) => setAlerts(result.items || []))
+      .catch((error) => { if (error.name !== 'AbortError') setAlertError(error.message || 'Unable to load SAP issues.') })
     return () => controller.abort()
   }, [databaseEnabled, range, refreshToken])
 
@@ -396,11 +416,12 @@ export default function RundeckMonitoringHistory({
 
   const recentCutoff = Date.now() - (RANGE_HOURS[range] || 24) * 60 * 60 * 1000
   const visibleAlerts = alerts.filter((row) => {
-    const timestamp = new Date(row.collected_at).getTime()
+    if (row.state === 'ACTIVE') return true
+    const timestamp = new Date(row.resolved_at || row.last_seen || row.first_seen).getTime()
     return Number.isFinite(timestamp) && timestamp >= recentCutoff
   })
-  const criticalCount = visibleAlerts.filter((row) => displayAlertSeverity(row) === 'CRITICAL').length
-  const warningCount = visibleAlerts.filter((row) => displayAlertSeverity(row) === 'WARNING').length
+  const activeCount = visibleAlerts.filter((row) => row.state === 'ACTIVE').length
+  const resolvedCount = visibleAlerts.filter((row) => row.state === 'RESOLVED').length
 
   return <section className="rundeckMonitoring">
     <div className="rundeckMonitoringHead"><h3><SphereIcon name="trend" /> Server Trend</h3></div>
@@ -432,23 +453,45 @@ export default function RundeckMonitoringHistory({
     <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} latestCollectionAt={latestCollectionAt} />
 
     <details className="rundeckEvidenceGroup">
-      <summary><SphereIcon name="alert" /> SAP Signal History <span>{criticalCount} critical · {warningCount} warning</span></summary>
+      <summary><SphereIcon name="alert" /> SAP Issues <span>{alertError ? 'unavailable' : `${activeCount} active · ${resolvedCount} resolved`}</span></summary>
       <div className="rundeckEvidenceBody">
         <section className="rundeckOpsSection">
-          <div className="rundeckMiniTableWrap">
-            <table>
-              <thead><tr><th>Time WIB</th><th>APP</th><th>State</th><th>Signal</th></tr></thead>
+          <div className="rundeckMiniTableWrap rundeckIncidentTableWrap">
+            <table className="rundeckIncidentTable">
+              <thead><tr><th>APP</th><th>Signal</th><th>State</th><th>Severity</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Checks</th><th>Peak / Latest</th><th>Evidence</th></tr></thead>
               <tbody>
-                {visibleAlerts.slice(0, 10).map((row) => {
+                {visibleAlerts.slice(0, 50).map((row) => {
                   const severity = displayAlertSeverity(row)
-                  return <tr key={row.id}>
-                    <td>{formatWib(row.collected_at, true)}</td>
-                    <td>{shortHost(row.host || 'COLLECTOR')}</td>
+                  const evidence = row.evidence || []
+                  return <tr key={row.id} className={row.state === 'ACTIVE' ? 'is-active-incident' : ''}>
+                    <td><strong>{shortHost(row.host || 'APP')}</strong></td>
+                    <td className="rundeckIncidentSignal">{row.signal || row.code}</td>
+                    <td className="rundeckIncidentState"><InlineStatus value={row.state || 'UNKNOWN'} /></td>
                     <td><InlineStatus value={severity} /></td>
-                    <td>{row.code === 'WP_CRITICAL' ? 'Critical WP signal' : row.code === 'IOWAIT_HIGH' ? 'IO Wait' : row.message}</td>
+                    <td>{formatWib(row.first_seen, true)}</td>
+                    <td>{formatWib(row.last_seen, true)}</td>
+                    <td>{durationText(row.duration_seconds)}</td>
+                    <td>{numberText(row.checks, 0)}</td>
+                    <td>{incidentMetric(row.peak_value, row.unit)} / {incidentMetric(row.latest_value, row.unit)}</td>
+                    <td>
+                      <details className="rundeckIncidentEvidence">
+                        <summary>{row.evidence_count || evidence.length} rows</summary>
+                        <div className="rundeckIncidentEvidenceBody">
+                          {evidence.map((item) => <div key={item.id} className="rundeckIncidentEvidenceRow" title={String(item.collected_at || '')}>
+                            <span>{formatWib(item.collected_at, true)}</span>
+                            <span>Run #{item.execution_id || '—'}</span>
+                            <span>{displayAlertSeverity(item)}</span>
+                            <span>{incidentMetric(item.details?.value, row.unit)}</span>
+                            <span title={item.collection_id || undefined}>{item.message || item.code}</span>
+                          </div>)}
+                          {!evidence.length && <div className="rundeckIncidentEvidenceEmpty">No raw signal rows stored for this incident.</div>}
+                        </div>
+                      </details>
+                    </td>
                   </tr>
                 })}
-                {!visibleAlerts.length && <tr><td colSpan="4">No signals in this period.</td></tr>}
+                {alertError && <tr><td colSpan="10" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
+                {!alertError && !visibleAlerts.length && <tr><td colSpan="10">No SAP issues in this period.</td></tr>}
               </tbody>
             </table>
           </div>
