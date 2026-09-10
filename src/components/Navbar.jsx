@@ -1,6 +1,6 @@
 import React from 'react'
 import { getCurrentHashRoute } from '../app/routeUtils.js'
-import { APP_DISPLAY_VERSION, APP_NAME, APP_TAGLINE, APP_VERSION } from '../app/version.js'
+import { APP_DISPLAY_VERSION, APP_NAME, APP_PREVIOUS_VERSION, APP_TAGLINE, APP_VERSION } from '../app/version.js'
 import { tools, preloadTool } from '../tools'
 import SphereLogo from './SphereLogo.jsx'
 
@@ -53,7 +53,7 @@ export default function Navbar() {
             <SphereLogo />
             <span className="brandText">
               <span className="brandTitle">{APP_TAGLINE}</span>
-              <span className="brandSub">Performance analysis tools · {APP_DISPLAY_VERSION}</span>
+              <span className="brandSub" title={`Previous release: v${APP_PREVIOUS_VERSION}`}>Performance analysis tools · {APP_DISPLAY_VERSION}</span>
             </span>
           </a>
 
@@ -77,7 +77,7 @@ export default function Navbar() {
             })}
           </nav>
 
-          <span className="mobileVersionBadge" aria-label={`Version ${APP_VERSION}`}>v{APP_VERSION}</span>
+          <span className="mobileVersionBadge" aria-label={`Version ${APP_VERSION}`} title={`Previous release: v${APP_PREVIOUS_VERSION}`}>v{APP_VERSION}</span>
         </div>
       </header>
 
