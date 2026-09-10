@@ -56,6 +56,58 @@ function rowMetric(row, key) {
   return null
 }
 
+function observationEpisodes(items = []) {
+  const rows = [...items]
+    .filter((row) => Number.isFinite(Date.parse(row?.collected_at || '')))
+    .sort((left, right) => Date.parse(left.collected_at) - Date.parse(right.collected_at))
+  const episodes = []
+  let current = []
+  rows.forEach((row) => {
+    const timestamp = Date.parse(row.collected_at)
+    const previous = current.at(-1)
+    const previousTimestamp = previous ? Date.parse(previous.collected_at) : null
+    if (previous && Number.isFinite(previousTimestamp) && timestamp - previousTimestamp > GAP_MS) {
+      episodes.push(current)
+      current = []
+    }
+    current.push(row)
+  })
+  if (current.length) episodes.push(current)
+  return episodes
+}
+
+function selectObservationEpisode(items, targetAt = '') {
+  const episodes = observationEpisodes(items)
+  if (!episodes.length) return []
+  const target = Date.parse(targetAt || '')
+  if (!Number.isFinite(target)) return episodes.at(-1)
+
+  let best = episodes[0]
+  let bestDistance = Number.POSITIVE_INFINITY
+  episodes.forEach((episode) => {
+    episode.forEach((row) => {
+      const distance = Math.abs(Date.parse(row.collected_at) - target)
+      if (distance < bestDistance) {
+        bestDistance = distance
+        best = episode
+      }
+    })
+  })
+  return best
+}
+
+function episodeStats(items = []) {
+  if (!items.length) return { firstSeen: '', lastSeen: '', avgCpu: null, peakCpu: null }
+  const ordered = [...items].sort((left, right) => Date.parse(left.collected_at) - Date.parse(right.collected_at))
+  const cpu = ordered.map((row) => numeric(row.cpu_pct)).filter((value) => value !== null)
+  return {
+    firstSeen: ordered[0]?.collected_at || '',
+    lastSeen: ordered.at(-1)?.collected_at || '',
+    avgCpu: cpu.length ? cpu.reduce((sum, value) => sum + value, 0) / cpu.length : null,
+    peakCpu: cpu.length ? Math.max(...cpu) : null,
+  }
+}
+
 function durationText(firstSeen, lastSeen) {
   const first = Date.parse(firstSeen || '')
   const last = Date.parse(lastSeen || '')
@@ -95,19 +147,7 @@ function nearestRow(rows, value) {
 }
 
 function metricSeriesData(rows, key) {
-  const output = []
-  rows.forEach((row, index) => {
-    if (index > 0) {
-      const previous = rows[index - 1]
-      const previousTs = Date.parse(previous.collected_at || '')
-      const currentTs = Date.parse(row.collected_at || '')
-      if (Number.isFinite(previousTs) && Number.isFinite(currentTs) && currentTs - previousTs > GAP_MS) {
-        output.push([new Date(previousTs + ((currentTs - previousTs) / 2)).toISOString(), null])
-      }
-    }
-    output.push([row.collected_at, rowMetric(row, key)])
-  })
-  return output
+  return rows.map((row) => [row.collected_at, rowMetric(row, key)])
 }
 
 function SingleSamplePerformance({ row }) {
@@ -143,6 +183,8 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
 
     const axisBase = {
       type: 'time',
+      min: firstTs,
+      max: lastTs,
       axisLine: { lineStyle: { color: colors.grid } },
       axisTick: { show: false },
       splitLine: { show: false },
@@ -290,6 +332,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   const jobKey = job?.key || ''
   const jobHost = job?.host || ''
   const jobConsumerType = job?.consumerType || ''
+  const jobAt = job?.at || ''
 
   React.useEffect(() => {
     if (!jobKey) {
@@ -314,12 +357,14 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
 
   if (!jobKey) return null
 
-  const items = history?.items || []
-  const latest = items[0] || null
+  const episodeItemsAsc = selectObservationEpisode(history?.items || [], jobAt)
+  const episodeItems = [...episodeItemsAsc].reverse()
+  const stats = episodeStats(episodeItemsAsc)
+  const latest = episodeItems[0] || null
   const latestDetails = latest?.details || {}
   const isCurrent = Boolean(latestCollectionId && latest?.collection_id === latestCollectionId)
-  const correlation = temporalText(incidentStart, history?.first_seen)
-  const observed = durationText(history?.first_seen, history?.last_seen)
+  const correlation = temporalText(incidentStart, stats.firstSeen)
+  const observed = durationText(stats.firstSeen, stats.lastSeen)
 
   return <section className="rundeckJobHistory" aria-label="Selected workload performance">
     <div className="rundeckJobHistoryHead">
@@ -328,7 +373,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
         <h3><SphereIcon name="target" /> {jobKey}</h3>
         <small>{shortHost(jobHost || latest?.host || '')} · {workloadTypeLabel(jobConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
       </div>
-      <strong className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NO LONGER SEEN'}</strong>
+      <strong className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NOT SEEN IN LATEST CHECK'}</strong>
     </div>
 
     {loading && <div className="rundeckJobHistoryState">Loading workload history…</div>}
@@ -336,19 +381,19 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
 
     {!loading && !error && history && <>
       <div className="rundeckJobHistorySummary">
-        <span><b>First Seen</b>{formatWib(history.first_seen, true)} WIB</span>
-        <span><b>Last Seen</b>{formatWib(history.last_seen, true)} WIB</span>
+        <span><b>First Seen</b>{formatWib(stats.firstSeen, true)} WIB</span>
+        <span><b>Last Seen</b>{formatWib(stats.lastSeen, true)} WIB</span>
         <span><b>Observed</b>{observed}</span>
-        <span><b>Seen</b>{history.checks || 0} checks</span>
+        <span><b>Seen</b>{episodeItems.length} checks</span>
         <span><b>Latest CPU</b>{numberText(latest?.cpu_pct)}%</span>
-        <span><b>Avg CPU</b>{numberText(history.avg_cpu_pct)}%</span>
-        <span><b>Peak CPU</b>{numberText(history.peak_cpu_pct)}%</span>
+        <span><b>Avg CPU</b>{numberText(stats.avgCpu)}%</span>
+        <span><b>Peak CPU</b>{numberText(stats.peakCpu)}%</span>
         {!isCurrent && latestCollectionAt && <span><b>Latest Check</b>{formatWib(latestCollectionAt, true)} WIB</span>}
       </div>
 
       {(incidentStart || correlation) && <div className="rundeckJobCorrelation">
         {incidentStart && <span>Issue {formatWib(incidentStart, true)} WIB</span>}
-        {history.first_seen && <span>First Seen {formatWib(history.first_seen, true)} WIB</span>}
+        {stats.firstSeen && <span>First Seen {formatWib(stats.firstSeen, true)} WIB</span>}
         {correlation && <strong>{correlation}</strong>}
       </div>}
 
@@ -357,19 +402,19 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
         <span><i /> APP Critical WP</span>
       </div>
 
-      {items.length === 1
-        ? <SingleSamplePerformance row={items[0]} />
-        : items.length > 1
-          ? <UnifiedJobPerformanceChart items={items} incidentStart={incidentStart} />
+      {episodeItems.length === 1
+        ? <SingleSamplePerformance row={episodeItems[0]} />
+        : episodeItems.length > 1
+          ? <UnifiedJobPerformanceChart items={episodeItems} incidentStart={incidentStart} />
           : <div className="rundeckJobHistoryState">No stored history for this workload yet.</div>}
 
       <details className="rundeckJobExecutionHistory">
-        <summary><SphereIcon name="history" /> Execution History <span>{items.length} samples</span></summary>
+        <summary><SphereIcon name="history" /> Observation History <span>{episodeItems.length} samples</span></summary>
         <div className="rundeckJobHistoryTableWrap">
           <table>
             <thead><tr><th>Time WIB</th><th>Run</th><th>APP</th><th>CPU</th><th>PSS</th><th>WP</th><th>Critical WP</th></tr></thead>
             <tbody>
-              {items.map((row) => {
+              {episodeItems.map((row) => {
                 const details = row.details || {}
                 const wp = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
                 const pss = numeric(details.pss_gb)
