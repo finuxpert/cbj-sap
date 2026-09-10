@@ -1,15 +1,13 @@
 .rundeckPanel {
-  margin: 14px 0 22px;
-  border: 1px solid var(--sphere-border, #323d48);
-  border-radius: var(--sphere-radius, 8px);
-  background: var(--sphere-surface-1, #192129);
+  margin: 12px 0 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--sphere-text, #edf1f4);
-  padding: 14px;
 }
 
-.rundeckPanelHead,
+.rundeckLandscapeHeader,
 .rundeckActions,
-.rundeckHostCard > div:first-child,
 .rundeckSectionTitle {
   display: flex;
   align-items: center;
@@ -17,43 +15,46 @@
   gap: 12px;
 }
 
-.rundeckPanelHead h2,
+.rundeckLandscapeHeader {
+  min-height: 58px;
+  padding: 10px 0 12px;
+  border-top: 1px solid var(--sphere-border-subtle, #28323c);
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckLandscapeHeader h2,
 .rundeckSectionTitle h3 {
-  margin: 2px 0 3px;
+  margin: 2px 0 0;
   color: var(--sphere-text, #edf1f4);
 }
 
-.rundeckPanelHead p,
-.rundeckSectionTitle span,
-.rundeckHostCard small,
-.rundeckOpsStrip small {
-  color: var(--sphere-text-secondary, #b1bbc4);
-}
-
-.rundeckPanelHead p {
-  margin: 0;
-  font-size: 12px;
+.rundeckLandscapeHeader h2 {
+  font-size: 20px;
+  font-weight: 760;
+  letter-spacing: -.01em;
 }
 
 .rundeckEyebrow {
   color: var(--sphere-text-muted, #7f8c97);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: .08em;
+  text-transform: uppercase;
 }
 
 .rundeckActions {
-  align-self: flex-start;
+  flex: 0 0 auto;
 }
 
 .rundeckCollectButton {
-  min-height: 34px;
+  min-height: 32px;
   border: 1px solid #315a61;
-  border-radius: 7px;
-  padding: 0 13px;
+  border-radius: 5px;
+  padding: 0 12px;
   background: var(--sphere-accent-soft, #17383f);
   color: var(--sphere-text, #edf1f4);
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 750;
   cursor: pointer;
 }
 
@@ -63,217 +64,230 @@
 }
 
 .rundeckMessage {
-  margin-top: 10px;
-  border: 1px solid var(--sphere-border, #323d48);
-  border-radius: 7px;
-  padding: 9px 11px;
-  background: var(--sphere-surface-2, #1e2730);
-}
-
-.rundeckMetadata,
-.rundeckOpsStrip {
-  display: grid;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.rundeckMetadata {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.rundeckOpsStrip {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.rundeckMetadata > div,
-.rundeckOpsStrip > div {
-  min-width: 0;
-  border: 1px solid var(--sphere-border-subtle, #28323c);
-  border-radius: 7px;
-  padding: 8px 10px;
-  background: var(--sphere-surface-2, #1e2730);
-}
-
-.rundeckMetadata span,
-.rundeckOpsStrip span {
-  display: block;
-  margin-bottom: 3px;
-  color: var(--sphere-text-muted, #7f8c97);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-}
-
-.rundeckMetadata strong,
-.rundeckOpsStrip strong {
-  display: block;
-  overflow-wrap: anywhere;
-  color: var(--sphere-text, #edf1f4);
+  padding: 9px 0;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  color: var(--sphere-danger, #ef8a94);
   font-size: 12px;
+}
+
+.rundeckLandscapeMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  min-height: 44px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckLandscapeMeta > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 14px;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.rundeckLandscapeMeta > span:first-child {
+  padding-left: 0;
+}
+
+.rundeckLandscapeMeta > span + span {
+  border-left: 1px solid var(--sphere-border-subtle, #28323c);
+}
+
+.rundeckLandscapeMeta b {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckUiUpdated {
+  margin-left: auto;
 }
 
 .rundeckStatus {
   display: inline-flex;
   align-items: center;
-  min-height: 23px;
-  border-radius: 999px;
-  padding: 2px 8px;
+  min-height: 21px;
+  padding: 1px 7px;
   border: 1px solid currentColor;
-  font-size: 10px;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 9px;
   font-weight: 850;
+  line-height: 1.2;
 }
 
 .rundeckStatus.is-normal,
 .rundeckStatus.is-ready {
   color: var(--sphere-positive, #78d6ad);
-  background: #17342a;
 }
 
 .rundeckStatus.is-warning,
 .rundeckStatus.is-partial,
 .rundeckStatus.is-waiting {
   color: var(--sphere-warning, #e8c86b);
-  background: #3a331e;
 }
 
 .rundeckStatus.is-critical,
 .rundeckStatus.is-failed,
 .rundeckStatus.is-error {
   color: var(--sphere-danger, #ef8a94);
-  background: #3a2024;
 }
 
 .rundeckStatus.is-unknown {
   color: var(--sphere-text-secondary, #b1bbc4);
-  background: var(--sphere-surface-3, #232e38);
 }
 
-.rundeckHostSection {
-  margin-top: 14px;
+.rundeckServerSection {
+  padding: 16px 0 4px;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
 }
 
-.rundeckSectionTitle > div {
-  min-width: 0;
+.rundeckSectionTitle {
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rundeckSectionTitle h3 {
+  font-size: 14px;
+  font-weight: 750;
 }
 
 .rundeckSectionTitle span {
-  font-size: 11px;
-}
-
-.rundeckHostGrid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.rundeckHostCard {
-  border: 1px solid var(--sphere-border-subtle, #28323c);
-  border-radius: 7px;
-  padding: 10px;
-  background: var(--sphere-surface-2, #1e2730);
-}
-
-.rundeckHostCard > small {
-  font-size: 10px;
-}
-
-.rundeckHostCard dl {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 8px;
-  margin: 9px 0 0;
-}
-
-.rundeckHostCard dl div {
-  min-width: 0;
-  border-radius: 5px;
-}
-
-.rundeckHostCard dl div.is-attention {
-  background: #3a2024;
-  padding: 3px 5px;
-  margin: -3px -5px;
-}
-
-.rundeckHostCard dl div.is-attention dd {
-  color: var(--sphere-danger, #ef8a94);
-  font-weight: 850;
-}
-
-.rundeckHostCard dt {
   color: var(--sphere-text-muted, #7f8c97);
   font-size: 10px;
 }
 
-.rundeckHostCard dd {
-  margin: 1px 0 0;
+.rundeckServerTableWrap,
+.rundeckHistoryTableWrap {
+  overflow-x: auto;
+}
+
+.rundeckServerTable,
+.rundeckHistory table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--sphere-text-secondary, #b1bbc4);
+  font-size: 11px;
+}
+
+.rundeckServerTable th,
+.rundeckServerTable td,
+.rundeckHistory th,
+.rundeckHistory td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.rundeckServerTable th,
+.rundeckHistory th {
+  color: var(--sphere-text-muted, #7f8c97);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckServerTable tbody tr:hover,
+.rundeckHistory tbody tr:hover {
+  background: color-mix(in srgb, var(--sphere-surface-2, #1e2730) 74%, transparent);
+}
+
+.rundeckServerTable td:first-child strong {
   color: var(--sphere-text, #edf1f4);
   font-size: 12px;
-  font-weight: 700;
+}
+
+.rundeckServerTable td.is-attention {
+  color: var(--sphere-danger, #ef8a94);
+  font-weight: 850;
+}
+
+.rundeckSampleTime {
+  color: var(--sphere-text-muted, #7f8c97);
 }
 
 .rundeckHistory {
   margin-top: 14px;
+  padding-top: 10px;
   border-top: 1px solid var(--sphere-border-subtle, #28323c);
-  padding-top: 11px;
 }
 
 .rundeckHistory summary {
   color: var(--sphere-text, #edf1f4);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.rundeckHistory summary span {
+  margin-left: 8px;
+  color: var(--sphere-text-muted, #7f8c97);
+  font-weight: 500;
 }
 
 .rundeckHistoryTableWrap {
-  overflow: auto;
-  margin-top: 9px;
+  margin-top: 8px;
 }
 
-.rundeckHistory table {
-  width: 100%;
-  border-collapse: collapse;
-  color: var(--sphere-text-secondary, #b1bbc4);
-  font-size: 12px;
+/* Automatic Rundeck already renders the authoritative landscape telemetry.
+   Suppress duplicate point-in-time cards from the legacy parser while keeping
+   current SAP workload, diagnostics and source evidence available below. */
+.logV2Inner:has(> .rundeckPanel) > .logV2Stats,
+.logV2Inner:has(> .rundeckPanel) > .logV141Summary,
+.logV2Inner:has(> .rundeckPanel) > .logV2SnapshotPanel {
+  display: none;
 }
 
-.rundeckHistory th,
-.rundeckHistory td {
-  text-align: left;
-  border-bottom: 1px solid var(--sphere-border-subtle, #28323c);
-  padding: 8px;
-  white-space: nowrap;
+.logV2Inner:has(> .rundeckPanel) > #top-resource-consumers {
+  margin-top: 18px;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
-.rundeckHistory th {
-  color: var(--sphere-text-muted, #7f8c97);
-}
-
-@media (max-width: 1180px) {
-  .rundeckMetadata {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+@media (max-width: 1100px) {
+  .rundeckLandscapeMeta > span {
+    flex: 1 1 30%;
+    border-left: 0 !important;
+    padding-left: 0;
   }
 
-  .rundeckHostGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .rundeckUiUpdated {
+    margin-left: 0;
   }
 }
 
 @media (max-width: 720px) {
-  .rundeckPanelHead,
+  .rundeckLandscapeHeader {
+    align-items: flex-start;
+  }
+
+  .rundeckLandscapeMeta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 12px;
+  }
+
+  .rundeckLandscapeMeta > span {
+    padding: 3px 0;
+    white-space: normal;
+  }
+
   .rundeckSectionTitle {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .rundeckMetadata,
-  .rundeckOpsStrip,
-  .rundeckHostGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .rundeckActions {
-    width: 100%;
+    gap: 2px;
   }
 }
