@@ -74,13 +74,14 @@ export default function RundeckSource({ onCollection }) {
 
   const loadLatest = React.useCallback(async () => {
     const response = await fetch(`${API}/collections/latest`, { cache: 'no-store' })
-    if (response.status === 404) {
-      setLatest(null)
-      return
-    }
+    if (response.status === 404) return
     if (!response.ok) throw new Error('Unable to load Rundeck collection.')
     const collection = await response.json()
     if (collection.status !== 'READY') throw new Error('Latest Rundeck collection is not READY.')
+
+    // Publish collection metadata immediately. Raw evidence parsing is a slower,
+    // secondary client-side task and must not blank or misalign the operational UI.
+    setLatest(collection)
 
     if (loaded.current !== collection.collection_id) {
       const raw = await fetch(`${API}/collections/${encodeURIComponent(collection.collection_id)}/raw`, { cache: 'no-store' })
@@ -91,8 +92,6 @@ export default function RundeckSource({ onCollection }) {
       ])
       loaded.current = collection.collection_id
     }
-
-    setLatest(collection)
   }, [])
 
   const refreshMeta = React.useCallback(async () => {
@@ -119,6 +118,7 @@ export default function RundeckSource({ onCollection }) {
       await Promise.all([loadLatest(), refreshMeta()])
       setError('')
     } catch (failure) {
+      // Keep the last known good state visible while Rundeck/API reconnects.
       setError(failure.message || 'Rundeck source unavailable.')
     }
   }, [loadLatest, refreshMeta])
@@ -160,8 +160,7 @@ export default function RundeckSource({ onCollection }) {
     }
   }
 
-  const currentCollection = hostSnapshot?.collection_id || latest?.collection_id
-  const collectionAligned = !currentCollection || currentCollection === latest?.collection_id
+  const collectionAligned = !latest?.collection_id || !hostSnapshot?.collection_id || hostSnapshot.collection_id === latest.collection_id
   const operationalHosts = collectionAligned ? hosts : []
   const overallHealth = !collectionAligned
     ? 'WARNING'
@@ -203,7 +202,7 @@ export default function RundeckSource({ onCollection }) {
       </div>
     </header>
 
-    {error && <div className="rundeckMessage" role="status">{error}</div>}
+    {error && <div className="rundeckMessage" role="status">{latest ? `Collector refresh delayed — showing last good Collection #${latest.execution_id || '—'}.` : error}</div>}
     {!collectionAligned && <div className="rundeckMessage" role="status">Latest database projection does not match the current Collection Cycle. Host telemetry is withheld until one complete cycle is available.</div>}
 
     <div className="rundeckLandscapeMeta" aria-label="Landscape telemetry status">
