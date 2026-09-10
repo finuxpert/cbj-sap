@@ -1,0 +1,40 @@
+name: Validate SPHERE v1.16 UI
+
+on:
+  push:
+    branches:
+      - ui-soft-enterprise-v116
+    paths:
+      - .github/workflows/validate-soft-enterprise-v116.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ui-soft-enterprise-v116
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate version and theme wiring
+        run: |
+          set -Eeuo pipefail
+          grep -q "APP_VERSION = '1.16.0'" src/app/version.js
+          grep -q "APP_PREVIOUS_VERSION = '1.15.4'" src/app/version.js
+          grep -q "soft-enterprise-v1.css" src/app/enterprise-theme.css
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Audit
+        run: npm audit
