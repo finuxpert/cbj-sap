@@ -39,20 +39,23 @@ function StatusPill({ value = 'UNKNOWN' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
 }
 
+function workloadLabel(workload, recurring = false) {
+  if (workload?.consumer_type === 'PROGRAM') return recurring ? 'Recurring ABAP Program' : 'Current Top ABAP Program'
+  return recurring ? 'Recurring SAP Job' : 'Current Top SAP Job'
+}
+
 function WorkloadFacts({ workload, persistent = false }) {
   const details = workload?.details || {}
-  const job = details.job_name || (workload?.consumer_type === 'JOB' ? workload.consumer_key : '—')
   const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '—')
   const workProcess = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
 
   return <dl className="rundeckIncidentFacts">
-    <div><dt>Background Job</dt><dd>{job}</dd></div>
     <div><dt>ABAP Program</dt><dd>{program}</dd></div>
     <div><dt>Work Process</dt><dd>{workProcess}</dd></div>
     <div><dt>SAP User</dt><dd>{details.user || '—'}</dd></div>
-    <div><dt>OS PID</dt><dd>{details.pid || '—'}</dd></div>
+    <div><dt>PID</dt><dd>{details.pid || '—'}</dd></div>
     <div>
-      <dt>{persistent ? 'Aggregated CPU' : 'Workload CPU'}</dt>
+      <dt>CPU</dt>
       <dd>{persistent
         ? `${metric(workload?.avg_cpu_pct, '%')} avg · ${metric(workload?.peak_cpu_pct, '%')} peak`
         : metric(workload?.cpu_pct, '%')}</dd>
@@ -87,33 +90,28 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
   if (!summary && !error) return null
 
   if (error) {
-    return <section className="rundeckIncident" aria-label="SAP performance incident">
+    return <section className="rundeckIncident" aria-label="SAP performance issue">
       <div className="rundeckIncidentHeader">
         <div>
-          <span className="rundeckIncidentEyebrow">Performance Assessment</span>
-          <h3>Current RCA summary unavailable</h3>
+          <span className="rundeckIncidentEyebrow">SAP Performance</span>
+          <h3>RCA data unavailable</h3>
         </div>
         <StatusPill value="UNKNOWN" />
       </div>
-      <p className="rundeckIncidentAssessment">Last known collector telemetry remains available below.</p>
+      <p className="rundeckIncidentAssessment">Last good SAP data is still shown below.</p>
     </section>
   }
 
   if (!summary.active) {
     const waiting = summary.status === 'WAITING'
-    return <section className="rundeckIncident" aria-label="SAP performance assessment">
+    return <section className="rundeckIncident" aria-label="SAP performance status">
       <div className="rundeckIncidentHeader">
         <div>
-          <span className="rundeckIncidentEyebrow">Performance Assessment</span>
-          <h3>{waiting ? 'Waiting for normalized performance telemetry' : 'No active performance degradation signal'}</h3>
+          <span className="rundeckIncidentEyebrow">SAP Performance</span>
+          <h3>{waiting ? 'Waiting for SAP performance data' : 'No active SAP performance issue'}</h3>
         </div>
         <StatusPill value={summary.status || 'NORMAL'} />
       </div>
-      <div className="rundeckIncidentMeta">
-        <span><b>Collection</b>#{summary.execution_id || '—'}</span>
-        <span><b>Last Observed</b>{formatTime(summary.last_observed, true)} WIB</span>
-      </div>
-      <p className="rundeckIncidentAssessment">{summary.assessment}</p>
     </section>
   }
 
@@ -123,42 +121,42 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
   const hostMetrics = summary.current_host_metrics || {}
   const signalValue = metric(signal.value, signal.unit || '')
   const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
+  const resourceState = summary.host_resource_pressure ? 'WARNING' : 'NORMAL'
+  const rcaText = summary.host_resource_pressure
+    ? `OS resource pressure detected on ${shortHost(summary.affected_server)}. Check host metrics and SAP job activity.`
+    : `OS resources are normal. Check Critical WP and SAP job activity on ${shortHost(summary.affected_server)}.`
 
-  return <section className="rundeckIncident" aria-label="SAP performance incident">
+  return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
       <div>
-        <span className="rundeckIncidentEyebrow">Performance Incident</span>
+        <span className="rundeckIncidentEyebrow">SAP Performance Issue</span>
         <h3>{shortHost(summary.affected_server)} · {signal.label || 'Performance signal'} {signalValue}</h3>
       </div>
       <StatusPill value={summary.status || 'WARNING'} />
     </div>
 
     <div className="rundeckIncidentMeta">
-      <span><b>Signal Active Since</b>{formatTime(summary.signal_active_since || summary.detected_since, true)} WIB</span>
-      <span><b>Last Observed</b>{formatTime(summary.last_observed, true)} WIB</span>
+      <span><b>Since</b>{formatTime(summary.signal_active_since || summary.detected_since, true)} WIB</span>
+      <span><b>Last Seen</b>{formatTime(summary.last_observed, true)} WIB</span>
       <span><b>Duration</b>{duration(summary.duration_seconds)}</span>
-      <span><b>Affected Server</b>{shortHost(summary.affected_server)}</span>
-      <span><b>Evidence</b>{summary.incident_samples || 1} collection{Number(summary.incident_samples) === 1 ? '' : 's'}</span>
     </div>
 
     <div className="rundeckIncidentComparison">
       <section className="rundeckIncidentWorkloadBlock is-current">
         <div className="rundeckIncidentWorkloadLead">
-          <span>Current Top SAP Workload</span>
-          <strong>{current?.consumer_key || 'No normalized workload in current collection'}</strong>
-          {current && <small>
-            Exact Collection Cycle #{summary.execution_id || '—'} · rank #{current.rank || 1} · CPU {metric(current.cpu_pct, '%')}
-          </small>}
+          <span>{workloadLabel(current)}</span>
+          <strong>{current?.consumer_key || 'No SAP job found in current run'}</strong>
+          {current && <small>Run #{summary.execution_id || '—'} · CPU {metric(current.cpu_pct, '%')}</small>}
         </div>
         {current && <WorkloadFacts workload={current} />}
       </section>
 
       <section className="rundeckIncidentWorkloadBlock is-persistent">
         <div className="rundeckIncidentWorkloadLead">
-          <span>Persistent Correlated Workload</span>
-          <strong>{persistent?.consumer_key || 'No persistent workload candidate'}</strong>
+          <span>{workloadLabel(persistent, true)}</span>
+          <strong>{persistent?.consumer_key || 'No recurring SAP job found'}</strong>
           {persistent && <small>
-            {sameWorkload ? 'Also current top workload · ' : ''}{persistent.occurrences}/{persistent.affected_samples} collections · {metric(persistent.presence_pct, '%')} presence
+            {sameWorkload ? 'Also current top job · ' : ''}{persistent.occurrences} of {persistent.affected_samples} checks · seen {metric(persistent.presence_pct, '%')}
           </small>}
         </div>
         {persistent && <WorkloadFacts workload={persistent} persistent />}
@@ -166,15 +164,13 @@ export default function RundeckPerformanceIncident({ refreshToken = '' }) {
     </div>
 
     <div className="rundeckIncidentHostContext">
-      <span><b>Host CPU</b>{metric(hostMetrics.cpu_pct, '%')}</span>
-      <span><b>Memory</b>{metric(hostMetrics.ram_pct, '%')}</span>
-      <span><b>Load 1M</b>{metric(hostMetrics.load_1)}</span>
-      <span><b>I/O Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
-      <span><b>Swap I/O</b>{metric(hostMetrics.swap_pct, ' p/s')}</span>
-      <span><b>Resource Pressure</b>{summary.host_resource_pressure ? 'DETECTED' : 'NOT DETECTED'}</span>
+      <span><b>OS Resources</b><StatusPill value={resourceState} /></span>
+      <span><b>CPU</b>{metric(hostMetrics.cpu_pct, '%')}</span>
+      <span><b>RAM</b>{metric(hostMetrics.ram_pct, '%')}</span>
+      <span><b>IO Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
+      <span><b>Swap IO</b>{metric(hostMetrics.swap_pct, ' p/s')}</span>
     </div>
 
-    <p className="rundeckIncidentResourceAssessment">{summary.resource_assessment || 'CPU / Memory / I/O Wait assessment unavailable.'}</p>
-    <p className="rundeckIncidentAssessment">{summary.assessment}</p>
+    <p className="rundeckIncidentAssessment"><b>RCA:</b> {rcaText}</p>
   </section>
 }
