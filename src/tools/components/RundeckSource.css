@@ -1,21 +1,30 @@
+.logV2Shell:has(.rundeckPanel) {
+  background: #0f151a;
+}
+
 .logV2Inner:has(.rundeckPanel) {
-  --sphere-page: oklch(17% 0.014 232);
-  --sphere-surface-1: oklch(20% 0.016 232);
-  --sphere-surface-2: oklch(23% 0.018 232);
-  --sphere-text: oklch(94% 0.008 225);
-  --sphere-text-secondary: oklch(76% 0.014 225);
-  --sphere-text-muted: oklch(58% 0.018 225);
-  --sphere-border-subtle: oklch(38% 0.018 225 / .34);
-  --sphere-chart-grid: oklch(60% 0.018 225 / .12);
-  --sphere-accent: oklch(76% 0.095 195);
-  --sphere-accent-soft: oklch(34% 0.055 195 / .45);
-  --sphere-positive: oklch(74% 0.085 158);
-  --sphere-warning: oklch(78% 0.105 83);
-  --sphere-danger: oklch(70% 0.115 24);
-  --sphere-memory: oklch(72% 0.07 255);
-  --sphere-io-read: oklch(72% 0.07 160);
-  --sphere-io-write: oklch(70% 0.07 315);
-  --sphere-wp: oklch(75% 0.075 75);
+  --sphere-page: #0f151a;
+  --sphere-surface-1: #141d23;
+  --sphere-surface-2: #1a252c;
+  --sphere-text: #e7edf0;
+  --sphere-text-secondary: #a9b5bb;
+  --sphere-text-muted: #718089;
+  --sphere-border-subtle: rgba(113, 128, 137, .22);
+  --sphere-chart-grid: rgba(126, 147, 158, .12);
+  --sphere-accent: #4fc6c8;
+  --sphere-accent-soft: rgba(79, 198, 200, .12);
+  --sphere-positive: #75cfa5;
+  --sphere-warning: #d8b35f;
+  --sphere-danger: #db7d86;
+  --sphere-memory: #8ba7d9;
+  --sphere-io-read: #7bb89c;
+  --sphere-io-write: #b49ac8;
+  --sphere-wp: #d0a96c;
+  --sphere-chart-1: #6f9fd8;
+  --sphere-chart-2: #89b47e;
+  --sphere-chart-3: #9a94c7;
+  --sphere-chart-4: #d39a69;
+  --sphere-chart-5: #62b8bd;
 }
 
 .rundeckPanel {
@@ -89,46 +98,55 @@
 .rundeckModeSwitch {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--sphere-surface-2) 64%, transparent);
+  gap: 7px;
+  padding: 0;
+  background: transparent;
 }
 
 .rundeckModeSwitch button,
 .rundeckPdfButton,
 .rundeckCollectButton {
-  min-height: 25px;
+  min-height: 24px;
   border: 0;
-  border-radius: 999px;
-  padding: 0 9px;
+  padding: 0 3px;
   background: transparent;
-  color: var(--sphere-text-secondary);
+  color: var(--sphere-text-muted);
   font-family: inherit;
   font-size: 8.8px;
   font-weight: 720;
   cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease;
+  transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease, border-color 140ms ease;
+}
+
+.rundeckModeSwitch button {
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
 }
 
 .rundeckModeSwitch button:hover,
 .rundeckModeSwitch button:focus-visible,
 .rundeckModeSwitch button.is-active {
-  background: color-mix(in srgb, var(--sphere-accent) 14%, transparent);
+  border-bottom-color: var(--sphere-accent);
+  background: transparent;
   color: var(--sphere-accent);
   outline: none;
 }
 
+.rundeckPdfButton,
+.rundeckCollectButton {
+  border-radius: 4px;
+  padding: 0 7px;
+}
+
 .rundeckPdfButton {
   color: var(--sphere-accent);
-  background: color-mix(in srgb, var(--sphere-accent) 8%, transparent);
 }
 
 .rundeckPdfButton:hover,
 .rundeckPdfButton:focus-visible,
 .rundeckCollectButton:hover,
 .rundeckCollectButton:focus-visible {
-  background: color-mix(in srgb, var(--sphere-accent) 15%, transparent);
+  background: rgba(79, 198, 200, .09);
   color: var(--sphere-text);
   outline: none;
 }
@@ -210,7 +228,7 @@
 .rundeckHistory th,
 .rundeckHistory td {
   padding: 5px 7px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sphere-border-subtle) 66%, transparent);
+  border-bottom: 1px solid rgba(113, 128, 137, .12);
   text-align: left;
   white-space: nowrap;
 }
@@ -230,7 +248,7 @@
 
 .rundeckServerTable tbody tr:hover,
 .rundeckHistory tbody tr:hover {
-  background: color-mix(in srgb, var(--sphere-accent-soft) 24%, transparent);
+  background: rgba(79, 198, 200, .05);
 }
 
 .rundeckServerTable td:first-child strong {
@@ -243,7 +261,6 @@
   font-weight: 820;
 }
 
-/* APP state is secondary evidence: use a quiet dot instead of repeated pills. */
 .rundeckServerTable .rundeckStatus {
   gap: 5px;
   min-height: 0;
@@ -251,9 +268,9 @@
   border: 0;
   border-radius: 0;
   color: var(--sphere-text-secondary);
-  font-size: 8.8px;
+  font-size: 8.5px;
   font-weight: 650;
-  text-transform: capitalize;
+  text-transform: lowercase;
 }
 
 .rundeckServerTable .rundeckStatus::before {
@@ -314,7 +331,6 @@
   margin-top: 4px;
 }
 
-/* Automatic mode owns the page header and source switch. */
 .logV2Inner:has(.rundeckPanel) > .logV2Header {
   display: none !important;
 }
