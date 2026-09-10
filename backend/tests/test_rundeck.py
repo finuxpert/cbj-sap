@@ -8,9 +8,10 @@ from unittest.mock import patch
 
 from backend.rundeck_credentials import credential_mode, read_credential
 from backend.rundeck_host_projection import parse_host_projection
-from backend.rundeck_incident import continuous_incident_samples, primary_signal
+from backend.rundeck_incident import continuous_incident_samples, incident_severity, primary_signal
 from backend.rundeck_poller import execution_matches
 from backend.rundeck_store import ingest, collections, validate, identifier
+from backend.rundeck_trends import resolve_bucket
 
 HOSTS = ['fixture-a', 'fixture-b', 'fixture-c', 'fixture-d', 'fixture-e']
 
@@ -161,15 +162,20 @@ class IngestionTests(unittest.TestCase):
                 self.assertEqual(credential_mode('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'file')
                 self.assertEqual(read_credential('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'legacy-fixture-token')
 
-    def test_performance_incident_prioritizes_severity(self):
+    def test_performance_incident_separates_signal_and_incident_severity(self):
         wp_signal = primary_signal({
             'cpu_pct': 24,
             'ram_pct': 50,
             'io_wait_pct': 0,
-            'wp_critical': 3,
+            'wp_critical': 4,
         })
         self.assertEqual(wp_signal['code'], 'WP_CRITICAL')
         self.assertEqual(wp_signal['severity'], 'CRITICAL')
+        status, confidence, _ = incident_severity(wp_signal, [wp_signal], [
+            {'wp_critical': 4}, {'wp_critical': 4}, {'wp_critical': 4},
+        ])
+        self.assertEqual(status, 'WARNING')
+        self.assertEqual(confidence, 'HIGH')
 
         cpu_signal = primary_signal({
             'cpu_pct': 95,
@@ -177,8 +183,11 @@ class IngestionTests(unittest.TestCase):
             'io_wait_pct': 0,
             'wp_critical': 1,
         })
+        current_signals = [cpu_signal]
+        status, confidence, _ = incident_severity(cpu_signal, current_signals, [{'cpu_pct': 95}])
         self.assertEqual(cpu_signal['code'], 'CPU_HIGH')
-        self.assertEqual(cpu_signal['severity'], 'CRITICAL')
+        self.assertEqual(status, 'CRITICAL')
+        self.assertEqual(confidence, 'HIGH')
 
     def test_performance_incident_detected_since_is_continuous(self):
         def sample(minute, wp):
@@ -195,6 +204,13 @@ class IngestionTests(unittest.TestCase):
         rows_with_gap = [sample(8, 3), sample(38, 3)]
         incident = continuous_incident_samples(rows_with_gap, 'WP_CRITICAL')
         self.assertEqual([row['collection_id'] for row in incident], ['c-38'])
+
+    def test_auto_trend_buckets_reduce_longer_ranges(self):
+        self.assertEqual(resolve_bucket('6h', 'auto')[0], '10m')
+        self.assertEqual(resolve_bucket('24h', 'auto')[0], '30m')
+        self.assertEqual(resolve_bucket('7d', 'auto')[0], '1h')
+        self.assertEqual(resolve_bucket('30d', 'auto')[0], '6h')
+        self.assertEqual(resolve_bucket('90d', 'auto')[0], '1d')
 
 
 if __name__ == '__main__':
