@@ -15,7 +15,9 @@ function jobContext(row) {
 }
 
 function pssGb(row = {}) {
-  const value = Number(row.details?.pss_gb)
+  const raw = row.details?.pss_gb
+  if (raw === null || raw === undefined || raw === '') return null
+  const value = Number(raw)
   return Number.isFinite(value) ? value : null
 }
 
