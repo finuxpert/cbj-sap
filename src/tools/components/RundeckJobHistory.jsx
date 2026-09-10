@@ -173,7 +173,7 @@ function SingleSamplePerformance({ row }) {
   return <div className="rundeckSingleSample" aria-label="Single workload sample">
     <div className="rundeckSingleSampleTime">{formatWib(row.collected_at, true)} WIB</div>
     <div className="rundeckSingleSampleMetrics">
-      <span><b>CPU</b>{numberText(rowMetric(row, 'cpu'), 1)}%</span>
+      <span><b>Process CPU</b>{numberText(rowMetric(row, 'cpu'), 1)}%</span>
       {pss !== null && <span><b>PSS</b>{numberText(pss, 2)} GB</span>}
       {(Math.abs(read || 0) > 0 || Math.abs(write || 0) > 0)
         ? <><span><b>IO Read</b>{numberText(read, 2)} MiB/s</span><span><b>IO Write</b>{numberText(write, 2)} MiB/s</span></>
@@ -197,7 +197,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     const issueInRange = Number.isFinite(issueTs) && Number.isFinite(firstTs) && Number.isFinite(lastTs) && issueTs >= firstTs && issueTs <= lastTs
 
     const lanes = [
-      { id: 'cpu', name: 'CPU %', height: 62 },
+      { id: 'cpu', name: 'Process CPU %', height: 62 },
       profile.hasPss ? { id: 'pss', name: 'PSS GB', height: 42 } : null,
       profile.hasIo ? { id: 'io', name: 'IO MiB/s', height: 38 } : null,
       profile.hasWp ? { id: 'wp', name: 'WP', height: profile.wpVariable ? 34 : 22 } : null,
@@ -264,12 +264,12 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       silent: true,
       symbol: ['none', 'none'],
       lineStyle: { color: colors.warning, type: 'dashed', width: 1 },
-      label: { formatter: 'Issue', color: colors.warning, fontSize: 8 },
+      label: { formatter: 'Issue start', color: colors.warning, fontSize: 8 },
       data: [{ xAxis: incidentStart }],
     } : undefined
 
     const series = [
-      line('CPU', 'cpu', 'cpu', colors.accent, { markLine: issueMark }),
+      line('Process CPU', 'cpu', 'cpu', colors.accent, { markLine: issueMark }),
       profile.hasPss ? line('PSS', 'pss', 'pss', colors.memory) : null,
       profile.hasIo ? line('IO Read', 'read', 'io', colors.ioRead) : null,
       profile.hasIo ? line('IO Write', 'write', 'io', colors.ioWrite) : null,
@@ -326,7 +326,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
             const critical = Number(row.host_wp_critical || 0)
             return [
               `<b>${formatWib(row.collected_at, true)} WIB</b>`,
-              `CPU <b>${numberText(rowMetric(row, 'cpu'), 1)}%</b>`,
+              `Process CPU <b>${numberText(rowMetric(row, 'cpu'), 1)}%</b>`,
               profile.hasPss ? `PSS <b>${numberText(rowMetric(row, 'pss'), 2)} GB</b>` : '',
               profile.hasIo ? `IO Read <b>${numberText(rowMetric(row, 'read'), 2)} MiB/s</b>` : 'IO <b>0 MiB/s</b>',
               profile.hasIo ? `IO Write <b>${numberText(rowMetric(row, 'write'), 2)} MiB/s</b>` : '',
@@ -360,12 +360,13 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
 
   return <div className="rundeckJobPerformanceWrap">
     {!chartConfig.profile.hasIo && <div className="rundeckHiddenMetric">IO 0 MiB/s</div>}
-    <div ref={ref} className="rundeckJobPerformanceChart" style={{ height: `${chartConfig.height}px` }} role="img" aria-label="Workload CPU, PSS, IO, work process and APP critical work process timeline with WIB time axis" />
+    <div ref={ref} className="rundeckJobPerformanceChart" style={{ height: `${chartConfig.height}px` }} role="img" aria-label="Workload process CPU, PSS, IO, work process and APP critical work process timeline with WIB time axis" />
   </div>
 }
 
 export default function RundeckJobHistory({ job = null, refreshToken = '', incidentStart = '', latestCollectionId = '' }) {
   const [history, setHistory] = React.useState(null)
+  const [resolvedJob, setResolvedJob] = React.useState(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
   const jobKey = job?.key || ''
@@ -376,15 +377,20 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   React.useEffect(() => {
     if (!jobKey) {
       setHistory(null)
+      setResolvedJob(null)
       setError('')
       return undefined
     }
 
     const controller = new AbortController()
+    const requestedJob = { key: jobKey, host: jobHost, consumerType: jobConsumerType, at: jobAt }
     setLoading(true)
     setError('')
-    loadHistory({ key: jobKey, host: jobHost, consumerType: jobConsumerType }, controller.signal)
-      .then(setHistory)
+    loadHistory(requestedJob, controller.signal)
+      .then((result) => {
+        setHistory(result)
+        setResolvedJob(requestedJob)
+      })
       .catch((failure) => {
         if (failure.name !== 'AbortError') setError(failure.message || 'Workload history unavailable')
       })
@@ -392,11 +398,21 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [jobConsumerType, jobHost, jobKey, refreshToken])
+  }, [jobAt, jobConsumerType, jobHost, jobKey, refreshToken])
 
   if (!jobKey) return null
 
-  const episodeItemsAsc = selectObservationEpisode(history?.items || [], jobAt)
+  const displayJob = resolvedJob || { key: jobKey, host: jobHost, consumerType: jobConsumerType, at: jobAt }
+  const displayKey = displayJob.key || jobKey
+  const displayHost = displayJob.host || jobHost
+  const displayConsumerType = displayJob.consumerType || jobConsumerType
+  const displayAt = displayJob.at || ''
+  const changingSelection = Boolean(
+    history && resolvedJob && loading && (
+      resolvedJob.key !== jobKey || resolvedJob.host !== jobHost || resolvedJob.consumerType !== jobConsumerType || resolvedJob.at !== jobAt
+    )
+  )
+  const episodeItemsAsc = selectObservationEpisode(history?.items || [], displayAt)
   const episodeItems = [...episodeItemsAsc].reverse()
   const stats = episodeStats(episodeItemsAsc)
   const latest = episodeItems[0] || null
@@ -410,27 +426,29 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
     <div className="rundeckJobHistoryHead">
       <div>
         <span>Selected Workload</span>
-        <h3><SphereIcon name="target" /> {jobKey}</h3>
-        <small>{shortHost(jobHost || latest?.host || '')} · {workloadTypeLabel(jobConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
+        <h3><SphereIcon name="target" /> {displayKey} {history && <em className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NO LONGER SEEN'}</em>}</h3>
+        <small>{shortHost(displayHost || latest?.host || '')} · {workloadTypeLabel(displayConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
       </div>
-      <strong className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NO LONGER SEEN'}</strong>
     </div>
 
-    {loading && <div className="rundeckJobHistoryState">Loading workload history…</div>}
+    {loading && !history && <div className="rundeckJobHistoryState">Loading workload history…</div>}
+    {loading && history && <div className="rundeckJobHistoryState is-updating">{changingSelection ? 'Updating selected workload…' : 'Refreshing workload…'}</div>}
     {error && <div className="rundeckJobHistoryState is-error">{error}</div>}
 
-    {!loading && !error && history && <>
+    {history && <>
       <div className="rundeckJobHistorySummary">
         <span><b>First Seen</b>{formatWib(stats.firstSeen, true)} WIB</span>
         <span><b>Last Seen</b>{formatWib(stats.lastSeen, true)} WIB</span>
         <span><b>Duration</b>{observed}</span>
         <span><b>Checks</b>{episodeItems.length}</span>
-        <span><b>Avg CPU</b>{numberText(stats.avgCpu)}%</span>
-        <span><b>Peak CPU</b>{numberText(stats.peakCpu)}%</span>
+      </div>
+      <div className="rundeckJobHistorySummary is-secondary">
+        <span><b>Avg Process CPU</b>{numberText(stats.avgCpu)}%</span>
+        <span><b>Peak Process CPU</b>{numberText(stats.peakCpu)}%</span>
       </div>
 
       {(incidentStart || correlation) && <div className="rundeckJobCorrelation">
-        {incidentStart && <span>Issue {formatWib(incidentStart, true)} WIB</span>}
+        {incidentStart && <span>Issue start {formatWib(incidentStart, true)} WIB</span>}
         {stats.firstSeen && <span>First Seen {formatWib(stats.firstSeen, true)} WIB</span>}
         {correlation && <strong>{correlation}</strong>}
       </div>}
@@ -450,7 +468,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
         <summary><SphereIcon name="history" /> Observation History <span>{episodeItems.length} samples</span></summary>
         <div className="rundeckJobHistoryTableWrap">
           <table>
-            <thead><tr><th>Time WIB</th><th>Run</th><th>APP</th><th>CPU</th><th>PSS</th><th>WP</th><th>Critical WP</th></tr></thead>
+            <thead><tr><th>Time WIB</th><th>Run</th><th>APP</th><th>Process CPU</th><th>PSS</th><th>WP</th><th>Critical WP</th></tr></thead>
             <tbody>
               {episodeItems.map((row) => {
                 const details = row.details || {}
