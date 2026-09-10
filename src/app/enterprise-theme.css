@@ -9,6 +9,7 @@
  * 4. workspace/dashboard polish
  * 5. tool-specific UX polish
  * 6. export/print polish
+ * 7. soft-enterprise design-token override
  */
 @import './enterprise-ui-system.css';
 @import './sphere-logo.css';
@@ -20,3 +21,4 @@
 @import './st03n-impact-ux.css';
 @import './comparer-process-ux.css';
 @import './pdf-export-ux.css';
+@import './soft-enterprise-v1.css';
