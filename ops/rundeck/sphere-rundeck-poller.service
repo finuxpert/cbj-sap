@@ -1,6 +1,7 @@
 [Unit]
 Description=SPHERE read-only Rundeck collection ingestion
 After=network-online.target
+
 [Service]
 Type=oneshot
 User=sphere
@@ -16,4 +17,6 @@ ProtectHome=true
 PrivateTmp=true
 ReadWritePaths=/var/lib/sphere/ingestion
 IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+IPAddressAllow=::1/128
 IPAddressAllow=10.14.55.205/32
