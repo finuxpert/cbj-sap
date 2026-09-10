@@ -42,6 +42,15 @@ function StatusPill({ value = 'UNKNOWN' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
 }
 
+function switchParentSource(value) {
+  const select = document.querySelector('.logV2Header select')
+  if (!select) return
+  const descriptor = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')
+  if (descriptor?.set) descriptor.set.call(select, value)
+  else select.value = value
+  select.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
 async function json(url, options = {}) {
   const response = await fetch(url, { cache: 'no-store', ...options })
   if (!response.ok) {
@@ -61,9 +70,11 @@ export default function RundeckSource({ onCollection }) {
   const [runState, setRunState] = React.useState({ enabled: false, allowed: false })
   const [error, setError] = React.useState('')
   const [actionBusy, setActionBusy] = React.useState(false)
+  const [exporting, setExporting] = React.useState(false)
   const [selectedJob, setSelectedJob] = React.useState(null)
   const [incidentSummary, setIncidentSummary] = React.useState(null)
   const loaded = React.useRef('')
+  const panelRef = React.useRef(null)
   const onCollectionRef = React.useRef(onCollection)
 
   React.useEffect(() => {
@@ -163,6 +174,47 @@ export default function RundeckSource({ onCollection }) {
     }
   }
 
+  async function exportPdf() {
+    const panel = panelRef.current
+    if (!panel || exporting) return
+    setExporting(true)
+    panel.classList.add('is-pdf-exporting')
+    try {
+      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
+      await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)))
+      const canvas = await html2canvas(panel, {
+        backgroundColor: '#0f151a',
+        scale: 1.35,
+        useCORS: true,
+        logging: false,
+      })
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true })
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 6
+      const maxWidth = pageWidth - margin * 2
+      const maxHeight = pageHeight - margin * 2
+      const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height)
+      const width = canvas.width * ratio
+      const height = canvas.height * ratio
+      const x = (pageWidth - width) / 2
+      const y = (pageHeight - height) / 2
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', x, y, width, height, undefined, 'FAST')
+      const host = shortHost(selectedJob?.host || incidentSummary?.affected_server || 'SAP') || 'SAP'
+      const stamp = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+        .format(new Date()).replaceAll('-', '').replace(', ', '_').replace(':', '')
+      pdf.save(`SPHERE_RCA_${host}_${stamp}_Run${latest?.execution_id || 'NA'}.pdf`)
+    } catch (failure) {
+      setError(failure.message || 'PDF export failed.')
+    } finally {
+      panel.classList.remove('is-pdf-exporting')
+      setExporting(false)
+    }
+  }
+
   const collectionAligned = !latest?.collection_id || !hostSnapshot?.collection_id || hostSnapshot.collection_id === latest.collection_id
   const operationalHosts = collectionAligned ? hosts : []
   const overallHealth = !collectionAligned
@@ -190,14 +242,23 @@ export default function RundeckSource({ onCollection }) {
     onSelectJob={selectJob}
   />
 
-  return <section className="rundeckPanel" aria-label="SAP performance monitoring" aria-live="polite">
+  return <section ref={panelRef} className="rundeckPanel" aria-label="SAP performance monitoring" aria-live="polite">
     <header className="rundeckLandscapeHeader">
-      <div>
-        <span className="rundeckEyebrow">Automatic Rundeck</span>
+      <div className="rundeckTitleBlock">
         <h2>SAP Performance RCA</h2>
+        <div className="rundeckLandscapeMeta" aria-label="SAP performance data status">
+          <span>{formatTime(latest?.collection_time_wib || latest?.finished_at, true)} WIB</span>
+          <span>{appCount || '—'} APP</span>
+          <span>Run #{latest?.execution_id || '—'}</span>
+        </div>
       </div>
       <div className="rundeckActions">
         <StatusPill value={overallHealth} />
+        <div className="rundeckModeSwitch" role="group" aria-label="Data source">
+          <button type="button" className="is-active" aria-pressed="true">Rundeck</button>
+          <button type="button" onClick={() => switchParentSource('manual')}>Manual Upload</button>
+        </div>
+        <button type="button" className="rundeckPdfButton" disabled={exporting} onClick={exportPdf}>{exporting ? 'Exporting…' : 'Export PDF'}</button>
         {runState.enabled && (
           <button
             type="button"
@@ -212,15 +273,8 @@ export default function RundeckSource({ onCollection }) {
       </div>
     </header>
 
-    {error && <div className={`rundeckMessage ${latest ? 'is-reconnecting' : ''}`} role="status">{latest ? `Rundeck refresh delayed. Showing last good run #${latest.execution_id || '—'}.` : error}</div>}
-    {!collectionAligned && <div className="rundeckMessage" role="status">Rundeck run and database data are not aligned yet. Waiting for one complete run.</div>}
-
-    <div className="rundeckLandscapeMeta" aria-label="SAP performance data status">
-      <span>{formatTime(latest?.collection_time_wib || latest?.finished_at, true)} WIB</span>
-      <span>{appCount || '—'} APP</span>
-      <span>Rundeck {collectorState}</span>
-      <span>Run #{latest?.execution_id || '—'}</span>
-    </div>
+    {error && <div className={`rundeckMessage ${latest ? 'is-reconnecting' : ''}`} role="status">{latest ? `Refresh delayed. Showing last good run #${latest.execution_id || '—'}.` : error}</div>}
+    {!collectionAligned && <div className="rundeckMessage" role="status">Waiting for one complete aligned Rundeck run.</div>}
 
     <RundeckPerformanceIncident
       refreshToken={latest?.collection_id || ''}
@@ -234,13 +288,10 @@ export default function RundeckSource({ onCollection }) {
     {operationalHosts.length > 0 && <section className="rundeckServerSection">
       <div className="rundeckSectionTitle">
         <h3>Application Servers</h3>
-        <span>Run #{hostSnapshot?.execution_id || latest?.execution_id || '—'}</span>
       </div>
       <div className="rundeckServerTableWrap">
         <table className="rundeckServerTable">
-          <thead>
-            <tr><th>APP</th><th>State</th><th>CPU</th><th>RAM</th><th>Load</th><th>IO Wait</th><th>Critical WP</th></tr>
-          </thead>
+          <thead><tr><th>APP</th><th>State</th><th>CPU</th><th>RAM</th><th>Load</th><th>IO Wait</th><th>Critical WP</th></tr></thead>
           <tbody>
             {operationalHosts.map((host) => <tr key={host.host}>
               <td><strong title={host.host}>{shortHost(host.host)}</strong></td>
