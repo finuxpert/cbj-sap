@@ -66,6 +66,18 @@ async function json(url, signal) {
   return response.json()
 }
 
+function displayHostState(row = {}) {
+  const cpu = Number(row.cpu_pct)
+  const ram = Number(row.ram_pct)
+  const ioWait = Number(row.io_wait_pct)
+  const wp = Number(row.wp_critical || 0)
+  if ((Number.isFinite(cpu) && cpu >= 90) || (Number.isFinite(ram) && ram >= 90) || (Number.isFinite(ioWait) && ioWait >= 20)) return 'CRITICAL'
+  if ((Number.isFinite(cpu) && cpu >= 75) || (Number.isFinite(ram) && ram >= 80) || (Number.isFinite(ioWait) && ioWait >= 10) || wp > 0) return 'WARNING'
+  return 'NORMAL'
+}
+
+const displayAlertSeverity = (row = {}) => row.code === 'WP_CRITICAL' ? 'WARNING' : (row.severity || 'WARNING')
+
 function useEChart(option, onChartClick) {
   const ref = React.useRef(null)
 
@@ -272,7 +284,7 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
         <h4><SphereIcon name="target" /> {selected?.host ? shortHost(selected.host) : 'APP'}</h4>
         <small>{selected?.at ? `${formatWib(selected.at, true)} WIB` : 'Loading'}</small>
       </div>
-      {selectedRow && <InlineStatus value={selectedRow.health} />}
+      {selectedRow && <InlineStatus value={displayHostState(selectedRow)} />}
     </div>
 
     {loading && <div className="rundeckHistoryState">Loading workload…</div>}
@@ -379,8 +391,8 @@ export default function RundeckMonitoringHistory({
     const timestamp = new Date(row.collected_at).getTime()
     return Number.isFinite(timestamp) && timestamp >= recentCutoff
   })
-  const criticalCount = visibleAlerts.filter((row) => row.severity === 'CRITICAL').length
-  const warningCount = visibleAlerts.filter((row) => row.severity === 'WARNING').length
+  const criticalCount = visibleAlerts.filter((row) => displayAlertSeverity(row) === 'CRITICAL').length
+  const warningCount = visibleAlerts.filter((row) => displayAlertSeverity(row) === 'WARNING').length
 
   return <section className="rundeckMonitoring">
     <div className="rundeckMonitoringHead"><h3><SphereIcon name="trend" /> Server Trend</h3></div>
@@ -412,20 +424,23 @@ export default function RundeckMonitoringHistory({
     <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} latestCollectionAt={latestCollectionAt} />
 
     <details className="rundeckEvidenceGroup">
-      <summary><SphereIcon name="alert" /> SAP Alert History <span>{criticalCount} critical · {warningCount} warning events</span></summary>
+      <summary><SphereIcon name="alert" /> SAP Signal History <span>{criticalCount} critical · {warningCount} warning</span></summary>
       <div className="rundeckEvidenceBody">
         <section className="rundeckOpsSection">
           <div className="rundeckMiniTableWrap">
             <table>
-              <thead><tr><th>Time WIB</th><th>APP</th><th>Severity</th><th>Signal</th></tr></thead>
+              <thead><tr><th>Time WIB</th><th>APP</th><th>State</th><th>Signal</th></tr></thead>
               <tbody>
-                {visibleAlerts.slice(0, 10).map((row) => <tr key={row.id}>
-                  <td>{formatWib(row.collected_at, true)}</td>
-                  <td>{shortHost(row.host || 'COLLECTOR')}</td>
-                  <td><InlineStatus value={row.severity} /></td>
-                  <td>{row.code === 'WP_CRITICAL' ? 'Critical WP' : row.code === 'IOWAIT_HIGH' ? 'IO Wait' : row.message}</td>
-                </tr>)}
-                {!visibleAlerts.length && <tr><td colSpan="4">No alerts in this period.</td></tr>}
+                {visibleAlerts.slice(0, 10).map((row) => {
+                  const severity = displayAlertSeverity(row)
+                  return <tr key={row.id}>
+                    <td>{formatWib(row.collected_at, true)}</td>
+                    <td>{shortHost(row.host || 'COLLECTOR')}</td>
+                    <td><InlineStatus value={severity} /></td>
+                    <td>{row.code === 'WP_CRITICAL' ? 'Critical WP signal' : row.code === 'IOWAIT_HIGH' ? 'IO Wait' : row.message}</td>
+                  </tr>
+                })}
+                {!visibleAlerts.length && <tr><td colSpan="4">No signals in this period.</td></tr>}
               </tbody>
             </table>
           </div>
