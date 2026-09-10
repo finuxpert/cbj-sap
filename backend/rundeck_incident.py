@@ -2,8 +2,9 @@
 
 This module answers the first Basis RCA questions from normalized Rundeck data:
 when the active degradation signal started, which application server is affected,
-and which SAP workload is most consistently correlated with that incident window.
-It intentionally reports a workload candidate, not a proven root cause.
+what workload is hottest in the current collection, and which workload remains
+most persistent across the incident window. Correlation is evidence, not proof
+of root cause.
 """
 from __future__ import annotations
 
@@ -155,7 +156,34 @@ def continuous_incident_samples(
     return list(reversed(selected))
 
 
-def _workload_candidate(conn, host: str, collection_ids: list[str]) -> dict | None:
+def _current_workload(conn, host: str, collection_id: str | None) -> dict | None:
+    """Top normalized SAP workload for the exact current Collection Cycle."""
+    if not collection_id:
+        return None
+    row = conn.execute(text("""
+        SELECT collection_id, collected_at, consumer_type, consumer_key,
+               rank, cpu_pct, ram_pct, details
+          FROM rundeck_top_consumers
+         WHERE host = :host
+           AND collection_id = :collection_id
+         ORDER BY rank ASC, cpu_pct DESC NULLS LAST
+         LIMIT 1
+    """), {"host": host, "collection_id": collection_id}).mappings().first()
+    if not row:
+        return None
+    return {
+        "collection_id": row["collection_id"],
+        "collected_at": row["collected_at"],
+        "consumer_type": row["consumer_type"],
+        "consumer_key": row["consumer_key"],
+        "rank": int(row["rank"] or 0),
+        "cpu_pct": float(row["cpu_pct"]) if row["cpu_pct"] is not None else None,
+        "ram_pct": float(row["ram_pct"]) if row["ram_pct"] is not None else None,
+        "details": dict(row["details"] or {}),
+    }
+
+
+def _persistent_workload_candidate(conn, host: str, collection_ids: list[str]) -> dict | None:
     if not collection_ids:
         return None
     params: dict[str, Any] = {"host": host}
@@ -266,7 +294,9 @@ def performance_incident_summary() -> dict:
             "active": False,
             "last_observed": latest_sample,
             "affected_servers": [],
+            "host_resource_pressure": False,
             "host_saturation": False,
+            "resource_assessment": "CPU / Memory / I/O Wait saturation not detected.",
             "assessment": "No active CPU, memory, I/O wait or Critical Work Process threshold is detected in the latest Collection Cycle.",
         }
 
@@ -296,35 +326,44 @@ def performance_incident_summary() -> dict:
         history = [dict(row._mapping) for row in history_rows]
         incident_samples = continuous_incident_samples(history, signal["code"])
         collection_ids = [row["collection_id"] for row in incident_samples]
-        workload = _workload_candidate(conn, host, collection_ids)
+        current_workload = _current_workload(conn, host, snapshot.get("collection_id"))
+        persistent_workload = _persistent_workload_candidate(conn, host, collection_ids)
 
-    detected_since = incident_samples[0]["collected_at"] if incident_samples else latest_at
+    signal_active_since = incident_samples[0]["collected_at"] if incident_samples else latest_at
     last_observed = incident_samples[-1]["collected_at"] if incident_samples else latest_at
-    duration_seconds = max(0, int((last_observed - detected_since).total_seconds()))
+    duration_seconds = max(0, int((last_observed - signal_active_since).total_seconds()))
     all_current_signals = active_signals(current_metric)
-    host_saturation = any(item["host_resource"] for item in all_current_signals)
+    host_resource_pressure = any(item["host_resource"] for item in all_current_signals)
+    resource_assessment = (
+        "CPU / Memory / I/O Wait pressure is detected on the affected Application Server."
+        if host_resource_pressure
+        else "CPU / Memory / I/O Wait saturation not detected."
+    )
 
-    if signal["code"] == "WP_CRITICAL" and not host_saturation:
-        assessment = "Host saturation is not detected. SAP Work Process and correlated SAP workload are the primary RCA path."
-    elif host_saturation and workload:
-        assessment = "Host resource pressure is present. Correlate the affected Application Server with the SAP workload candidate before assigning root cause."
-    elif host_saturation:
-        assessment = "Host resource pressure is present, but no normalized SAP workload candidate is available for the active incident window."
+    if signal["code"] == "WP_CRITICAL" and not host_resource_pressure:
+        assessment = "SAP Work Process and correlated SAP workload are the primary RCA path; current host CPU, memory and I/O wait are below configured pressure thresholds."
+    elif host_resource_pressure and persistent_workload:
+        assessment = "Host resource pressure is present. Correlate the affected Application Server with current and persistent SAP workload evidence before assigning root cause."
+    elif host_resource_pressure:
+        assessment = "Host resource pressure is present, but no normalized SAP workload candidate is available for the active signal window."
     else:
-        assessment = "An SAP performance signal is active. Use the correlated workload and supporting telemetry as RCA evidence, not as proof of root cause."
+        assessment = "An SAP performance signal is active. Use current and persistent workload correlation as RCA evidence, not as proof of root cause."
 
     return {
         **base,
         "status": signal["severity"],
         "active": True,
-        "detected_since": detected_since,
+        "signal_active_since": signal_active_since,
+        "detected_since": signal_active_since,
         "last_observed": last_observed,
         "duration_seconds": duration_seconds,
         "incident_samples": len(incident_samples),
         "affected_server": host,
         "affected_servers": affected_servers,
         "primary_signal": {key: value for key, value in signal.items() if key not in {"score", "priority"}},
-        "host_saturation": host_saturation,
+        "host_resource_pressure": host_resource_pressure,
+        "host_saturation": host_resource_pressure,
+        "resource_assessment": resource_assessment,
         "current_host_metrics": {
             "cpu_pct": current_metric.get("cpu_pct"),
             "ram_pct": current_metric.get("ram_pct"),
@@ -333,6 +372,8 @@ def performance_incident_summary() -> dict:
             "swap_pct": current_metric.get("swap_pct"),
             "wp_critical": current_metric.get("wp_critical"),
         },
-        "primary_workload": workload,
+        "current_workload": current_workload,
+        "persistent_workload": persistent_workload,
+        "primary_workload": persistent_workload,
         "assessment": assessment,
     }
