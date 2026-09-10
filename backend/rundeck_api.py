@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from backend.rundeck_consumers import timeline_consumers
 from backend.rundeck_incident import performance_incident_summary
+from backend.rundeck_job_history import sap_job_history
 from backend.rundeck_latest import latest_ready_host_metrics
 from backend.rundeck_monitoring import (
     alert_history,
@@ -202,6 +203,25 @@ def history_top_consumers(days: int = Query(90, ge=1, le=90), limit: int = Query
     since = datetime.now(timezone.utc) - timedelta(days=days)
     try:
         return {"since": since, "days": days, "items": top_consumer_history(since, limit)}
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+
+
+@app.get("/history/job")
+def history_job(
+    job: str = Query(..., min_length=1, max_length=512),
+    host: str | None = Query(None, max_length=120),
+    consumer_type: str | None = Query(None, alias="type", pattern="^(JOB|PROGRAM|PROCESS)$"),
+    days: int = Query(90, ge=1, le=90),
+    limit: int = Query(200, ge=1, le=1000),
+):
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    try:
+        return {
+            "since": since,
+            "days": days,
+            **sap_job_history(job, since, host=host, consumer_type=consumer_type, limit=limit),
+        }
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 
