@@ -4,6 +4,7 @@ import { buildLogAnalysis, parseLogText, telemetryCapabilitiesV15 } from './logA
 import { buildAutoPeakSphereV3 } from './logSphereEngineV3.js'
 import { rankResourceConsumersV5 } from './workloadAnalyticsV5.js'
 import { LOG_V14_METRICS } from './components/logChartMetrics.js'
+import { drilldownMeta, sampleConsumerContribution, sortSampleConsumers } from './logSampleDrilldown.js'
 import './LogAutoSphereV2.css'
 import './LogAutoSphereV141.css'
 
@@ -190,7 +191,7 @@ function topObservedConsumer(rows = []) {
 
 function scopedConsumerRows(rows = [], focus = null) {
   if (!focus?.host || !focus?.collectionKey) return []
-  return rows.flatMap((row) => {
+  const scoped = rows.flatMap((row) => {
     if (row.host !== focus.host) return []
     const sample = (row.samples || []).find((item) => item.collectionKey === focus.collectionKey)
     if (!sample) return []
@@ -231,21 +232,25 @@ function scopedConsumerRows(rows = [], focus = null) {
       errorTaxonomy: { strongest: { category: 'NONE' } },
       sampleFocus: true,
     }]
-  }).sort((a, b) => Number(b.targetCpu ?? -1) - Number(a.targetCpu ?? -1) || Number(consumerMemory(b) ?? -1) - Number(consumerMemory(a) ?? -1))
+  })
+  return sortSampleConsumers(scoped, focus.metric)
 }
 
 function SampleDrilldownSummary({ focus, rows = [], onClear }) {
   if (!focus) return null
   const top = rows[0] || null
+  const presentation = drilldownMeta(focus.metric)
+  const hostMetric = LOG_V14_METRICS[focus.metric] || LOG_V14_METRICS.cpuPct
+  const contribution = top ? sampleConsumerContribution(top, focus.metric) : null
   return <section className="logV2Panel logV141Summary">
     <div className="logV141SummaryTop">
-      <div><span className="logV141Kicker">CPU SAMPLE DRILLDOWN</span><h2>{focus.host} · {shortTime(focus.timeLabel)}</h2></div>
+      <div><span className="logV141Kicker">{presentation.kicker}</span><h2>{focus.host} · {shortTime(focus.timeLabel)}</h2></div>
       <div className="logV2QuickFilters"><button type="button" onClick={onClear}>Full period</button></div>
     </div>
     <div className="logV141SummaryGrid logV141SummaryGridCompact">
-      <div><span>Host CPU</span><strong>{metricText(focus.value, 1, '%')}</strong><small>application server CPU</small></div>
-      <div><span>Top Consumer</span><strong>{top?.workload || '—'}</strong><small>{top?.program || '—'}</small></div>
-      <div><span>Process CPU</span><strong>{metricText(top?.targetCpu, 1, '%')}</strong><small>at selected sample</small></div>
+      <div><span>{presentation.hostLabel}</span><strong>{metricText(focus.value, hostMetric.digits, hostMetric.suffix)}</strong><small>{presentation.hostNote}</small></div>
+      <div><span>Top Contributor</span><strong>{top?.workload || '—'}</strong><small>{top?.program || '—'}</small></div>
+      <div><span>{presentation.contributorLabel}</span><strong>{metricText(contribution, presentation.contributorDigits, presentation.contributorSuffix)}</strong><small>at selected sample</small></div>
       <div><span>WP Type</span><strong>{top?.type || '—'}</strong><small>{rows.length} consumers observed</small></div>
     </div>
   </section>
@@ -317,6 +322,9 @@ export default function ToolLogAutoSphereV5() {
   const focusedRows = React.useMemo(() => scopedConsumerRows(resourceRows, sampleFocus), [resourceRows, sampleFocus])
   const consumerRows = sampleFocus ? focusedRows : resourceRows
   const consumerPointInTime = pointInTime || Boolean(sampleFocus)
+  const samplePresentation = sampleFocus ? drilldownMeta(sampleFocus.metric) : null
+  const consumerSortId = samplePresentation?.sortId || 'cpuValue'
+  const consumerSortResetKey = sampleFocus ? `${sampleFocus.metric}:${sampleFocus.host}:${sampleFocus.collectionKey}` : (pointInTime ? selectedCollectionKey : 'full-period')
 
   const clearSampleFocus = React.useCallback(() => {
     setSampleFocus(null)
@@ -330,7 +338,7 @@ export default function ToolLogAutoSphereV5() {
     if (!point?.collectionKey) return
     setSelectedCollectionKey(point.collectionKey)
     if (point.host) setSelectedHost(point.host)
-    if (point.metric !== 'cpuPct' || !point.host) return
+    if (!point.host) return
     setSampleFocus(point)
     const scoped = scopedConsumerRows(resourceRows, point)
     if (scoped[0]) setSelectedResource(scoped[0])
@@ -358,7 +366,7 @@ export default function ToolLogAutoSphereV5() {
       {!ranking && (pointInTime ? <PointInTimeSummary topRow={topConsumer} collection={selectedCollection} /> : <IncidentSummary verdict={verdict} topRow={trendTopConsumer} />)}
 
       {!pointInTime && <section className="logV2Panel">
-        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>{metric === 'cpuPct' ? 'Click a CPU point to inspect consumers on that server at that sample.' : 'Resource trend by log timestamp.'}</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (key !== 'cpuPct' && sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
+        <div className="logV2PanelHead"><div><h2>Application Server Trend</h2><p>Click any point or MAX marker to inspect metric-relevant contributors on that server at that sample.</p></div><div className="logV2MetricTabs">{visibleMetrics.map(([key, item]) => <button key={key} type="button" className={metric === key ? 'active' : ''} onClick={() => { setMetric(key); if (sampleFocus) clearSampleFocus() }}>{item.label}</button>)}</div></div>
         <React.Suspense fallback={<div className="logV2LandscapeChart logV2Empty" role="status">Loading trend…</div>}>
           <LandscapeResourceEChartV14 rca={rca} metric={metric} onSelectCollection={setSelectedCollectionKey} onSelectPoint={handleTrendPoint} />
         </React.Suspense>
@@ -368,9 +376,9 @@ export default function ToolLogAutoSphereV5() {
       {pointInTime ? <SnapshotStrip collection={selectedCollection} /> : null}
 
       <section className="logV2Panel" id="top-resource-consumers">
-        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `Top CPU Consumers · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2><p>{sampleFocus ? `Processes observed at ${shortTime(sampleFocus.timeLabel)}. CPU values are process CPU at the selected sample.` : pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
+        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `${samplePresentation.title} · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2><p>{sampleFocus ? `${shortTime(sampleFocus.timeLabel)} · ${samplePresentation.description}.` : pointInTime ? 'Jobs and ABAP programs observed in this collection.' : 'Jobs and ABAP programs observed across the selected period.'}</p></div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
         {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
-          <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} />
+          <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} initialSortId={consumerSortId} sortResetKey={consumerSortResetKey} />
         </React.Suspense>}
       </section>
 
