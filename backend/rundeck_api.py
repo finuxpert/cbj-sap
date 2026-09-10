@@ -12,15 +12,16 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from backend.rundeck_consumers import timeline_consumers
+from backend.rundeck_latest import latest_ready_host_metrics
 from backend.rundeck_monitoring import (
     alert_history,
     collection_history,
     disk_status,
     host_history,
-    latest_host_metrics,
     timescale_status,
     top_consumer_history,
 )
+from backend.rundeck_platform import platform_health
 from backend.rundeck_store import ROOT, collections, identifier
 from backend.rundeck_trends import (
     collection_timeline,
@@ -89,6 +90,14 @@ def health():
     }
 
 
+@app.get("/platform/health")
+def platform_health_endpoint():
+    try:
+        return platform_health(ROOT)
+    except Exception as error:
+        raise HTTPException(503, f"Platform health unavailable: {type(error).__name__}") from None
+
+
 @app.get("/collections")
 def list_collections(limit: int = Query(50, ge=1, le=500)):
     return {"items": [_view(row) for row in collections()[:limit]]}
@@ -144,7 +153,7 @@ def history_hosts(
 @app.get("/history/hosts/latest")
 def history_hosts_latest():
     try:
-        return {"items": latest_host_metrics()}
+        return latest_ready_host_metrics()
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 
@@ -192,7 +201,6 @@ def history_collections(days: int = Query(90, ge=1, le=90), limit: int = Query(2
     try:
         items = collection_history(since, limit)
     except RuntimeError:
-        # File manifest history remains a fallback while DB is being enabled in /dev.
         items = [_view(row) for row in collections()[:limit]]
     return {"since": since, "days": days, "items": items}
 
