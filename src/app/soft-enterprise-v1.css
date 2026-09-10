@@ -1,0 +1,431 @@
+/*
+ * SPHERE v1.16 - Soft Enterprise UI
+ * Design-token and density override layer.
+ * Goal: reduce black-on-black surfaces, nested cards, heavy borders and decorative effects.
+ */
+:root {
+  color-scheme: dark;
+
+  --sphere-page: #11161c;
+  --sphere-surface-0: #151b22;
+  --sphere-surface-1: #192129;
+  --sphere-surface-2: #1e2730;
+  --sphere-surface-3: #232e38;
+  --sphere-border: #323d48;
+  --sphere-border-subtle: #28323c;
+  --sphere-text: #edf1f4;
+  --sphere-text-secondary: #b1bbc4;
+  --sphere-text-muted: #7f8c97;
+  --sphere-accent: #49c8d1;
+  --sphere-accent-soft: #17383f;
+  --sphere-positive: #78d6ad;
+  --sphere-warning: #e8c86b;
+  --sphere-danger: #ef8a94;
+  --sphere-radius: 8px;
+  --sphere-radius-sm: 6px;
+  --sphere-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+
+  /* compatibility aliases for existing UI layers */
+  --sap-ui-bg: var(--sphere-page);
+  --sap-ui-panel: var(--sphere-surface-1);
+  --sap-ui-panel-strong: var(--sphere-surface-2);
+  --sap-ui-panel-soft: var(--sphere-surface-2);
+  --sap-ui-line: var(--sphere-border-subtle);
+  --sap-ui-line-strong: var(--sphere-border);
+  --sap-ui-text: var(--sphere-text);
+  --sap-ui-muted: var(--sphere-text-secondary);
+  --sap-ui-faint: var(--sphere-text-muted);
+  --sap-ui-accent: var(--sphere-accent);
+  --sap-ui-accent-2: #73b7e6;
+  --sap-ui-radius: var(--sphere-radius);
+  --sap-ui-radius-sm: var(--sphere-radius-sm);
+  --sap-ui-shadow: var(--sphere-shadow);
+  --sap-ui-shadow-soft: var(--sphere-shadow);
+}
+
+html,
+body,
+#root,
+.appShell {
+  background: var(--sphere-page) !important;
+}
+
+body {
+  background-image: none !important;
+  color: var(--sphere-text) !important;
+}
+
+body::before {
+  display: none !important;
+}
+
+.navbar,
+.sphereNav {
+  background: var(--sphere-surface-0) !important;
+  border-bottom: 1px solid var(--sphere-border-subtle) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14) !important;
+  backdrop-filter: none !important;
+}
+
+.sphereBrand .brandSub,
+.brandSub {
+  color: var(--sphere-text-muted) !important;
+}
+
+.sphereToolTabs a,
+.navQuick a {
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.sphereToolTabs a[data-active="true"],
+.navQuick a[data-active="true"] {
+  color: var(--sphere-text) !important;
+  border-bottom-color: var(--sphere-accent) !important;
+}
+
+/* LOG workspace */
+.logV2Shell {
+  background: var(--sphere-page) !important;
+  color: var(--sphere-text) !important;
+}
+
+.logV2Inner {
+  width: min(1680px, calc(100vw - 48px)) !important;
+}
+
+.logV2Header {
+  margin-bottom: 16px !important;
+}
+
+.logV2Header h1 {
+  color: var(--sphere-text) !important;
+  font-weight: 750 !important;
+}
+
+.logV141Kicker,
+.logV2Eyebrow {
+  color: var(--sphere-text-muted) !important;
+}
+
+.logV2Upload {
+  background: var(--sphere-accent-soft) !important;
+  border: 1px solid #315a61 !important;
+  color: #e8fbfc !important;
+  border-radius: var(--sphere-radius-sm) !important;
+  box-shadow: none !important;
+}
+
+.logV2Upload:hover {
+  background: #1c444c !important;
+}
+
+/* Keep summary groups, but make them read as one surface instead of nested cards. */
+.logV2Stats,
+.logV141Summary {
+  background: var(--sphere-surface-1) !important;
+  border: 1px solid var(--sphere-border-subtle) !important;
+  border-radius: var(--sphere-radius) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+.logV2Stat {
+  background: transparent !important;
+  border-color: var(--sphere-border-subtle) !important;
+}
+
+.logV2Stat span,
+.logV141SummaryGrid span {
+  color: var(--sphere-text-muted) !important;
+}
+
+.logV2Stat strong,
+.logV141SummaryGrid strong {
+  color: var(--sphere-text) !important;
+}
+
+.logV2Stat small,
+.logV141SummaryGrid small {
+  color: var(--sphere-text-muted) !important;
+}
+
+.logV141SummaryGrid {
+  border-top: 1px solid var(--sphere-border-subtle) !important;
+}
+
+.logV141SummaryGrid > div {
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  position: relative;
+}
+
+.logV141SummaryGrid > div + div::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 12px;
+  bottom: 12px;
+  width: 1px;
+  background: var(--sphere-border-subtle);
+}
+
+/* Main sections use whitespace hierarchy instead of a card around every block. */
+.logV2Panel:not(.logV141Summary) {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+  margin-bottom: 24px !important;
+}
+
+.logV2PanelHead {
+  padding: 8px 0 10px !important;
+  border-bottom: 1px solid var(--sphere-border-subtle);
+}
+
+.logV2PanelHead h2 {
+  color: var(--sphere-text) !important;
+  font-size: 14px !important;
+}
+
+.logV2PanelHead p {
+  color: var(--sphere-text-muted) !important;
+}
+
+.logV2MetricTabs {
+  border: 0 !important;
+  border-radius: 0 !important;
+  gap: 4px;
+  overflow: visible !important;
+}
+
+.logV2MetricTabs button {
+  background: transparent !important;
+  color: var(--sphere-text-secondary) !important;
+  border: 1px solid var(--sphere-border-subtle) !important;
+  border-radius: 5px !important;
+  padding: 6px 10px !important;
+}
+
+.logV2MetricTabs button.active {
+  background: var(--sphere-accent-soft) !important;
+  border-color: #315a61 !important;
+  color: #e9fbfc !important;
+}
+
+.logV2LandscapeChart,
+.logV2WorkloadChart {
+  background: var(--sphere-surface-0) !important;
+  border: 0 !important;
+  border-radius: var(--sphere-radius) !important;
+}
+
+/* Resource table: one strong surface only. */
+.logV2TableShell {
+  margin: 0 0 18px !important;
+  background: var(--sphere-surface-1) !important;
+  border: 1px solid var(--sphere-border-subtle) !important;
+  border-radius: var(--sphere-radius) !important;
+  box-shadow: none !important;
+}
+
+.logV2TableToolbar,
+.logV2TableToolbar.logV2BasisToolbar {
+  background: var(--sphere-surface-1) !important;
+  border-color: var(--sphere-border-subtle) !important;
+}
+
+.logV2TableToolbar input,
+.logV2BasisToolbar > input {
+  background: var(--sphere-surface-0) !important;
+  border: 1px solid var(--sphere-border) !important;
+  color: var(--sphere-text) !important;
+  box-shadow: none !important;
+}
+
+.logV2QuickFilters button,
+.logV2BasisToolbar > .logV2QuickFilters button {
+  background: transparent !important;
+  border: 1px solid var(--sphere-border-subtle) !important;
+  color: var(--sphere-text-secondary) !important;
+  box-shadow: none !important;
+}
+
+.logV2QuickFilters button:hover,
+.logV2BasisToolbar > .logV2QuickFilters button:hover {
+  background: var(--sphere-surface-2) !important;
+  color: var(--sphere-text) !important;
+}
+
+.logV2QuickFilters button.active,
+.logV2BasisToolbar > .logV2QuickFilters button.active {
+  background: var(--sphere-accent-soft) !important;
+  border-color: #315a61 !important;
+  color: #e8fbfc !important;
+}
+
+.logV2TableMeta {
+  background: var(--sphere-surface-2) !important;
+  border-color: var(--sphere-border-subtle) !important;
+  color: var(--sphere-text-muted) !important;
+}
+
+.logV2TableMeta b {
+  color: var(--sphere-text) !important;
+}
+
+.logV2TableMeta strong {
+  border-color: var(--sphere-border) !important;
+  color: var(--sphere-text-secondary) !important;
+}
+
+.logV2TableHeader {
+  background: var(--sphere-surface-2) !important;
+  border-color: var(--sphere-border-subtle) !important;
+}
+
+.logV2TableHeader button {
+  color: var(--sphere-text-muted) !important;
+  border-color: var(--sphere-border-subtle) !important;
+}
+
+.logV2VirtualBody,
+.logV2VirtualRow {
+  background: var(--sphere-surface-1) !important;
+}
+
+.logV2VirtualRow {
+  border-color: var(--sphere-border-subtle) !important;
+  color: var(--sphere-text-secondary) !important;
+}
+
+.logV2VirtualRow:nth-child(even) {
+  background: #182028 !important;
+}
+
+.logV2VirtualRow:hover {
+  background: var(--sphere-surface-2) !important;
+}
+
+.logV2VirtualRow.active {
+  background: #1b3138 !important;
+  box-shadow: inset 3px 0 0 var(--sphere-accent) !important;
+}
+
+.logV2VirtualRow > span:nth-child(2) {
+  color: var(--sphere-text) !important;
+}
+
+/* Expandable technical sections become a simple inspector list, not four more cards. */
+.logV2SourceAudit {
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid var(--sphere-border-subtle) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.logV2SourceAudit:last-child {
+  border-bottom: 1px solid var(--sphere-border-subtle) !important;
+}
+
+.logV2SourceAudit summary {
+  padding: 12px 4px !important;
+  color: var(--sphere-text-secondary) !important;
+  font-size: 10px !important;
+}
+
+.logV2SourceAudit summary:hover {
+  color: var(--sphere-text) !important;
+  background: transparent !important;
+}
+
+.logV2ConsumerDetailBody,
+.logV2ServerDetailsBody {
+  padding: 0 0 12px !important;
+  margin: 0 !important;
+}
+
+.logV2DetailFacts,
+.logV2SourceAudit > div {
+  background: var(--sphere-surface-1) !important;
+  border-color: var(--sphere-border-subtle) !important;
+  border-radius: var(--sphere-radius-sm) !important;
+}
+
+.logV2SnapshotGrid article {
+  background: var(--sphere-surface-1) !important;
+  border: 0 !important;
+  border-left: 2px solid var(--sphere-border) !important;
+  border-radius: 0 !important;
+}
+
+.logV2SnapshotGrid dl div {
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+
+.logV2HostTable th {
+  background: var(--sphere-surface-2) !important;
+}
+
+.logV2HostTable td,
+.logV2HostTable th {
+  border-color: var(--sphere-border-subtle) !important;
+}
+
+/* Generic enterprise surfaces: flatten previous glass / neon treatment. */
+.card,
+.commandPanel,
+.intelPanel,
+.workbenchPanel,
+.workbenchHero,
+.settingsPanel,
+.settingsHero,
+.toolCard,
+.opsStrip,
+.tableWrap,
+.mobilePanel,
+.toolsMenu {
+  background: var(--sphere-surface-1) !important;
+  background-image: none !important;
+  border-color: var(--sphere-border-subtle) !important;
+  border-radius: var(--sphere-radius) !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.card:hover,
+.toolCard:hover,
+.intelSteps a:hover,
+.toolItem:hover,
+.workbenchFlow div:hover,
+.workbenchSignal:hover {
+  box-shadow: none !important;
+  border-color: var(--sphere-border) !important;
+}
+
+.input,
+input,
+select,
+textarea {
+  background: var(--sphere-surface-0) !important;
+  border-color: var(--sphere-border) !important;
+  border-radius: var(--sphere-radius-sm) !important;
+}
+
+@media (max-width: 1300px) {
+  .logV141SummaryGrid > div + div::before {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .logV2Inner {
+    width: calc(100% - 20px) !important;
+  }
+}
