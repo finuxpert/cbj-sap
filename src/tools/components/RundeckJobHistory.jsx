@@ -224,9 +224,12 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   const [history, setHistory] = React.useState(null)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState('')
+  const jobKey = job?.key || ''
+  const jobHost = job?.host || ''
+  const jobConsumerType = job?.consumerType || ''
 
   React.useEffect(() => {
-    if (!job?.key) {
+    if (!jobKey) {
       setHistory(null)
       setError('')
       return undefined
@@ -235,7 +238,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
     const controller = new AbortController()
     setLoading(true)
     setError('')
-    loadHistory(job, controller.signal)
+    loadHistory({ key: jobKey, host: jobHost, consumerType: jobConsumerType }, controller.signal)
       .then(setHistory)
       .catch((failure) => {
         if (failure.name !== 'AbortError') setError(failure.message || 'Workload history unavailable')
@@ -244,9 +247,9 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [job?.consumerType, job?.host, job?.key, refreshToken])
+  }, [jobConsumerType, jobHost, jobKey, refreshToken])
 
-  if (!job?.key) return null
+  if (!jobKey) return null
 
   const items = history?.items || []
   const latest = items[0] || null
@@ -258,8 +261,8 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
     <div className="rundeckJobHistoryHead">
       <div>
         <span>Selected Workload</span>
-        <h3>{job.key}</h3>
-        <small>{shortHost(job.host || latest?.host || '')} · {workloadTypeLabel(job.consumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
+        <h3>{jobKey}</h3>
+        <small>{shortHost(jobHost || latest?.host || '')} · {workloadTypeLabel(jobConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
       </div>
       <strong className={isCurrent ? 'is-current' : ''}>{isCurrent ? 'CURRENT' : 'LAST SEEN'}</strong>
     </div>
