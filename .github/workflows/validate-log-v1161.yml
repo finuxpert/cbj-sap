@@ -1,0 +1,42 @@
+name: Validate SPHERE v1.16.1 LOG UX
+
+on:
+  push:
+    branches:
+      - ui-log-inspector-v1161
+    paths:
+      - .github/workflows/validate-log-v1161.yml
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ui-log-inspector-v1161
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate v1.16.1 UI wiring
+        run: |
+          set -Eeuo pipefail
+          grep -q "APP_VERSION = '1.16.1'" src/app/version.js
+          grep -q "APP_PREVIOUS_VERSION = '1.16.0'" src/app/version.js
+          grep -q "log-ux-v1161.css" src/app/enterprise-theme.css
+          grep -q "max-height: none" src/app/log-ux-v1161.css
+          grep -q "showDetail: false" src/tools/components/LogLandscapeEChartV14.jsx
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Test
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Audit
+        run: npm audit
