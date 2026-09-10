@@ -102,13 +102,38 @@
   color: var(--sphere-text-secondary, #b1bbc4);
 }
 
-.rundeckIncidentWorkloadLead strong {
+.rundeckIncidentWorkloadLead strong,
+.rundeckIncidentJobButton {
   display: block;
   margin-top: 5px;
   overflow-wrap: anywhere;
   color: var(--sphere-text, #edf1f4);
   font-size: 15px;
   font-weight: 780;
+}
+
+.rundeckIncidentJobButton {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rundeckIncidentJobButton:hover,
+.rundeckIncidentJobButton:focus-visible {
+  border-bottom-color: var(--sphere-accent, #49c8d1);
+  color: var(--sphere-accent, #49c8d1);
+  outline: none;
+}
+
+.rundeckIncidentJobButton.is-selected {
+  border-bottom-color: var(--sphere-accent, #49c8d1);
+  color: var(--sphere-accent, #49c8d1);
 }
 
 .rundeckIncidentWorkloadLead small {
