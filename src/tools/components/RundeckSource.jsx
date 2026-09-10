@@ -202,7 +202,7 @@ export default function RundeckSource({ onCollection }) {
       </div>
     </header>
 
-    {error && <div className="rundeckMessage" role="status">{latest ? `Collector refresh delayed — showing last good Collection #${latest.execution_id || '—'}.` : error}</div>}
+    {error && <div className={`rundeckMessage ${latest ? 'is-reconnecting' : ''}`} role="status">{latest ? `Collector refresh delayed — showing last good Collection #${latest.execution_id || '—'}.` : error}</div>}
     {!collectionAligned && <div className="rundeckMessage" role="status">Latest database projection does not match the current Collection Cycle. Host telemetry is withheld until one complete cycle is available.</div>}
 
     <div className="rundeckLandscapeMeta" aria-label="Landscape telemetry status">
