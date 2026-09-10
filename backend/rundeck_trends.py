@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import text
 
@@ -198,9 +198,27 @@ def collection_timeline(collection_id: str) -> list[dict]:
         """), {"collection_id": collection_id})
         rows = [dict(row._mapping) for row in result]
 
-    # Defensive de-duplication: retain the latest sample if a collector ever stores
-    # more than one row for the same host inside a logical collection.
     by_host: dict[str, dict] = {}
     for row in rows:
         by_host.setdefault(row["host"], row)
     return [by_host[host] for host in sorted(by_host)]
+
+
+def collection_timeline_at(at: datetime, window_minutes: int = 5) -> tuple[str | None, list[dict]]:
+    """Resolve a chart peak timestamp to its logical collection, then return all hosts."""
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+    start = at - timedelta(minutes=window_minutes)
+    end = at + timedelta(minutes=window_minutes)
+    with engine.connect() as conn:
+        collection_id = conn.execute(text("""
+            SELECT collection_id
+              FROM rundeck_host_metrics
+             WHERE collected_at BETWEEN :start AND :end
+             ORDER BY ABS(EXTRACT(EPOCH FROM (collected_at - :at))), collected_at DESC
+             LIMIT 1
+        """), {"at": at, "start": start, "end": end}).scalar()
+    if not collection_id:
+        return None, []
+    return str(collection_id), collection_timeline(str(collection_id))
