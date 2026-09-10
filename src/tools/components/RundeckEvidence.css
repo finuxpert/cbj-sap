@@ -20,7 +20,7 @@
 }
 
 .rundeckEvidenceGroup > summary::before {
-  content: 'SAP Alert History';
+  content: 'SAP Issues';
   margin-left: 4px;
   font-size: 9px;
 }
@@ -44,4 +44,73 @@
   margin-top: 0;
   padding-top: 0;
   border: 0;
+}
+
+.rundeckIncidentTableWrap {
+  max-height: 280px;
+}
+
+.rundeckIncidentTable th,
+.rundeckIncidentTable td {
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.rundeckIncidentTable tr.is-active-incident td {
+  background: rgba(216, 179, 95, .018);
+}
+
+.rundeckIncidentSignal {
+  color: var(--sphere-text, #e7edf0);
+  font-weight: 700;
+}
+
+.rundeckIncidentState .rundeckInlineStatus.is-active {
+  color: var(--sphere-warning, #d8b35f);
+}
+
+.rundeckIncidentState .rundeckInlineStatus.is-resolved {
+  color: var(--sphere-positive, #75cfa5);
+}
+
+.rundeckIncidentEvidence > summary {
+  color: var(--sphere-accent, #4fc6c8);
+  cursor: pointer;
+  font-size: 8.4px;
+  font-weight: 650;
+  list-style-position: inside;
+}
+
+.rundeckIncidentEvidenceBody {
+  min-width: 560px;
+  max-height: 150px;
+  overflow: auto;
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px solid rgba(113, 128, 137, .08);
+}
+
+.rundeckIncidentEvidenceRow {
+  display: grid;
+  grid-template-columns: 92px 55px 58px 66px minmax(210px, 1fr);
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8px;
+}
+
+.rundeckIncidentEvidenceRow > span:last-child {
+  overflow: hidden;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  text-overflow: ellipsis;
+}
+
+.rundeckIncidentEvidenceEmpty,
+.rundeckIncidentError {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.5px;
+}
+
+.rundeckIncidentError {
+  color: var(--sphere-danger, #db7d86);
 }
