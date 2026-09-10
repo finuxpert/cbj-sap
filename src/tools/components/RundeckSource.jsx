@@ -49,6 +49,12 @@ const pssText = (row = {}) => {
 
 const wpText = (row = {}) => [row.details?.wp_type, row.details?.wp].filter(Boolean).join(' ') || '—'
 
+const programText = (row = {}) => {
+  const program = row.details?.program
+  if (program) return program
+  return String(row.consumer_type || '').toUpperCase() === 'PROGRAM' ? row.consumer_key || '' : ''
+}
+
 function StatusPill({ value = 'UNKNOWN', title = '' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`} title={title || undefined}>{value}</span>
 }
@@ -135,7 +141,13 @@ export default function RundeckSource({ onCollection }) {
 
   const selectJob = React.useCallback((job) => {
     if (!job?.key) return
+    const scrollTop = typeof window !== 'undefined' ? window.scrollY : null
     setSelectedJob({ ...job, pinned: true })
+    if (scrollTop !== null) {
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollTop, left: 0, behavior: 'auto' })
+      }))
+    }
   }, [])
 
   const defaultJob = React.useCallback((job) => {
@@ -315,7 +327,7 @@ export default function RundeckSource({ onCollection }) {
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(9.5)
-      pdf.text(`${affected || 'SAP'}${signal.label ? ` · ${String(signal.label).replace(/Critical Work Process/gi, 'Critical WP')} ${metric(signal.value, signal.unit || '')}` : ''}`, margin, 36)
+      pdf.text(`PRIMARY ISSUE · ${affected || 'SAP'}${signal.label ? ` · ${String(signal.label).replace(/Critical Work Process/gi, 'Critical WP')} ${metric(signal.value, signal.unit || '')}` : ''}`, margin, 36)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(7.2)
       pdf.setTextColor(92, 105, 114)
@@ -323,28 +335,33 @@ export default function RundeckSource({ onCollection }) {
 
       const current = incidentSummary?.current_workload || {}
       const recurring = incidentSummary?.persistent_workload || {}
+      const currentProgram = programText(current)
+      const recurringProgram = programText(recurring)
       pdf.setFillColor(235, 240, 242)
       pdf.roundedRect(margin, 45, contentW, 21, 2, 2, 'F')
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(7.2)
       pdf.setTextColor(71, 87, 97)
-      pdf.text('CURRENT WORKLOAD', margin + 4, 50)
-      pdf.text('RECURRING WORKLOAD', margin + contentW / 2 + 4, 50)
+      pdf.text('CURRENT', margin + 4, 50)
+      pdf.text('RECURRING', margin + contentW / 2 + 4, 50)
       pdf.setTextColor(22, 31, 38)
-      pdf.setFontSize(9)
-      pdf.text(clipped(current.consumer_key, 42), margin + 4, 56)
-      pdf.text(clipped(recurring.consumer_key, 42), margin + contentW / 2 + 4, 56)
+      pdf.setFontSize(8.6)
+      pdf.text(clipped(current.consumer_key, 42), margin + 4, 55)
+      pdf.text(clipped(recurring.consumer_key, 42), margin + contentW / 2 + 4, 55)
       pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(7)
+      pdf.setFontSize(6.6)
       pdf.setTextColor(92, 105, 114)
-      pdf.text(`Process CPU ${metric(current.cpu_pct, '%')}  ·  ${wpText(current)}`, margin + 4, 62)
-      pdf.text(recurring.consumer_key ? `Seen ${recurring.occurrences || 0} of ${recurring.affected_samples || 0} checks  ·  Avg Process CPU ${metric(recurring.avg_cpu_pct, '%')}  ·  Peak ${metric(recurring.peak_cpu_pct, '%')}` : '—', margin + contentW / 2 + 4, 62)
+      if (currentProgram) pdf.text(`Program ${clipped(currentProgram, 40)}`, margin + 4, 59)
+      if (recurringProgram) pdf.text(`Program ${clipped(recurringProgram, 40)}`, margin + contentW / 2 + 4, 59)
+      pdf.setFontSize(6.8)
+      pdf.text(`CPU ${metric(current.cpu_pct, '%')}  ·  WP ${wpText(current)}`, margin + 4, 63)
+      pdf.text(recurring.consumer_key ? `Seen ${recurring.occurrences || 0}/${recurring.affected_samples || 0} checks  ·  Avg CPU ${metric(recurring.avg_cpu_pct, '%')}  ·  Peak ${metric(recurring.peak_cpu_pct, '%')}` : '—', margin + contentW / 2 + 4, 63)
 
       let y = 73
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(8)
       pdf.setTextColor(22, 31, 38)
-      pdf.text('APPLICATION SERVERS', margin, y)
+      pdf.text('APPLICATION SERVER STATUS', margin, y)
       y += 4
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(7)
@@ -366,7 +383,7 @@ export default function RundeckSource({ onCollection }) {
       if (serverChart) {
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(8)
-        pdf.text('SERVER TREND', margin, chartY - 3)
+        pdf.text('SERVER CPU TREND · 6H', margin, chartY - 3)
         const ratio = Math.min(contentW / serverChart.width, 44 / serverChart.height)
         pdf.addImage(serverChart.toDataURL('image/jpeg', .9), 'JPEG', margin, chartY, serverChart.width * ratio, serverChart.height * ratio, undefined, 'FAST')
       }
@@ -378,7 +395,7 @@ export default function RundeckSource({ onCollection }) {
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(8)
-      pdf.text(`INSPECTED WORKLOAD · ${inspectedHost}  ${clipped(inspectedWorkload, 48)}`, margin, workY - 3)
+      pdf.text(`INSPECTED · ${inspectedHost} · ${clipped(inspectedWorkload, 48)}`, margin, workY - 3)
       if (workloadChart) {
         const ratio = Math.min(leftW / workloadChart.width, 39 / workloadChart.height)
         pdf.addImage(workloadChart.toDataURL('image/jpeg', .9), 'JPEG', margin, workY, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
@@ -386,7 +403,7 @@ export default function RundeckSource({ onCollection }) {
 
       const sideX = margin + leftW + 7
       pdf.setFontSize(7.5)
-      pdf.text('TOP CURRENT WORKLOAD', sideX, workY - 3)
+      pdf.text('TOP ACTIVE WORKLOADS', sideX, workY - 3)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(6.8)
       let sideY = workY + 3
@@ -394,7 +411,7 @@ export default function RundeckSource({ onCollection }) {
         pdf.setTextColor(22, 31, 38)
         pdf.text(`${index + 1}. ${shortHost(row.host)}  ${clipped(row.consumer_key, 32)}`, sideX, sideY)
         pdf.setTextColor(92, 105, 114)
-        pdf.text(`Process CPU ${metric(row.cpu_pct, '%')}  ·  PSS ${pssText(row)}`, sideX, sideY + 3.3)
+        pdf.text(`CPU ${metric(row.cpu_pct, '%')}  ·  PSS ${pssText(row)}`, sideX, sideY + 3.3)
         sideY += 8
       })
 
@@ -402,7 +419,7 @@ export default function RundeckSource({ onCollection }) {
       pdf.line(margin, H - 12, W - margin, H - 12)
       pdf.setFontSize(7)
       pdf.setTextColor(92, 105, 114)
-      pdf.text(`Source: Rundeck  ·  Run #${latest?.execution_id || '—'}  ·  ${APP_DISPLAY_VERSION}  ·  First Seen = first SPHERE observation.`, margin, H - 7)
+      pdf.text(`Source: Rundeck  ·  Run #${latest?.execution_id || '—'}  ·  ${APP_DISPLAY_VERSION}`, margin, H - 7)
 
       const host = shortHost(incidentSummary?.affected_server || selectedJob?.host || 'SAP') || 'SAP'
       const stamp = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
@@ -450,7 +467,7 @@ export default function RundeckSource({ onCollection }) {
   return <section ref={panelRef} className="rundeckPanel" aria-label="SAP performance monitoring" aria-live="polite">
     <header className="rundeckLandscapeHeader">
       <div className="rundeckTitleBlock">
-        <h2><SphereIcon name="activity" /> SAP Performance RCA</h2>
+        <h2><SphereIcon name="activity" /> SAP Performance Summary</h2>
         <div className="rundeckLandscapeMeta" aria-label="SAP performance data status">
           <span>{formatTime(latestCollectionAt, true)} WIB</span>
           <span>{appCount || '—'} APP</span>
@@ -528,7 +545,7 @@ export default function RundeckSource({ onCollection }) {
         {wpDrilldown.error && <div className="rundeckWpDrilldownState is-error">{wpDrilldown.error}</div>}
         {!wpDrilldown.loading && !wpDrilldown.error && <div className="rundeckWpDrilldownTableWrap">
           <table>
-            <thead><tr><th>Workload</th><th>Type</th><th>WP</th><th>PID</th><th>User</th><th>CPU</th><th>PSS</th></tr></thead>
+            <thead><tr><th>Workload</th><th>Type</th><th>WP</th><th>PID</th><th>User</th><th>Process CPU</th><th>PSS</th></tr></thead>
             <tbody>
               {wpDrilldown.rows.map((row) => {
                 const details = row.details || {}
