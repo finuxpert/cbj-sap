@@ -55,8 +55,15 @@ const programText = (row = {}) => {
   return String(row.consumer_type || '').toUpperCase() === 'PROGRAM' ? row.consumer_key || '' : ''
 }
 
+const distinctProgramText = (row = {}) => {
+  const program = String(programText(row) || '').trim()
+  const workload = String(row.consumer_key || '').trim()
+  if (!program) return ''
+  return program.toUpperCase() === workload.toUpperCase() ? '' : program
+}
+
 function StatusPill({ value = 'UNKNOWN', title = '' }) {
-  return <span className={`rundeckStatus is-${String(value).toLowerCase()}`} title={title || undefined}>{value}</span>
+  return <span key={String(value)} className={`rundeckStatus rundeckStatusMotion is-${String(value).toLowerCase()}`} title={title || undefined}>{value}</span>
 }
 
 function conservativeHostState(host = {}) {
@@ -271,7 +278,7 @@ export default function RundeckSource({ onCollection }) {
       const capture = async (selector) => {
         const element = panel.querySelector(selector)
         if (!element) return null
-        return html2canvas(element, { backgroundColor: '#0f151a', scale: 1.2, useCORS: true, logging: false })
+        return html2canvas(element, { backgroundColor: '#0f151a', scale: 1.45, useCORS: true, logging: false })
       }
       const [serverChart, workloadChart] = await Promise.all([
         capture('.rundeckTrendChart'),
@@ -335,8 +342,8 @@ export default function RundeckSource({ onCollection }) {
 
       const current = incidentSummary?.current_workload || {}
       const recurring = incidentSummary?.persistent_workload || {}
-      const currentProgram = programText(current)
-      const recurringProgram = programText(recurring)
+      const currentProgram = distinctProgramText(current)
+      const recurringProgram = distinctProgramText(recurring)
       pdf.setFillColor(235, 240, 242)
       pdf.roundedRect(margin, 45, contentW, 21, 2, 2, 'F')
       pdf.setFont('helvetica', 'bold')
@@ -385,23 +392,37 @@ export default function RundeckSource({ onCollection }) {
         pdf.setFontSize(8)
         pdf.text('SERVER CPU TREND · 6H', margin, chartY - 3)
         const ratio = Math.min(contentW / serverChart.width, 44 / serverChart.height)
-        pdf.addImage(serverChart.toDataURL('image/jpeg', .9), 'JPEG', margin, chartY, serverChart.width * ratio, serverChart.height * ratio, undefined, 'FAST')
+        pdf.addImage(serverChart.toDataURL('image/jpeg', .92), 'JPEG', margin, chartY, serverChart.width * ratio, serverChart.height * ratio, undefined, 'FAST')
       }
 
-      const workY = 154
+      const workY = 152
       const leftW = contentW * .66
       const inspectedHost = shortHost(selectedJob?.host || incidentSummary?.affected_server || '') || 'SAP'
       const inspectedWorkload = selectedJob?.key || current.consumer_key
+      const inspectedSource = [current, recurring, ...(workloadResult.items || [])].find((row) => (
+        row?.consumer_key === inspectedWorkload && (!selectedJob?.host || !row?.host || row.host === selectedJob.host)
+      )) || {}
+      const inspectedProgram = distinctProgramText(inspectedSource)
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(8)
       pdf.text(`INSPECTED · ${inspectedHost} · ${clipped(inspectedWorkload, 48)}`, margin, workY - 3)
+      if (inspectedProgram) {
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(6.4)
+        pdf.setTextColor(92, 105, 114)
+        pdf.text(`Program ${clipped(inspectedProgram, 48)}`, margin, workY + 0.8)
+      }
       if (workloadChart) {
-        const ratio = Math.min(leftW / workloadChart.width, 39 / workloadChart.height)
-        pdf.addImage(workloadChart.toDataURL('image/jpeg', .9), 'JPEG', margin, workY, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
+        const chartTop = inspectedProgram ? workY + 3 : workY
+        const chartMaxH = inspectedProgram ? 39 : 42
+        const ratio = Math.min(leftW / workloadChart.width, chartMaxH / workloadChart.height)
+        pdf.addImage(workloadChart.toDataURL('image/jpeg', .92), 'JPEG', margin, chartTop, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
       }
 
       const sideX = margin + leftW + 7
+      pdf.setTextColor(22, 31, 38)
+      pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(7.5)
       pdf.text('TOP ACTIVE WORKLOADS', sideX, workY - 3)
       pdf.setFont('helvetica', 'normal')
@@ -468,7 +489,7 @@ export default function RundeckSource({ onCollection }) {
     <header className="rundeckLandscapeHeader">
       <div className="rundeckTitleBlock">
         <h2><SphereIcon name="activity" /> SAP Performance Summary</h2>
-        <div className="rundeckLandscapeMeta" aria-label="SAP performance data status">
+        <div key={latest?.collection_id || 'waiting'} className="rundeckLandscapeMeta is-fresh" aria-label="SAP performance data status">
           <span>{formatTime(latestCollectionAt, true)} WIB</span>
           <span>{appCount || '—'} APP</span>
           <span>Run #{latest?.execution_id || '—'}</span>
