@@ -1,4 +1,5 @@
 import React from 'react'
+import RundeckCurrentWorkload from './RundeckCurrentWorkload.jsx'
 import RundeckMonitoringHistory from './RundeckMonitoringHistory.jsx'
 import RundeckPerformanceIncident from './RundeckPerformanceIncident.jsx'
 import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
@@ -55,15 +56,7 @@ async function json(url, options = {}) {
   return response.json()
 }
 
-export default function RundeckSource({
-  onCollection,
-  selectedJob = null,
-  onSelectJob,
-  onDefaultJob,
-  currentWorkloadContent = null,
-  diagnosticsContent = null,
-  sourceAuditContent = null,
-}) {
+export default function RundeckSource({ onCollection }) {
   const [latest, setLatest] = React.useState(null)
   const [health, setHealth] = React.useState(null)
   const [platform, setPlatform] = React.useState(null)
@@ -73,12 +66,23 @@ export default function RundeckSource({
   const [runState, setRunState] = React.useState({ enabled: false, allowed: false })
   const [error, setError] = React.useState('')
   const [actionBusy, setActionBusy] = React.useState(false)
+  const [selectedJob, setSelectedJob] = React.useState(null)
   const loaded = React.useRef('')
   const onCollectionRef = React.useRef(onCollection)
 
   React.useEffect(() => {
     onCollectionRef.current = onCollection
   }, [onCollection])
+
+  const selectJob = React.useCallback((job) => {
+    if (!job?.key) return
+    setSelectedJob({ ...job, pinned: true })
+  }, [])
+
+  const defaultJob = React.useCallback((job) => {
+    if (!job?.key) return
+    setSelectedJob((current) => current?.pinned ? current : { ...job, pinned: false })
+  }, [])
 
   const loadLatest = React.useCallback(async () => {
     const response = await fetch(`${API}/collections/latest`, { cache: 'no-store' })
@@ -182,6 +186,12 @@ export default function RundeckSource({
   const platformState = platform?.status || 'UNKNOWN'
   const releaseState = platform?.releases?.backend?.status === 'WARNING' || platform?.releases?.web?.status === 'WARNING' ? 'WARNING' : 'NORMAL'
 
+  const currentWorkload = <RundeckCurrentWorkload
+    collectionId={latest?.collection_id || ''}
+    selectedJob={selectedJob}
+    onSelectJob={selectJob}
+  />
+
   return <section className="rundeckPanel" aria-label="SAP performance monitoring" aria-live="polite">
     <header className="rundeckLandscapeHeader">
       <div>
@@ -217,8 +227,8 @@ export default function RundeckSource({
     <RundeckPerformanceIncident
       refreshToken={latest?.collection_id || ''}
       selectedJob={selectedJob}
-      onSelectJob={onSelectJob}
-      onDefaultJob={onDefaultJob}
+      onSelectJob={selectJob}
+      onDefaultJob={defaultJob}
       showStatus={false}
     />
 
@@ -263,12 +273,9 @@ export default function RundeckSource({
       refreshToken={latest?.collection_id || ''}
       databaseEnabled={Boolean(health?.database)}
       selectedJob={selectedJob}
-      onSelectJob={onSelectJob}
-      currentWorkloadContent={currentWorkloadContent}
+      onSelectJob={selectJob}
+      currentWorkloadContent={currentWorkload}
     />
-
-    {diagnosticsContent}
-    {sourceAuditContent}
 
     <details className="rundeckHistory">
       <summary>Rundeck Run History <span>{collectionCount} runs · {partialCount} partial · {failedCount} failed</span></summary>
