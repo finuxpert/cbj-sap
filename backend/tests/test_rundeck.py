@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -7,6 +8,7 @@ from unittest.mock import patch
 
 from backend.rundeck_credentials import credential_mode, read_credential
 from backend.rundeck_host_projection import parse_host_projection
+from backend.rundeck_incident import continuous_incident_samples, primary_signal
 from backend.rundeck_poller import execution_matches
 from backend.rundeck_store import ingest, collections, validate, identifier
 
@@ -147,6 +149,41 @@ class IngestionTests(unittest.TestCase):
             }, clear=False):
                 self.assertEqual(credential_mode('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'file')
                 self.assertEqual(read_credential('rundeck-reader', 'RUNDECK_TOKEN_FILE'), 'legacy-fixture-token')
+
+    def test_performance_incident_prioritizes_severity(self):
+        wp_signal = primary_signal({
+            'cpu_pct': 24,
+            'ram_pct': 50,
+            'io_wait_pct': 0,
+            'wp_critical': 3,
+        })
+        self.assertEqual(wp_signal['code'], 'WP_CRITICAL')
+        self.assertEqual(wp_signal['severity'], 'CRITICAL')
+
+        cpu_signal = primary_signal({
+            'cpu_pct': 95,
+            'ram_pct': 50,
+            'io_wait_pct': 0,
+            'wp_critical': 1,
+        })
+        self.assertEqual(cpu_signal['code'], 'CPU_HIGH')
+        self.assertEqual(cpu_signal['severity'], 'CRITICAL')
+
+    def test_performance_incident_detected_since_is_continuous(self):
+        def sample(minute, wp):
+            return {
+                'collection_id': f'c-{minute}',
+                'collected_at': datetime(2026, 9, 10, 11, minute, tzinfo=timezone.utc),
+                'wp_critical': wp,
+            }
+
+        rows = [sample(8, 0), sample(18, 3), sample(28, 2), sample(38, 1)]
+        incident = continuous_incident_samples(rows, 'WP_CRITICAL')
+        self.assertEqual([row['collection_id'] for row in incident], ['c-18', 'c-28', 'c-38'])
+
+        rows_with_gap = [sample(8, 3), sample(38, 3)]
+        incident = continuous_incident_samples(rows_with_gap, 'WP_CRITICAL')
+        self.assertEqual([row['collection_id'] for row in incident], ['c-38'])
 
 
 if __name__ == '__main__':
