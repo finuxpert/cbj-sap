@@ -40,6 +40,12 @@ rollback() {
   systemctl daemon-reload
   systemctl restart sphere-rundeck-api.service
   nginx -t >/dev/null 2>&1 && systemctl reload nginx
+  if [[ "$RELEASE" != "$PREVIOUS_API" ]]; then
+    rm -rf -- "$RELEASE"
+  fi
+  if [[ "$WEB" != "$PREVIOUS_WEB" ]]; then
+    rm -rf -- "$WEB"
+  fi
   echo "DEV ROLLED BACK TO $(basename "${PREVIOUS_API:-unknown}")"
   exit "$status"
 }
@@ -161,6 +167,7 @@ prune_releases() {
   local keep=$3
   local kept=0
   local path
+  local -a releases=()
   mapfile -t releases < <(
     find "$root" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended -regex '.*/[0-9a-f]{40}' -printf '%T@ %p\n' \
       | sort -nr | awk '{print $2}'
