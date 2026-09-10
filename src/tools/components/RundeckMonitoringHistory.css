@@ -1,6 +1,6 @@
 .rundeckMonitoring {
-  margin-top: 9px;
-  padding-top: 7px;
+  margin-top: 8px;
+  padding-top: 6px;
   color: var(--sphere-text, #e7edf0);
 }
 
@@ -37,19 +37,19 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 3px 9px;
+  gap: 3px 20px;
   margin-top: 4px;
   padding-bottom: 1px;
 }
 
-.rundeckControlGroup {
+.rundeckTrendGroup {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
 }
 
-.rundeckControlGroup > span {
-  display: none;
+.rundeckTrendGroup + .rundeckTrendGroup {
+  margin-left: 2px;
 }
 
 .rundeckSegmented {
@@ -67,7 +67,7 @@
   background: transparent;
   color: var(--sphere-text-muted, #718089);
   font-family: inherit;
-  font-size: 8.4px;
+  font-size: 8.5px;
   font-weight: 700;
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease;
@@ -76,12 +76,12 @@
 .rundeckSegmented button:hover,
 .rundeckAdvancedControls button:hover {
   color: var(--sphere-text, #e7edf0);
-  background: rgba(79, 198, 200, .05);
+  background: rgba(79, 198, 200, .045);
 }
 
 .rundeckSegmented button.is-active,
 .rundeckAdvancedControls button.is-active {
-  background: rgba(79, 198, 200, .10);
+  background: rgba(79, 198, 200, .095);
   color: var(--sphere-accent, #4fc6c8);
 }
 
@@ -110,13 +110,13 @@
 
 .rundeckTrendChart {
   width: 100%;
-  height: 275px;
-  min-height: 260px;
+  height: 258px;
+  min-height: 245px;
 }
 
 .rundeckHistoryState,
 .rundeckRcaHint {
-  padding: 6px 0;
+  padding: 5px 0;
   color: var(--sphere-text-secondary, #a9b5bb);
   font-size: 9px;
 }
@@ -128,13 +128,13 @@
 
 .rundeckRcaHint {
   margin-top: 0;
-  padding: 1px 0 3px;
+  padding: 1px 0 2px;
   color: var(--sphere-text-muted, #718089);
   font-size: 8.5px;
 }
 
 .rundeckRcaSection {
-  margin-top: 4px;
+  margin-top: 3px;
   padding: 4px 0 1px;
   outline: none;
 }
@@ -166,16 +166,16 @@
 
 .rundeckRcaHeader small {
   color: var(--sphere-text-muted, #718089);
-  font-size: 8.8px;
+  font-size: 8.9px;
 }
 
 .rundeckRcaMetricStrip {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 13px;
-  margin-top: 3px;
-  padding: 3px 0;
+  gap: 3px 12px;
+  margin-top: 2px;
+  padding: 2px 0;
 }
 
 .rundeckRcaMetricStrip > span {
@@ -183,7 +183,7 @@
   align-items: baseline;
   gap: 4px;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 8.8px;
+  font-size: 8.9px;
   white-space: nowrap;
 }
 
@@ -196,9 +196,9 @@
 
 .rundeckRcaWorkload {
   display: grid;
-  grid-template-columns: minmax(210px, 1.05fr) minmax(380px, 2fr);
-  gap: 16px;
-  padding: 4px 0 5px;
+  grid-template-columns: minmax(210px, .9fr) minmax(360px, 1.5fr);
+  gap: 14px;
+  padding: 3px 0 4px;
 }
 
 .rundeckRcaWorkloadTitle > span {
@@ -283,12 +283,12 @@
 .rundeckInlineStatus.is-error { color: var(--sphere-danger, #db7d86); }
 
 .rundeckOpsSection {
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 .rundeckMiniTableWrap {
   overflow: auto;
-  max-height: 210px;
+  max-height: 190px;
 }
 
 .rundeckMiniTableWrap table {
@@ -301,7 +301,7 @@
 .rundeckMiniTableWrap th,
 .rundeckMiniTableWrap td {
   padding: 4px 7px;
-  border-bottom: 1px solid rgba(113, 128, 137, .09);
+  border-bottom: 1px solid rgba(113, 128, 137, .07);
   text-align: left;
 }
 
@@ -315,8 +315,8 @@
 }
 
 .rundeckEvidenceGroup {
-  margin-top: 5px;
-  padding-top: 2px;
+  margin-top: 4px;
+  padding-top: 1px;
 }
 
 .rundeckEvidenceGroup summary {
@@ -355,6 +355,7 @@
 
   .rundeckTrendToolbar {
     align-items: flex-start;
+    gap: 4px 10px;
   }
 
   .rundeckRcaWorkload dl {
@@ -362,6 +363,6 @@
   }
 
   .rundeckTrendChart {
-    height: 265px;
+    height: 250px;
   }
 }
