@@ -11,6 +11,12 @@ const METRICS = [
   ['wp', 'WP'],
 ]
 
+const numeric = (value) => {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 const themeToken = (name, fallback) => {
   if (typeof window === 'undefined') return fallback
   const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim()
@@ -24,7 +30,6 @@ const palette = () => ({
   border: themeToken('--sphere-border', '#323d48'),
   grid: themeToken('--sphere-border-subtle', '#28323c'),
   panel: themeToken('--sphere-surface-1', '#192129'),
-  accent: themeToken('--sphere-accent', '#49c8d1'),
   warning: themeToken('--sphere-warning', '#e8c86b'),
   danger: themeToken('--sphere-danger', '#ef8a94'),
 })
@@ -43,13 +48,13 @@ async function loadHistory(job, signal) {
 
 function metricValues(row, metric) {
   const details = row?.details || {}
-  if (metric === 'memory') return [{ key: 'pss', label: 'PSS', value: Number(details.pss_gb), unit: 'GB' }]
+  if (metric === 'memory') return [{ key: 'pss', label: 'PSS', value: numeric(details.pss_gb), unit: 'GB' }]
   if (metric === 'io') return [
-    { key: 'read', label: 'Read', value: Number(details.read_mib_s), unit: 'MiB/s' },
-    { key: 'write', label: 'Write', value: Number(details.write_mib_s), unit: 'MiB/s' },
+    { key: 'read', label: 'Read', value: numeric(details.read_mib_s), unit: 'MiB/s' },
+    { key: 'write', label: 'Write', value: numeric(details.write_mib_s), unit: 'MiB/s' },
   ]
-  if (metric === 'wp') return [{ key: 'wp', label: 'WP Count', value: Number(details.process_count || details.wps?.length || 1), unit: '' }]
-  return [{ key: 'cpu', label: 'CPU', value: Number(row?.cpu_pct), unit: '%' }]
+  if (metric === 'wp') return [{ key: 'wp', label: 'WP Count', value: numeric(details.process_count) ?? numeric(details.wps?.length) ?? 1, unit: '' }]
+  return [{ key: 'cpu', label: 'CPU', value: numeric(row?.cpu_pct), unit: '%' }]
 }
 
 function JobPerformanceChart({ items, metric, incidentStart }) {
@@ -67,7 +72,7 @@ function JobPerformanceChart({ items, metric, incidentStart }) {
       connectNulls: false,
       data: ascending.map((row) => {
         const current = metricValues(row, metric).find((item) => item.key === definition.key)
-        return [row.collected_at, Number.isFinite(current?.value) ? current.value : null]
+        return [row.collected_at, current?.value ?? null]
       }),
       markLine: index === 0 && incidentStart ? {
         silent: true,
@@ -81,9 +86,11 @@ function JobPerformanceChart({ items, metric, incidentStart }) {
         symbolSize: 8,
         label: { show: false },
         itemStyle: { color: colors.danger },
-        data: ascending
-          .filter((row) => Number(row.host_wp_critical || 0) > 0)
-          .map((row) => ({ coord: [row.collected_at, metricValues(row, metric)[0]?.value ?? 0], value: row.host_wp_critical })),
+        data: ascending.flatMap((row) => {
+          if (Number(row.host_wp_critical || 0) <= 0) return []
+          const y = metricValues(row, metric)[0]?.value
+          return y === null || y === undefined ? [] : [{ coord: [row.collected_at, y], value: row.host_wp_critical }]
+        }),
       } : undefined,
     }))
 
@@ -109,11 +116,7 @@ function JobPerformanceChart({ items, metric, incidentStart }) {
       },
       xAxis: {
         type: 'time',
-        axisLabel: {
-          color: colors.muted,
-          hideOverlap: true,
-          formatter: (value) => formatWib(value, false),
-        },
+        axisLabel: { color: colors.muted, hideOverlap: true, formatter: (value) => formatWib(value, false) },
         axisLine: { lineStyle: { color: colors.border } },
         splitLine: { show: false },
       },
@@ -229,13 +232,13 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
               {items.map((row) => {
                 const details = row.details || {}
                 const wp = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
-                const pss = Number(details.pss_gb)
+                const pss = numeric(details.pss_gb)
                 return <tr key={`${row.collection_id}-${row.host}-${row.collected_at}`}>
                   <td>{formatWib(row.collected_at, true)}</td>
                   <td>#{row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</td>
                   <td title={row.host}>{shortHost(row.host)}</td>
                   <td>{numberText(row.cpu_pct)}%</td>
-                  <td>{Number.isFinite(pss) ? `${numberText(pss, 2)} GB` : '—'}</td>
+                  <td>{pss === null ? '—' : `${numberText(pss, 2)} GB`}</td>
                   <td>{wp}</td>
                   <td>{numberText(row.host_wp_critical, 0)}</td>
                 </tr>
