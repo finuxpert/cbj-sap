@@ -2,6 +2,7 @@ import React from 'react'
 import RundeckMonitoringHistory from './RundeckMonitoringHistory.jsx'
 import { SAP_INFRA_TERMS as TERMS } from './sapInfraTerms.js'
 import './RundeckSource.css'
+import './RundeckPlatformHealth.css'
 
 const API = `${import.meta.env.BASE_URL}api`
 
