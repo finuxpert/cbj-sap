@@ -11,6 +11,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
+from backend.rundeck_consumers import timeline_consumers
 from backend.rundeck_monitoring import (
     alert_history,
     collection_history,
@@ -176,7 +177,15 @@ def history_collections(days: int = Query(90, ge=1, le=90), limit: int = Query(2
 def history_timeline(at: str, window_minutes: int = Query(5, ge=1, le=30)):
     target = _parse_time(at)
     try:
-        return {"at": target, "window_minutes": window_minutes, "items": timeline(target, window_minutes)}
+        items = timeline(target, window_minutes)
+        for item in items:
+            item["top_consumers"] = timeline_consumers(
+                item["collection_id"],
+                item["host"],
+                item["collected_at"],
+                limit=5,
+            )
+        return {"at": target, "window_minutes": window_minutes, "items": items}
     except RuntimeError as error:
         raise HTTPException(503, str(error)) from None
 

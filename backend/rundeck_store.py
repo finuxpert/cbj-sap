@@ -79,6 +79,7 @@ def validate(raw, expected):
 
 
 def ingest(execution, raw, expected, root=ROOT):
+    from backend.rundeck_consumers import persist_top_consumers
     from backend.rundeck_monitoring import compress_file, persist_collection
 
     initialize(root)
@@ -144,6 +145,17 @@ def ingest(execution, raw, expected, root=ROOT):
     except Exception as error:
         row["database_status"] = "ERROR"
         row["database_error_type"] = type(error).__name__
+
+    if row.get("database_status") == "STORED" and row["status"] in ("READY", "PARTIAL"):
+        try:
+            row["top_consumer_rows"] = persist_top_consumers(cid, raw)
+            row["top_consumer_status"] = "STORED"
+        except Exception as error:
+            row["top_consumer_status"] = "ERROR"
+            row["top_consumer_error_type"] = type(error).__name__
+    elif row.get("database_status") == "STORED":
+        row["top_consumer_rows"] = 0
+        row["top_consumer_status"] = "SKIPPED"
 
     write_json(manifest, row)
     return row
