@@ -7,6 +7,7 @@ import './RundeckMonitoringHistory.css'
 import './RundeckEvidence.css'
 
 const API = `${import.meta.env.BASE_URL}api`
+const DEFAULT_RANGE = '6h'
 
 const RANGES = [
   ['6h', '6H'],
@@ -43,17 +44,17 @@ const chartTheme = () => ({
   text: themeToken('--sphere-text', '#e7edf0'),
   secondary: themeToken('--sphere-text-secondary', '#a9b5bb'),
   muted: themeToken('--sphere-text-muted', '#718089'),
-  grid: themeToken('--sphere-chart-grid', 'rgba(126,147,158,.10)'),
+  grid: themeToken('--sphere-chart-grid', 'rgba(126,147,158,.08)'),
   panel: themeToken('--sphere-surface-1', '#141d23'),
   accentSoft: themeToken('--sphere-accent-soft', 'rgba(79,198,200,.14)'),
   warning: themeToken('--sphere-warning', '#d8b35f'),
   danger: themeToken('--sphere-danger', '#db7d86'),
   series: [
-    themeToken('--sphere-chart-1', '#6f9fd8'),
-    themeToken('--sphere-chart-2', '#89b47e'),
-    themeToken('--sphere-chart-3', '#9a94c7'),
-    themeToken('--sphere-chart-4', '#d39a69'),
-    themeToken('--sphere-chart-5', '#62b8bd'),
+    themeToken('--sphere-chart-1', '#72a9e8'),
+    themeToken('--sphere-chart-2', '#8cc985'),
+    themeToken('--sphere-chart-3', '#aaa0df'),
+    themeToken('--sphere-chart-4', '#e1a16c'),
+    themeToken('--sphere-chart-5', '#5dcbd1'),
   ],
 })
 
@@ -141,7 +142,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
       thresholdLines.push({
         yAxis: Number(trend.warning),
         name: 'Warn',
-        lineStyle: { color: palette.warning, type: 'dashed', opacity: .5 },
+        lineStyle: { color: palette.warning, type: 'dashed', opacity: .45 },
         label: { formatter: `Warn ${trend.warning}${suffix}`, color: palette.warning, fontSize: 8, position: 'insideEndTop', distance: 4 },
       })
     }
@@ -149,7 +150,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
       thresholdLines.push({
         yAxis: Number(trend.critical),
         name: 'Crit',
-        lineStyle: { color: palette.danger, type: 'dashed', opacity: .54 },
+        lineStyle: { color: palette.danger, type: 'dashed', opacity: .48 },
         label: { formatter: `Crit ${trend.critical}${suffix}`, color: palette.danger, fontSize: 8, position: 'insideEndTop', distance: 4 },
       })
     }
@@ -160,7 +161,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
       dataZoom.push({
         type: 'slider',
         bottom: 5,
-        height: 9,
+        height: 8,
         filterMode: 'none',
         borderColor: palette.grid,
         backgroundColor: 'transparent',
@@ -170,12 +171,12 @@ function TrendChart({ trend, mode, range, onSelect }) {
     }
 
     return {
-      animationDuration: 150,
+      animationDuration: 140,
       backgroundColor: 'transparent',
       color: palette.series,
       textStyle: { color: palette.text },
       legend: { top: 0, type: 'scroll', itemWidth: 14, itemHeight: 8, data: hosts.map(shortHost), textStyle: { color: palette.secondary, fontSize: 9 }, pageTextStyle: { color: palette.muted } },
-      grid: { left: 52, right: 58, top: 38, bottom: shortRange ? 28 : 45 },
+      grid: { left: 52, right: 58, top: 38, bottom: shortRange ? 28 : 43 },
       tooltip: {
         trigger: 'axis',
         confine: true,
@@ -201,6 +202,8 @@ function TrendChart({ trend, mode, range, onSelect }) {
           color: palette.muted,
           fontSize: 9,
           hideOverlap: true,
+          showMinLabel: true,
+          showMaxLabel: true,
           formatter: (value) => range === '6h' || range === '24h'
             ? formatWib(value, false)
             : new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', hour12: false }).format(new Date(value)),
@@ -219,7 +222,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
         splitLine: { lineStyle: { color: palette.grid, type: 'solid', width: 1 } },
         min: trend?.unit === '%' ? 0 : undefined,
         max: trend?.unit === '%' ? 100 : undefined,
-        splitNumber: 3,
+        splitNumber: 2,
       },
       dataZoom,
       series: hosts.map((host, index) => {
@@ -230,7 +233,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
           connectNulls: false,
           showSymbol: range === '6h' && hostRows.length <= 48,
           symbolSize: 4,
-          lineStyle: { width: 1.45 },
+          lineStyle: { width: 1.5 },
           emphasis: { focus: 'series', scale: 1.35 },
           data: hostRows.map((row) => ({ value: [row.bucket, row[valueKey]], bucket: row.bucket, peakAt: row.peak_at, peakCollectionId: row.peak_collection_id, host: row.host, avg: row.avg_value, max: row.max_value })),
           markLine: index === 0 && thresholdLines.length ? { silent: true, symbol: ['none', 'none'], data: thresholdLines } : undefined,
@@ -262,13 +265,13 @@ function InlineStatus({ value = 'UNKNOWN' }) {
 }
 
 function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, onSelectJob }) {
-  if (!selected && !loading && !error) return <div className="rundeckRcaHint">Click graph to inspect workload at that time.</div>
+  if (!selected && !loading && !error) return <div className="rundeckRcaHint">Click chart to inspect workload at that time.</div>
 
   const rows = data?.items || []
   const selectedRow = rows.find((row) => row.host === selected?.host) || rows[0] || null
   const consumer = selectedRow?.top_consumers?.[0] || null
   const details = consumer?.details || {}
-  const selectedJobContext = consumer?.consumer_key ? { key: consumer.consumer_key, host: selectedRow?.host || selected?.host || '', consumerType: consumer.consumer_type || '', source: 'selected-time' } : null
+  const selectedJobContext = consumer?.consumer_key ? { key: consumer.consumer_key, host: selectedRow?.host || selected?.host || '', consumerType: consumer.consumer_type || '', source: 'selected-time', at: selected?.at || '' } : null
   const jobSelected = selectedJobContext && selectedJob?.key === selectedJobContext.key && selectedJob?.host === selectedJobContext.host
   const selectedMetricIsCpu = String(selected?.metricLabel || '').toUpperCase() === 'CPU'
   const facts = [
@@ -323,7 +326,7 @@ export default function RundeckMonitoringHistory({
   latestCollectionId = '',
   latestCollectionAt = '',
 }) {
-  const [range, setRange] = React.useState('6h')
+  const [range, setRange] = React.useState(DEFAULT_RANGE)
   const [bucket, setBucket] = React.useState('auto')
   const [metric, setMetric] = React.useState('cpu')
   const [mode, setMode] = React.useState('max')
@@ -336,6 +339,11 @@ export default function RundeckMonitoringHistory({
   const [timelineLoading, setTimelineLoading] = React.useState(false)
   const [timelineError, setTimelineError] = React.useState('')
   const rcaRef = React.useRef(null)
+
+  React.useEffect(() => {
+    setRange(DEFAULT_RANGE)
+    setBucket('auto')
+  }, [])
 
   React.useEffect(() => {
     if (!databaseEnabled) return undefined
@@ -398,9 +406,9 @@ export default function RundeckMonitoringHistory({
     <div className="rundeckMonitoringHead"><h3><SphereIcon name="trend" /> Server Trend</h3></div>
 
     <div className="rundeckTrendToolbar">
-      <Segmented options={METRICS} value={metric} onChange={setMetric} ariaLabel="Performance metric" />
-      <Segmented options={RANGES} value={range} onChange={setRange} ariaLabel="Time period" />
-      <Segmented options={[["avg", "Avg"], ["max", "Peak"]]} value={mode} onChange={setMode} ariaLabel="Trend view" />
+      <div className="rundeckTrendGroup"><Segmented options={METRICS} value={metric} onChange={setMetric} ariaLabel="Performance metric" /></div>
+      <div className="rundeckTrendGroup"><Segmented options={RANGES} value={range} onChange={setRange} ariaLabel="Time period" /></div>
+      <div className="rundeckTrendGroup"><Segmented options={[["avg", "Avg"], ["max", "Peak"]]} value={mode} onChange={setMode} ariaLabel="Trend view" /></div>
     </div>
 
     <details className="rundeckAdvancedControls">
