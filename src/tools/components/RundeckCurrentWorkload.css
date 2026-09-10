@@ -12,10 +12,17 @@
 }
 
 .rundeckCurrentWorkloadHead h3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin: 0;
   color: var(--sphere-text, #e7edf0);
   font-size: 12.5px;
   font-weight: 780;
+}
+
+.rundeckCurrentWorkloadHead h3 .sphereIcon {
+  color: var(--sphere-text-muted, #718089);
 }
 
 .rundeckCurrentWorkloadHead button,
@@ -56,7 +63,7 @@
 .rundeckCurrentWorkload th,
 .rundeckCurrentWorkload td {
   padding: 5px 7px;
-  border-bottom: 1px solid rgba(113, 128, 137, .12);
+  border-bottom: 1px solid rgba(113, 128, 137, .10);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
@@ -90,11 +97,11 @@
 }
 
 .rundeckCurrentWorkload tbody tr:hover {
-  background: rgba(79, 198, 200, .05);
+  background: rgba(79, 198, 200, .045);
 }
 
 .rundeckCurrentWorkload tbody tr.is-selected {
-  background: rgba(79, 198, 200, .11);
+  background: rgba(79, 198, 200, .09);
 }
 
 .rundeckCurrentWorkload td.is-attention {
