@@ -2,6 +2,11 @@
 
 `swap_pct` is retained for schema compatibility but stores swap activity (swap-in + swap-out
 pages/second) for Rundeck V2.2 collections. The JSON details preserve both source counters.
+
+The browser V2.2 parser treats every ``snapshot @`` block as one logical host segment and
+reads human summary counters such as ``CPU WP Critical`` from that segment. Keep this
+projection on the same segmentation contract so DB-backed monitoring cannot disagree with
+the point-in-time parser for the same raw collection.
 """
 from __future__ import annotations
 
@@ -23,6 +28,7 @@ IOWAIT_WARNING = float(os.getenv("SPHERE_IOWAIT_WARNING_PCT", "10"))
 IOWAIT_CRITICAL = float(os.getenv("SPHERE_IOWAIT_CRITICAL_PCT", "20"))
 WP_WARNING = int(os.getenv("SPHERE_WP_WARNING", "1"))
 WP_CRITICAL = int(os.getenv("SPHERE_WP_CRITICAL", "3"))
+V22_MARKER = "## RCA-SNAPSHOT-V2.2-BEGIN"
 
 
 def _number(value):
@@ -52,22 +58,78 @@ def _snapshots(raw_text: str) -> list[dict]:
     return rows
 
 
-def _host_segments(raw_text: str) -> dict[str, str]:
-    matches = list(re.finditer(
-        r"^##\s*WP-SCOUT\s*@\s*(\S+)\s+SID=\S+\s+INSTS=\S+\s+TS=.+$",
-        raw_text,
-        re.M,
-    ))
-    segments = {}
-    for index, match in enumerate(matches):
-        end = matches[index + 1].start() if index + 1 < len(matches) else len(raw_text)
-        segments[match.group(1).upper()] = raw_text[match.start():end]
+def _split_v22_segments(raw_text: str) -> list[str]:
+    """Mirror ``splitV22Segments`` in ``src/tools/logAnalysisV15.js``.
+
+    Rundeck executes APP1 -> APP5 sequentially. Human WP counters belong to the
+    surrounding host snapshot, so using WP-SCOUT headers as boundaries can associate
+    a counter with the wrong host when collector text contains additional headers.
+    """
+    normalized = str(raw_text or "").replace("\r", "")
+    if V22_MARKER not in normalized:
+        return []
+
+    lines = normalized.split("\n")
+    starts = [
+        index
+        for index, line in enumerate(lines)
+        if re.match(r"^snapshot\s*@", line.strip(), re.I)
+    ]
+    if len(starts) <= 1:
+        return [normalized]
+
+    segments = []
+    for index, start in enumerate(starts):
+        end = starts[index + 1] if index + 1 < len(starts) else len(lines)
+        segment = "\n".join(lines[start:end])
+        if V22_MARKER in segment:
+            segments.append(segment)
     return segments
 
 
 def _wp_critical(segment: str) -> int | None:
     match = re.search(r"CPU\s+WP\s+Critical\s*:\s*(\d+)", segment, re.I)
     return int(match.group(1)) if match else None
+
+
+def parse_host_projection(raw: bytes | str) -> list[dict]:
+    """Parse host metrics using the exact browser V2.2 host-boundary semantics.
+
+    This function is intentionally DB-free so contract tests can compare it against
+    known V2.2 samples without requiring PostgreSQL.
+    """
+    raw_text = raw.decode("utf-8-sig", errors="strict") if isinstance(raw, bytes) else str(raw)
+    segments = _split_v22_segments(raw_text)
+    rows = []
+
+    for segment in segments:
+        snapshots = _snapshots(segment)
+        if not snapshots:
+            continue
+        # Browser parseKeyValueBlock() consumes the first snapshot block in each segment.
+        snapshot = snapshots[0]
+        host = str(snapshot.get("hostname") or "").strip().upper()
+        if not host:
+            continue
+
+        swap_in = _number(snapshot.get("swap_in_ps"))
+        swap_out = _number(snapshot.get("swap_out_ps"))
+        swap_activity = (
+            (swap_in or 0.0) + (swap_out or 0.0)
+            if swap_in is not None or swap_out is not None
+            else None
+        )
+        rows.append({
+            "host": host,
+            "cpu": _number(snapshot.get("host_cpu_pct")),
+            "ram": _number(snapshot.get("memory_used_pct")),
+            "iowait": _number(snapshot.get("host_iowait_pct")),
+            "swap_in": swap_in,
+            "swap_out": swap_out,
+            "swap_activity": swap_activity,
+            "wp_critical": _wp_critical(segment),
+        })
+    return rows
 
 
 def _health(cpu, ram, iowait, wp_critical) -> str:
@@ -88,27 +150,24 @@ def _health(cpu, ram, iowait, wp_critical) -> str:
     return "NORMAL"
 
 
-def _ensure_alert(conn, *, collection_id: str, host: str, collected_at: datetime,
-                  code: str, severity: str, message: str, details: dict) -> None:
-    exists = conn.execute(text("""
-        SELECT 1
+def _sync_alert(conn, *, collection_id: str, host: str, collected_at: datetime,
+                code: str, active: bool, severity: str, message: str, details: dict) -> None:
+    """Keep one derived threshold alert per collection/host/code and remove stale ones."""
+    existing = conn.execute(text("""
+        SELECT id
           FROM rundeck_alerts
          WHERE collection_id = :collection_id
            AND host = :host
            AND code = :code
          LIMIT 1
     """), {"collection_id": collection_id, "host": host, "code": code}).first()
-    if exists:
+
+    if not active:
+        if existing:
+            conn.execute(text("DELETE FROM rundeck_alerts WHERE id = :id"), {"id": existing[0]})
         return
-    conn.execute(text("""
-        INSERT INTO rundeck_alerts (
-          id, collection_id, collected_at, host, code, severity, message, details
-        ) VALUES (
-          :id, :collection_id, :collected_at, :host, :code, :severity, :message,
-          CAST(:details AS jsonb)
-        )
-    """), {
-        "id": uuid4().hex,
+
+    payload = {
         "collection_id": collection_id,
         "collected_at": collected_at,
         "host": host,
@@ -116,7 +175,26 @@ def _ensure_alert(conn, *, collection_id: str, host: str, collected_at: datetime
         "severity": severity,
         "message": message,
         "details": json.dumps(details),
-    })
+    }
+    if existing:
+        conn.execute(text("""
+            UPDATE rundeck_alerts
+               SET collected_at = :collected_at,
+                   severity = :severity,
+                   message = :message,
+                   details = CAST(:details AS jsonb)
+             WHERE id = :id
+        """), {**payload, "id": existing[0]})
+        return
+
+    conn.execute(text("""
+        INSERT INTO rundeck_alerts (
+          id, collection_id, collected_at, host, code, severity, message, details
+        ) VALUES (
+          :id, :collection_id, :collected_at, :host, :code, :severity, :message,
+          CAST(:details AS jsonb)
+        )
+    """), {**payload, "id": uuid4().hex})
 
 
 def enrich_host_metrics(collection_id: str, raw: bytes) -> int:
@@ -127,27 +205,19 @@ def enrich_host_metrics(collection_id: str, raw: bytes) -> int:
     if engine is None:
         return 0
 
-    raw_text = raw.decode("utf-8-sig", errors="strict")
-    segments = _host_segments(raw_text)
-    snapshots = _snapshots(raw_text)
+    projections = parse_host_projection(raw)
     updated = 0
 
     with engine.begin() as conn:
-        for snapshot in snapshots:
-            host = str(snapshot.get("hostname") or "").strip().upper()
-            if not host:
-                continue
-            cpu = _number(snapshot.get("host_cpu_pct"))
-            ram = _number(snapshot.get("memory_used_pct"))
-            iowait = _number(snapshot.get("host_iowait_pct"))
-            swap_in = _number(snapshot.get("swap_in_ps"))
-            swap_out = _number(snapshot.get("swap_out_ps"))
-            swap_activity = (
-                (swap_in or 0.0) + (swap_out or 0.0)
-                if swap_in is not None or swap_out is not None
-                else None
-            )
-            wp_critical = _wp_critical(segments.get(host, ""))
+        for projection in projections:
+            host = projection["host"]
+            cpu = projection["cpu"]
+            ram = projection["ram"]
+            iowait = projection["iowait"]
+            swap_in = projection["swap_in"]
+            swap_out = projection["swap_out"]
+            swap_activity = projection["swap_activity"]
+            wp_critical = projection["wp_critical"]
             health = _health(cpu, ram, iowait, wp_critical)
             details = {
                 "host_iowait_pct": iowait,
@@ -156,6 +226,7 @@ def enrich_host_metrics(collection_id: str, raw: bytes) -> int:
                 "swap_activity_ps": swap_activity,
                 "swap_metric_semantics": "activity_ps",
                 "wp_critical": wp_critical,
+                "projection_contract": "snapshot-segment-v2.2",
             }
 
             result = conn.execute(text("""
@@ -188,26 +259,27 @@ def enrich_host_metrics(collection_id: str, raw: bytes) -> int:
             if not metric_row:
                 continue
             collected_at = metric_row[0]
-            if iowait is not None and iowait >= IOWAIT_WARNING:
-                _ensure_alert(
-                    conn,
-                    collection_id=collection_id,
-                    host=host,
-                    collected_at=collected_at,
-                    code="IOWAIT_HIGH",
-                    severity="CRITICAL" if iowait >= IOWAIT_CRITICAL else "WARNING",
-                    message=f"IO Wait threshold exceeded on {host}",
-                    details={"value": iowait, "warning": IOWAIT_WARNING, "critical": IOWAIT_CRITICAL},
-                )
-            if wp_critical is not None and wp_critical >= WP_WARNING:
-                _ensure_alert(
-                    conn,
-                    collection_id=collection_id,
-                    host=host,
-                    collected_at=collected_at,
-                    code="WP_CRITICAL",
-                    severity="CRITICAL" if wp_critical >= WP_CRITICAL else "WARNING",
-                    message=f"Critical work process threshold exceeded on {host}",
-                    details={"value": wp_critical, "warning": WP_WARNING, "critical": WP_CRITICAL},
-                )
+
+            _sync_alert(
+                conn,
+                collection_id=collection_id,
+                host=host,
+                collected_at=collected_at,
+                code="IOWAIT_HIGH",
+                active=iowait is not None and iowait >= IOWAIT_WARNING,
+                severity="CRITICAL" if iowait is not None and iowait >= IOWAIT_CRITICAL else "WARNING",
+                message=f"IO Wait threshold exceeded on {host}",
+                details={"value": iowait, "warning": IOWAIT_WARNING, "critical": IOWAIT_CRITICAL},
+            )
+            _sync_alert(
+                conn,
+                collection_id=collection_id,
+                host=host,
+                collected_at=collected_at,
+                code="WP_CRITICAL",
+                active=wp_critical is not None and wp_critical >= WP_WARNING,
+                severity="CRITICAL" if wp_critical is not None and wp_critical >= WP_CRITICAL else "WARNING",
+                message=f"Critical work process threshold exceeded on {host}",
+                details={"value": wp_critical, "warning": WP_WARNING, "critical": WP_CRITICAL},
+            )
     return updated
