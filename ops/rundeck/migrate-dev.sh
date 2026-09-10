@@ -40,6 +40,14 @@ case "$DATABASE_URL" in
     ;;
 esac
 
-export DB_MODE DATABASE_URL
+# Local PostgreSQL uses peer authentication. The DB role is "sphere", so Alembic
+# must connect as the matching OS user instead of root. This also mirrors the
+# runtime identity used by the /dev API and poller systemd units.
 cd "$ROOT"
-"$PYTHON" -m alembic -c backend/alembic.ini upgrade head
+if [[ "$(id -un)" == "sphere" ]]; then
+  exec env DB_MODE="$DB_MODE" DATABASE_URL="$DATABASE_URL" \
+    "$PYTHON" -m alembic -c backend/alembic.ini upgrade head
+fi
+
+exec runuser -u sphere -- env DB_MODE="$DB_MODE" DATABASE_URL="$DATABASE_URL" \
+  "$PYTHON" -m alembic -c backend/alembic.ini upgrade head
