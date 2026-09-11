@@ -10,7 +10,8 @@ import './RundeckPlatformHealth.css'
 
 const API = `${import.meta.env.BASE_URL}api`
 const BRAND_LOGO = `${import.meta.env.BASE_URL}branding/logo/sphere-logo-navbar-dark.png`
-const REPORT_URL = 'https://sphere.astraotoparts.co.id/dev/#/st03n'
+const REPORT_URL = typeof window === 'undefined' ? '' : `${window.location.origin}${import.meta.env.BASE_URL}#/tool/logs`
+const PROCESS_CPU_HINT = 'Process CPU can exceed 100% when a workload uses more than one CPU core or thread.'
 
 const formatTime = (value, compact = false) => {
   if (!value) return '—'
@@ -60,6 +61,16 @@ const distinctProgramText = (row = {}) => {
   const workload = String(row.consumer_key || '').trim()
   if (!program) return ''
   return program.toUpperCase() === workload.toUpperCase() ? '' : program
+}
+
+const shortSignal = (label = '') => String(label || 'Performance issue')
+  .replace(/Critical Work Process/gi, 'Critical WP')
+  .replace(/Work Process/gi, 'WP')
+
+const issueSignalText = (label, value) => {
+  const normalized = shortSignal(label)
+  if (/^Critical WP\b/i.test(normalized)) return `${value} Critical WP`
+  return [normalized, value].filter(Boolean).join(' ')
 }
 
 function StatusPill({ value = 'UNKNOWN', title = '' }) {
@@ -278,7 +289,7 @@ export default function RundeckSource({ onCollection }) {
       const capture = async (selector) => {
         const element = panel.querySelector(selector)
         if (!element) return null
-        return html2canvas(element, { backgroundColor: '#0f151a', scale: 1.45, useCORS: true, logging: false })
+        return html2canvas(element, { backgroundColor: '#0f151a', scale: 1.55, useCORS: true, logging: false })
       }
       const [serverChart, workloadChart] = await Promise.all([
         capture('.rundeckTrendChart'),
@@ -311,7 +322,7 @@ export default function RundeckSource({ onCollection }) {
       pdf.setTextColor(232, 238, 241)
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(10.5)
-      if (typeof pdf.textWithLink === 'function') pdf.textWithLink(APP_TAGLINE, brandX, 17, { url: REPORT_URL })
+      if (typeof pdf.textWithLink === 'function' && REPORT_URL) pdf.textWithLink(APP_TAGLINE, brandX, 17, { url: REPORT_URL })
       else pdf.text(APP_TAGLINE, brandX, 17)
 
       const status = incidentSummary?.status || 'NORMAL'
@@ -330,11 +341,12 @@ export default function RundeckSource({ onCollection }) {
 
       const affected = shortHost(incidentSummary?.affected_server || '')
       const signal = incidentSummary?.primary_signal || {}
+      const signalValue = metric(signal.value, signal.unit || '')
       const since = incidentSummary?.signal_active_since || incidentSummary?.detected_since
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(9.5)
-      pdf.text(`PRIMARY ISSUE · ${affected || 'SAP'}${signal.label ? ` · ${String(signal.label).replace(/Critical Work Process/gi, 'Critical WP')} ${metric(signal.value, signal.unit || '')}` : ''}`, margin, 36)
+      pdf.text(`PRIMARY ISSUE · ${affected || 'SAP'}${signal.label ? ` · ${issueSignalText(signal.label, signalValue)}` : ''}`, margin, 36)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(7.2)
       pdf.setTextColor(92, 105, 114)
@@ -373,7 +385,7 @@ export default function RundeckSource({ onCollection }) {
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(7)
       const columns = [0, 25, 53, 82, 112, 144]
-      ;['APP', 'STATE', 'CPU', 'RAM', 'IO WAIT', 'CRIT WP'].forEach((label, index) => pdf.text(label, margin + columns[index], y))
+      ;['APP', 'SAP STATE', 'CPU', 'RAM', 'IO WAIT', 'CRIT WP'].forEach((label, index) => pdf.text(label, margin + columns[index], y))
       y += 4
       operationalHosts.slice(0, 5).forEach((host) => {
         const state = conservativeHostState(host)
@@ -391,12 +403,12 @@ export default function RundeckSource({ onCollection }) {
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(8)
         pdf.text('SERVER CPU TREND · 6H', margin, chartY - 3)
-        const ratio = Math.min(contentW / serverChart.width, 44 / serverChart.height)
+        const ratio = Math.min(contentW / serverChart.width, 40 / serverChart.height)
         pdf.addImage(serverChart.toDataURL('image/jpeg', .92), 'JPEG', margin, chartY, serverChart.width * ratio, serverChart.height * ratio, undefined, 'FAST')
       }
 
-      const workY = 152
-      const leftW = contentW * .66
+      const workY = 153
+      const leftW = contentW * .70
       const inspectedHost = shortHost(selectedJob?.host || incidentSummary?.affected_server || '') || 'SAP'
       const inspectedWorkload = selectedJob?.key || current.consumer_key
       const inspectedSource = [current, recurring, ...(workloadResult.items || [])].find((row) => (
@@ -417,7 +429,7 @@ export default function RundeckSource({ onCollection }) {
         const chartTop = inspectedProgram ? workY + 3 : workY
         const chartMaxH = inspectedProgram ? 39 : 42
         const ratio = Math.min(leftW / workloadChart.width, chartMaxH / workloadChart.height)
-        pdf.addImage(workloadChart.toDataURL('image/jpeg', .92), 'JPEG', margin, chartTop, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
+        pdf.addImage(workloadChart.toDataURL('image/jpeg', .94), 'JPEG', margin, chartTop, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
       }
 
       const sideX = margin + leftW + 7
@@ -430,7 +442,7 @@ export default function RundeckSource({ onCollection }) {
       let sideY = workY + 3
       ;(workloadResult.items || []).slice(0, 4).forEach((row, index) => {
         pdf.setTextColor(22, 31, 38)
-        pdf.text(`${index + 1}. ${shortHost(row.host)}  ${clipped(row.consumer_key, 32)}`, sideX, sideY)
+        pdf.text(`${index + 1}. ${shortHost(row.host)}  ${clipped(row.consumer_key, 28)}`, sideX, sideY)
         pdf.setTextColor(92, 105, 114)
         pdf.text(`CPU ${metric(row.cpu_pct, '%')}  ·  PSS ${pssText(row)}`, sideX, sideY + 3.3)
         sideY += 8
@@ -534,7 +546,7 @@ export default function RundeckSource({ onCollection }) {
       </div>
       <div className="rundeckServerTableWrap">
         <table className="rundeckServerTable">
-          <thead><tr><th>APP</th><th>State</th><th>CPU</th><th>RAM</th><th>Load</th><th>IO Wait</th><th>Critical WP</th></tr></thead>
+          <thead><tr><th>APP</th><th>SAP State</th><th>CPU</th><th>RAM</th><th>Load</th><th>IO Wait</th><th>Critical WP</th></tr></thead>
           <tbody>
             {operationalHosts.map((host) => {
               const wpCount = Number(host.wp_critical || 0)
@@ -558,7 +570,7 @@ export default function RundeckSource({ onCollection }) {
 
       {wpDrilldown && <section className="rundeckWpDrilldown" aria-live="polite">
         <div className="rundeckWpDrilldownHead">
-          <h4><SphereIcon name="alert" /> {shortHost(wpDrilldown.host)} · Critical WP {wpDrilldown.count}</h4>
+          <h4><SphereIcon name="alert" /> {shortHost(wpDrilldown.host)} · {wpDrilldown.count} Critical WP</h4>
           <button type="button" onClick={() => setWpDrilldown(null)}>Close</button>
         </div>
         <p>Exact WP mapping is not available yet. Current workloads on {shortHost(wpDrilldown.host)} are shown for investigation.</p>
@@ -566,7 +578,7 @@ export default function RundeckSource({ onCollection }) {
         {wpDrilldown.error && <div className="rundeckWpDrilldownState is-error">{wpDrilldown.error}</div>}
         {!wpDrilldown.loading && !wpDrilldown.error && <div className="rundeckWpDrilldownTableWrap">
           <table>
-            <thead><tr><th>Workload</th><th>Type</th><th>WP</th><th>PID</th><th>User</th><th>Process CPU</th><th>PSS</th></tr></thead>
+            <thead><tr><th>Workload</th><th>Type</th><th>WP</th><th>PID</th><th>User</th><th title={PROCESS_CPU_HINT}>Process CPU</th><th>PSS</th></tr></thead>
             <tbody>
               {wpDrilldown.rows.map((row) => {
                 const details = row.details || {}
@@ -577,7 +589,7 @@ export default function RundeckSource({ onCollection }) {
                   <td>{wpText(row)}</td>
                   <td>{details.pid || '—'}</td>
                   <td>{details.user || '—'}</td>
-                  <td>{metric(row.cpu_pct, '%')}</td>
+                  <td title={PROCESS_CPU_HINT}>{metric(row.cpu_pct, '%')}</td>
                   <td>{pssText(row)}</td>
                 </tr>
               })}
