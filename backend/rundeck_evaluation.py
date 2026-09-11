@@ -140,15 +140,15 @@ def _ready_collection_count(conn, start: datetime, end: datetime) -> int:
         SELECT COUNT(*)
           FROM rundeck_collections
          WHERE status = 'READY'
-           AND COALESCE(finished_at, created_at) >= :start
-           AND COALESCE(finished_at, created_at) < :end
+           AND COALESCE(finished_at, started_at) >= :start
+           AND COALESCE(finished_at, started_at) < :end
     """), {"start": start, "end": end}).scalar()
     return int(value or 0)
 
 
 def _anchor_time(conn) -> datetime:
     value = conn.execute(text("""
-        SELECT MAX(COALESCE(finished_at, created_at))
+        SELECT MAX(COALESCE(finished_at, started_at))
           FROM rundeck_collections
          WHERE status = 'READY'
     """)).scalar()
