@@ -14,11 +14,15 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from sqlalchemy import text
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from backend.db.session import get_engine
 from backend.rundeck_consumers import TOP_CONSUMERS_PER_HOST, persist_top_consumers
+from backend.rundeck_monitoring import persist_collection
 from backend.rundeck_store import ROOT, collections
 
 
@@ -48,11 +52,43 @@ def _error_summary(error: Exception) -> str:
     """Return a concise single-line diagnostic without dumping SQL parameters."""
     original = getattr(error, "orig", None)
     target = original if isinstance(original, Exception) else error
-    text = str(target).strip()
-    if not text:
-        text = str(error).strip()
-    first_line = next((line.strip() for line in text.splitlines() if line.strip()), type(target).__name__)
+    text_value = str(target).strip()
+    if not text_value:
+        text_value = str(error).strip()
+    first_line = next((line.strip() for line in text_value.splitlines() if line.strip()), type(target).__name__)
     return first_line[:800]
+
+
+def _collection_exists(collection_id: str) -> bool:
+    engine = get_engine()
+    if engine is None:
+        raise RuntimeError("Database history is not enabled")
+    with engine.connect() as conn:
+        value = conn.execute(
+            text("SELECT 1 FROM rundeck_collections WHERE collection_id = :collection_id LIMIT 1"),
+            {"collection_id": collection_id},
+        ).scalar()
+    return value is not None
+
+
+def _ensure_collection_parent(row: dict, raw: bytes, repair_missing_parents: bool) -> bool:
+    """Ensure the FK parent exists without rewriting existing collection history.
+
+    Old retained manifests may pre-date database persistence. Only those missing
+    parents are re-projected. Existing parents are never passed through
+    persist_collection(), which avoids duplicating historical alert rows.
+    """
+    collection_id = str(row.get("collection_id") or "")
+    if _collection_exists(collection_id):
+        return False
+    if not repair_missing_parents:
+        raise RuntimeError(
+            "parent rundeck_collections row is missing; rerun with --repair-missing-parents to restore it from retained raw evidence"
+        )
+    status = persist_collection(row, raw)
+    if status != "STORED" or not _collection_exists(collection_id):
+        raise RuntimeError(f"failed to restore missing collection parent (persist status={status})")
+    return True
 
 
 def main() -> int:
@@ -65,6 +101,11 @@ def main() -> int:
         default=[],
         help="optional exact collection id to process; may be repeated, e.g. --collection rundeck-521900",
     )
+    parser.add_argument(
+        "--repair-missing-parents",
+        action="store_true",
+        help="restore missing rundeck_collections parents from retained READY evidence before consumer upsert",
+    )
     parser.add_argument("--apply", action="store_true", help="perform PostgreSQL upserts; without this flag only show the plan")
     args = parser.parse_args()
 
@@ -72,6 +113,8 @@ def main() -> int:
         parser.error("--days must be between 1 and 365")
     if args.limit < 0:
         parser.error("--limit cannot be negative")
+    if args.repair_missing_parents and not args.apply:
+        parser.error("--repair-missing-parents requires --apply")
     if args.apply and not _dev_database_allowed():
         print("REFUSED: DATABASE_URL is not the isolated Rundeck development database.", file=sys.stderr)
         return 41
@@ -104,6 +147,7 @@ def main() -> int:
     print(f"INGESTION_ROOT={ROOT}")
     print(f"LOOKBACK_DAYS={args.days}")
     print(f"PERSISTED_DEPTH=Top {TOP_CONSUMERS_PER_HOST} per APP")
+    print(f"REPAIR_MISSING_PARENTS={'YES' if args.repair_missing_parents else 'NO'}")
     if requested:
         print(f"COLLECTION_FILTER={','.join(sorted(requested))}")
     print(f"CANDIDATE_COLLECTIONS={len(candidates)}")
@@ -120,11 +164,17 @@ def main() -> int:
 
     completed = 0
     rows_written = 0
+    parents_repaired = 0
     failure_details: list[tuple[str, str, str]] = []
     for index, (row, path, _) in enumerate(candidates, 1):
         collection_id = str(row.get("collection_id") or "")
         try:
-            written = persist_top_consumers(collection_id, _raw(path))
+            raw = _raw(path)
+            repaired = _ensure_collection_parent(row, raw, args.repair_missing_parents)
+            if repaired:
+                parents_repaired += 1
+                print(f"[{index}/{len(candidates)}] {collection_id}: parent collection restored from retained evidence")
+            written = persist_top_consumers(collection_id, raw)
             rows_written += written
             completed += 1
             print(f"[{index}/{len(candidates)}] {collection_id}: {written} consumer rows projected")
@@ -136,6 +186,7 @@ def main() -> int:
 
     print(f"COMPLETED={completed}")
     print(f"FAILED={len(failure_details)}")
+    print(f"PARENTS_REPAIRED={parents_repaired}")
     print(f"ROWS_PROJECTED={rows_written}")
     if failure_details:
         print("FAILURE_DETAILS_BEGIN")
