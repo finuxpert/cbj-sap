@@ -110,4 +110,4 @@ test('PDF opens a preview before any download action', async ({ page }) => {
   await expect(preview.getByText('Report Preview', { exact: true })).toBeVisible()
   await expect(preview.getByText('Download PDF', { exact: true })).toBeVisible()
   await expect(preview.getByText('Open in New Tab', { exact: true })).toBeVisible()
-}
+})
