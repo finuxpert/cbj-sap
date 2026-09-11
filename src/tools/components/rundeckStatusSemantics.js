@@ -12,7 +12,15 @@ const numeric = (value) => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+const explicitState = (value, allowed) => {
+  const state = String(value || '').toUpperCase()
+  return allowed.includes(state) ? state : ''
+}
+
 export function hostResourceState(host = {}) {
+  const explicit = explicitState(host.resource_health || host.health, ['NORMAL', 'WARNING', 'CRITICAL'])
+  if (explicit && host.resource_health) return explicit
+
   const cpu = numeric(host.cpu_pct)
   const ram = numeric(host.ram_pct)
   const ioWait = numeric(host.io_wait_pct)
@@ -22,6 +30,9 @@ export function hostResourceState(host = {}) {
 }
 
 export function sapWorkloadState(host = {}) {
+  const explicit = explicitState(host.sap_workload_state, ['NORMAL', 'ATTENTION', 'CRITICAL'])
+  if (explicit) return explicit
+
   const wp = numeric(host.wp_critical) || 0
   if (wp >= WP_CRITICAL) return 'CRITICAL'
   if (wp > 0) return 'ATTENTION'
@@ -44,7 +55,7 @@ export function statusExplanation(status, hosts = []) {
   const resourceStates = hosts.map(hostResourceState)
   if (status === 'CRITICAL') {
     if (resourceStates.includes('CRITICAL')) return 'Critical host resource threshold detected.'
-    return 'Critical SAP workload signal detected.'
+    return 'Critical SAP workload signal detected; host resource health is shown separately.'
   }
   if (status === 'WARNING') return 'Host resource warning threshold or monitoring freshness warning detected.'
   if (status === 'ATTENTION') return 'Host resources are within thresholds; SAP workload signal requires review.'
