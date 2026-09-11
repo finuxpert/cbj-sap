@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.5px;
+  font-size: 12.8px;
   font-weight: 760;
 }
 
@@ -67,7 +67,7 @@
   background: transparent;
   color: var(--sphere-text-muted, #718089);
   font-family: inherit;
-  font-size: 8.5px;
+  font-size: 8.8px;
   font-weight: 700;
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease;
@@ -93,7 +93,7 @@
 .rundeckAdvancedControls summary {
   color: var(--sphere-text-muted, #718089);
   cursor: pointer;
-  font-size: 8px;
+  font-size: 8.3px;
   font-weight: 650;
 }
 
@@ -118,7 +118,7 @@
 .rundeckRcaHint {
   padding: 5px 0;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 9px;
+  font-size: 9.3px;
 }
 
 .rundeckHistoryState.is-error {
@@ -130,7 +130,7 @@
   margin-top: 0;
   padding: 1px 0 2px;
   color: var(--sphere-text-muted, #718089);
-  font-size: 8.5px;
+  font-size: 8.8px;
 }
 
 .rundeckRcaSection {
@@ -150,7 +150,7 @@
 
 .rundeckRcaHeader > div > span {
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.8px;
+  font-size: 8.1px;
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -161,12 +161,12 @@
   align-items: center;
   gap: 4px;
   margin-top: 1px;
-  font-size: 12.5px;
+  font-size: 12.8px;
 }
 
 .rundeckRcaHeader small {
   color: var(--sphere-text-muted, #718089);
-  font-size: 8.9px;
+  font-size: 9.2px;
 }
 
 .rundeckRcaMetricStrip {
@@ -183,13 +183,13 @@
   align-items: baseline;
   gap: 4px;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 8.9px;
+  font-size: 9.2px;
   white-space: nowrap;
 }
 
 .rundeckRcaMetricStrip b {
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.6px;
+  font-size: 7.9px;
   font-weight: 750;
   text-transform: uppercase;
 }
@@ -204,7 +204,7 @@
 .rundeckRcaWorkloadTitle > span {
   display: block;
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.8px;
+  font-size: 8.1px;
   font-weight: 750;
   text-transform: uppercase;
 }
@@ -214,7 +214,7 @@
   margin-top: 1px;
   overflow: hidden;
   color: var(--sphere-text, #e7edf0);
-  font-size: 11.5px;
+  font-size: 11.9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -223,7 +223,7 @@
   display: block;
   margin-top: 1px;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 8.8px;
+  font-size: 9.1px;
 }
 
 .rundeckRcaWorkload dl {
@@ -242,14 +242,14 @@
 
 .rundeckRcaWorkload dt {
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.7px;
+  font-size: 8px;
 }
 
 .rundeckRcaWorkload dd {
   overflow: hidden;
   margin: 0;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 8.8px;
+  font-size: 9.1px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -262,7 +262,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 8.2px;
+  font-size: 8.5px;
   font-weight: 680;
 }
 
@@ -276,7 +276,7 @@
 
 .rundeckInlineStatus.is-normal,
 .rundeckInlineStatus.is-ready { color: var(--sphere-positive, #75cfa5); }
-.rundeckInlineStatus.is-attention { color: var(--sphere-attention, #63b7c8); }
+.rundeckInlineStatus.is-attention { color: var(--sphere-attention, #6aa2d8); }
 .rundeckInlineStatus.is-warning,
 .rundeckInlineStatus.is-partial { color: var(--sphere-warning, #d8b35f); }
 .rundeckInlineStatus.is-critical,
@@ -289,14 +289,14 @@
 
 .rundeckMiniTableWrap {
   overflow: auto;
-  max-height: 190px;
+  max-height: 210px;
 }
 
 .rundeckMiniTableWrap table {
   width: 100%;
   border-collapse: collapse;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 8.8px;
+  font-size: 9.2px;
 }
 
 .rundeckMiniTableWrap th,
@@ -304,6 +304,7 @@
   padding: 4px 7px;
   border-bottom: 1px solid rgba(113, 128, 137, .07);
   text-align: left;
+  white-space: nowrap;
 }
 
 .rundeckMiniTableWrap th {
@@ -311,12 +312,12 @@
   top: 0;
   background: var(--sphere-page, #0f151a);
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.8px;
+  font-size: 8.1px;
   text-transform: uppercase;
 }
 
 .rundeckEvidenceGroup {
-  margin-top: 4px;
+  margin-top: 5px;
   padding-top: 1px;
 }
 
@@ -326,7 +327,7 @@
   gap: 5px;
   color: var(--sphere-text-secondary, #a9b5bb);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 9.4px;
   font-weight: 680;
 }
 
@@ -337,7 +338,7 @@
 .rundeckEvidenceGroup summary span {
   margin-left: 2px;
   color: var(--sphere-text-muted, #718089);
-  font-size: 8.5px;
+  font-size: 8.8px;
   font-weight: 500;
 }
 
