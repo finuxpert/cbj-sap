@@ -52,7 +52,7 @@ const monitoringSapIssuesIndex = files.monitoring.indexOf('<SapIssues')
 const monitoringEvaluationIndex = files.monitoring.indexOf('<RundeckPerformanceEvaluation')
 
 const checks = [
-  ['version is v1.20.2', files.version.includes("APP_VERSION = '1.20.2'") && files.version.includes("APP_PREVIOUS_VERSION = '1.20.1'") && files.version.includes('explainable-review-freeze-v1.20.2')],
+  ['version is v1.20.3', files.version.includes("APP_VERSION = '1.20.3'") && files.version.includes("APP_PREVIOUS_VERSION = '1.20.2'") && files.version.includes('final-semantic-polish-v1.20.3')],
   ['v1.20 operational CSS remains loaded', files.app.includes("./app/rundeck-v120.css")],
   ['production-safe report URL uses current origin and base', files.source.includes('window.location.origin') && files.source.includes('import.meta.env.BASE_URL')],
 
@@ -80,18 +80,18 @@ const checks = [
 
   ['evaluation defaults to one day in UI and API', files.evaluation.includes("useState('1d')") && files.backendApi.includes('period: str = Query("1d"') && files.backendEvaluation.includes('evaluation_report(period: str = "1d"')],
   ['evaluation quality header is lean', ['Data Coverage', 'Collection Checks', 'Historical Baseline'].every((value) => files.evaluation.includes(value)) && !files.evaluation.includes('Persisted Depth')],
-  ['low coverage explains reduced assessment strength', files.evaluation.includes('Historical window is not fully covered yet. Assessment strength is reduced.')],
+  ['low coverage limits conclusions explicitly', files.evaluation.includes('Historical window is not fully covered. Conclusions are limited.')],
   ['evaluation summary focuses on review spike and increase', files.evaluation.includes('Review Required') && files.evaluation.includes('CPU Spike') && files.evaluation.includes('CPU Increase') && !files.evaluation.includes('<span>CPU Shift</span>') && !files.evaluation.includes('<span>Workloads</span>')],
   ['review card does not imply high CPU and memory are a breakdown', files.evaluation.includes('workloads requiring review') && !files.evaluation.includes('summary.sustained_high_cpu') && !files.evaluation.includes('summary.high_memory')],
   ['evaluation table is lean', ['Status', 'Observed Checks', 'Avg CPU', 'Peak CPU', 'PSS Memory'].every((value) => files.evaluation.includes(value)) && !files.evaluation.includes('<th>Data Confidence</th>') && !files.evaluation.includes('label="Critical WP Overlap"')],
   ['status shows concise deterministic reason instead of confidence sublabel', files.evaluation.includes('rundeckEvaluationReason') && files.evaluation.includes('evaluationReasonText(row)') && !files.evaluation.includes('rundeckEvaluationConfidence ${confidenceClass(confidence)}')],
   ['review reason explains high CPU and baseline evidence', evaluationReasonText(reviewAboveBaseline) === 'High CPU · Above Baseline'],
-  ['review reason explains high CPU and Critical WP timing evidence', evaluationReasonText(reviewCriticalWp) === 'High CPU · Critical WP'],
+  ['review reason qualifies Critical WP as supporting evidence', evaluationReasonText(reviewCriticalWp) === 'High CPU · Critical WP Evidence'],
   ['CPU spike explanation remains distinct from sustained high CPU', evaluationReasonText(spikeOnly) === 'Peak only'],
   ['historical CPU context exposes average P95 and difference', files.evaluation.includes('baselineCpuContext(row)') && files.explain.includes('Difference:') && files.explain.includes('Historical P95:')],
   ['observed checks are capped to complete collection checks', files.evaluation.includes('Math.min(observed, complete)')],
   ['display confidence is recomputed from visible checks and period quality', files.evaluation.includes('effectiveConfidence') && files.evaluation.includes("checks >= 20 ? 'HIGH' : checks >= 4 ? 'MEDIUM' : 'LOW'")],
-  ['Critical WP evidence remains supporting timing evidence', files.evaluation.includes('same SAP App Server and collection check') && files.evaluation.includes('not direct workload-to-WP proof')],
+  ['Critical WP wording states timing evidence without causation', files.evaluation.includes('same SAP App Server during the workload observation window') && files.evaluation.includes('not direct causation or direct workload-to-WP mapping')],
   ['evaluation keeps familiar operational statuses', ['REVIEW REQUIRED', 'HIGH CPU', 'HIGH MEMORY', 'CPU SPIKE', 'INCREASING CPU', 'RECURRING', 'INSUFFICIENT DATA', 'NORMAL'].every((value) => files.backendEvaluation.includes(value))],
   ['historical baseline uses median and P95', files.backendEvaluation.includes('_historical_baseline') && files.backendEvaluation.includes('percentile_cont(0.5)') && files.backendEvaluation.includes('percentile_cont(0.95)')],
   ['WP overlap remains normalized against APP baseline', files.backendEvaluation.includes('app_wp_baseline_pct') && files.backendEvaluation.includes('wp_excess_association_pct')],
@@ -103,7 +103,7 @@ const checks = [
   ['PDF summary contains only current workload', files.source.includes("pdf.text('CURRENT WORKLOAD'") && !files.source.includes("pdf.text('RECURRING WORKLOAD'")],
   ['PDF SAP App Server status uses lean columns', files.source.includes("['APP', 'OS RESOURCE', 'CPU', 'MEMORY', 'I/O WAIT', 'CRIT WP']") && !files.source.includes("['APP', 'OS RESOURCE', 'SAP WORKLOAD', 'CPU', 'MEMORY', 'I/O WAIT', 'CRIT WP']")],
   ['PDF keeps one-page triage sections', ['PRIMARY ISSUE', 'SAP APP SERVER STATUS', 'SERVER ${trendMetric} TREND', 'SELECTED WORKLOAD', 'TOP ACTIVE WORKLOADS'].every((value) => files.source.includes(value))],
-  ['PDF carries the same evaluation status reason when available', files.source.includes('/evaluation/workloads?period=1d&type=ALL&limit=100') && files.source.includes('evaluationReasonText(evaluation)') && files.source.includes('evaluationStatus')],
+  ['PDF carries the same qualified evaluation reason when available', files.source.includes('/evaluation/workloads?period=1d&type=ALL&limit=100') && files.source.includes('evaluationReasonText(evaluation)') && files.explain.includes('Critical WP Evidence')],
 
   ['deployment uses isolated managed nginx block updater', files.nginxUpdater.includes('BEGIN SPHERE') && files.nginxUpdater.includes('END SPHERE') && files.deployDev.includes('update-nginx-block.py') && files.deployDev.includes('--name DEV')],
   ['DEV deploy protects production routing', files.deployDev.includes('# SPHERE production Rundeck API routing') && files.deployDev.includes('# BEGIN SPHERE PROD ROUTING')],
@@ -119,8 +119,8 @@ const failed = checks.filter(([, ok]) => !ok)
 for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
 
 if (failed.length) {
-  console.error(`\n${failed.length} Rundeck v1.20.2 contract check(s) failed.`)
+  console.error(`\n${failed.length} Rundeck v1.20.3 contract check(s) failed.`)
   process.exit(1)
 }
 
-console.log('\nRundeck v1.20.2 contract checks passed.')
+console.log('\nRundeck v1.20.3 contract checks passed.')
