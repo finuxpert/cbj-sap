@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -38,6 +39,11 @@ def _raw(path: Path) -> bytes:
     return path.read_bytes()
 
 
+def _dev_database_allowed() -> bool:
+    database_url = os.getenv("DATABASE_URL", "")
+    return "/sphere_rundeck_dev" in database_url or "/sphere-rundeck-dev" in database_url
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Backfill SPHERE top-consumer history from retained raw evidence")
     parser.add_argument("--days", type=int, default=90, help="READY collection lookback (default: 90)")
@@ -49,6 +55,9 @@ def main() -> int:
         parser.error("--days must be between 1 and 365")
     if args.limit < 0:
         parser.error("--limit cannot be negative")
+    if args.apply and not _dev_database_allowed():
+        print("REFUSED: DATABASE_URL is not the isolated Rundeck development database.", file=sys.stderr)
+        return 41
 
     since = datetime.now(timezone.utc) - timedelta(days=args.days)
     candidates = []
