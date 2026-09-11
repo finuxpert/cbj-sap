@@ -3,6 +3,7 @@ import * as echarts from './logEcharts.js'
 import RundeckJobHistory from './RundeckJobHistory.jsx'
 import SphereIcon from './SphereIcon.jsx'
 import { formatWib, numberText, shortHost } from './sapUiFormat.js'
+import { hostResourceState } from './rundeckStatusSemantics.js'
 import './RundeckMonitoringHistory.css'
 import './RundeckEvidence.css'
 
@@ -33,6 +34,13 @@ const METRICS = [
 ]
 
 const RANGE_HOURS = { '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
+
+const metricLabel = (value, fallback = 'Metric') => {
+  if (value === 'swap') return 'Swap IO'
+  return METRICS.find(([key]) => key === value)?.[1] || fallback
+}
+
+const rangeLabel = (value) => RANGES.find(([key]) => key === value)?.[1] || (value === '90d' ? '90D' : String(value || '').toUpperCase())
 
 const themeToken = (name, fallback) => {
   if (typeof window === 'undefined') return fallback
@@ -67,17 +75,10 @@ async function json(url, signal) {
   return response.json()
 }
 
-function displayHostState(row = {}) {
-  const cpu = Number(row.cpu_pct)
-  const ram = Number(row.ram_pct)
-  const ioWait = Number(row.io_wait_pct)
-  const wp = Number(row.wp_critical || 0)
-  if ((Number.isFinite(cpu) && cpu >= 90) || (Number.isFinite(ram) && ram >= 90) || (Number.isFinite(ioWait) && ioWait >= 20)) return 'CRITICAL'
-  if ((Number.isFinite(cpu) && cpu >= 75) || (Number.isFinite(ram) && ram >= 80) || (Number.isFinite(ioWait) && ioWait >= 10) || wp > 0) return 'WARNING'
-  return 'NORMAL'
+const displayAlertSeverity = (row = {}) => {
+  if (row.code !== 'WP_CRITICAL') return row.severity || 'WARNING'
+  return String(row.severity || '').toUpperCase() === 'CRITICAL' ? 'CRITICAL' : 'ATTENTION'
 }
-
-const displayAlertSeverity = (row = {}) => row.code === 'WP_CRITICAL' ? 'WARNING' : (row.severity || 'WARNING')
 
 const durationText = (seconds) => {
   const value = Number(seconds)
@@ -303,7 +304,7 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
         <h4><SphereIcon name="target" /> {selected?.host ? shortHost(selected.host) : 'APP'}</h4>
         <small>{selected?.at ? `${formatWib(selected.at, true)} WIB` : 'Loading'}</small>
       </div>
-      {selectedRow && <InlineStatus value={displayHostState(selectedRow)} />}
+      {selectedRow && <InlineStatus value={hostResourceState(selectedRow)} />}
     </div>
 
     {loading && <div className="rundeckHistoryState">Loading workload…</div>}
@@ -341,6 +342,7 @@ export default function RundeckMonitoringHistory({
   incidentStart = '',
   latestCollectionId = '',
   latestCollectionAt = '',
+  onTrendContext,
 }) {
   const [range, setRange] = React.useState(DEFAULT_RANGE)
   const [bucket, setBucket] = React.useState('auto')
@@ -361,6 +363,16 @@ export default function RundeckMonitoringHistory({
     setRange(DEFAULT_RANGE)
     setBucket('auto')
   }, [])
+
+  React.useEffect(() => {
+    onTrendContext?.({
+      metric,
+      metricLabel: trend?.metric_label || metricLabel(metric),
+      range,
+      rangeLabel: rangeLabel(range),
+      mode,
+    })
+  }, [metric, mode, onTrendContext, range, trend?.metric_label])
 
   React.useEffect(() => {
     if (!databaseEnabled) return undefined
