@@ -44,10 +44,27 @@ def _dev_database_allowed() -> bool:
     return "/sphere_rundeck_dev" in database_url or "/sphere-rundeck-dev" in database_url
 
 
+def _error_summary(error: Exception) -> str:
+    """Return a concise single-line diagnostic without dumping SQL parameters."""
+    original = getattr(error, "orig", None)
+    target = original if isinstance(original, Exception) else error
+    text = str(target).strip()
+    if not text:
+        text = str(error).strip()
+    first_line = next((line.strip() for line in text.splitlines() if line.strip()), type(target).__name__)
+    return first_line[:800]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Backfill SPHERE top-consumer history from retained raw evidence")
     parser.add_argument("--days", type=int, default=90, help="READY collection lookback (default: 90)")
     parser.add_argument("--limit", type=int, default=0, help="optional maximum number of collections; 0 = all")
+    parser.add_argument(
+        "--collection",
+        action="append",
+        default=[],
+        help="optional exact collection id to process; may be repeated, e.g. --collection rundeck-521900",
+    )
     parser.add_argument("--apply", action="store_true", help="perform PostgreSQL upserts; without this flag only show the plan")
     args = parser.parse_args()
 
@@ -59,10 +76,14 @@ def main() -> int:
         print("REFUSED: DATABASE_URL is not the isolated Rundeck development database.", file=sys.stderr)
         return 41
 
+    requested = {str(value).strip() for value in args.collection if str(value).strip()}
     since = datetime.now(timezone.utc) - timedelta(days=args.days)
     candidates = []
     for row in collections(ROOT):
         if row.get("status") != "READY":
+            continue
+        collection_id = str(row.get("collection_id") or "")
+        if requested and collection_id not in requested:
             continue
         observed = _time(row.get("finished_at") or row.get("started_at"))
         if observed is None or observed < since:
@@ -83,7 +104,15 @@ def main() -> int:
     print(f"INGESTION_ROOT={ROOT}")
     print(f"LOOKBACK_DAYS={args.days}")
     print(f"PERSISTED_DEPTH=Top {TOP_CONSUMERS_PER_HOST} per APP")
+    if requested:
+        print(f"COLLECTION_FILTER={','.join(sorted(requested))}")
     print(f"CANDIDATE_COLLECTIONS={len(candidates)}")
+
+    if requested:
+        found = {str(row.get("collection_id") or "") for row, _, _ in candidates}
+        missing = sorted(requested - found)
+        if missing:
+            print(f"COLLECTION_FILTER_NOT_FOUND={','.join(missing)}")
 
     if not args.apply:
         print("NO DATABASE CHANGES MADE. Re-run with --apply after reviewing the candidate count.")
@@ -91,7 +120,7 @@ def main() -> int:
 
     completed = 0
     rows_written = 0
-    failures = 0
+    failure_details: list[tuple[str, str, str]] = []
     for index, (row, path, _) in enumerate(candidates, 1):
         collection_id = str(row.get("collection_id") or "")
         try:
@@ -100,13 +129,21 @@ def main() -> int:
             completed += 1
             print(f"[{index}/{len(candidates)}] {collection_id}: {written} consumer rows projected")
         except Exception as error:  # Keep the remaining evidence recoverable even if one file is malformed.
-            failures += 1
-            print(f"[{index}/{len(candidates)}] {collection_id}: FAILED {type(error).__name__}")
+            error_type = type(error).__name__
+            summary = _error_summary(error)
+            failure_details.append((collection_id, error_type, summary))
+            print(f"[{index}/{len(candidates)}] {collection_id}: FAILED {error_type}: {summary}")
 
     print(f"COMPLETED={completed}")
-    print(f"FAILED={failures}")
+    print(f"FAILED={len(failure_details)}")
     print(f"ROWS_PROJECTED={rows_written}")
-    return 1 if failures else 0
+    if failure_details:
+        print("FAILURE_DETAILS_BEGIN")
+        for collection_id, error_type, summary in failure_details:
+            print(f"{collection_id}\t{error_type}\t{summary}")
+        print("FAILURE_DETAILS_END")
+        print("RETRY_HINT=Use --collection <id> --apply to retry only a failed collection after fixing the cause.")
+    return 1 if failure_details else 0
 
 
 if __name__ == "__main__":
