@@ -9,8 +9,13 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from backend.rundeck_consumers import TOP_CONSUMERS_PER_HOST, persist_top_consumers
 from backend.rundeck_store import ROOT, collections
