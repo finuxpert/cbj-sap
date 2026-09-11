@@ -36,7 +36,15 @@ NGINX_BACKUP="$(mktemp /root/sphere-nginx-before-prod.XXXXXX)"
 cp -a "$NGINX_SITE" "$NGINX_BACKUP"
 
 cleanup() {
-  rm -f "$NGINX_BACKUP" /tmp/sphere-prod-rundeck-health.json /tmp/sphere-prod-root-health.json /tmp/sphere-prod-latest.json /tmp/sphere-prod-smoke.html /tmp/sphere-dev-smoke-after-prod.html
+  rm -f \
+    "$NGINX_BACKUP" \
+    /tmp/sphere-prod-rundeck-health.json \
+    /tmp/sphere-prod-root-health.json \
+    /tmp/sphere-prod-sap-health.json \
+    /tmp/sphere-prod-latest.json \
+    /tmp/sphere-prod-evaluation.json \
+    /tmp/sphere-prod-smoke.html \
+    /tmp/sphere-dev-smoke-after-prod.html
 }
 
 rollback() {
@@ -65,6 +73,36 @@ rollback() {
 
 trap rollback ERR
 trap cleanup EXIT
+
+smoke_fetch() {
+  local label=$1
+  local url=$2
+  local output=$3
+  local attempt
+  echo "SMOKE ${label}"
+  for attempt in 1 2 3; do
+    if curl --noproxy '*' -fsS --max-time 10 "$url" -o "$output"; then
+      return 0
+    fi
+    echo "SMOKE RETRY ${label} attempt=${attempt}" >&2
+    sleep 1
+  done
+  echo "SMOKE FAILED ${label}: ${url}" >&2
+  return 1
+}
+
+require_contains() {
+  local label=$1
+  local file=$2
+  local pattern=$3
+  if ! grep -q "$pattern" "$file"; then
+    echo "SMOKE FAILED ${label}: expected pattern ${pattern}" >&2
+    head -c 500 "$file" >&2 || true
+    echo >&2
+    return 1
+  fi
+  echo "SMOKE PASS ${label}"
+}
 
 # Build output must be production-root aware before activation.
 test -f "$SOURCE/dist/index.html"
@@ -151,24 +189,42 @@ for attempt in {1..20}; do
   fi
   sleep 1
 done
-test "$API_OK" = 1
+[[ "$API_OK" = 1 ]] || { echo "SMOKE FAILED local Rundeck API health" >&2; exit 1; }
+echo "SMOKE PASS local Rundeck API health"
 
 # Public smoke tests: legacy API via new /api fallback, Rundeck routes, root bundle,
-# existing /sap-api compatibility, and isolated /dev runtime.
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/api/health -o /tmp/sphere-prod-root-health.json
-grep -q 'case_history' /tmp/sphere-prod-root-health.json
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/sap-api/health | grep -q 'case_history'
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/api/collections/latest -o /tmp/sphere-prod-latest.json
-grep -q 'collection_id' /tmp/sphere-prod-latest.json
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/ -o /tmp/sphere-prod-smoke.html
-grep -q '/assets/' /tmp/sphere-prod-smoke.html
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/ -o /tmp/sphere-dev-smoke-after-prod.html
-grep -q '/dev/assets/' /tmp/sphere-dev-smoke-after-prod.html
+# existing /sap-api compatibility, and isolated /dev runtime. Each public request is
+# retried to avoid rolling production back on a one-off proxy/CDN/network transient.
+smoke_fetch "legacy /api/health" "https://sphere.astraotoparts.co.id/api/health" /tmp/sphere-prod-root-health.json
+require_contains "legacy /api/health" /tmp/sphere-prod-root-health.json 'case_history'
+
+smoke_fetch "legacy /sap-api/health" "https://sphere.astraotoparts.co.id/sap-api/health" /tmp/sphere-prod-sap-health.json
+require_contains "legacy /sap-api/health" /tmp/sphere-prod-sap-health.json 'case_history'
+
+smoke_fetch "Rundeck collections" "https://sphere.astraotoparts.co.id/api/collections/latest" /tmp/sphere-prod-latest.json
+require_contains "Rundeck collections" /tmp/sphere-prod-latest.json 'collection_id'
+
+smoke_fetch "Rundeck evaluation" "https://sphere.astraotoparts.co.id/api/evaluation/workloads?period=1d&type=ALL&limit=1" /tmp/sphere-prod-evaluation.json
+require_contains "Rundeck evaluation" /tmp/sphere-prod-evaluation.json '"items"'
+
+smoke_fetch "PROD web" "https://sphere.astraotoparts.co.id/" /tmp/sphere-prod-smoke.html
+require_contains "PROD web" /tmp/sphere-prod-smoke.html '/assets/'
+
+smoke_fetch "DEV web isolation" "https://sphere.astraotoparts.co.id/dev/" /tmp/sphere-dev-smoke-after-prod.html
+require_contains "DEV web isolation" /tmp/sphere-dev-smoke-after-prod.html '/dev/assets/'
 
 # Guardrails: legacy Evidence API and isolated dev release were not replaced.
-test "$(readlink -f /opt/sphere/current 2>/dev/null || true)" = "$LEGACY_API"
-test "$(readlink -f /opt/sphere-rundeck-dev/current 2>/dev/null || true)" = "$DEV_API"
-test "$(readlink -f /var/www/sphere-dev/current 2>/dev/null || true)" = "$DEV_WEB"
+echo "GUARD legacy API unchanged"
+[[ "$(readlink -f /opt/sphere/current 2>/dev/null || true)" = "$LEGACY_API" ]] || { echo "GUARD FAILED legacy API changed" >&2; exit 1; }
+echo "GUARD PASS legacy API unchanged"
+
+echo "GUARD DEV API unchanged"
+[[ "$(readlink -f /opt/sphere-rundeck-dev/current 2>/dev/null || true)" = "$DEV_API" ]] || { echo "GUARD FAILED DEV API changed" >&2; exit 1; }
+echo "GUARD PASS DEV API unchanged"
+
+echo "GUARD DEV web unchanged"
+[[ "$(readlink -f /var/www/sphere-dev/current 2>/dev/null || true)" = "$DEV_WEB" ]] || { echo "GUARD FAILED DEV web changed" >&2; exit 1; }
+echo "GUARD PASS DEV web unchanged"
 
 # Retain a bounded rollback window for production Rundeck API and web releases.
 KEEP=5
