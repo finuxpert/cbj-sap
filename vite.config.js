@@ -16,7 +16,7 @@ const appEnv = String(process.env.GITHUB_REF_NAME || gitValue('branch', '--show-
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/dev/',
+  base: '/',
   plugins: [react()],
   define: {
     'import.meta.env.VITE_GIT_SHA': JSON.stringify(gitSha),
