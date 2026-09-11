@@ -4,6 +4,7 @@ import { numberText, shortHost, workloadTypeLabel } from './sapUiFormat.js'
 import './RundeckCurrentWorkload.css'
 
 const API = `${import.meta.env.BASE_URL}api`
+const PROCESS_CPU_HINT = 'Process CPU can exceed 100% when a workload uses more than one CPU core or thread.'
 
 function jobContext(row) {
   if (!row?.consumer_key) return null
@@ -80,7 +81,7 @@ export default function RundeckCurrentWorkload({ collectionId = '', selectedJob 
 
     {!loading && !error && <div className="rundeckCurrentWorkloadTableWrap">
       <table>
-        <thead><tr><th>APP</th><th>Type</th><th>Workload</th><th>ABAP Program</th><th>WP</th><th>Process CPU</th><th>PSS</th></tr></thead>
+        <thead><tr><th>APP</th><th>Type</th><th>Workload</th><th>ABAP Program</th><th>WP</th><th title={PROCESS_CPU_HINT}>Process CPU</th><th>PSS</th></tr></thead>
         <tbody>
           {visible.map((row) => {
             const details = row.details || {}
@@ -94,7 +95,7 @@ export default function RundeckCurrentWorkload({ collectionId = '', selectedJob 
               <td><button type="button" onClick={() => context && onSelectJob?.(context)}>{row.consumer_key}</button></td>
               <td title={details.program || ''}>{details.program || '—'}</td>
               <td>{wpText(details)}</td>
-              <td className={Number.isFinite(cpu) && cpu >= 80 ? 'is-attention' : ''}>{numberText(row.cpu_pct)}%</td>
+              <td title={PROCESS_CPU_HINT} className={Number.isFinite(cpu) && cpu >= 80 ? 'is-attention' : ''}>{numberText(row.cpu_pct)}%</td>
               <td className={pss !== null && pss >= 2 ? 'is-attention' : ''}>{pss === null ? '—' : `${numberText(pss, 2)} GB`}</td>
             </tr>
           })}
