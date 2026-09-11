@@ -303,13 +303,20 @@
 
 .rundeckEvaluationAssessmentWrap {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
-.rundeckEvaluationAssessmentWrap .rundeckEvaluationConfidence {
-  min-width: 0;
-  opacity: .8;
+.rundeckEvaluationAssessmentWrap .rundeckEvaluationReason {
+  max-width: 210px;
+  overflow: hidden;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  font-weight: 680;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rundeckIncidentTable.is-lean .rundeckIncidentSignal details > summary {
