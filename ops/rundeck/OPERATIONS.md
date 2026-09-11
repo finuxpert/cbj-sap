@@ -20,6 +20,10 @@ new symlinks, performs API and browser smoke checks, and automatically restores 
 previous `/dev` symlinks and Nginx configuration when activation fails. Production
 symlinks and the production index hash are verified unchanged on every successful deploy.
 
+From v1.19.0 onward the deploy smoke gate also calls the 1-day Performance Evaluation
+endpoint. A SQL/schema/runtime error in evaluation therefore fails activation and restores
+the previous DEV release automatically.
+
 The release janitor retains `SPHERE_RELEASES_KEEP` revisions, default `5`, under both:
 
 - `/opt/sphere-rundeck-dev/releases`
@@ -56,6 +60,35 @@ in front of the mutating API route.
 Rundeck Collection Cycle. It must never assemble a landscape from independent per-host
 latest rows. If the latest manifest and the latest database projection differ, the UI
 withholds the operational host table until a complete aligned cycle is available.
+
+## Performance Evaluation
+
+The read-only endpoint is:
+
+```text
+/dev/api/evaluation/workloads?period=7d&type=ALL&limit=30
+```
+
+Supported periods:
+
+- `1d` — rolling 1-day window versus the preceding 1-day window
+- `7d` — rolling 7-day window versus the preceding 7-day window
+- `30d` — rolling 30-day window versus the preceding 30-day window
+
+Supported workload filters are `ALL`, `PROGRAM`, and `JOB`. Evaluation is deterministic
+and based on normalized Top Consumer observations. It is a performance-review signal,
+not a root-cause declaration.
+
+Review inputs include occurrence rate, average/peak Process CPU, average/peak PSS,
+Application Server distribution, Critical WP correlation, and average Process CPU change
+versus the previous equivalent period. Thresholds are configurable with the
+`SPHERE_EVAL_*` variables documented in `rundeck-dev.env.example`.
+
+Quick check:
+
+```bash
+curl -fsS 'https://sphere.astraotoparts.co.id/dev/api/evaluation/workloads?period=7d&type=ALL&limit=5'
+```
 
 ## Platform Health
 
@@ -117,6 +150,19 @@ Example:
 Platform Health reports `NOT_CONFIGURED` until a backup job owns this marker. The health
 endpoint does not perform backups itself.
 
+## Visual QA
+
+The default release gate remains dependency-locked and browser-free:
+
+```bash
+npm run qa
+```
+
+Optional Playwright visual checks are documented in `docs/VISUAL-QA.md`. They cover
+1920×1080 and 1366×768 dashboard layouts, the Evaluation section, and resolved SAP issue
+severity semantics. Playwright output is ignored by Git so it does not block the clean
+working-tree deploy guard.
+
 ## First checks during an incident
 
 ```bash
@@ -124,6 +170,7 @@ systemctl status sphere-rundeck-api.service sphere-rundeck-poller.timer sphere-r
 journalctl -u sphere-rundeck-api.service -u sphere-rundeck-poller.service -n 100 --no-pager
 curl -fsS https://sphere.astraotoparts.co.id/dev/api/health
 curl -fsS https://sphere.astraotoparts.co.id/dev/api/platform/health
+curl -fsS 'https://sphere.astraotoparts.co.id/dev/api/evaluation/workloads?period=1d&type=ALL&limit=5'
 ```
 
 Treat the PostgreSQL projection as query storage and the compressed Rundeck raw log as
