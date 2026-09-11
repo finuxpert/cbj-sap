@@ -42,7 +42,6 @@ export function overallOperationalState(hosts = [], options = {}) {
 
 export function statusExplanation(status, hosts = []) {
   const resourceStates = hosts.map(hostResourceState)
-  const workloadStates = hosts.map(sapWorkloadState)
   if (status === 'CRITICAL') {
     if (resourceStates.includes('CRITICAL')) return 'Critical host resource threshold detected.'
     return 'Critical SAP workload signal detected.'
