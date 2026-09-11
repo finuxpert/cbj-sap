@@ -190,8 +190,8 @@ def history_hosts_latest():
 
 @app.get("/history/trend")
 def history_trend(
-    range_key: str = Query("24h", alias="range", pattern="^(6h|24h|7d|30d|90d)$"),
-    bucket: str = Query("auto", pattern="^(auto|10m|1h|6h|1d)$"),
+    range_key: str = Query("24h", alias="range", pattern="^(30m|1h|3h|6h|24h|7d|30d|90d)$"),
+    bucket: str = Query("auto", pattern="^(auto|10m|30m|1h|6h|1d)$"),
     metric: str = Query("cpu", pattern="^(cpu|ram|load|iowait|swap|wp)$"),
 ):
     try:
