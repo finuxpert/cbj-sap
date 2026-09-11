@@ -1,9 +1,9 @@
-"""Deterministic daily/weekly/monthly SAP workload evaluation.
+"""Deterministic SAP workload evaluation for Basis and Infrastructure teams.
 
-SPHERE evaluates normalized PROGRAM and JOB observations. The result is a review
-signal for Basis/ABAP teams, not a root-cause declaration. Current-period metrics
-are compared with the immediately preceding period of equal length only when the
-historical baseline has enough complete telemetry to support that comparison.
+SPHERE evaluates normalized PROGRAM and JOB observations. Results are investigation
+signals, not root-cause declarations. v1.20 adds workload-specific historical
+baselines, anomaly context and recent performance-shift detection while preserving
+backward-compatible assessment fields used by existing clients.
 """
 from __future__ import annotations
 
@@ -28,6 +28,15 @@ WP_EXCESS_ASSOCIATION_PCT = float(os.getenv("SPHERE_EVAL_WP_EXCESS_ASSOCIATION_P
 MIN_BASELINE_OCCURRENCES = max(2, int(os.getenv("SPHERE_EVAL_MIN_BASELINE_OCCURRENCES", "5")))
 CONFIDENCE_MEDIUM_OCCURRENCES = max(2, int(os.getenv("SPHERE_EVAL_CONFIDENCE_MEDIUM_OCCURRENCES", "4")))
 CONFIDENCE_HIGH_OCCURRENCES = max(CONFIDENCE_MEDIUM_OCCURRENCES, int(os.getenv("SPHERE_EVAL_CONFIDENCE_HIGH_OCCURRENCES", "20")))
+HISTORICAL_BASELINE_DAYS = max(7, int(os.getenv("SPHERE_EVAL_BASELINE_DAYS", "30")))
+HISTORICAL_BASELINE_MIN_OBSERVATIONS = max(5, int(os.getenv("SPHERE_EVAL_BASELINE_MIN_OBSERVATIONS", "20")))
+BASELINE_DEVIATION_PCT = max(0.0, float(os.getenv("SPHERE_EVAL_BASELINE_DEVIATION_PCT", "25")))
+BASELINE_CPU_MIN_DELTA_PP = max(0.0, float(os.getenv("SPHERE_EVAL_BASELINE_CPU_MIN_DELTA_PP", "15")))
+BASELINE_PSS_MIN_DELTA_GB = max(0.0, float(os.getenv("SPHERE_EVAL_BASELINE_PSS_MIN_DELTA_GB", "0.5")))
+SHIFT_RECENT_HOURS = max(1, int(os.getenv("SPHERE_EVAL_SHIFT_RECENT_HOURS", "6")))
+SHIFT_MIN_OBSERVATIONS = max(2, int(os.getenv("SPHERE_EVAL_SHIFT_MIN_OBSERVATIONS", "3")))
+SHIFT_INCREASE_PCT = max(0.0, float(os.getenv("SPHERE_EVAL_SHIFT_INCREASE_PCT", "50")))
+SHIFT_CPU_MIN_DELTA_PP = max(0.0, float(os.getenv("SPHERE_EVAL_SHIFT_CPU_MIN_DELTA_PP", "20")))
 _CONFIDENCE_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
 
 
@@ -68,6 +77,41 @@ def _cap_confidence(value: str, period_confidence: str) -> str:
     return next((name for name, rank in _CONFIDENCE_RANK.items() if rank == target), "LOW")
 
 
+def _baseline_deviation(current: float | None, p95: float | None, *, min_delta: float) -> tuple[bool, float | None]:
+    if current is None or p95 is None or p95 <= 0:
+        return False, None
+    deviation_pct = round((current - p95) / p95 * 100.0, 1)
+    above = current - p95 >= min_delta and deviation_pct >= BASELINE_DEVIATION_PCT
+    return above, deviation_pct
+
+
+def _operational_status(
+    *,
+    sustained_high_cpu: bool,
+    high_memory: bool,
+    cpu_spike: bool,
+    increasing: bool,
+    recurring: bool,
+    enough_window_evidence: bool,
+    review_required: bool,
+) -> str:
+    if review_required:
+        return "REVIEW REQUIRED"
+    if sustained_high_cpu:
+        return "HIGH CPU"
+    if high_memory:
+        return "HIGH MEMORY"
+    if cpu_spike:
+        return "CPU SPIKE"
+    if increasing:
+        return "INCREASING CPU"
+    if recurring:
+        return "RECURRING"
+    if not enough_window_evidence:
+        return "INSUFFICIENT DATA"
+    return "NORMAL"
+
+
 def assess_workload(
     current: dict,
     previous: dict | None,
@@ -77,7 +121,7 @@ def assess_workload(
     period_confidence: str = "HIGH",
     previous_period_confidence: str = "HIGH",
 ) -> dict:
-    """Return deterministic review classification and explicitly separated confidence signals."""
+    """Return deterministic review classification and separated confidence signals."""
     previous = previous or {}
     occurrences = int(current.get("occurrences") or 0)
     host_observations = int(current.get("host_observations") or occurrences)
@@ -86,6 +130,11 @@ def assess_workload(
     peak_cpu = _number(current.get("peak_cpu_pct"))
     avg_pss = _number(current.get("avg_pss_gb"))
     app_wp_baseline = _number(current.get("app_wp_baseline_pct"))
+    baseline = current.get("historical_baseline") or {}
+    baseline_observations = int(baseline.get("observations") or 0)
+    baseline_cpu_p95 = _number(baseline.get("cpu_p95_pct"))
+    baseline_pss_p95 = _number(baseline.get("pss_p95_gb"))
+    baseline_ready = baseline_observations >= HISTORICAL_BASELINE_MIN_OBSERVATIONS
 
     observation_confidence = _observation_confidence(occurrences)
     overall_confidence = _cap_confidence(observation_confidence, period_confidence)
@@ -95,15 +144,49 @@ def assess_workload(
     wp_rate = round(wp_host_checks / host_observations * 100.0, 1) if host_observations else 0.0
     wp_excess = round(wp_rate - app_wp_baseline, 1) if app_wp_baseline is not None else None
 
-    high_resource = (
-        (avg_cpu is not None and avg_cpu >= CPU_HIGH_AVG)
-        or (peak_cpu is not None and peak_cpu >= CPU_HIGH_PEAK)
-        or (avg_pss is not None and avg_pss >= PSS_HIGH_GB)
+    cpu_above_baseline, cpu_baseline_deviation_pct = _baseline_deviation(
+        avg_cpu,
+        baseline_cpu_p95 if baseline_ready else None,
+        min_delta=BASELINE_CPU_MIN_DELTA_PP,
     )
-    increasing = baseline_eligible and change is not None and change >= INCREASE_PCT
+    pss_above_baseline, pss_baseline_deviation_pct = _baseline_deviation(
+        avg_pss,
+        baseline_pss_p95 if baseline_ready else None,
+        min_delta=BASELINE_PSS_MIN_DELTA_GB,
+    )
+
+    shift_previous = _number(current.get("shift_previous_avg_cpu_pct"))
+    shift_recent = _number(current.get("shift_recent_avg_cpu_pct"))
+    shift_previous_count = int(current.get("shift_previous_observations") or 0)
+    shift_recent_count = int(current.get("shift_recent_observations") or 0)
+    shift_change = _change_pct(shift_recent, shift_previous)
+    performance_shift = bool(
+        shift_change is not None
+        and shift_previous_count >= SHIFT_MIN_OBSERVATIONS
+        and shift_recent_count >= SHIFT_MIN_OBSERVATIONS
+        and shift_recent is not None
+        and shift_previous is not None
+        and shift_recent - shift_previous >= SHIFT_CPU_MIN_DELTA_PP
+        and shift_change >= SHIFT_INCREASE_PCT
+    )
+
+    sustained_high_cpu = bool((avg_cpu is not None and avg_cpu >= CPU_HIGH_AVG) or cpu_above_baseline)
+    high_memory = bool((avg_pss is not None and avg_pss >= PSS_HIGH_GB) or pss_above_baseline)
+    cpu_spike = bool(
+        peak_cpu is not None
+        and peak_cpu >= CPU_HIGH_PEAK
+        and not sustained_high_cpu
+        and (
+            avg_cpu is None
+            or peak_cpu - avg_cpu >= 40
+            or (avg_cpu > 0 and peak_cpu >= avg_cpu * 1.75)
+        )
+    )
+    high_resource = sustained_high_cpu or high_memory or cpu_spike
+    increasing = bool((baseline_eligible and change is not None and change >= INCREASE_PCT) or performance_shift)
     recurring_signal = occurrences >= 3 and recurring_rate >= RECURRING_PCT
     wp_overlap_signal = host_observations >= 2 and wp_rate >= WP_CORRELATION_PCT
-    wp_excess_signal = (
+    wp_excess_signal = bool(
         wp_overlap_signal
         and wp_excess is not None
         and wp_excess >= WP_EXCESS_ASSOCIATION_PCT
@@ -111,51 +194,94 @@ def assess_workload(
     enough_window_evidence = overall_confidence in {"MEDIUM", "HIGH"}
     recurring = recurring_signal and enough_window_evidence
     wp_associated = wp_excess_signal and enough_window_evidence
+    baseline_anomaly = baseline_ready and (cpu_above_baseline or pss_above_baseline)
+    review_required = bool(
+        enough_window_evidence
+        and (sustained_high_cpu or high_memory)
+        and (increasing or wp_associated or baseline_anomaly)
+    )
 
-    if high_resource and enough_window_evidence and (increasing or wp_associated):
+    # Backward-compatible assessment values are intentionally preserved.
+    if review_required:
         assessment = "NEEDS REVIEW"
-        if increasing and wp_associated:
-            reason = "High resource usage is combined with a supported trend increase and WP signal exposure above the APP baseline."
-        elif increasing:
-            reason = "High resource usage is combined with a supported trend increase versus the previous equivalent period."
-        else:
-            reason = "High resource usage is combined with WP signal exposure materially above the APP baseline for the same observation window."
     elif high_resource:
         assessment = "HIGH RESOURCE"
-        reason = "Average/peak Process CPU or average PSS crossed the review threshold; observation and period confidence are reported separately."
     elif increasing:
         assessment = "INCREASING"
-        reason = "Average Process CPU increased materially versus a sufficiently covered previous equivalent period."
     elif recurring:
         assessment = "RECURRING"
-        reason = "The workload repeatedly appears across a material share of complete collection cycles with sufficient period coverage."
     elif not enough_window_evidence:
         assessment = "LIMITED DATA"
-        reason = "Observation count or requested-period coverage is not yet sufficient for a stronger historical classification."
     else:
         assessment = "STABLE"
-        reason = "No high-resource, supported material increase, recurring, or excess WP-association threshold is currently met."
+
+    status = _operational_status(
+        sustained_high_cpu=sustained_high_cpu,
+        high_memory=high_memory,
+        cpu_spike=cpu_spike,
+        increasing=increasing,
+        recurring=recurring,
+        enough_window_evidence=enough_window_evidence,
+        review_required=review_required,
+    )
+
+    reason_parts: list[str] = []
+    if sustained_high_cpu:
+        reason_parts.append("CPU usage is sustained above the review range" if not cpu_above_baseline else "CPU usage is above the workload historical baseline")
+    if high_memory:
+        reason_parts.append("memory usage is above the review range" if not pss_above_baseline else "memory usage is above the workload historical baseline")
+    if cpu_spike:
+        reason_parts.append("a CPU spike was observed without sustained high average CPU")
+    if performance_shift:
+        reason_parts.append("recent CPU usage is materially higher than the preceding six-hour window")
+    elif baseline_eligible and change is not None and change >= INCREASE_PCT:
+        reason_parts.append("CPU usage increased versus the previous equivalent period")
+    if wp_associated:
+        reason_parts.append("Critical WP overlap is materially above the APP baseline")
+    if recurring and not (sustained_high_cpu or high_memory):
+        reason_parts.append("the workload is repeatedly observed across collection checks")
+    if not enough_window_evidence:
+        reason_parts.append("data coverage is not yet sufficient for a stronger historical conclusion")
+    reason = "; ".join(reason_parts) + "." if reason_parts else "No review threshold is currently met."
+
+    baseline_status = "READY" if baseline_ready else ("BUILDING" if baseline_observations else "NOT_READY")
+    anomaly_status = "ABOVE BASELINE" if baseline_anomaly else ("NORMAL RANGE" if baseline_ready else "NO BASELINE")
 
     return {
         "assessment": assessment,
+        "status": status,
         "assessment_reason": reason,
         "observation_confidence": observation_confidence,
         "period_confidence": period_confidence,
         "overall_confidence": overall_confidence,
-        # Backward-compatible field used by older UI clients.
         "evidence_confidence": overall_confidence,
         "trend_confidence": trend_confidence,
         "trend_baseline_status": "READY" if baseline_eligible else "NOT_READY",
         "baseline_available": bool(baseline_eligible),
+        "baseline_status": baseline_status,
+        "anomaly_status": anomaly_status,
         "avg_cpu_change_pct": change,
+        "recent_cpu_shift_pct": shift_change,
         "recurring_rate_pct": recurring_rate,
         "wp_signal_overlap_pct": wp_rate,
         "app_wp_baseline_pct": _round(app_wp_baseline),
         "wp_excess_association_pct": wp_excess,
-        # Backward-compatible field name for existing API consumers.
         "critical_wp_correlation_pct": wp_rate,
+        "cpu_baseline_deviation_pct": cpu_baseline_deviation_pct,
+        "pss_baseline_deviation_pct": pss_baseline_deviation_pct,
+        "resource_pattern": (
+            "SUSTAINED_HIGH_CPU" if sustained_high_cpu else
+            "HIGH_MEMORY" if high_memory else
+            "CPU_SPIKE" if cpu_spike else
+            "NORMAL"
+        ),
         "signals": {
             "high_resource": high_resource,
+            "sustained_high_cpu": sustained_high_cpu,
+            "high_memory": high_memory,
+            "cpu_spike": cpu_spike,
+            "baseline_anomaly": baseline_anomaly,
+            "performance_shift": performance_shift,
             "increasing": increasing,
             "recurring": recurring,
             "recurring_signal": recurring_signal,
@@ -232,6 +358,75 @@ def _aggregate_window(conn, start: datetime, end: datetime, consumer_type: str) 
             ON hs.collection_id = tc.collection_id AND hs.host = tc.host
           LEFT JOIN host_baseline hb ON hb.host = tc.host
          WHERE tc.collected_at >= :start
+           AND tc.collected_at < :end
+           AND tc.consumer_type IN ('JOB', 'PROGRAM')
+           {type_clause}
+         GROUP BY tc.consumer_type, tc.consumer_key
+    """), params)
+    return [dict(row._mapping) for row in rows]
+
+
+def _historical_baseline(conn, end: datetime, consumer_type: str) -> list[dict]:
+    start = end - timedelta(days=HISTORICAL_BASELINE_DAYS)
+    type_clause = "AND tc.consumer_type = :consumer_type" if consumer_type in {"JOB", "PROGRAM"} else ""
+    params: dict[str, Any] = {"start": start, "end": end}
+    if type_clause:
+        params["consumer_type"] = consumer_type
+    rows = conn.execute(text(f"""
+        WITH complete_collections AS (
+          SELECT collection_id
+            FROM rundeck_collections c
+           WHERE {_complete_collection_clause('c')}
+             AND COALESCE(c.finished_at, c.started_at) >= :start
+             AND COALESCE(c.finished_at, c.started_at) < :end
+        )
+        SELECT tc.consumer_type,
+               tc.consumer_key,
+               COUNT(*) AS observations,
+               COUNT(DISTINCT tc.collection_id) AS collection_checks,
+               percentile_cont(0.5) WITHIN GROUP (ORDER BY tc.cpu_pct) AS cpu_median_pct,
+               percentile_cont(0.95) WITHIN GROUP (ORDER BY tc.cpu_pct) AS cpu_p95_pct,
+               percentile_cont(0.5) WITHIN GROUP (
+                 ORDER BY NULLIF(COALESCE(tc.details->>'total_pss_gb', tc.details->>'pss_gb'), '')::double precision
+               ) AS pss_median_gb,
+               percentile_cont(0.95) WITHIN GROUP (
+                 ORDER BY NULLIF(COALESCE(tc.details->>'total_pss_gb', tc.details->>'pss_gb'), '')::double precision
+               ) AS pss_p95_gb,
+               MIN(tc.collected_at) AS first_seen,
+               MAX(tc.collected_at) AS last_seen
+          FROM rundeck_top_consumers tc
+          JOIN complete_collections cc ON cc.collection_id = tc.collection_id
+         WHERE tc.collected_at >= :start
+           AND tc.collected_at < :end
+           AND tc.consumer_type IN ('JOB', 'PROGRAM')
+           {type_clause}
+         GROUP BY tc.consumer_type, tc.consumer_key
+    """), params)
+    return [dict(row._mapping) for row in rows]
+
+
+def _recent_shift_window(conn, end: datetime, consumer_type: str) -> list[dict]:
+    recent_start = end - timedelta(hours=SHIFT_RECENT_HOURS)
+    previous_start = recent_start - timedelta(hours=SHIFT_RECENT_HOURS)
+    type_clause = "AND tc.consumer_type = :consumer_type" if consumer_type in {"JOB", "PROGRAM"} else ""
+    params: dict[str, Any] = {
+        "previous_start": previous_start,
+        "recent_start": recent_start,
+        "end": end,
+    }
+    if type_clause:
+        params["consumer_type"] = consumer_type
+    rows = conn.execute(text(f"""
+        SELECT tc.consumer_type,
+               tc.consumer_key,
+               AVG(tc.cpu_pct) FILTER (WHERE tc.collected_at >= :previous_start AND tc.collected_at < :recent_start) AS previous_avg_cpu_pct,
+               COUNT(*) FILTER (WHERE tc.collected_at >= :previous_start AND tc.collected_at < :recent_start) AS previous_observations,
+               AVG(tc.cpu_pct) FILTER (WHERE tc.collected_at >= :recent_start AND tc.collected_at < :end) AS recent_avg_cpu_pct,
+               COUNT(*) FILTER (WHERE tc.collected_at >= :recent_start AND tc.collected_at < :end) AS recent_observations
+          FROM rundeck_top_consumers tc
+          JOIN rundeck_collections c ON c.collection_id = tc.collection_id
+         WHERE {_complete_collection_clause('c')}
+           AND tc.collected_at >= :previous_start
            AND tc.collected_at < :end
            AND tc.consumer_type IN ('JOB', 'PROGRAM')
            {type_clause}
@@ -320,7 +515,7 @@ def _sampling_quality(conn, start: datetime, end: datetime) -> dict:
         "observed_rank_depth": int(row.get("observed_rank_depth") or 0),
         "resource_aggregation_coverage_pct": round(aggregate_observations / observations * 100.0, 1) if observations else 0.0,
         "seen_definition": "Observed in persisted top-consumer collection cycles; not an execution counter.",
-        "wp_overlap_basis": "WP overlap is measured on the same APP and collection cycle; excess association subtracts the APP's own WP-active baseline for the requested window.",
+        "wp_overlap_basis": "Critical WP overlap is measured on the same SAP App Server and collection check. Excess overlap subtracts the App Server WP-active baseline.",
         "direct_wp_match_available": False,
     }
 
@@ -357,18 +552,23 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
         previous_quality = _collection_quality(conn, previous_start, start)
         current_rows = _aggregate_window(conn, start, end, type_key)
         previous_rows = _aggregate_window(conn, previous_start, start, type_key)
+        historical_rows = _historical_baseline(conn, start, type_key)
+        shift_rows = _recent_shift_window(conn, end, type_key)
         sampling = _sampling_quality(conn, start, end)
 
     current_checks = int(current_quality["complete_checks"])
     previous_checks = int(previous_quality["complete_checks"])
-    previous_map = {
-        (str(row.get("consumer_type")), str(row.get("consumer_key"))): row
-        for row in previous_rows
-    }
-    priority = {"NEEDS REVIEW": 6, "HIGH RESOURCE": 5, "INCREASING": 4, "RECURRING": 3, "LIMITED DATA": 2, "STABLE": 1}
+    previous_map = {(str(row.get("consumer_type")), str(row.get("consumer_key"))): row for row in previous_rows}
+    historical_map = {(str(row.get("consumer_type")), str(row.get("consumer_key"))): row for row in historical_rows}
+    shift_map = {(str(row.get("consumer_type")), str(row.get("consumer_key"))): row for row in shift_rows}
+    priority = {"NEEDS REVIEW": 7, "HIGH RESOURCE": 6, "INCREASING": 5, "RECURRING": 4, "LIMITED DATA": 2, "STABLE": 1}
     evaluated: list[dict] = []
+
     for row in current_rows:
-        previous = previous_map.get((str(row.get("consumer_type")), str(row.get("consumer_key"))))
+        key = (str(row.get("consumer_type")), str(row.get("consumer_key")))
+        previous = previous_map.get(key)
+        baseline = historical_map.get(key) or {}
+        shift = shift_map.get(key) or {}
         observations = int(row.get("observations") or 0)
         aggregate_resource_observations = int(row.get("aggregate_resource_observations") or 0)
         previous_occurrences = int(previous.get("occurrences") or 0) if previous else 0
@@ -379,6 +579,17 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
         )
         avg_cpu = _round(row.get("avg_cpu_pct"))
         peak_cpu = _round(row.get("peak_cpu_pct"))
+        baseline_normalized = {
+            "days": HISTORICAL_BASELINE_DAYS,
+            "observations": int(baseline.get("observations") or 0),
+            "collection_checks": int(baseline.get("collection_checks") or 0),
+            "cpu_median_pct": _round(baseline.get("cpu_median_pct")),
+            "cpu_p95_pct": _round(baseline.get("cpu_p95_pct")),
+            "pss_median_gb": _round(baseline.get("pss_median_gb"), 2),
+            "pss_p95_gb": _round(baseline.get("pss_p95_gb"), 2),
+            "first_seen": baseline.get("first_seen"),
+            "last_seen": baseline.get("last_seen"),
+        }
         normalized = {
             **row,
             "occurrences": int(row.get("occurrences") or 0),
@@ -402,6 +613,12 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
             "avg_host_cpu_pct": _round(row.get("avg_host_cpu_pct")),
             "peak_host_cpu_pct": _round(row.get("peak_host_cpu_pct")),
             "app_wp_baseline_pct": _round(row.get("app_wp_baseline_pct")),
+            "historical_baseline": baseline_normalized,
+            "shift_previous_avg_cpu_pct": _round(shift.get("previous_avg_cpu_pct")),
+            "shift_previous_observations": int(shift.get("previous_observations") or 0),
+            "shift_recent_avg_cpu_pct": _round(shift.get("recent_avg_cpu_pct")),
+            "shift_recent_observations": int(shift.get("recent_observations") or 0),
+            "shift_window_hours": SHIFT_RECENT_HOURS,
             "previous": {
                 "occurrences": previous_occurrences,
                 "avg_cpu_pct": _round(previous.get("avg_cpu_pct")) if previous else None,
@@ -421,6 +638,8 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
 
     evaluated.sort(key=lambda item: (
         priority.get(item["assessment"], 0),
+        1 if item.get("status") == "REVIEW REQUIRED" else 0,
+        1 if item.get("signals", {}).get("baseline_anomaly") else 0,
         _CONFIDENCE_RANK.get(item.get("overall_confidence"), 0),
         _CONFIDENCE_RANK.get(item.get("observation_confidence"), 0),
         item.get("wp_excess_association_pct") or 0,
@@ -434,7 +653,13 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
         "programs": sum(1 for item in evaluated if item.get("consumer_type") == "PROGRAM"),
         "jobs": sum(1 for item in evaluated if item.get("consumer_type") == "JOB"),
         "needs_review": sum(1 for item in evaluated if item["assessment"] == "NEEDS REVIEW"),
+        "review_required": sum(1 for item in evaluated if item.get("status") == "REVIEW REQUIRED"),
         "high_resource": sum(1 for item in evaluated if item.get("signals", {}).get("high_resource")),
+        "sustained_high_cpu": sum(1 for item in evaluated if item.get("signals", {}).get("sustained_high_cpu")),
+        "high_memory": sum(1 for item in evaluated if item.get("signals", {}).get("high_memory")),
+        "cpu_spike": sum(1 for item in evaluated if item.get("signals", {}).get("cpu_spike")),
+        "baseline_anomaly": sum(1 for item in evaluated if item.get("signals", {}).get("baseline_anomaly")),
+        "performance_shift": sum(1 for item in evaluated if item.get("signals", {}).get("performance_shift")),
         "increasing": sum(1 for item in evaluated if item.get("signals", {}).get("increasing")),
         "recurring": sum(1 for item in evaluated if item.get("signals", {}).get("recurring")),
         "limited_data": sum(1 for item in evaluated if item["assessment"] == "LIMITED DATA"),
@@ -456,6 +681,19 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
         "quality": current_quality,
         "previous_quality": previous_quality,
         "sampling": sampling,
+        "baseline": {
+            "days": HISTORICAL_BASELINE_DAYS,
+            "min_observations": HISTORICAL_BASELINE_MIN_OBSERVATIONS,
+            "cpu_deviation_pct": BASELINE_DEVIATION_PCT,
+            "cpu_min_delta_pp": BASELINE_CPU_MIN_DELTA_PP,
+            "pss_min_delta_gb": BASELINE_PSS_MIN_DELTA_GB,
+        },
+        "shift_detection": {
+            "recent_hours": SHIFT_RECENT_HOURS,
+            "min_observations_each_window": SHIFT_MIN_OBSERVATIONS,
+            "increase_pct": SHIFT_INCREASE_PCT,
+            "cpu_min_delta_pp": SHIFT_CPU_MIN_DELTA_PP,
+        },
         "thresholds": {
             "avg_cpu_high_pct": CPU_HIGH_AVG,
             "peak_cpu_high_pct": CPU_HIGH_PEAK,
@@ -470,5 +708,5 @@ def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int
         },
         "summary": summary,
         "items": items,
-        "method": "Deterministic historical comparison using complete collections only; WP association is normalized against APP baseline; review signal, not root-cause proof.",
+        "method": "Deterministic complete-collection evaluation with workload-specific median and P95 baseline, recent CPU shift detection and App Server normalized Critical WP overlap. Investigation signal only; not root-cause proof.",
     }
