@@ -91,7 +91,7 @@ export default function RundeckCurrentWorkload({ collectionId = '', selectedJob 
 
     {!loading && !error && <div className="rundeckCurrentWorkloadTableWrap">
       <table>
-        <thead><tr><th>APP</th><th>Workload</th><th>Type</th><th title={CPU_HINT}>CPU Usage</th><th>PSS Memory</th><th>Processes</th><th>WP</th></tr></thead>
+        <thead><tr><th>APP</th><th>Workload</th><th title={CPU_HINT}>CPU Usage</th><th>PSS Memory</th><th>Processes</th><th>WP</th></tr></thead>
         <tbody>
           {visible.map((row) => {
             const details = row.details || {}
@@ -101,20 +101,20 @@ export default function RundeckCurrentWorkload({ collectionId = '', selectedJob 
             const cpu = Number(row.cpu_pct)
             const program = programText(row)
             const processes = processCount(details)
+            const type = workloadTypeLabel(row.consumer_type)
             return <tr key={`${row.collection_id}-${row.host}-${row.consumer_type}-${row.consumer_key}`} className={active ? 'is-selected' : ''}>
               <td title={row.host}>{shortHost(row.host)}</td>
               <td className="rundeckCurrentWorkloadName">
                 <button type="button" onClick={() => context && onSelectJob?.(context)}>{row.consumer_key}</button>
-                {program && <small title={program}>{program}</small>}
+                <small title={program || type}>{[type, program].filter(Boolean).join(' · ')}</small>
               </td>
-              <td>{workloadTypeLabel(row.consumer_type)}</td>
               <td title={CPU_HINT} className={Number.isFinite(cpu) && cpu >= 80 ? 'is-attention' : ''}>{numberText(row.cpu_pct)}%</td>
               <td className={pss !== null && pss >= 2 ? 'is-attention' : ''}>{pss === null ? '—' : `${numberText(pss, 2)} GB`}</td>
               <td>{numberText(processes, 0)}</td>
               <td>{wpText(details)}</td>
             </tr>
           })}
-          {!rows.length && <tr><td colSpan="7">No current workload stored for this run.</td></tr>}
+          {!rows.length && <tr><td colSpan="6">No current workload stored for this run.</td></tr>}
         </tbody>
       </table>
     </div>}
