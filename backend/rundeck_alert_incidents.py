@@ -47,7 +47,7 @@ SIGNALS = {
     },
     "WP_CRITICAL": {
         "field": "wp_critical",
-        "label": "Critical WP",
+        "label": "Critical WP Count",
         "unit": "",
         "warning": WP_WARNING,
         "critical": WP_CRITICAL,
@@ -72,13 +72,13 @@ def _evidence_key(row: dict, code: str | None = None) -> tuple[str, str, str]:
     )
 
 
-def _severity(code: str, peak_value: float | int | None) -> str:
-    # Critical WP is a signal name, not a CRITICAL incident by itself. Resource
-    # incidents retain their own threshold-derived severity.
+def _severity(code: str, value: float | int | None) -> str:
     if code == "WP_CRITICAL":
-        return "WARNING"
+        if value is not None and float(value) >= float(SIGNALS[code]["critical"]):
+            return "CRITICAL"
+        return "ATTENTION"
     critical = SIGNALS[code]["critical"]
-    if peak_value is not None and float(peak_value) >= float(critical):
+    if value is not None and float(value) >= float(critical):
         return "CRITICAL"
     return "WARNING"
 
@@ -88,7 +88,11 @@ def _finalize(incident: dict) -> dict:
     last_seen = _utc(incident["last_seen"])
     incident["id"] = _incident_id(incident["host"], incident["code"], first_seen)
     incident["duration_seconds"] = max(0, int((last_seen - first_seen).total_seconds()))
-    incident["severity"] = _severity(incident["code"], incident.get("peak_value"))
+    active_severity = _severity(incident["code"], incident.get("latest_value"))
+    incident["current_severity"] = "CLEARED" if incident.get("state") == "RESOLVED" else active_severity
+    incident["peak_severity"] = _severity(incident["code"], incident.get("peak_value"))
+    # Backward compatibility: severity reflects the current lifecycle state.
+    incident["severity"] = incident["current_severity"]
     incident["evidence_count"] = len(incident.get("evidence") or [])
     return incident
 
@@ -211,10 +215,12 @@ def build_incidents(
             or _utc(item.get("resolved_at") or item["last_seen"]) >= visible_since
         ]
 
+    severity_rank = {"CLEARED": 0, "ATTENTION": 1, "WARNING": 2, "CRITICAL": 3}
     incidents.sort(
         key=lambda item: (
             0 if item["state"] == "ACTIVE" else 1,
-            0 if item["severity"] == "CRITICAL" else 1,
+            -severity_rank.get(item.get("current_severity"), 0),
+            -severity_rank.get(item.get("peak_severity"), 0),
             -_utc(item.get("resolved_at") or item["last_seen"]).timestamp(),
             item["host"],
             item["code"],

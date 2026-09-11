@@ -29,8 +29,6 @@ from backend.rundeck_monitoring import (
 
 INCIDENT_LOOKBACK_HOURS = max(1, int(os.getenv("SPHERE_INCIDENT_LOOKBACK_HOURS", "24")))
 INCIDENT_GAP_MINUTES = max(5, int(os.getenv("SPHERE_INCIDENT_GAP_MINUTES", "22")))
-WP_ONLY_CRITICAL_COUNT = max(1, int(os.getenv("SPHERE_WP_ONLY_CRITICAL_COUNT", "8")))
-WP_ONLY_CRITICAL_SAMPLES = max(2, int(os.getenv("SPHERE_WP_ONLY_CRITICAL_SAMPLES", "6")))
 
 _SIGNAL_DEFS = (
     {
@@ -75,7 +73,7 @@ _SIGNAL_DEFS = (
     },
 )
 _SIGNAL_BY_CODE = {item["code"]: item for item in _SIGNAL_DEFS}
-_SEVERITY = {"NORMAL": 0, "WARNING": 1, "CRITICAL": 2}
+_SEVERITY = {"NORMAL": 0, "ATTENTION": 1, "WARNING": 2, "CRITICAL": 3}
 
 
 def _number(value: Any) -> float | None:
@@ -90,16 +88,18 @@ def _number(value: Any) -> float | None:
 def active_signals(metric: dict) -> list[dict]:
     """Return threshold signals currently active for one normalized host metric.
 
-    A signal can be called CRITICAL because it crossed that signal's threshold. That
-    does not automatically make the whole SAP incident CRITICAL; incident severity is
-    assessed separately after persistence and host-resource evidence are available.
+    Host resource signals use WARNING/CRITICAL. Critical WP is a SAP workload
+    signal and therefore uses ATTENTION below its critical count threshold.
     """
     signals: list[dict] = []
     for definition in _SIGNAL_DEFS:
         value = _number(metric.get(definition["key"]))
         if value is None or value < definition["warning"]:
             continue
-        severity = "CRITICAL" if value >= definition["critical"] else "WARNING"
+        if definition["code"] == "WP_CRITICAL":
+            severity = "CRITICAL" if value >= definition["critical"] else "ATTENTION"
+        else:
+            severity = "CRITICAL" if value >= definition["critical"] else "WARNING"
         threshold = definition["critical"] if severity == "CRITICAL" else definition["warning"]
         signals.append({
             "code": definition["code"],
@@ -164,12 +164,11 @@ def continuous_incident_samples(
 
 
 def incident_severity(signal: dict, current_signals: list[dict], incident_samples: list[dict]) -> tuple[str, str, str]:
-    """Return incident severity, confidence and a short deterministic reason.
+    """Return operational severity, confidence and a deterministic explanation.
 
-    Critical WP is an SAP signal name/count, not by itself proof of a critical host
-    incident. Resource critical thresholds remain decisive. A WP-only incident is
-    promoted to CRITICAL only when an intentionally high count persists for multiple
-    collection cycles; defaults are conservative and environment-configurable.
+    Resource pressure and SAP workload signals are separate domains. Critical WP
+    1-2 is ATTENTION; Critical WP at or above the configured critical threshold
+    is CRITICAL. This is an operational signal, not a root-cause declaration.
     """
     resource_signals = [item for item in current_signals if item.get("host_resource")]
     critical_resources = [item for item in resource_signals if item.get("severity") == "CRITICAL"]
@@ -180,22 +179,24 @@ def incident_severity(signal: dict, current_signals: list[dict], incident_sample
     if signal.get("code") == "WP_CRITICAL":
         current_wp = _number(signal.get("value")) or 0.0
         persistent = len(incident_samples) >= 3
-        extreme_persistent = current_wp >= WP_ONLY_CRITICAL_COUNT and len(incident_samples) >= WP_ONLY_CRITICAL_SAMPLES
-        if extreme_persistent:
-            return "CRITICAL", "HIGH", (
-                f"Critical WP count {int(current_wp)} persisted for {len(incident_samples)} checks."
+        if current_wp >= float(WP_CRITICAL):
+            confidence = "HIGH" if persistent else "MEDIUM"
+            return "CRITICAL", confidence, (
+                f"Critical WP count {int(current_wp)} reached the configured critical threshold; host resource health is assessed separately."
             )
-        if persistent:
-            return "WARNING", "HIGH", (
-                f"Critical WP signal persisted for {len(incident_samples)} checks while host resources remain below critical thresholds."
-            )
-        return "WARNING", "MEDIUM", "Critical WP signal detected without critical host resource pressure."
+        confidence = "HIGH" if persistent else "MEDIUM"
+        reason = (
+            f"Critical WP signal persisted for {len(incident_samples)} checks while host resources remain below warning thresholds."
+            if persistent
+            else "Critical WP signal detected while host resources remain below warning thresholds."
+        )
+        return "ATTENTION", confidence, reason
 
     if signal.get("severity") == "CRITICAL":
         return "CRITICAL", "HIGH", f"{signal.get('label', 'Host resource')} crossed its critical threshold."
     if resource_signals:
         return "WARNING", "HIGH" if len(incident_samples) >= 3 else "MEDIUM", "Host resource warning threshold is active."
-    return "WARNING", "MEDIUM", "SAP performance signal is active."
+    return "ATTENTION", "MEDIUM", "SAP workload signal is active."
 
 
 def _current_workload(conn, host: str, collection_id: str | None) -> dict | None:
@@ -317,6 +318,9 @@ def performance_incident_summary() -> dict:
         affected_servers.append({
             "host": metric["host"],
             "health": metric.get("health"),
+            "resource_health": metric.get("resource_health"),
+            "sap_workload_state": metric.get("sap_workload_state"),
+            "operational_state": metric.get("operational_state"),
             "signals": signals,
         })
         signal = signals[0]
@@ -384,13 +388,13 @@ def performance_incident_summary() -> dict:
     )
 
     if signal["code"] == "WP_CRITICAL" and not host_resource_pressure:
-        assessment = "Persistent Critical WP activity is the primary RCA path; current host resources remain below configured pressure thresholds."
+        assessment = "Critical WP activity is the primary investigation path; current host resources remain below configured pressure thresholds."
     elif host_resource_pressure and persistent_workload:
         assessment = "Host resource pressure is present. Correlate the affected server with current and recurring SAP workload evidence before assigning root cause."
     elif host_resource_pressure:
         assessment = "Host resource pressure is present, but no normalized SAP workload candidate is available for the active signal window."
     else:
-        assessment = "An SAP performance signal is active. Use workload correlation as RCA evidence, not proof of root cause."
+        assessment = "An SAP performance signal is active. Use workload correlation as investigation evidence, not proof of root cause."
 
     return {
         **base,
@@ -417,6 +421,9 @@ def performance_incident_summary() -> dict:
             "io_wait_pct": current_metric.get("io_wait_pct"),
             "swap_pct": current_metric.get("swap_pct"),
             "wp_critical": current_metric.get("wp_critical"),
+            "resource_health": current_metric.get("resource_health"),
+            "sap_workload_state": current_metric.get("sap_workload_state"),
+            "operational_state": current_metric.get("operational_state"),
         },
         "current_workload": current_workload,
         "persistent_workload": persistent_workload,

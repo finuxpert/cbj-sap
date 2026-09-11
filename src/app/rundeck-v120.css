@@ -1,0 +1,365 @@
+/* SPHERE v1.20 analysis-first operational polish */
+
+.appShell:has(.rundeckPanel) {
+  --sphere-review: #d8b35f;
+  --sphere-high: #d89a5f;
+  --sphere-recurring: #5dcbd1;
+  --sphere-neutral: #8a979e;
+}
+
+/* Primary Issue */
+.rundeckIncidentEyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: var(--sphere-font-micro, 8.5px);
+  font-weight: 800;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentHeader h3 {
+  margin: 0;
+  font-size: clamp(13px, .76vw, 14px);
+  line-height: 1.35;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentComparison {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentFacts {
+  grid-template-columns: repeat(3, minmax(90px, max-content));
+}
+
+/* Current workload table */
+.rundeckCurrentWorkloadName button {
+  display: block;
+}
+
+.rundeckCurrentWorkloadName small {
+  display: block;
+  max-width: 340px;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Selected workload */
+.rundeckJobTimeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 18px;
+  margin: 10px 0 13px;
+  padding: 7px 10px;
+  border-left: 2px solid rgba(216, 179, 95, .6);
+  background: rgba(216, 179, 95, .035);
+  color: var(--sphere-text-secondary, #a7b3b9);
+  font-size: var(--sphere-font-body, 9.6px);
+}
+
+.rundeckJobTimeline > strong {
+  color: var(--sphere-warning, #d8b35f);
+  font-size: var(--sphere-font-micro, 8.5px);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckJobTimeline span {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.rundeckJobTimeline span b {
+  color: var(--sphere-text-muted, #718089);
+  font-size: var(--sphere-font-micro, 8.5px);
+  text-transform: uppercase;
+}
+
+.rundeckJobTimeline em {
+  color: var(--sphere-text, #e7edf0);
+  font-style: normal;
+  font-weight: 680;
+}
+
+/* SAP Issues: current state is primary, peak is historical context. */
+.rundeckSapIssues {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.rundeckIncidentTable td.rundeckIncidentCurrent .rundeckInlineStatus {
+  font-weight: 850;
+}
+
+.rundeckIncidentTable td.rundeckIncidentPeak {
+  opacity: .72;
+}
+
+.rundeckIncidentTable .rundeckIncidentState .rundeckInlineStatus {
+  opacity: .78;
+}
+
+/* Evaluation semantic colors. Red is reserved for CRITICAL elsewhere. */
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment {
+  border-color: currentColor !important;
+  background: transparent !important;
+  color: var(--sphere-text-secondary, #a7b3b9) !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-review-required {
+  color: var(--sphere-review, #d8b35f) !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-high-cpu,
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-high-memory {
+  color: var(--sphere-high, #d89a5f) !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-cpu-spike,
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-increasing-cpu {
+  color: var(--sphere-warning, #d8b35f) !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-recurring {
+  color: var(--sphere-recurring, #5dcbd1) !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-insufficient-data {
+  color: var(--sphere-neutral, #8a979e) !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment.is-normal {
+  color: var(--sphere-positive, #75cfa5) !important;
+}
+
+.rundeckEvaluationConfidence {
+  display: inline-flex;
+  min-width: 42px;
+  font-size: var(--sphere-font-micro, 8.5px);
+  font-weight: 800;
+  letter-spacing: .025em;
+}
+
+.rundeckEvaluationConfidence.is-high { color: var(--sphere-positive, #75cfa5); }
+.rundeckEvaluationConfidence.is-medium { color: var(--sphere-warning, #d8b35f); }
+.rundeckEvaluationConfidence.is-low { color: var(--sphere-text-muted, #718089); }
+
+.rundeckEvaluationTable.is-v120 .rundeckEvaluationWorkload small {
+  display: block;
+  margin-top: 2px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.6px;
+}
+
+.rundeckEvaluationTable.is-v120 th,
+.rundeckEvaluationTable.is-v120 td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.rundeckEvaluationTable.is-v120 td.is-association {
+  color: var(--sphere-attention, #6aa2d8);
+  font-weight: 760;
+}
+
+/* PDF preview. The generated blob is the same artifact used by download/open. */
+.rundeckPdfPreviewBackdrop {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(3, 8, 11, .84);
+  backdrop-filter: blur(5px);
+}
+
+.rundeckPdfPreview {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(1180px, 96vw);
+  height: min(820px, 92vh);
+  border: 1px solid rgba(113, 128, 137, .28);
+  border-radius: 3px;
+  background: #111a20;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .45);
+  overflow: hidden;
+}
+
+.rundeckPdfPreview header,
+.rundeckPdfPreview footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-color: rgba(113, 128, 137, .17);
+}
+
+.rundeckPdfPreview header {
+  border-bottom: 1px solid rgba(113, 128, 137, .17);
+}
+
+.rundeckPdfPreview footer {
+  justify-content: flex-end;
+  border-top: 1px solid rgba(113, 128, 137, .17);
+}
+
+.rundeckPdfPreview header div {
+  min-width: 0;
+}
+
+.rundeckPdfPreview header span {
+  display: block;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.rundeckPdfPreview header strong {
+  display: block;
+  max-width: 70vw;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rundeckPdfPreview iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #e9ecef;
+}
+
+.rundeckPdfPreview button,
+.rundeckPdfPreview a {
+  min-height: 28px;
+  padding: 5px 9px;
+  border: 1px solid rgba(113, 128, 137, .3);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--sphere-text-secondary, #a7b3b9);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 720;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rundeckPdfPreview a.is-primary {
+  border-color: var(--sphere-accent, #4fc6c8);
+  color: var(--sphere-accent, #4fc6c8);
+}
+
+.rundeckPdfPreview button:hover,
+.rundeckPdfPreview button:focus-visible,
+.rundeckPdfPreview a:hover,
+.rundeckPdfPreview a:focus-visible {
+  background: rgba(79, 198, 200, .07);
+  color: var(--sphere-text, #e7edf0);
+  outline: none;
+}
+
+/* v1.20.1 lean triage: one fact once, supporting detail stays available on demand. */
+.rundeckLandscapeMeta span:nth-child(n+2) {
+  display: none;
+}
+
+.rundeckServerTable th:nth-child(3),
+.rundeckServerTable td:nth-child(3) {
+  display: none;
+}
+
+.rundeckIncident.is-lean .rundeckIncidentWorkloadBlock {
+  max-width: 700px;
+  margin-top: 10px;
+}
+
+.rundeckIncident.is-lean .rundeckIncidentHostContext {
+  margin-top: 10px;
+}
+
+.rundeckIncident.is-lean .rundeckIncidentSapState {
+  display: none;
+}
+
+.rundeckEvaluationQuality.is-lean {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rundeckEvaluationSummary.is-lean {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rundeckEvaluationAssessmentWrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.rundeckEvaluationAssessmentWrap .rundeckEvaluationReason {
+  max-width: 210px;
+  overflow: hidden;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  font-weight: 680;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rundeckIncidentTable.is-lean .rundeckIncidentSignal details > summary {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.rundeckIncidentEvidenceMeta {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto minmax(100px, 1fr);
+  gap: 4px 8px;
+  padding: 6px 0;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8px;
+}
+
+.rundeckIncidentEvidenceMeta b {
+  color: var(--sphere-text-secondary, #a7b3b9);
+  font-weight: 700;
+}
+
+@container (max-width: 760px) {
+  .appShell:has(.rundeckPanel) .rundeckIncidentComparison {
+    grid-template-columns: 1fr;
+  }
+
+  .rundeckEvaluationQuality.is-lean,
+  .rundeckEvaluationSummary.is-lean {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .rundeckPdfPreviewBackdrop {
+    padding: 8px;
+  }
+
+  .rundeckPdfPreview {
+    width: 100%;
+    height: 96vh;
+  }
+
+  .rundeckPdfPreview footer {
+    flex-wrap: wrap;
+  }
+}

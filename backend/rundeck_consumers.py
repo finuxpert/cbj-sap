@@ -1,11 +1,14 @@
-"""Normalize RCA-WP-V2.2 rows into 90-day Top Consumer history.
+"""Normalize RCA-WP-V2.2 rows into retained Top Consumer history.
 
 The browser parser remains authoritative for interactive LOG analysis. This module stores a
-small server-side projection needed for historical ranking and point-in-time correlation.
+server-side projection used for historical ranking and point-in-time correlation. Historical
+coverage is intentionally broader than the UI's current-workload list so evaluation is less
+biased toward only the hottest few consumers.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -16,6 +19,7 @@ from sqlalchemy import text
 from backend.db.session import db_enabled, get_engine
 
 UNKNOWN = {"", "?", "NA", "N/A", "-"}
+TOP_CONSUMERS_PER_HOST = max(10, min(100, int(os.getenv("SPHERE_TOP_CONSUMERS_PER_HOST", "30"))))
 
 
 def _clean(value: Any) -> str:
@@ -84,7 +88,12 @@ def _wp_rows(raw_text: str) -> list[dict[str, str]]:
     return output
 
 
-def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_per_host: int = 10) -> list[dict]:
+def parse_top_consumers(
+    raw: bytes,
+    fallback_time: datetime | None = None,
+    top_per_host: int | None = None,
+) -> list[dict]:
+    top_per_host = TOP_CONSUMERS_PER_HOST if top_per_host is None else max(1, int(top_per_host))
     raw_text = raw.decode("utf-8-sig", errors="strict")
     snapshots: dict[str, dict[str, str]] = {}
     for snapshot in _kv_blocks(raw_text):
@@ -127,6 +136,10 @@ def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_p
 
         cpu = _number(row.get("cpu_interval_pct"))
         ram = _number(row.get("pmem_pct"))
+        pss = _number(row.get("pss_gb"))
+        rss = _number(row.get("rss_gb"))
+        read = _number(row.get("read_mib_s"))
+        write = _number(row.get("write_mib_s"))
         key = (host, collected_at, consumer_type, consumer_key)
         current = groups.setdefault(key, {
             "host": host,
@@ -135,6 +148,10 @@ def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_p
             "consumer_key": consumer_key,
             "cpu_values": [],
             "ram_values": [],
+            "pss_values": [],
+            "rss_values": [],
+            "read_values": [],
+            "write_values": [],
             "programs": set(),
             "wps": set(),
             "users": set(),
@@ -146,6 +163,14 @@ def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_p
             current["cpu_values"].append(cpu)
         if ram is not None:
             current["ram_values"].append(ram)
+        if pss is not None:
+            current["pss_values"].append(pss)
+        if rss is not None:
+            current["rss_values"].append(rss)
+        if read is not None:
+            current["read_values"].append(read)
+        if write is not None:
+            current["write_values"].append(write)
         if program:
             current["programs"].add(program)
         if wp:
@@ -166,6 +191,10 @@ def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_p
     for group in groups.values():
         cpu_pct = sum(group["cpu_values"]) if group["cpu_values"] else None
         ram_pct = sum(group["ram_values"]) if group["ram_values"] else None
+        total_pss = sum(group["pss_values"]) if group["pss_values"] else None
+        total_rss = sum(group["rss_values"]) if group["rss_values"] else None
+        total_read = sum(group["read_values"]) if group["read_values"] else None
+        total_write = sum(group["write_values"]) if group["write_values"] else None
         representative = group["representative"]
         details = {
             "job_name": _clean(representative.get("job_name")),
@@ -180,10 +209,20 @@ def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_p
             ),
             "pid": _clean(representative.get("pid")),
             "state": _clean(representative.get("state")),
-            "pss_gb": _number(representative.get("pss_gb")),
-            "rss_gb": _number(representative.get("rss_gb")),
-            "read_mib_s": _number(representative.get("read_mib_s")),
-            "write_mib_s": _number(representative.get("write_mib_s")),
+            # Compatibility fields now represent the aggregate consumer footprint.
+            "pss_gb": total_pss,
+            "rss_gb": total_rss,
+            "read_mib_s": total_read,
+            "write_mib_s": total_write,
+            "total_pss_gb": total_pss,
+            "total_rss_gb": total_rss,
+            "total_read_mib_s": total_read,
+            "total_write_mib_s": total_write,
+            "representative_pss_gb": _number(representative.get("pss_gb")),
+            "representative_rss_gb": _number(representative.get("rss_gb")),
+            "representative_read_mib_s": _number(representative.get("read_mib_s")),
+            "representative_write_mib_s": _number(representative.get("write_mib_s")),
+            "resource_aggregation": "SUM_BY_CONSUMER",
             "cpu_class": _clean(representative.get("cpu_class")),
             "snapshot_id": _clean(representative.get("snapshot_id")),
             "process_count": len(group["pids"]) or 1,
@@ -212,6 +251,7 @@ def parse_top_consumers(raw: bytes, fallback_time: datetime | None = None, top_p
             reverse=True,
         )
         for rank, item in enumerate(rows[:top_per_host], 1):
+            item["details"]["persisted_rank_limit"] = top_per_host
             ranked.append({**item, "rank": rank})
     return ranked
 
@@ -222,7 +262,7 @@ def persist_top_consumers(collection_id: str, raw: bytes, fallback_time: datetim
     engine = get_engine()
     if engine is None:
         return 0
-    rows = parse_top_consumers(raw, fallback_time)
+    rows = parse_top_consumers(raw, fallback_time, TOP_CONSUMERS_PER_HOST)
     with engine.begin() as conn:
         for row in rows:
             conn.execute(text("""

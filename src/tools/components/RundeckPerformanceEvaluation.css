@@ -1,0 +1,338 @@
+.rundeckEvaluation {
+  container-type: inline-size;
+  margin-top: var(--sphere-space-5, 16px);
+  padding-top: var(--sphere-space-4, 12px);
+  border-top: 1px solid var(--sphere-border-subtle, rgba(113, 128, 137, .13));
+}
+
+.rundeckEvaluationHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sphere-space-4, 12px);
+}
+
+.rundeckEvaluationHead > div:first-child {
+  min-width: 0;
+  max-width: 820px;
+}
+
+.rundeckEvaluationHead > div:first-child > span {
+  display: block;
+  color: var(--sphere-text-muted, #718089);
+  font-size: var(--sphere-font-micro, 8.5px);
+  font-weight: 800;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.rundeckEvaluationHead h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--sphere-space-1, 4px);
+  margin: 2px 0 0;
+  color: var(--sphere-text, #e7edf0);
+  font-size: clamp(13px, .85vw, 15px);
+  font-weight: 790;
+}
+
+.rundeckEvaluationHead h3 .sphereIcon {
+  color: var(--sphere-accent, #4fc6c8);
+}
+
+.rundeckEvaluationHead p {
+  margin: var(--sphere-space-1, 4px) 0 0;
+  color: var(--sphere-text-muted, #718089);
+  font-size: clamp(8.8px, .55vw, 10px);
+  line-height: 1.45;
+}
+
+.rundeckEvaluationControls {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sphere-space-2, 6px);
+}
+
+.rundeckEvaluationSegmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rundeckEvaluationSegmented button {
+  min-height: 25px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--sphere-text-muted, #718089);
+  font: inherit;
+  font-size: clamp(8.5px, .52vw, 9.5px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 140ms ease, background-color 140ms ease, transform 110ms ease;
+}
+
+.rundeckEvaluationSegmented button:hover,
+.rundeckEvaluationSegmented button:focus-visible {
+  background: rgba(79, 198, 200, .055);
+  color: var(--sphere-text, #e7edf0);
+  outline: none;
+}
+
+.rundeckEvaluationSegmented button.is-active {
+  background: rgba(79, 198, 200, .095);
+  color: var(--sphere-accent, #4fc6c8);
+}
+
+.rundeckEvaluationSegmented button:active {
+  transform: translateY(1px);
+}
+
+.rundeckEvaluationQuality {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 15px;
+  margin-top: var(--sphere-space-3, 8px);
+  padding: 5px 7px;
+  border-top: 1px solid rgba(113, 128, 137, .09);
+  border-bottom: 1px solid rgba(113, 128, 137, .09);
+  background: rgba(20, 29, 35, .18);
+}
+
+.rundeckEvaluationQualityItem {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  font-size: var(--sphere-font-micro, 8.5px);
+}
+
+.rundeckEvaluationQualityItem b {
+  color: var(--sphere-text-muted, #718089);
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.rundeckEvaluationQualityItem strong {
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-weight: 780;
+}
+
+.rundeckEvaluationQualityItem strong.is-low { color: var(--sphere-warning, #d8b35f); }
+.rundeckEvaluationQualityItem strong.is-medium { color: var(--sphere-attention, #6aa2d8); }
+.rundeckEvaluationQualityItem strong.is-high { color: var(--sphere-positive, #75cfa5); }
+
+.rundeckEvaluationSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sphere-space-2, 6px);
+  margin-top: var(--sphere-space-3, 8px);
+}
+
+.rundeckEvaluationSummary > div {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid rgba(113, 128, 137, .10);
+  border-radius: 6px;
+  background: rgba(20, 29, 35, .42);
+}
+
+.rundeckEvaluationSummary span,
+.rundeckEvaluationSummary small {
+  display: block;
+  color: var(--sphere-text-muted, #718089);
+  font-size: var(--sphere-font-micro, 8.5px);
+}
+
+.rundeckEvaluationSummary span {
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.rundeckEvaluationSummary strong {
+  display: block;
+  margin: 2px 0 1px;
+  color: var(--sphere-text, #e7edf0);
+  font-size: clamp(15px, 1vw, 18px);
+  font-weight: 800;
+}
+
+.rundeckEvaluationTableWrap {
+  overflow: auto;
+  max-height: 360px;
+  margin-top: var(--sphere-space-3, 8px);
+}
+
+.rundeckEvaluationTable {
+  width: 100%;
+  min-width: 1160px;
+  border-collapse: collapse;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: clamp(9px, .55vw, 10px);
+}
+
+.rundeckEvaluationTable th,
+.rundeckEvaluationTable td {
+  padding: 6px 7px;
+  border-bottom: 1px solid rgba(113, 128, 137, .075);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.rundeckEvaluationTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sphere-page, #0f151a);
+  color: var(--sphere-text-muted, #718089);
+  font-size: clamp(8px, .5vw, 9px);
+  font-weight: 760;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.rundeckEvaluationTable th[title] {
+  text-decoration: underline dotted rgba(113, 128, 137, .35);
+  text-underline-offset: 2px;
+}
+
+.rundeckEvaluationTable tbody tr {
+  transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.rundeckEvaluationTable tbody tr:hover {
+  background: rgba(79, 198, 200, .035);
+}
+
+.rundeckEvaluationTable tbody tr.is-selected {
+  background: rgba(79, 198, 200, .07);
+  box-shadow: inset 2px 0 0 var(--sphere-accent, #4fc6c8);
+}
+
+.rundeckEvaluationWorkload {
+  max-width: 360px;
+}
+
+.rundeckEvaluationWorkload button {
+  max-width: 340px;
+  overflow: hidden;
+  padding: 0 0 1px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--sphere-text, #e7edf0);
+  font: inherit;
+  font-weight: 720;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rundeckEvaluationWorkload button:hover,
+.rundeckEvaluationWorkload button:focus-visible {
+  border-bottom-color: var(--sphere-accent, #4fc6c8);
+  color: var(--sphere-accent, #4fc6c8);
+  outline: none;
+}
+
+.rundeckEvaluationAssessmentWrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.rundeckEvaluationAssessmentWrap > small {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  font-weight: 680;
+  line-height: 1.25;
+  text-transform: none;
+}
+
+.rundeckEvaluationReason {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rundeckEvaluationAssessment {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 7.9px;
+  font-weight: 820;
+}
+
+.rundeckEvaluationAssessment.is-stable { color: var(--sphere-positive, #75cfa5); }
+.rundeckEvaluationAssessment.is-recurring { color: var(--sphere-attention, #69a8d5); }
+.rundeckEvaluationAssessment.is-increasing { color: var(--sphere-warning, #d8b35f); }
+.rundeckEvaluationAssessment.is-limited-data { color: var(--sphere-text-muted, #718089); }
+.rundeckEvaluationAssessment.is-high-resource,
+.rundeckEvaluationAssessment.is-needs-review { color: var(--sphere-danger, #db7d86); }
+
+.rundeckEvaluationTable .is-rise { color: var(--sphere-warning, #d8b35f); }
+.rundeckEvaluationTable .is-fall { color: var(--sphere-positive, #75cfa5); }
+.rundeckEvaluationTable .is-no-baseline {
+  color: var(--sphere-text-muted, #718089);
+  font-size: .92em;
+  letter-spacing: .02em;
+}
+
+.rundeckEvaluationFoot {
+  margin-top: var(--sphere-space-2, 6px);
+  color: var(--sphere-text-muted, #718089);
+  font-size: var(--sphere-font-micro, 8.5px);
+  line-height: 1.45;
+}
+
+.rundeckEvaluationState,
+.rundeckEvaluationEmpty {
+  padding: var(--sphere-space-3, 8px) 0;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: clamp(9px, .55vw, 10px);
+}
+
+.rundeckEvaluationState.is-error {
+  color: var(--sphere-danger, #db7d86);
+}
+
+@container (max-width: 900px) {
+  .rundeckEvaluationHead {
+    flex-direction: column;
+  }
+
+  .rundeckEvaluationControls {
+    justify-content: flex-start;
+  }
+
+  .rundeckEvaluationQuality {
+    align-items: flex-start;
+  }
+
+  .rundeckEvaluationSummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 560px) {
+  .rundeckEvaluationQuality {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rundeckEvaluationSummary {
+    grid-template-columns: 1fr;
+  }
+}

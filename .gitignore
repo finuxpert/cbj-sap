@@ -16,6 +16,8 @@ dist-ssr
 backups/
 .devlog/
 sample-data-logs/
+test-results/
+playwright-report/
 
 # Secrets / private operator notes
 .env
@@ -46,12 +48,6 @@ __pycache__/
 *.pyc
 .venv-db/
 runtime-status/
-
-# Local GitHub Actions/backend virtualenv
-.venv-github-actions/
-
-# Local GitHub Actions/backend virtualenv
-.venv-github-actions/
 
 # Local GitHub Actions/backend virtualenv
 .venv-github-actions/

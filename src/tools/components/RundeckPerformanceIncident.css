@@ -1,19 +1,21 @@
 .rundeckIncident {
-  padding: 7px 0 6px;
+  container-type: inline-size;
+  padding: var(--sphere-space-4, 12px) 0 var(--sphere-space-3, 8px);
 }
 
 .rundeckIncidentHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--sphere-space-3, 8px);
 }
 
 .rundeckIncidentHeader h3 {
   margin: 0;
   color: var(--sphere-text, #e7edf0);
-  font-size: 15px;
-  font-weight: 780;
+  font-size: clamp(14px, .9vw, 15.5px);
+  font-weight: 790;
+  line-height: 1.3;
   letter-spacing: -.01em;
 }
 
@@ -22,8 +24,11 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  margin-top: 3px;
+  gap: var(--sphere-space-1, 4px) var(--sphere-space-4, 12px);
+}
+
+.rundeckIncidentMeta {
+  margin-top: var(--sphere-space-2, 6px);
 }
 
 .rundeckIncidentMeta > span,
@@ -32,14 +37,14 @@
   align-items: baseline;
   gap: 5px;
   color: var(--sphere-text-secondary, #a9b5bb);
-  font-size: 9.3px;
+  font-size: var(--sphere-font-body, 9.7px);
   white-space: nowrap;
 }
 
 .rundeckIncidentMeta b,
 .rundeckIncidentHostContext b {
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.8px;
+  font-size: var(--sphere-font-micro, 8.5px);
   font-weight: 750;
   letter-spacing: .02em;
   text-transform: uppercase;
@@ -47,21 +52,28 @@
 
 .rundeckIncidentComparison {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
-  gap: 18px;
-  max-width: 1040px;
-  margin-top: 7px;
-  padding: 3px 0 2px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  gap: clamp(14px, 1.5vw, 24px);
+  max-width: 980px;
+  margin-top: var(--sphere-space-3, 8px);
+  padding: var(--sphere-space-2, 6px) 0 var(--sphere-space-1, 4px);
 }
 
 .rundeckIncidentWorkloadBlock {
   min-width: 0;
+  padding-left: var(--sphere-space-3, 8px);
+  border-left: 1px solid var(--sphere-border-subtle, rgba(113, 128, 137, .13));
+}
+
+.rundeckIncidentWorkloadBlock.is-current {
+  border-left-width: 2px;
+  border-left-color: var(--sphere-accent, #4fc6c8);
 }
 
 .rundeckIncidentWorkloadLead > span {
   display: block;
   color: var(--sphere-accent, #4fc6c8);
-  font-size: 7.8px;
+  font-size: var(--sphere-font-micro, 8.5px);
   font-weight: 800;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -74,11 +86,12 @@
 .rundeckIncidentWorkloadLead strong,
 .rundeckIncidentJobButton {
   display: block;
-  margin-top: 2px;
+  margin-top: 3px;
   overflow-wrap: anywhere;
   color: var(--sphere-text, #e7edf0);
-  font-size: 12.5px;
+  font-size: clamp(12px, .72vw, 13px);
   font-weight: 780;
+  line-height: 1.35;
 }
 
 .rundeckIncidentJobButton {
@@ -94,6 +107,18 @@
   transition: color 140ms ease, border-color 140ms ease;
 }
 
+.rundeckIncidentJobButton::after {
+  content: '↓';
+  display: inline-block;
+  margin-left: 6px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: .82em;
+  font-weight: 700;
+  opacity: .5;
+  transform: translateY(-1px);
+  transition: color 140ms ease, opacity 140ms ease, transform 140ms ease;
+}
+
 .rundeckIncidentJobButton:hover,
 .rundeckIncidentJobButton:focus-visible,
 .rundeckIncidentJobButton.is-selected {
@@ -102,18 +127,25 @@
   outline: none;
 }
 
+.rundeckIncidentJobButton:hover::after,
+.rundeckIncidentJobButton:focus-visible::after {
+  color: var(--sphere-accent, #4fc6c8);
+  opacity: 1;
+  transform: translateY(1px);
+}
+
 .rundeckIncidentWorkloadLead small {
   display: block;
-  margin-top: 2px;
+  margin-top: 3px;
   color: var(--sphere-text-muted, #718089);
-  font-size: 8.8px;
+  font-size: var(--sphere-font-body, 9.5px);
 }
 
 .rundeckIncidentFacts {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  margin: 4px 0 0;
+  gap: var(--sphere-space-1, 4px) var(--sphere-space-5, 16px);
+  margin: var(--sphere-space-2, 6px) 0 0;
 }
 
 .rundeckIncidentFacts div {
@@ -122,16 +154,16 @@
 
 .rundeckIncidentFacts dt {
   color: var(--sphere-text-muted, #718089);
-  font-size: 7.6px;
+  font-size: var(--sphere-font-micro, 8.5px);
   font-weight: 700;
   text-transform: uppercase;
 }
 
 .rundeckIncidentFacts dd {
-  margin: 1px 0 0;
+  margin: 2px 0 0;
   overflow-wrap: anywhere;
   color: var(--sphere-text, #e7edf0);
-  font-size: 9.2px;
+  font-size: var(--sphere-font-body, 9.7px);
   font-weight: 650;
 }
 
@@ -140,23 +172,43 @@
 }
 
 .rundeckIncidentHostContext {
-  margin-top: 5px;
-  padding-top: 2px;
+  max-width: 980px;
+  margin-top: var(--sphere-space-3, 8px);
+  padding-top: var(--sphere-space-1, 4px);
 }
 
-@media (max-width: 980px) {
-  .rundeckIncidentComparison {
-    grid-template-columns: 1fr;
-    gap: 8px;
+@supports (grid-template-columns: subgrid) {
+  .rundeckIncidentFacts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(76px, max-content));
+    column-gap: var(--sphere-space-5, 16px);
   }
 }
 
-@media (max-width: 720px) {
-  .rundeckIncidentHeader h3 {
-    font-size: 14px;
+@container (max-width: 840px) {
+  .rundeckIncidentComparison {
+    grid-template-columns: 1fr;
+    gap: var(--sphere-space-3, 8px);
+  }
+
+  .rundeckIncidentWorkloadBlock.is-persistent {
+    margin-top: var(--sphere-space-1, 4px);
+  }
+}
+
+@container (max-width: 560px) {
+  .rundeckIncidentHeader {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .rundeckIncidentFacts {
     gap: 5px 12px;
+  }
+
+  @supports (grid-template-columns: subgrid) {
+    .rundeckIncidentFacts {
+      grid-template-columns: repeat(2, minmax(76px, 1fr));
+    }
   }
 }

@@ -1,4 +1,4 @@
-"""Operational health snapshot for the isolated SPHERE Rundeck development stack."""
+"""Operational health snapshot for the isolated SPHERE Rundeck runtime."""
 from __future__ import annotations
 
 import json
@@ -96,6 +96,37 @@ def _release_state(root: Path, current: Path) -> dict:
         "retain": RELEASES_KEEP,
         "current_revision": current_revision,
     }
+
+
+def _runtime_release_paths() -> tuple[Path, Path, Path, Path]:
+    backend_releases_env = os.getenv("SPHERE_BACKEND_RELEASES_ROOT", "").strip()
+    backend_current_env = os.getenv("SPHERE_BACKEND_CURRENT", "").strip()
+    web_releases_env = os.getenv("SPHERE_WEB_RELEASES_ROOT", "").strip()
+    web_current_env = os.getenv("SPHERE_WEB_CURRENT", "").strip()
+
+    if backend_releases_env and backend_current_env and web_releases_env and web_current_env:
+        return (
+            Path(backend_releases_env),
+            Path(backend_current_env),
+            Path(web_releases_env),
+            Path(web_current_env),
+        )
+
+    runtime = str(Path.cwd().resolve())
+    if "sphere-rundeck-prod" in runtime:
+        return (
+            Path("/opt/sphere-rundeck-prod/releases"),
+            Path("/opt/sphere-rundeck-prod/current"),
+            Path("/var/www/sphere.astraotoparts.co.id/releases"),
+            Path("/var/www/sphere.astraotoparts.co.id/current"),
+        )
+
+    return (
+        Path("/opt/sphere-rundeck-dev/releases"),
+        Path("/opt/sphere-rundeck-dev/current"),
+        Path("/var/www/sphere-dev/releases"),
+        Path("/var/www/sphere-dev/current"),
+    )
 
 
 def _database_stats() -> dict:
@@ -221,8 +252,9 @@ def platform_health(root: Path) -> dict:
     maintenance = _maintenance_state(root)
     backup = _backup_state(root)
     database = _database_stats()
-    backend_releases = _release_state(Path("/opt/sphere-rundeck-dev/releases"), Path("/opt/sphere-rundeck-dev/current"))
-    web_releases = _release_state(Path("/var/www/sphere-dev/releases"), Path("/var/www/sphere-dev/current"))
+    backend_releases_root, backend_current, web_releases_root, web_current = _runtime_release_paths()
+    backend_releases = _release_state(backend_releases_root, backend_current)
+    web_releases = _release_state(web_releases_root, web_current)
 
     states = [
         filesystem.get("status"),
