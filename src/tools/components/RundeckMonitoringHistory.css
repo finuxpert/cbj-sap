@@ -276,6 +276,7 @@
 
 .rundeckInlineStatus.is-normal,
 .rundeckInlineStatus.is-ready { color: var(--sphere-positive, #75cfa5); }
+.rundeckInlineStatus.is-attention { color: var(--sphere-attention, #63b7c8); }
 .rundeckInlineStatus.is-warning,
 .rundeckInlineStatus.is-partial { color: var(--sphere-warning, #d8b35f); }
 .rundeckInlineStatus.is-critical,
