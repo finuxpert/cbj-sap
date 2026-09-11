@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from backend.rundeck_alert_incidents import build_incidents
 from backend.rundeck_credentials import credential_mode, read_credential
+from backend.rundeck_evaluation import assess_workload
 from backend.rundeck_host_projection import parse_host_projection
 from backend.rundeck_incident import continuous_incident_samples, incident_severity, primary_signal
 from backend.rundeck_poller import execution_matches
@@ -121,7 +122,7 @@ class IngestionTests(unittest.TestCase):
         }
         self.assertEqual(mutating, {('/collect-now', 'POST')})
 
-    def test_job_history_routes_are_read_only(self):
+    def test_history_and_evaluation_routes_are_read_only(self):
         from backend.rundeck_api import app
 
         methods_by_path = {
@@ -132,6 +133,7 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual(methods_by_path['/history/job'], {'GET'})
         self.assertEqual(methods_by_path['/history/jobs/current'], {'GET'})
         self.assertEqual(methods_by_path['/history/incidents'], {'GET'})
+        self.assertEqual(methods_by_path['/evaluation/workloads'], {'GET'})
 
     def test_job_identity_does_not_depend_on_uuid(self):
         group = 'SAP/AOP'
@@ -285,8 +287,9 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual(incident['last_seen'].minute, 0)
         self.assertEqual(incident['resolved_at'].minute, 20)
         self.assertEqual(incident['resolution_reason'], 'HEALTHY_CHECKS')
-        self.assertEqual(incident['current_severity'], 'ATTENTION')
+        self.assertEqual(incident['current_severity'], 'CLEARED')
         self.assertEqual(incident['peak_severity'], 'ATTENTION')
+        self.assertEqual(incident['severity'], 'CLEARED')
 
     def test_alert_incident_gap_separates_observation_episodes(self):
         incidents = [
@@ -300,6 +303,7 @@ class IngestionTests(unittest.TestCase):
         old = next(item for item in incidents if item['first_seen'].minute == 0)
         new = next(item for item in incidents if item['first_seen'].minute == 30)
         self.assertEqual(old['state'], 'RESOLVED')
+        self.assertEqual(old['current_severity'], 'CLEARED')
         self.assertIsNone(old['resolved_at'])
         self.assertEqual(old['resolution_reason'], 'OBSERVATION_GAP')
         self.assertEqual(new['state'], 'ACTIVE')
@@ -341,6 +345,42 @@ class IngestionTests(unittest.TestCase):
         self.assertEqual(incident['evidence_count'], 1)
         self.assertEqual(incident['evidence'][0], evidence[0])
         self.assertEqual(incident['evidence'][0]['collected_at'], sample['collected_at'])
+
+    def test_evaluation_classifies_high_and_increasing_as_needs_review(self):
+        result = assess_workload({
+            'occurrences': 8,
+            'critical_wp_checks': 4,
+            'avg_cpu_pct': 82,
+            'peak_cpu_pct': 118,
+            'avg_pss_gb': 2.5,
+        }, {'avg_cpu_pct': 55}, total_checks=10)
+        self.assertEqual(result['assessment'], 'NEEDS REVIEW')
+        self.assertTrue(result['signals']['high_resource'])
+        self.assertTrue(result['signals']['increasing'])
+        self.assertEqual(result['avg_cpu_change_pct'], 49.1)
+
+    def test_evaluation_classifies_recurring_without_overclaim(self):
+        result = assess_workload({
+            'occurrences': 4,
+            'critical_wp_checks': 0,
+            'avg_cpu_pct': 35,
+            'peak_cpu_pct': 60,
+            'avg_pss_gb': 1.5,
+        }, {'avg_cpu_pct': 34}, total_checks=10)
+        self.assertEqual(result['assessment'], 'RECURRING')
+        self.assertEqual(result['recurring_rate_pct'], 40.0)
+        self.assertFalse(result['signals']['high_resource'])
+
+    def test_evaluation_classifies_material_increase(self):
+        result = assess_workload({
+            'occurrences': 2,
+            'critical_wp_checks': 0,
+            'avg_cpu_pct': 50,
+            'peak_cpu_pct': 70,
+            'avg_pss_gb': 1.0,
+        }, {'avg_cpu_pct': 35}, total_checks=10)
+        self.assertEqual(result['assessment'], 'INCREASING')
+        self.assertGreaterEqual(result['avg_cpu_change_pct'], 25)
 
     def test_auto_trend_buckets_reduce_longer_ranges(self):
         self.assertEqual(resolve_bucket('6h', 'auto')[0], '10m')
