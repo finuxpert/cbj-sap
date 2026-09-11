@@ -1,5 +1,6 @@
 import React from 'react'
 import { shortHost } from './sapUiFormat.js'
+import { hostResourceState, sapWorkloadState } from './rundeckStatusSemantics.js'
 import './RundeckPerformanceIncident.css'
 
 const API = `${import.meta.env.BASE_URL}api`
@@ -134,9 +135,16 @@ export default function RundeckPerformanceIncident({
   const hostMetrics = summary.current_host_metrics || {}
   const signalValue = metric(signal.value, signal.unit || '')
   const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
-  const resourceState = summary.host_resource_pressure
-    ? (summary.status === 'CRITICAL' ? 'CRITICAL' : 'WARNING')
-    : 'NORMAL'
+  const resourceState = hostResourceState(hostMetrics)
+  const criticalWpSignal = /^Critical WP\b/i.test(shortSignal(signal.label)) ? Number(signal.value || 0) : 0
+  const workloadContext = {
+    ...hostMetrics,
+    wp_critical: hostMetrics.wp_critical ?? criticalWpSignal,
+  }
+  const derivedWorkloadState = sapWorkloadState(workloadContext)
+  const workloadState = derivedWorkloadState === 'NORMAL' && summary.active && resourceState === 'NORMAL'
+    ? 'ATTENTION'
+    : derivedWorkloadState
 
   return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
@@ -182,6 +190,7 @@ export default function RundeckPerformanceIncident({
 
     <div className="rundeckIncidentHostContext">
       <span><b>Host Resource</b><StatusPill value={resourceState} /></span>
+      <span><b>SAP Workload</b><StatusPill value={workloadState} /></span>
       <span><b>CPU</b>{metric(hostMetrics.cpu_pct, '%')}</span>
       <span><b>RAM</b>{metric(hostMetrics.ram_pct, '%')}</span>
       <span><b>IO Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
