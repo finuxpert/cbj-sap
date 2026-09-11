@@ -109,8 +109,9 @@ fi
 install -m 0644 "$API_RELEASE/ops/rundeck/sphere-rundeck-prod-api.service" "/etc/systemd/system/$SERVICE"
 systemctl daemon-reload
 
-# Inject only the Rundeck endpoint routes. Existing /api/ remains untouched and
-# continues to serve Evidence/Case History from sphere-api:8090.
+# The existing production config exposes the legacy Evidence/Case API at /sap-api/.
+# Insert the new /api routing immediately before that stable anchor. The snippet adds
+# a legacy /api/ fallback to 8090 plus more-specific Rundeck routes to 8092.
 python3 - "$NGINX_SITE" "$API_RELEASE/ops/rundeck/nginx-prod.conf" <<'PY'
 from pathlib import Path
 import sys
@@ -119,10 +120,10 @@ site = Path(sys.argv[1])
 snippet_path = Path(sys.argv[2])
 text = site.read_text()
 marker = '    # SPHERE production Rundeck API routing\n'
-anchor = '    location /api/ {'
+anchor = '    location = /sap-api { return 308 /sap-api/; }'
 snippet = snippet_path.read_text().rstrip() + '\n'
 if anchor not in text:
-    raise SystemExit('Nginx anchor not found: location /api/ {')
+    raise SystemExit('Nginx anchor not found: location = /sap-api { return 308 /sap-api/; }')
 block = marker + snippet + '\n'
 if marker in text:
     start = text.index(marker)
@@ -152,9 +153,11 @@ for attempt in {1..20}; do
 done
 test "$API_OK" = 1
 
-# Public smoke tests: old API, new Rundeck routes, new root bundle, and /dev isolation.
+# Public smoke tests: legacy API via new /api fallback, Rundeck routes, root bundle,
+# existing /sap-api compatibility, and isolated /dev runtime.
 curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/api/health -o /tmp/sphere-prod-root-health.json
 grep -q 'case_history' /tmp/sphere-prod-root-health.json
+curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/sap-api/health | grep -q 'case_history'
 curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/api/collections/latest -o /tmp/sphere-prod-latest.json
 grep -q 'collection_id' /tmp/sphere-prod-latest.json
 curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/ -o /tmp/sphere-prod-smoke.html
