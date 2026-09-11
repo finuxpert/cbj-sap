@@ -1,0 +1,306 @@
+/* v1.19.4 DEV cohesion pass: one dark palette, flatter status language, more breathing room. */
+.appShell:has(.rundeckPanel) {
+  background: #0f151a;
+}
+
+.appShell:has(.rundeckPanel) .navbar {
+  background: rgba(17, 26, 32, .97);
+  border-bottom-color: rgba(113, 128, 137, .16);
+  backdrop-filter: blur(10px);
+}
+
+.appShell:has(.rundeckPanel) .navInner {
+  min-height: 56px;
+}
+
+.appShell:has(.rundeckPanel) main,
+.appShell:has(.rundeckPanel) .logV2Shell {
+  background: #0f151a;
+}
+
+.appShell:has(.rundeckPanel) .logV2Inner {
+  --sphere-page: #0f151a;
+  --sphere-surface-1: #111a20;
+  --sphere-surface-2: #152027;
+  --sphere-text: #e7edf0;
+  --sphere-text-secondary: #a7b3b9;
+  --sphere-text-muted: #718089;
+  --sphere-border-subtle: rgba(113, 128, 137, .16);
+  --sphere-accent: #4fc6c8;
+}
+
+/* Statuses: industrial rectangular labels, never capsule pills. */
+.appShell:has(.rundeckPanel) .rundeckStatus,
+.appShell:has(.rundeckPanel) .rundeckJobHistoryHead h3 em,
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment {
+  border-radius: 2px !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckStatus {
+  min-height: 17px;
+  padding: 1px 5px;
+  letter-spacing: .025em;
+  box-shadow: inset 2px 0 0 currentColor;
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerTable .rundeckStatus {
+  box-shadow: none;
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerTable .rundeckStatus::before,
+.appShell:has(.rundeckPanel) .rundeckInlineStatus::before {
+  width: 4px !important;
+  height: 8px !important;
+  border-radius: 1px !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckPdfButton,
+.appShell:has(.rundeckPanel) .rundeckCollectButton,
+.appShell:has(.rundeckPanel) .rundeckWpButton,
+.appShell:has(.rundeckPanel) .rundeckSegmented button,
+.appShell:has(.rundeckPanel) .rundeckAdvancedControls button,
+.appShell:has(.rundeckPanel) .rundeckEvaluationSegmented button,
+.appShell:has(.rundeckPanel) .rundeckEvaluationSortBar button {
+  border-radius: 2px !important;
+}
+
+/* Primary issue: keep operational density while clearly separating context, workloads and host state. */
+.appShell:has(.rundeckPanel) .rundeckIncident {
+  padding: 14px 0 13px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentHeader {
+  gap: 14px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentMeta {
+  margin-top: 8px;
+  gap: 5px 18px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentComparison {
+  gap: clamp(20px, 2vw, 34px);
+  margin-top: 12px;
+  padding: 3px 0 5px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentWorkloadBlock {
+  padding: 5px 0 6px 12px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentWorkloadLead strong,
+.appShell:has(.rundeckPanel) .rundeckIncidentJobButton {
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentWorkloadLead small {
+  margin-top: 5px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(86px, max-content));
+  gap: 7px 22px;
+  margin-top: 9px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentFacts.is-compact {
+  grid-template-columns: repeat(2, minmax(90px, max-content));
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentFacts dd {
+  margin-top: 3px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckIncidentHostContext {
+  margin-top: 11px;
+  padding-top: 8px;
+  border-top: 1px solid var(--sphere-border-subtle);
+  gap: 6px 18px;
+}
+
+/* Selected workload: explicit Observation / Performance blocks, then chart. */
+.appShell:has(.rundeckPanel) .rundeckJobHistory {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sphere-border-subtle);
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistoryHead h3 {
+  gap: 8px;
+  margin: 5px 0 5px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistoryHead h3 em {
+  padding: 2px 5px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistoryOverview {
+  gap: 12px 30px;
+  margin-top: 12px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistoryGroup {
+  padding: 7px 0 7px 11px;
+  border-left: 2px solid rgba(113, 128, 137, .18);
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistoryGroup:nth-child(2) {
+  border-left-color: rgba(79, 198, 200, .28);
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistorySummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, max-content));
+  gap: 7px 18px;
+  margin-top: 6px;
+  padding: 0;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistoryGroup:nth-child(2) .rundeckJobHistorySummary {
+  grid-template-columns: repeat(2, minmax(110px, max-content));
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobHistorySummary > span {
+  display: grid;
+  gap: 2px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobCorrelation {
+  margin: 9px 0 12px;
+  padding-top: 2px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobPerformanceTitle {
+  margin-top: 13px;
+  padding-top: 4px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckJobPerformanceWrap {
+  margin-top: 6px;
+}
+
+/* Evaluation: flatter cards and sortable operational controls. */
+.appShell:has(.rundeckPanel) .rundeckEvaluationSummary > div {
+  border-radius: 2px !important;
+  background: rgba(17, 26, 32, .48);
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationQuality {
+  background: rgba(17, 26, 32, .3);
+}
+
+.rundeckEvaluationCoverageFlag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 1px 6px;
+  border-left: 2px solid var(--sphere-warning, #d8b35f);
+  color: var(--sphere-warning, #d8b35f);
+  font-size: var(--sphere-font-micro, 8.5px);
+  font-weight: 780;
+  letter-spacing: .025em;
+}
+
+.rundeckEvaluationSortBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 5px 0 2px;
+}
+
+.rundeckEvaluationSortBar > span {
+  margin-right: 4px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: var(--sphere-font-micro, 8.5px);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.rundeckEvaluationSortBar button {
+  min-height: 22px;
+  padding: 2px 6px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--sphere-text-muted, #718089);
+  font: inherit;
+  font-size: var(--sphere-font-micro, 8.5px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rundeckEvaluationSortBar button:hover,
+.rundeckEvaluationSortBar button:focus-visible,
+.rundeckEvaluationSortBar button.is-active {
+  border-bottom-color: var(--sphere-accent, #4fc6c8);
+  color: var(--sphere-accent, #4fc6c8);
+  outline: none;
+}
+
+.rundeckEvaluationSortHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.rundeckEvaluationSortHeader span {
+  color: var(--sphere-text-muted, #718089);
+  font-size: .9em;
+  opacity: .55;
+}
+
+.rundeckEvaluationSortHeader.is-active,
+.rundeckEvaluationSortHeader.is-active span {
+  color: var(--sphere-accent, #4fc6c8);
+  opacity: 1;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessmentWrap {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessment {
+  min-height: 17px;
+  padding: 1px 5px;
+  box-shadow: inset 2px 0 0 currentColor;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationAssessmentWrap > small {
+  font-size: 7.6px;
+  text-transform: uppercase;
+}
+
+.appShell:has(.rundeckPanel) .rundeckEvaluationTable .is-association {
+  color: var(--sphere-attention, #6aa2d8);
+  font-weight: 760;
+}
+
+@container (max-width: 760px) {
+  .appShell:has(.rundeckPanel) .rundeckIncidentFacts,
+  .appShell:has(.rundeckPanel) .rundeckIncidentFacts.is-compact,
+  .appShell:has(.rundeckPanel) .rundeckJobHistorySummary,
+  .appShell:has(.rundeckPanel) .rundeckJobHistoryGroup:nth-child(2) .rundeckJobHistorySummary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 520px) {
+  .appShell:has(.rundeckPanel) .rundeckJobHistorySummary,
+  .appShell:has(.rundeckPanel) .rundeckJobHistoryGroup:nth-child(2) .rundeckJobHistorySummary {
+    grid-template-columns: 1fr;
+  }
+}
