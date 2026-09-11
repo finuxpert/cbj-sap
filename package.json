@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "qa": "npm run lint && npm run build",
+    "qa": "npm run lint && npm run qa:rundeck-ui && npm run build",
+    "qa:rundeck-ui": "node scripts/qa-rundeck-ui-contract.mjs",
     "preview": "vite preview",
     "test": "vitest run"
   },
