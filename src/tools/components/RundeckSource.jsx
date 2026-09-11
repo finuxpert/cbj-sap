@@ -5,6 +5,7 @@ import RundeckPerformanceIncident from './RundeckPerformanceIncident.jsx'
 import SphereIcon from './SphereIcon.jsx'
 import { APP_DISPLAY_VERSION, APP_TAGLINE } from '../../app/version.js'
 import { numberText, shortHost, workloadTypeLabel } from './sapUiFormat.js'
+import { hostResourceState, overallOperationalState, sapWorkloadState, statusExplanation } from './rundeckStatusSemantics.js'
 import './RundeckSource.css'
 import './RundeckPlatformHealth.css'
 
@@ -77,16 +78,6 @@ function StatusPill({ value = 'UNKNOWN', title = '' }) {
   return <span key={String(value)} className={`rundeckStatus rundeckStatusMotion is-${String(value).toLowerCase()}`} title={title || undefined}>{value}</span>
 }
 
-function conservativeHostState(host = {}) {
-  const cpu = Number(host.cpu_pct)
-  const ram = Number(host.ram_pct)
-  const ioWait = Number(host.io_wait_pct)
-  const wp = Number(host.wp_critical || 0)
-  if ((Number.isFinite(cpu) && cpu >= 90) || (Number.isFinite(ram) && ram >= 90) || (Number.isFinite(ioWait) && ioWait >= 20)) return 'CRITICAL'
-  if ((Number.isFinite(cpu) && cpu >= 75) || (Number.isFinite(ram) && ram >= 80) || (Number.isFinite(ioWait) && ioWait >= 10) || wp > 0) return 'WARNING'
-  return 'NORMAL'
-}
-
 function switchParentSource(value) {
   const select = document.querySelector('.logV2Header select')
   if (!select) return
@@ -117,6 +108,7 @@ function loadImage(src) {
 function pdfStatusColor(status) {
   if (status === 'CRITICAL') return [190, 65, 73]
   if (status === 'WARNING') return [182, 132, 31]
+  if (status === 'ATTENTION') return [62, 139, 156]
   return [41, 131, 91]
 }
 
@@ -149,6 +141,7 @@ export default function RundeckSource({ onCollection }) {
   const [selectedJob, setSelectedJob] = React.useState(null)
   const [incidentSummary, setIncidentSummary] = React.useState(null)
   const [wpDrilldown, setWpDrilldown] = React.useState(null)
+  const [trendContext, setTrendContext] = React.useState({ metricLabel: 'CPU', rangeLabel: '6H', mode: 'max' })
   const loaded = React.useRef('')
   const panelRef = React.useRef(null)
   const onCollectionRef = React.useRef(onCollection)
@@ -325,7 +318,7 @@ export default function RundeckSource({ onCollection }) {
       if (typeof pdf.textWithLink === 'function' && REPORT_URL) pdf.textWithLink(APP_TAGLINE, brandX, 17, { url: REPORT_URL })
       else pdf.text(APP_TAGLINE, brandX, 17)
 
-      const status = incidentSummary?.status || 'NORMAL'
+      const status = overallHealth || 'NORMAL'
       const [sr, sg, sb] = pdfStatusColor(status)
       pdf.setFillColor(sr, sg, sb)
       pdf.roundedRect(W - margin - 25, 11, 21, 7, 2, 2, 'F')
@@ -383,18 +376,19 @@ export default function RundeckSource({ onCollection }) {
       pdf.text('APPLICATION SERVER STATUS', margin, y)
       y += 4
       pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(7)
-      const columns = [0, 25, 53, 82, 112, 144]
-      ;['APP', 'SAP STATE', 'CPU', 'RAM', 'IO WAIT', 'CRIT WP'].forEach((label, index) => pdf.text(label, margin + columns[index], y))
+      pdf.setFontSize(6.5)
+      const columns = [0, 22, 57, 92, 113, 136, 160, 187]
+      ;['APP', 'HOST RESOURCE', 'SAP WORKLOAD', 'CPU', 'RAM', 'LOAD', 'IO WAIT', 'CRIT WP'].forEach((label, index) => pdf.text(label, margin + columns[index], y))
       y += 4
       operationalHosts.slice(0, 5).forEach((host) => {
-        const state = conservativeHostState(host)
         pdf.text(shortHost(host.host), margin + columns[0], y)
-        pdf.text(state, margin + columns[1], y)
-        pdf.text(metric(host.cpu_pct, '%'), margin + columns[2], y)
-        pdf.text(metric(host.ram_pct, '%'), margin + columns[3], y)
-        pdf.text(metric(host.io_wait_pct, '%'), margin + columns[4], y)
-        pdf.text(metric(host.wp_critical), margin + columns[5], y)
+        pdf.text(hostResourceState(host), margin + columns[1], y)
+        pdf.text(sapWorkloadState(host), margin + columns[2], y)
+        pdf.text(metric(host.cpu_pct, '%'), margin + columns[3], y)
+        pdf.text(metric(host.ram_pct, '%'), margin + columns[4], y)
+        pdf.text(metric(host.load_1), margin + columns[5], y)
+        pdf.text(metric(host.io_wait_pct, '%'), margin + columns[6], y)
+        pdf.text(metric(host.wp_critical), margin + columns[7], y)
         y += 4
       })
 
@@ -402,7 +396,9 @@ export default function RundeckSource({ onCollection }) {
       if (serverChart) {
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(8)
-        pdf.text('SERVER CPU TREND · 6H', margin, chartY - 3)
+        const trendMetric = String(trendContext.metricLabel || 'Performance').toUpperCase()
+        const trendRange = String(trendContext.rangeLabel || '6H').toUpperCase()
+        pdf.text(`SERVER ${trendMetric} TREND · ${trendRange}`, margin, chartY - 3)
         const ratio = Math.min(contentW / serverChart.width, 40 / serverChart.height)
         pdf.addImage(serverChart.toDataURL('image/jpeg', .92), 'JPEG', margin, chartY, serverChart.width * ratio, serverChart.height * ratio, undefined, 'FAST')
       }
@@ -467,17 +463,12 @@ export default function RundeckSource({ onCollection }) {
 
   const collectionAligned = !latest?.collection_id || !hostSnapshot?.collection_id || hostSnapshot.collection_id === latest.collection_id
   const operationalHosts = collectionAligned ? hosts : []
-  const hostStates = operationalHosts.map(conservativeHostState)
-  const fallbackHealth = !collectionAligned
+  const overallHealth = !collectionAligned
     ? 'WARNING'
-    : hostStates.includes('CRITICAL')
-      ? 'CRITICAL'
-      : hostStates.includes('WARNING') || health?.rundeck_stale
-        ? 'WARNING'
-        : operationalHosts.length
-          ? 'NORMAL'
-          : 'WAITING'
-  const overallHealth = incidentSummary?.active ? incidentSummary.status : fallbackHealth
+    : overallOperationalState(operationalHosts, {
+        stale: Boolean(health?.rundeck_stale),
+        incidentActive: Boolean(incidentSummary?.active),
+      })
 
   const collectionCount = history.length
   const partialCount = history.filter((row) => row.status === 'PARTIAL').length
@@ -487,9 +478,12 @@ export default function RundeckSource({ onCollection }) {
   const appCount = latest?.received_hosts?.length || operationalHosts.length || 0
   const incidentStart = incidentSummary?.signal_active_since || incidentSummary?.detected_since || ''
   const latestCollectionAt = latest?.collection_time_wib || latest?.finished_at || ''
-  const statusHint = incidentSummary?.active
-    ? `${String(incidentSummary?.primary_signal?.label || 'Performance signal').replace(/Critical Work Process/gi, 'Critical WP')}. ${incidentSummary?.host_resource_pressure ? 'Host resource pressure detected.' : 'Host CPU, RAM and IO are below pressure thresholds.'}`
-    : 'No active performance issue in the latest complete run.'
+  const primarySignalHint = incidentSummary?.active
+    ? ` Primary signal: ${shortSignal(incidentSummary?.primary_signal?.label || 'performance signal')}.`
+    : ''
+  const statusHint = !collectionAligned
+    ? 'Waiting for one complete aligned Rundeck run.'
+    : `${statusExplanation(overallHealth, operationalHosts)}${primarySignalHint}`
 
   const currentWorkload = <RundeckCurrentWorkload
     collectionId={latest?.collection_id || ''}
@@ -546,13 +540,14 @@ export default function RundeckSource({ onCollection }) {
       </div>
       <div className="rundeckServerTableWrap">
         <table className="rundeckServerTable">
-          <thead><tr><th>APP</th><th>SAP State</th><th>CPU</th><th>RAM</th><th>Load</th><th>IO Wait</th><th>Critical WP</th></tr></thead>
+          <thead><tr><th>APP</th><th>Host Resource</th><th>SAP Workload</th><th>CPU</th><th>RAM</th><th>Load</th><th>IO Wait</th><th>Critical WP</th></tr></thead>
           <tbody>
             {operationalHosts.map((host) => {
               const wpCount = Number(host.wp_critical || 0)
               return <tr key={host.host} className={wpDrilldown?.host === host.host ? 'is-selected' : ''}>
                 <td><strong title={host.host}>{shortHost(host.host)}</strong></td>
-                <td><StatusPill value={conservativeHostState(host)} /></td>
+                <td><StatusPill value={hostResourceState(host)} /></td>
+                <td><StatusPill value={sapWorkloadState(host)} /></td>
                 <td>{metric(host.cpu_pct, '%')}</td>
                 <td>{metric(host.ram_pct, '%')}</td>
                 <td>{metric(host.load_1)}</td>
@@ -609,6 +604,7 @@ export default function RundeckSource({ onCollection }) {
       incidentStart={incidentStart}
       latestCollectionId={latest?.collection_id || ''}
       latestCollectionAt={latestCollectionAt}
+      onTrendContext={setTrendContext}
     />
 
     <div className="rundeckSupportingData">
