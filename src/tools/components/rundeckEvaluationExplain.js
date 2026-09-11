@@ -47,6 +47,7 @@ export function evaluationReasonText(row = {}, maxParts = 2) {
 
 export function baselineCpuContext(row = {}) {
   const baseline = row.historical_baseline || {}
+  if (row.avg_cpu_pct === null || row.avg_cpu_pct === undefined || baseline.cpu_p95_pct === null || baseline.cpu_p95_pct === undefined) return []
   const avg = Number(row.avg_cpu_pct)
   const p95 = Number(baseline.cpu_p95_pct)
   if (!Number.isFinite(avg) || !Number.isFinite(p95)) return []
