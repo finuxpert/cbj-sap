@@ -180,7 +180,7 @@ function SingleSamplePerformance({ row }) {
         ? <><span><b>IO Read</b>{numberText(read, 2)} MiB/s</span><span><b>IO Write</b>{numberText(write, 2)} MiB/s</span></>
         : <span><b>IO</b>0 MiB/s</span>}
       <span><b>WP</b>{numberText(wp, 0)}</span>
-      {critical > 0 && <span className="is-attention"><b>APP Critical WP</b>{critical}</span>}
+      {critical > 0 && <span className="is-attention"><b>APP Critical WP signal</b>{critical}</span>}
     </div>
     <div className="rundeckSingleSampleAxis"><i /><strong>{formatWib(row.collected_at, false)}</strong></div>
   </div>
@@ -276,7 +276,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
       profile.hasIo ? line('IO Write', 'write', 'io', colors.ioWrite) : null,
       profile.hasWp ? line('WP Count', 'wp', 'wp', colors.wp, { step: 'middle' }) : null,
       profile.hasCritical ? {
-        name: 'APP Critical WP',
+        name: 'APP Critical WP signal',
         type: 'scatter',
         xAxisIndex: laneIndex.event,
         yAxisIndex: laneIndex.event,
@@ -335,7 +335,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
               profile.hasIo ? `IO Read <b>${numberText(rowMetric(row, 'read'), 2)} MiB/s</b>` : 'IO <b>0 MiB/s</b>',
               profile.hasIo ? `IO Write <b>${numberText(rowMetric(row, 'write'), 2)} MiB/s</b>` : '',
               profile.hasWp ? `WP <b>${numberText(rowMetric(row, 'wp'), 0)}</b>` : '',
-              critical > 0 ? `APP Critical WP <b>${critical}</b>` : '',
+              critical > 0 ? `APP Critical WP signal <b>${critical}</b>` : '',
               `Run <b>#${row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</b>`,
             ].filter(Boolean).join('<br/>')
           },
@@ -468,7 +468,7 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
 
       <div className="rundeckJobPerformanceTitle">
         <h4><SphereIcon name="trend" /> Workload Performance</h4>
-        {profile.hasCritical && <span title="Critical Work Process signal recorded on the APP server during one or more observations."><i /> APP Critical WP</span>}
+        {profile.hasCritical && <span title="Critical Work Process signal recorded on the APP server during one or more observations."><i /> APP Critical WP signal</span>}
       </div>
 
       {episodeItems.length === 1
