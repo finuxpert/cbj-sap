@@ -53,7 +53,7 @@ const checks = [
 
   ['analysis flow uses SAP App Server terminology', files.source.includes('SAP App Servers') && files.source.includes('<th>OS Resource</th>') && files.source.includes('<th>Memory</th>') && !files.source.includes('<th>Load</th>')],
   ['primary issue uses operator wording', files.incident.includes('Primary Issue') && files.incident.includes('Critical WP Active') && files.incident.includes('<b>OS Resource</b>') && files.incident.includes('Observed in')],
-  ['current workloads prioritize Basis and Infra fields', files.workload.includes('Current Workloads') && files.workload.includes('<th>CPU Usage</th>') && files.workload.includes('<th>PSS Memory</th>') && files.workload.includes('<th>Processes</th>')],
+  ['current workloads prioritize Basis and Infra fields', files.workload.includes('Current Workloads') && files.workload.includes('>CPU Usage</th>') && files.workload.includes('<th>PSS Memory</th>') && files.workload.includes('<th>Processes</th>')],
   ['selected workload separates observation performance and issue timeline', files.history.includes('>Observation<') && files.history.includes('>Performance<') && files.history.includes('Issue Timeline') && files.history.includes('Observed Checks')],
   ['selected workload uses aggregate-friendly CPU and memory terminology', files.history.includes('CPU Usage') && files.history.includes('PSS Memory') && files.history.includes('Processes')],
   ['SAP Issues appears before Performance Evaluation', monitoringSapIssuesIndex >= 0 && monitoringEvaluationIndex >= 0 && monitoringSapIssuesIndex < monitoringEvaluationIndex],
