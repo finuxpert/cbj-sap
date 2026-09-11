@@ -1,6 +1,7 @@
 import React from 'react'
 import * as echarts from './logEcharts.js'
 import RundeckJobHistory from './RundeckJobHistory.jsx'
+import RundeckPerformanceEvaluation from './RundeckPerformanceEvaluation.jsx'
 import SphereIcon from './SphereIcon.jsx'
 import { formatWib, numberText, shortHost } from './sapUiFormat.js'
 import { hostResourceState } from './rundeckStatusSemantics.js'
@@ -30,7 +31,7 @@ const METRICS = [
   ['ram', 'RAM'],
   ['load', 'Load'],
   ['iowait', 'IO Wait'],
-  ['wp', 'Critical WP'],
+  ['wp', 'Critical WP Count'],
 ]
 
 const RANGE_HOURS = { '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
@@ -335,7 +336,7 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
         {!selectedMetricIsCpu && <span><b>CPU</b>{numberText(selectedRow.cpu_pct)}%</span>}
         <span><b>RAM</b>{numberText(selectedRow.ram_pct)}%</span>
         <span><b>IO Wait</b>{numberText(selectedRow.io_wait_pct)}%</span>
-        <span><b>Critical WP</b>{numberText(selectedRow.wp_critical, 0)}</span>
+        <span><b>Critical WP Count</b>{numberText(selectedRow.wp_critical, 0)}</span>
       </div>
 
       <div className="rundeckRcaWorkload">
@@ -483,13 +484,15 @@ export default function RundeckMonitoringHistory({
 
     <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} latestCollectionAt={latestCollectionAt} />
 
+    <RundeckPerformanceEvaluation refreshToken={refreshToken} selectedJob={selectedJob} onSelectJob={onSelectJob} />
+
     <details className="rundeckEvidenceGroup">
       <summary><SphereIcon name="alert" /> SAP Issues <span>{alertError ? 'unavailable' : `${activeCount} active · ${resolvedCount} resolved`}</span></summary>
       <div className="rundeckEvidenceBody">
         <section className="rundeckOpsSection">
           <div className="rundeckMiniTableWrap rundeckIncidentTableWrap">
             <table className="rundeckIncidentTable">
-              <thead><tr><th>APP</th><th>Signal</th><th>State</th><th>Current Severity</th><th>Peak Severity</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Checks</th><th>Peak / Latest</th><th>Evidence</th></tr></thead>
+              <thead><tr><th>APP</th><th>SAP Signal</th><th>State</th><th>Current Severity</th><th>Peak Severity</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Checks</th><th>Peak / Latest</th><th>Evidence</th></tr></thead>
               <tbody>
                 {visibleAlerts.slice(0, 50).map((row) => {
                   const currentSeverity = String(row.current_severity || displayAlertSeverity(row, row.latest_value)).toUpperCase()
