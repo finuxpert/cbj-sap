@@ -39,7 +39,7 @@ test('desktop operational hierarchy stays readable and overflow-safe', async ({ 
   const trend = page.locator('.rundeckMonitoringHead').first()
 
   await expect(servers).toBeVisible()
-  await expect(page.getByText('Host Resource', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('OS Resource', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('SAP Workload', { exact: true }).first()).toBeVisible()
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -60,7 +60,7 @@ test('desktop operational hierarchy stays readable and overflow-safe', async ({ 
   await attachPanel(page, `sphere-${test.info().project.name}-overview`)
 })
 
-test('evaluation engine renders adaptive daily weekly monthly review', async ({ page }) => {
+test('evaluation engine renders baseline-aware daily weekly monthly review', async ({ page }) => {
   const evaluation = page.locator('.rundeckEvaluation')
   await evaluation.scrollIntoViewIfNeeded()
   await expect(evaluation).toBeVisible()
@@ -70,8 +70,11 @@ test('evaluation engine renders adaptive daily weekly monthly review', async ({ 
     await expect(evaluation.getByRole('button', { name: label, exact: true })).toBeVisible()
   }
 
+  await expect(evaluation.getByText('Data Confidence', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('Observed Checks', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('Critical WP Overlap', { exact: true })).toBeVisible()
+
   await evaluation.getByRole('button', { name: '30 Days', exact: true }).click()
-  await expect(evaluation.getByText('30 Days', { exact: true }).first()).toBeVisible()
   await expect(evaluation.locator('.rundeckEvaluationTable')).toBeVisible({ timeout: 15_000 })
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
@@ -80,13 +83,13 @@ test('evaluation engine renders adaptive daily weekly monthly review', async ({ 
 })
 
 test('SAP issue lifecycle distinguishes cleared current state from historical peak', async ({ page }) => {
-  const issues = page.locator('.rundeckEvidenceGroup')
+  const issues = page.locator('.rundeckSapIssues')
   await issues.scrollIntoViewIfNeeded()
   if (!(await issues.getAttribute('open'))) await issues.locator('summary').click()
 
   await expect(issues.getByText('SAP Signal', { exact: true })).toBeVisible()
-  await expect(issues.getByText('Current Severity', { exact: true })).toBeVisible()
-  await expect(issues.getByText('Peak Severity', { exact: true })).toBeVisible()
+  await expect(issues.getByText('Current', { exact: true })).toBeVisible()
+  await expect(issues.getByText('Peak', { exact: true })).toBeVisible()
 
   const resolvedRows = issues.locator('tbody tr').filter({ hasText: 'RESOLVED' })
   const resolvedCount = await resolvedRows.count()
@@ -96,3 +99,15 @@ test('SAP issue lifecycle distinguishes cleared current state from historical pe
 
   await attachPanel(page, `sphere-${test.info().project.name}-issues`)
 })
+
+test('PDF opens a preview before any download action', async ({ page }) => {
+  const button = page.getByRole('button', { name: /PDF Preview/i })
+  await expect(button).toBeVisible()
+  await button.click()
+
+  const preview = page.locator('.rundeckPdfPreview')
+  await expect(preview).toBeVisible({ timeout: 20_000 })
+  await expect(preview.getByText('Report Preview', { exact: true })).toBeVisible()
+  await expect(preview.getByText('Download PDF', { exact: true })).toBeVisible()
+  await expect(preview.getByText('Open in New Tab', { exact: true })).toBeVisible()
+}
