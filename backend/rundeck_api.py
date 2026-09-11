@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from backend.rundeck_alert_incidents import incident_history
 from backend.rundeck_consumers import timeline_consumers
+from backend.rundeck_evaluation import evaluation_report
 from backend.rundeck_incident import performance_incident_summary
 from backend.rundeck_job_history import current_sap_jobs, sap_job_history
 from backend.rundeck_latest import latest_ready_host_metrics
@@ -109,6 +110,22 @@ def performance_analysis():
         raise HTTPException(503, str(error)) from None
     except Exception as error:
         raise HTTPException(503, f"Performance analysis unavailable: {type(error).__name__}") from None
+
+
+@app.get("/evaluation/workloads")
+def workload_evaluation(
+    period: str = Query("7d", pattern="^(1d|7d|30d)$"),
+    consumer_type: str = Query("ALL", alias="type", pattern="^(ALL|JOB|PROGRAM)$"),
+    limit: int = Query(30, ge=1, le=100),
+):
+    try:
+        return evaluation_report(period=period, consumer_type=consumer_type, limit=limit)
+    except ValueError as error:
+        raise HTTPException(400, str(error)) from None
+    except RuntimeError as error:
+        raise HTTPException(503, str(error)) from None
+    except Exception as error:
+        raise HTTPException(503, f"Performance evaluation unavailable: {type(error).__name__}") from None
 
 
 @app.get("/collections")
@@ -319,40 +336,27 @@ def trigger_collect_now(request: Request):
     from backend.rundeck_runner import collect_now
     actor = request.headers.get("X-Forwarded-User") or request.headers.get("X-Remote-User") or "sphere"
     try:
-        result = collect_now(actor)
+        return collect_now(actor=actor)
+    except PermissionError as error:
+        raise HTTPException(403, str(error)) from None
+    except RuntimeError as error:
+        raise HTTPException(409, str(error)) from None
     except Exception as error:
-        raise HTTPException(503, f"Collect Now failed: {type(error).__name__}") from None
-    return {"enabled": True, **result}
+        raise HTTPException(502, f"Rundeck action failed: {type(error).__name__}") from None
 
 
 @app.get("/events")
-async def events():
-    """SSE event stream. Browser reconnects automatically; poller remains source of truth."""
+async def events(request: Request):
     async def stream():
-        last_collection = None
-        heartbeat = 0
+        last = None
         while True:
-            latest_row = _latest_ready()
-            current = latest_row.get("collection_id") if latest_row else None
-            if current and current != last_collection:
-                payload = json.dumps({
-                    "type": "collection_ready",
-                    "collection": _view(latest_row),
-                }, default=str)
-                yield f"event: collection_ready\ndata: {payload}\n\n"
-                last_collection = current
-            heartbeat += 1
-            if heartbeat >= 6:
-                yield f": heartbeat {datetime.now(timezone.utc).isoformat()}\n\n"
-                heartbeat = 0
-            await asyncio.sleep(5)
+            if await request.is_disconnected():
+                break
+            row = _latest_ready()
+            current = row.get("collection_id") if row else None
+            if current and current != last:
+                last = current
+                yield f"event: collection_ready\ndata: {json.dumps({'collection_id': current})}\n\n"
+            await asyncio.sleep(10)
 
-    return StreamingResponse(
-        stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache, no-transform",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-store"})
