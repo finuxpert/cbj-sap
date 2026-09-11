@@ -1,0 +1,395 @@
+.rundeckJobHistory {
+  position: relative;
+  margin-top: 8px;
+  padding-top: 6px;
+  overflow-anchor: none;
+}
+
+.rundeckJobHistoryHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rundeckJobHistoryHead > div > span {
+  display: block;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckJobHistoryHead h3 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 1px;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.rundeckJobHistoryHead h3 .sphereIcon {
+  flex: 0 0 auto;
+  color: var(--sphere-accent, #4fc6c8);
+}
+
+.rundeckJobHistoryHead h3 em {
+  padding: 2px 5px;
+  border: 1px solid rgba(113, 128, 137, .18);
+  border-radius: 999px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.5px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .03em;
+  white-space: nowrap;
+}
+
+.rundeckJobHistoryHead h3 em.is-current {
+  border-color: rgba(117, 207, 165, .3);
+  color: var(--sphere-positive, #75cfa5);
+}
+
+.rundeckJobHistoryHead small {
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 9.5px;
+}
+
+.rundeckJobHistoryHead > strong {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+
+.rundeckJobHistoryHead > strong.is-current {
+  color: var(--sphere-positive, #75cfa5);
+}
+
+.rundeckJobHistoryHead > strong.is-ended {
+  color: var(--sphere-text-muted, #718089);
+}
+
+.rundeckJobHistorySummary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+  margin-top: 5px;
+  padding: 3px 0;
+}
+
+.rundeckJobHistorySummary.is-secondary {
+  margin-top: -2px;
+  padding-top: 0;
+}
+
+.rundeckJobHistorySummary > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 9.3px;
+}
+
+.rundeckJobHistorySummary b {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.rundeckJobCorrelation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 1px 0 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 8.8px;
+}
+
+.rundeckJobCorrelation strong {
+  color: var(--sphere-warning, #d8b35f);
+  font-weight: 700;
+}
+
+.rundeckJobPerformanceTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 5px 0 0;
+}
+
+.rundeckJobPerformanceTitle h4 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 11.5px;
+  font-weight: 770;
+}
+
+.rundeckJobPerformanceTitle h4 .sphereIcon {
+  color: var(--sphere-text-muted, #718089);
+}
+
+.rundeckJobPerformanceTitle span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.3px;
+}
+
+.rundeckJobPerformanceTitle i {
+  width: 7px;
+  height: 7px;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: var(--sphere-danger, #db7d86);
+}
+
+.rundeckJobPerformanceWrap {
+  position: relative;
+  margin-top: 1px;
+}
+
+.rundeckHiddenMetric {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  z-index: 1;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.2px;
+}
+
+.rundeckJobPerformanceChart {
+  width: 100%;
+  min-height: 0;
+  max-height: 310px;
+}
+
+.rundeckSingleSample {
+  margin-top: 5px;
+  padding: 9px 0 2px;
+}
+
+.rundeckSingleSampleTime {
+  color: var(--sphere-text, #e7edf0);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.rundeckSingleSampleMetrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+}
+
+.rundeckSingleSampleMetrics span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 9.6px;
+}
+
+.rundeckSingleSampleMetrics b {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  text-transform: uppercase;
+}
+
+.rundeckSingleSampleMetrics .is-attention {
+  color: var(--sphere-warning, #d8b35f);
+}
+
+.rundeckSingleSampleAxis {
+  position: relative;
+  height: 30px;
+  margin-top: 11px;
+  border-top: 1px solid rgba(126, 147, 158, .10);
+}
+
+.rundeckSingleSampleAxis i {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sphere-accent, #4fc6c8);
+  transform: translateX(-50%);
+}
+
+.rundeckSingleSampleAxis strong {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 9px;
+  font-weight: 600;
+  transform: translateX(-50%);
+}
+
+.rundeckJobExecutionHistory {
+  margin-top: 1px;
+}
+
+.rundeckJobExecutionHistory summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  cursor: pointer;
+  font-size: 9.2px;
+  font-weight: 700;
+}
+
+.rundeckJobExecutionHistory summary .sphereIcon {
+  color: var(--sphere-text-muted, #718089);
+}
+
+.rundeckJobExecutionHistory summary span {
+  margin-left: 2px;
+  color: var(--sphere-text-muted, #718089);
+  font-weight: 500;
+}
+
+.rundeckJobHistoryTableWrap {
+  overflow: auto;
+  max-height: 230px;
+  margin-top: 4px;
+}
+
+.rundeckJobHistory table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 9px;
+}
+
+.rundeckJobHistory th,
+.rundeckJobHistory td {
+  padding: 4px 7px;
+  border-bottom: 1px solid rgba(113, 128, 137, .08);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.rundeckJobHistory th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--sphere-page, #0f151a);
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.rundeckJobHistory tbody tr:hover {
+  background: rgba(79, 198, 200, .045);
+}
+
+.rundeckJobHistoryState {
+  padding: 6px 0;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 10px;
+}
+
+.rundeckJobHistoryState.is-updating {
+  position: absolute;
+  top: 7px;
+  right: 0;
+  z-index: 3;
+  padding: 2px 0;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.8px;
+  pointer-events: none;
+}
+
+.rundeckJobHistoryState.is-error {
+  color: var(--sphere-danger, #db7d86);
+  font-weight: 700;
+}
+
+.rundeckJobHistoryContent {
+  animation: rundeckJobContentIn 180ms ease-out both;
+  transition: opacity 140ms ease;
+}
+
+.rundeckJobHistory[aria-busy="true"] .rundeckJobHistoryContent {
+  opacity: .78;
+}
+
+@keyframes rundeckJobContentIn {
+  0% { opacity: .35; transform: translateY(2px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.rundeckRcaJobButton {
+  display: block;
+  max-width: 100%;
+  margin-top: 3px;
+  padding: 0 0 1px;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--sphere-text, #e7edf0);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 780;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rundeckRcaJobButton:hover,
+.rundeckRcaJobButton:focus-visible,
+.rundeckRcaJobButton.is-selected {
+  border-bottom-color: var(--sphere-accent, #4fc6c8);
+  color: var(--sphere-accent, #4fc6c8);
+  outline: none;
+}
+
+@media (max-width: 760px) {
+  .rundeckJobHistoryHead {
+    flex-direction: column;
+  }
+
+  .rundeckJobHistorySummary {
+    gap: 5px 10px;
+  }
+
+  .rundeckJobCorrelation {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .rundeckJobPerformanceChart {
+    max-height: 290px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rundeckJobHistoryContent {
+    animation: none;
+    transition: none;
+  }
+}

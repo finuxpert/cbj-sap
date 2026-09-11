@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/home/sadmin/sap}"
-POSTGRES_ENV="${POSTGRES_ENV:-/opt/postgres-sap-dev/.env}"
+APP_DIR="${APP_DIR:-/root/rundeck-sphere-dev}"
+POSTGRES_ENV="${POSTGRES_ENV:-/etc/sphere/rundeck-db.env}"
 VENV_DIR="${VENV_DIR:-${APP_DIR}/.venv-db}"
 STATUS_DIR="${APP_DIR}/runtime-status"
 STATUS_FILE="${STATUS_DIR}/sap-db-migration-status.md"
@@ -12,7 +12,7 @@ DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-sap_rca_dev}"
 DB_USER="${DB_USER:-sap_rca_app}"
 DB_MODE="${DB_MODE:-hybrid}"
-POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-cbj-postgres-dev}"
+POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-sphere-postgres-dev}"
 
 log() {
   printf '\n[sap-db-migration] %s\n' "$*"

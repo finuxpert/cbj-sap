@@ -1,3 +1,4 @@
+import RundeckSource from './components/RundeckSource.jsx'
 import React from 'react'
 import * as Accordion from '@radix-ui/react-accordion'
 import { expandZipAwareFiles, fileExt } from './evidence-utils.js'
@@ -147,9 +148,9 @@ function WorkloadDetail({ item, capabilities, pointInTime = false }) {
   const taxonomy = item.errorTaxonomy || {}
   const errorLabel = taxonomy.strongest?.category && taxonomy.strongest.category !== 'NONE' ? operatorLabel(taxonomy.strongest.category) : (item.errors || []).filter((value) => value && value !== '?').join(' · ') || 'None'
   const memory = consumerMemory(item)
-  return <InspectorSection title={`Selected Consumer Details · ${item.workload}`} className="logV2ConsumerDetail">
+  return <InspectorSection title={`SAP Workload Detail · ${item.workload}`} className="logV2ConsumerDetail">
     <div className="logV2ConsumerDetailBody"><section className="logV2Panel">
-      <div className="logV2PanelHead"><div><span className="logV141Kicker">CONSUMER DETAILS</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {item.type || '—'}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">{item.type || 'WP'}</span><span className="logV2ScoreBadge">CPU {metricText(sampleMode ? item.targetCpu : item.peakCpu, 1, '%')}</span></div></div>
+      <div className="logV2PanelHead"><div><span className="logV141Kicker">SAP WORKLOAD DETAIL</span><h2>{item.workload}</h2><p>{item.host} · {item.program} · {item.type || '—'}</p></div><div className="logV2DetailBadges"><span className="logV2ScoreBadge">{item.type || 'WP'}</span><span className="logV2ScoreBadge">CPU {metricText(sampleMode ? item.targetCpu : item.peakCpu, 1, '%')}</span></div></div>
       <div className="logV2DetailGrid" style={pointInTime ? { gridTemplateColumns: '1fr' } : undefined}>
         <div className="logV2DetailFacts"><dl>
           <div><dt>Application Server</dt><dd>{item.host || '—'}</dd></div><div><dt>WP Type</dt><dd>{item.type || '—'}</dd></div>
@@ -310,6 +311,7 @@ function SampleDrilldownSummary({ focus, rows = [], onClear }) {
 }
 
 export default function ToolLogAutoSphereV5() {
+  const [source, setSource] = React.useState('automatic')
   const [busy, setBusy] = React.useState(false)
   const [status, setStatus] = React.useState('')
   const [analysis, setAnalysis] = React.useState(null)
@@ -325,6 +327,7 @@ export default function ToolLogAutoSphereV5() {
   const [capabilities, setCapabilities] = React.useState({ mode: 'LEGACY', enhanced: false })
   const [diagnostics, setDiagnostics] = React.useState({ parity: { status: 'NOT_RUN' }, crossHostConfidence: { grade: '—', skewMinutes: 0 } })
   const [mapping, setMapping] = React.useState({ mappedRows: 0, unmappedRows: 0, counts: { EXACT: 0, NEAREST_2M: 0, NEAREST_5M: 0, UNMAPPED: 0 } })
+  const [showAllCurrentWorkload, setShowAllCurrentWorkload] = React.useState(false)
 
   const rankResources = React.useCallback(async (nextAnalysis, nextRca) => {
     setResourceEngine('RANKING')
@@ -341,7 +344,7 @@ export default function ToolLogAutoSphereV5() {
   }, [])
 
   const upload = React.useCallback(async (list) => {
-    setBusy(true); setStatus('Analyzing logs…'); setSampleFocus(null)
+    setBusy(true); setStatus('Analyzing logs…'); setSampleFocus(null); setShowAllCurrentWorkload(false)
     try {
       const expanded = (await expandZipAwareFiles(list, ['log', 'txt', 'csv'])).filter((file) => ['log', 'txt', 'csv'].includes(fileExt(file.name)))
       if (!expanded.length) throw new Error('No supported .log, .txt, or .csv files found.')
@@ -378,6 +381,8 @@ export default function ToolLogAutoSphereV5() {
   const samplePresentation = sampleFocus ? drilldownMeta(sampleFocus.metric) : null
   const consumerSortId = samplePresentation?.sortId || 'cpuValue'
   const consumerSortResetKey = sampleFocus ? `${sampleFocus.metric}:${sampleFocus.host}:${sampleFocus.collectionKey}` : (pointInTime ? selectedCollectionKey : 'full-period')
+  const compactAutomaticWorkload = source === 'automatic' && !sampleFocus
+  const currentWorkloadRows = compactAutomaticWorkload && !showAllCurrentWorkload ? consumerRows.slice(0, 10) : consumerRows
 
   const clearSampleFocus = React.useCallback(() => {
     setSampleFocus(null)
@@ -405,8 +410,16 @@ export default function ToolLogAutoSphereV5() {
     if (first) setSelectedResource(first)
   }, [resourceRows])
 
+  const workloadTable = <section className="logV2Panel" id="top-resource-consumers">
+    <div className="logV2PanelHead"><div><h2>{sampleFocus ? `${samplePresentation.title} · ${sampleFocus.host}` : source === 'automatic' ? 'Current SAP Workload' : 'Top Resource Consumers'}</h2>{sampleFocus ? <p>{shortTime(sampleFocus.timeLabel)}</p> : compactAutomaticWorkload ? <p>Current collection evidence · Top {Math.min(10, consumerRows.length)} shown by default</p> : null}</div><div className="logV2QuickFilters">{sampleFocus ? <button type="button" onClick={clearSampleFocus}>Full period</button> : compactAutomaticWorkload && consumerRows.length > 10 ? <button type="button" onClick={() => setShowAllCurrentWorkload((value) => !value)}>{showAllCurrentWorkload ? 'Show Top 10' : `View all ${consumerRows.length}`}</button> : null}</div></div>
+    {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
+      <VirtualResourceTableV14 rows={currentWorkloadRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} initialSortId={consumerSortId} sortResetKey={consumerSortResetKey} />
+    </React.Suspense>}
+  </section>
+
   return <section className="logV2Shell"><div className="logV2Inner">
-    <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label></header>
+    <header className="logV2Header"><div><span className="logV141Kicker">SAP APPLICATION SERVER ANALYSIS</span><h1>LOG Analysis</h1></div><label>Source <select value={source} disabled={busy} onChange={(event) => { setSource(event.target.value); setAnalysis(null); setRca(null); setStatus(''); setShowAllCurrentWorkload(false) }}><option value="automatic">Automatic — Rundeck</option><option value="manual">Manual — Upload Logs</option></select></label>{source === 'manual' && <label className="logV2Upload"><input type="file" multiple accept=".zip,.log,.txt,.csv" disabled={busy} onChange={(event) => upload(event.target.files)} />{busy ? 'Analyzing…' : 'Upload Logs'}</label>}</header>
+    {source === 'automatic' && <RundeckSource onCollection={upload} />}
     {status ? <div className="logV2StatusBar">{status}</div> : null}
 
     {!rca ? <div className="logV2EmptyState"><b>Upload log files</b><p>WP-SCOUT or Daily Check logs. Additional Linux telemetry is optional.</p></div> : <>
@@ -428,12 +441,7 @@ export default function ToolLogAutoSphereV5() {
       {sampleFocus ? <SampleDrilldownSummary focus={sampleFocus} rows={focusedRows} onClear={clearSampleFocus} /> : null}
       {pointInTime ? <SnapshotStrip collection={selectedCollection} /> : null}
 
-      <section className="logV2Panel" id="top-resource-consumers">
-        <div className="logV2PanelHead"><div><h2>{sampleFocus ? `${samplePresentation.title} · ${sampleFocus.host}` : 'Top Resource Consumers'}</h2>{sampleFocus ? <p>{shortTime(sampleFocus.timeLabel)}</p> : null}</div>{sampleFocus ? <div className="logV2QuickFilters"><button type="button" onClick={clearSampleFocus}>Full period</button></div> : null}</div>
-        {ranking ? <div className="logV2Empty">Analyzing {analysis?.processes?.length || 0} process rows…</div> : <React.Suspense fallback={<div className="logV2Empty" role="status">Loading resource consumers…</div>}>
-          <VirtualResourceTableV14 rows={consumerRows} selectedKey={selectedResource?.key || ''} onSelect={setSelectedResource} pointInTime={consumerPointInTime} initialSortId={consumerSortId} sortResetKey={consumerSortResetKey} />
-        </React.Suspense>}
-      </section>
+      {compactAutomaticWorkload ? <InspectorSection title={`Current SAP Workload · ${showAllCurrentWorkload ? `${consumerRows.length} rows` : `Top ${Math.min(10, consumerRows.length)} of ${consumerRows.length}`}`} className="logOpsCurrentWorkload">{workloadTable}</InspectorSection> : workloadTable}
 
       {!ranking && <WorkloadDetail item={selectedResource} capabilities={capabilities} pointInTime={pointInTime} />}
       {!pointInTime && <ServerDetails rca={rca} collection={selectedCollection} selectedHost={selectedHostPeak?.host} onSelectHost={selectHost} />}

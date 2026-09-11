@@ -11,7 +11,7 @@ const reportOnly = args.includes('--report-only')
 const root = resolve(args.find((arg) => !arg.startsWith('--')) || 'dist')
 const manifest = JSON.parse(readFileSync(resolve(root, '.vite/manifest.json'), 'utf8'))
 const entries = Object.entries(manifest)
-const logEntry = entries.find(([, item]) => item.name === 'ToolLogAutoRcaV5')?.[0]
+const logEntry = entries.find(([, item]) => item.name === 'ToolLogAutoSphereV5')?.[0]
 assert.ok(logEntry, 'The active LOG analysis chunk must exist')
 
 const initialKeys = new Set()

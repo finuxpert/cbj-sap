@@ -1,4 +1,4 @@
-const API_BASE = '/sap-api'
+const API_BASE = `${import.meta.env.BASE_URL}api`
 
 async function toJson(response) {
   const text = await response.text()

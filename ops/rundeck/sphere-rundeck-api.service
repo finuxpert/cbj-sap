@@ -1,0 +1,32 @@
+[Unit]
+Description=SPHERE Rundeck development collections API
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=sphere
+Group=sphere
+WorkingDirectory=/opt/sphere-rundeck-dev/current
+Environment=SPHERE_INGESTION_ROOT=/var/lib/sphere/ingestion
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=-/etc/sphere/rundeck-dev.env
+ExecStart=/opt/sphere-rundeck-dev/venv/bin/python -m uvicorn backend.rundeck_api:app --host 127.0.0.1 --port 8091
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=30
+TimeoutStopSec=30
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sphere/ingestion
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+IPAddressAllow=::1/128
+IPAddressAllow=10.14.55.205/32
+
+[Install]
+WantedBy=multi-user.target

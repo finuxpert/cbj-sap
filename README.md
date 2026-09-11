@@ -29,7 +29,7 @@ rundeck-sphere-dev
 rundeck-sphere-prod
 ```
 
-New development must use the matching development branch. Legacy `main`, `dev`, release, fix, verify, cleanup, audit, and temporary UI branches are not part of the active branch model.
+New development must use the matching development branch. Only the four branches above are active.
 
 ## Current application
 
@@ -45,6 +45,14 @@ Primary workspaces:
 Manual Upload Logs remains supported. LOG parsing currently runs in the browser using the existing tested JavaScript parser chain.
 
 The Rundeck branch family is reserved for automatic collection ingestion. SPHERE must not connect directly to SAP application servers. Rundeck remains responsible for collecting SAP server data.
+
+## Rundeck integration runbook
+
+Operational notes for the read-only Rundeck API integration, ACL model, token rotation, workflow recreation, collection readiness, and security guardrails are documented in:
+
+`docs/RUNDECK_INTEGRATION_RUNBOOK.md`
+
+The current SPHERE read-only API token must be rotated before its documented expiration. Never commit the token value to GitHub.
 
 ## Development validation
 

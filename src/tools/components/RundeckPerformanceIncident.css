@@ -1,0 +1,162 @@
+.rundeckIncident {
+  padding: 7px 0 6px;
+}
+
+.rundeckIncidentHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rundeckIncidentHeader h3 {
+  margin: 0;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -.01em;
+}
+
+.rundeckIncidentMeta,
+.rundeckIncidentHostContext {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 3px;
+}
+
+.rundeckIncidentMeta > span,
+.rundeckIncidentHostContext > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--sphere-text-secondary, #a9b5bb);
+  font-size: 9.3px;
+  white-space: nowrap;
+}
+
+.rundeckIncidentMeta b,
+.rundeckIncidentHostContext b {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  font-weight: 750;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentComparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+  gap: 18px;
+  max-width: 1040px;
+  margin-top: 7px;
+  padding: 3px 0 2px;
+}
+
+.rundeckIncidentWorkloadBlock {
+  min-width: 0;
+}
+
+.rundeckIncidentWorkloadLead > span {
+  display: block;
+  color: var(--sphere-accent, #4fc6c8);
+  font-size: 7.8px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentWorkloadBlock.is-persistent .rundeckIncidentWorkloadLead > span {
+  color: var(--sphere-text-muted, #718089);
+}
+
+.rundeckIncidentWorkloadLead strong,
+.rundeckIncidentJobButton {
+  display: block;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 12.5px;
+  font-weight: 780;
+}
+
+.rundeckIncidentJobButton {
+  width: fit-content;
+  max-width: 100%;
+  padding: 0 0 1px;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+
+.rundeckIncidentJobButton:hover,
+.rundeckIncidentJobButton:focus-visible,
+.rundeckIncidentJobButton.is-selected {
+  border-bottom-color: rgba(79, 198, 200, .7);
+  color: var(--sphere-accent, #4fc6c8);
+  outline: none;
+}
+
+.rundeckIncidentWorkloadLead small {
+  display: block;
+  margin-top: 2px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8.8px;
+}
+
+.rundeckIncidentFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 4px 0 0;
+}
+
+.rundeckIncidentFacts div {
+  min-width: 86px;
+}
+
+.rundeckIncidentFacts dt {
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.6px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.rundeckIncidentFacts dd {
+  margin: 1px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--sphere-text, #e7edf0);
+  font-size: 9.2px;
+  font-weight: 650;
+}
+
+.rundeckIncidentFacts.is-compact div {
+  min-width: 76px;
+}
+
+.rundeckIncidentHostContext {
+  margin-top: 5px;
+  padding-top: 2px;
+}
+
+@media (max-width: 980px) {
+  .rundeckIncidentComparison {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 720px) {
+  .rundeckIncidentHeader h3 {
+    font-size: 14px;
+  }
+
+  .rundeckIncidentFacts {
+    gap: 5px 12px;
+  }
+}

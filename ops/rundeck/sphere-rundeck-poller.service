@@ -1,0 +1,26 @@
+[Unit]
+Description=SPHERE read-only Rundeck collection ingestion
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sphere
+Group=sphere
+WorkingDirectory=/opt/sphere-rundeck-dev/current
+Environment=SPHERE_INGESTION_ROOT=/var/lib/sphere/ingestion
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=-/etc/sphere/rundeck-dev.env
+LoadCredential=rundeck-reader:/etc/sphere/rundeck-readonly.token
+ExecStart=/opt/sphere-rundeck-dev/venv/bin/python -m backend.rundeck_poller
+TimeoutStartSec=150
+UMask=0027
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sphere/ingestion
+IPAddressDeny=any
+IPAddressAllow=127.0.0.0/8
+IPAddressAllow=::1/128
+IPAddressAllow=10.14.55.205/32
