@@ -30,7 +30,7 @@ NGINX_BACKUP=$(mktemp /root/sphere-nginx-before-dev.XXXXXX)
 cp "$NGINX_SITE" "$NGINX_BACKUP"
 
 cleanup() {
-  rm -f "$NGINX_BACKUP" /tmp/sphere-dev-health.json /tmp/sphere-dev-platform.json /tmp/sphere-dev-smoke.html
+  rm -f "$NGINX_BACKUP" /tmp/sphere-dev-health.json /tmp/sphere-dev-evaluation.json /tmp/sphere-dev-platform.json /tmp/sphere-dev-smoke.html
 }
 
 rollback() {
@@ -157,6 +157,14 @@ for attempt in {1..20}; do
 done
 test "$HEALTH_OK" = 1
 cat /tmp/sphere-dev-health.json
+
+# v1.19+ evaluation SQL is part of the release contract. Fail and roll back if
+# the endpoint cannot evaluate the current 1-day window against the existing DB.
+curl --noproxy '*' -fsS --max-time 15 \
+  'http://127.0.0.1:8091/evaluation/workloads?period=1d&type=ALL&limit=5' \
+  -o /tmp/sphere-dev-evaluation.json
+grep -q '"period":"1d"' /tmp/sphere-dev-evaluation.json
+cat /tmp/sphere-dev-evaluation.json
 
 curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/ -o /tmp/sphere-dev-smoke.html
 grep -q '/dev/assets/' /tmp/sphere-dev-smoke.html
