@@ -221,9 +221,10 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
         "programs": sum(1 for item in evaluated if item.get("consumer_type") == "PROGRAM"),
         "jobs": sum(1 for item in evaluated if item.get("consumer_type") == "JOB"),
         "needs_review": sum(1 for item in evaluated if item["assessment"] == "NEEDS REVIEW"),
-        "high_resource": sum(1 for item in evaluated if item["assessment"] == "HIGH RESOURCE"),
-        "increasing": sum(1 for item in evaluated if item["assessment"] == "INCREASING"),
-        "recurring": sum(1 for item in evaluated if item["assessment"] == "RECURRING"),
+        "high_resource": sum(1 for item in evaluated if item.get("signals", {}).get("high_resource")),
+        "increasing": sum(1 for item in evaluated if item.get("signals", {}).get("increasing")),
+        "recurring": sum(1 for item in evaluated if item.get("signals", {}).get("recurring")),
+        "critical_wp_correlated": sum(1 for item in evaluated if item.get("signals", {}).get("critical_wp_correlated")),
     }
 
     return {
