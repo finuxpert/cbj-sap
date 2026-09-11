@@ -6,7 +6,7 @@ import './RundeckJobHistory.css'
 
 const API = `${import.meta.env.BASE_URL}api`
 const GAP_MS = 25 * 60 * 1000
-const PROCESS_CPU_HINT = 'Process CPU can exceed 100% when a workload uses more than one CPU core or thread.'
+const CPU_HINT = 'CPU Usage is the grouped workload CPU observation and can exceed 100 percent when more than one CPU core is used.'
 
 const numeric = (value) => {
   if (value === null || value === undefined || value === '') return null
@@ -50,10 +50,11 @@ async function loadHistory(job, signal) {
 function rowMetric(row, key) {
   const details = row?.details || {}
   if (key === 'cpu') return numeric(row?.cpu_pct)
-  if (key === 'pss') return numeric(details.pss_gb)
-  if (key === 'read') return numeric(details.read_mib_s)
-  if (key === 'write') return numeric(details.write_mib_s)
-  if (key === 'wp') return numeric(details.process_count) ?? numeric(details.wps?.length) ?? 1
+  if (key === 'pss') return numeric(details.total_pss_gb ?? details.pss_gb)
+  if (key === 'read') return numeric(details.total_read_mib_s ?? details.read_mib_s)
+  if (key === 'write') return numeric(details.total_write_mib_s ?? details.write_mib_s)
+  if (key === 'processes') return numeric(details.process_count) ?? numeric(details.pids?.length) ?? 1
+  if (key === 'wp') return numeric(details.wps?.length) ?? 1
   return null
 }
 
@@ -97,15 +98,22 @@ function selectObservationEpisode(items, targetAt = '') {
   return best
 }
 
+function average(values = []) {
+  const valid = values.filter((value) => value !== null)
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null
+}
+
 function episodeStats(items = []) {
-  if (!items.length) return { firstSeen: '', lastSeen: '', avgCpu: null, peakCpu: null }
+  if (!items.length) return { firstSeen: '', lastSeen: '', avgCpu: null, peakCpu: null, avgPss: null, avgProcesses: null }
   const ordered = [...items].sort((left, right) => Date.parse(left.collected_at) - Date.parse(right.collected_at))
-  const cpu = ordered.map((row) => numeric(row.cpu_pct)).filter((value) => value !== null)
+  const cpu = ordered.map((row) => rowMetric(row, 'cpu')).filter((value) => value !== null)
   return {
     firstSeen: ordered[0]?.collected_at || '',
     lastSeen: ordered.at(-1)?.collected_at || '',
-    avgCpu: cpu.length ? cpu.reduce((sum, value) => sum + value, 0) / cpu.length : null,
+    avgCpu: average(cpu),
     peakCpu: cpu.length ? Math.max(...cpu) : null,
+    avgPss: average(ordered.map((row) => rowMetric(row, 'pss'))),
+    avgProcesses: average(ordered.map((row) => rowMetric(row, 'processes'))),
   }
 }
 
@@ -130,9 +138,9 @@ function temporalText(issueStart, firstSeen) {
   const hours = Math.floor(absMinutes / 60)
   const minutes = absMinutes % 60
   const duration = [hours ? `${hours}h` : '', minutes ? `${minutes}m` : ''].filter(Boolean).join(' ') || '<1m'
-  if (delta > 0) return `${duration} after issue`
-  if (delta < 0) return `${duration} before issue`
-  return 'Same time as issue'
+  if (delta > 0) return `First observed ${duration} after issue start`
+  if (delta < 0) return `First observed ${duration} before issue start`
+  return 'First observed at issue start'
 }
 
 function nearestRow(rows, value) {
@@ -169,18 +177,20 @@ function SingleSamplePerformance({ row }) {
   const pss = rowMetric(row, 'pss')
   const read = rowMetric(row, 'read')
   const write = rowMetric(row, 'write')
+  const processes = rowMetric(row, 'processes')
   const wp = rowMetric(row, 'wp')
   const critical = Number(row.host_wp_critical || 0)
-  return <div className="rundeckSingleSample" aria-label="Single workload sample">
+  return <div className="rundeckSingleSample" aria-label="Single workload observation">
     <div className="rundeckSingleSampleTime">{formatWib(row.collected_at, true)} WIB</div>
     <div className="rundeckSingleSampleMetrics">
-      <span><b title={PROCESS_CPU_HINT}>Process CPU</b>{numberText(rowMetric(row, 'cpu'), 1)}%</span>
-      {pss !== null && <span><b>PSS</b>{numberText(pss, 2)} GB</span>}
+      <span><b title={CPU_HINT}>CPU Usage</b>{numberText(rowMetric(row, 'cpu'), 1)}%</span>
+      {pss !== null && <span><b>PSS Memory</b>{numberText(pss, 2)} GB</span>}
+      <span><b>Processes</b>{numberText(processes, 0)}</span>
       {(Math.abs(read || 0) > 0 || Math.abs(write || 0) > 0)
-        ? <><span><b>IO Read</b>{numberText(read, 2)} MiB/s</span><span><b>IO Write</b>{numberText(write, 2)} MiB/s</span></>
-        : <span><b>IO</b>0 MiB/s</span>}
+        ? <><span><b>I/O Read</b>{numberText(read, 2)} MiB/s</span><span><b>I/O Write</b>{numberText(write, 2)} MiB/s</span></>
+        : <span><b>I/O</b>0 MiB/s</span>}
       <span><b>WP</b>{numberText(wp, 0)}</span>
-      {critical > 0 && <span className="is-attention"><b>APP Critical WP signal</b>{critical}</span>}
+      {critical > 0 && <span className="is-attention"><b>Critical WP</b>{critical}</span>}
     </div>
     <div className="rundeckSingleSampleAxis"><i /><strong>{formatWib(row.collected_at, false)}</strong></div>
   </div>
@@ -198,9 +208,9 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     const issueInRange = Number.isFinite(issueTs) && Number.isFinite(firstTs) && Number.isFinite(lastTs) && issueTs >= firstTs && issueTs <= lastTs
 
     const lanes = [
-      { id: 'cpu', name: 'Process CPU %', height: 62 },
-      profile.hasPss ? { id: 'pss', name: 'PSS GB', height: 42 } : null,
-      profile.hasIo ? { id: 'io', name: 'IO MiB/s', height: 38 } : null,
+      { id: 'cpu', name: 'CPU Usage %', height: 62 },
+      profile.hasPss ? { id: 'pss', name: 'PSS Memory GB', height: 42 } : null,
+      profile.hasIo ? { id: 'io', name: 'I/O MiB/s', height: 38 } : null,
       profile.hasWp ? { id: 'wp', name: 'WP', height: profile.wpVariable ? 34 : 22 } : null,
       profile.hasCritical ? { id: 'event', name: '', height: 16 } : null,
     ].filter(Boolean)
@@ -208,7 +218,7 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     let top = 16
     const gap = 14
     const grids = lanes.map((lane) => {
-      const grid = { left: 64, right: 18, top, height: lane.height }
+      const grid = { left: 68, right: 18, top, height: lane.height }
       top += lane.height + gap
       return grid
     })
@@ -270,13 +280,13 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
     } : undefined
 
     const series = [
-      line('Process CPU', 'cpu', 'cpu', colors.accent, { markLine: issueMark }),
-      profile.hasPss ? line('PSS', 'pss', 'pss', colors.memory) : null,
-      profile.hasIo ? line('IO Read', 'read', 'io', colors.ioRead) : null,
-      profile.hasIo ? line('IO Write', 'write', 'io', colors.ioWrite) : null,
+      line('CPU Usage', 'cpu', 'cpu', colors.accent, { markLine: issueMark }),
+      profile.hasPss ? line('PSS Memory', 'pss', 'pss', colors.memory) : null,
+      profile.hasIo ? line('I/O Read', 'read', 'io', colors.ioRead) : null,
+      profile.hasIo ? line('I/O Write', 'write', 'io', colors.ioWrite) : null,
       profile.hasWp ? line('WP Count', 'wp', 'wp', colors.wp, { step: 'middle' }) : null,
       profile.hasCritical ? {
-        name: 'APP Critical WP signal',
+        name: 'Critical WP',
         type: 'scatter',
         xAxisIndex: laneIndex.event,
         yAxisIndex: laneIndex.event,
@@ -330,12 +340,13 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
             const critical = Number(row.host_wp_critical || 0)
             return [
               `<b>${formatWib(row.collected_at, true)} WIB</b>`,
-              `Process CPU <b>${numberText(rowMetric(row, 'cpu'), 1)}%</b>`,
-              profile.hasPss ? `PSS <b>${numberText(rowMetric(row, 'pss'), 2)} GB</b>` : '',
-              profile.hasIo ? `IO Read <b>${numberText(rowMetric(row, 'read'), 2)} MiB/s</b>` : 'IO <b>0 MiB/s</b>',
-              profile.hasIo ? `IO Write <b>${numberText(rowMetric(row, 'write'), 2)} MiB/s</b>` : '',
+              `CPU Usage <b>${numberText(rowMetric(row, 'cpu'), 1)}%</b>`,
+              profile.hasPss ? `PSS Memory <b>${numberText(rowMetric(row, 'pss'), 2)} GB</b>` : '',
+              `Processes <b>${numberText(rowMetric(row, 'processes'), 0)}</b>`,
+              profile.hasIo ? `I/O Read <b>${numberText(rowMetric(row, 'read'), 2)} MiB/s</b>` : 'I/O <b>0 MiB/s</b>',
+              profile.hasIo ? `I/O Write <b>${numberText(rowMetric(row, 'write'), 2)} MiB/s</b>` : '',
               profile.hasWp ? `WP <b>${numberText(rowMetric(row, 'wp'), 0)}</b>` : '',
-              critical > 0 ? `APP Critical WP signal <b>${critical}</b>` : '',
+              critical > 0 ? `Critical WP <b>${critical}</b>` : '',
               `Run <b>#${row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</b>`,
             ].filter(Boolean).join('<br/>')
           },
@@ -363,8 +374,8 @@ function UnifiedJobPerformanceChart({ items, incidentStart }) {
   }, [chartConfig.option])
 
   return <div className="rundeckJobPerformanceWrap">
-    {!chartConfig.profile.hasIo && <div className="rundeckHiddenMetric">IO 0 MiB/s</div>}
-    <div ref={ref} className="rundeckJobPerformanceChart" style={{ height: `${chartConfig.height}px` }} role="img" aria-label="Workload process CPU, PSS, IO, work process and APP critical work process timeline with WIB time axis" />
+    {!chartConfig.profile.hasIo && <div className="rundeckHiddenMetric">I/O 0 MiB/s</div>}
+    <div ref={ref} className="rundeckJobPerformanceChart" style={{ height: `${chartConfig.height}px` }} role="img" aria-label="Workload CPU usage, memory, IO, work process and Critical WP timeline with WIB time axis" />
   </div>
 }
 
@@ -422,17 +433,19 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
   const latest = episodeItems[0] || null
   const latestDetails = latest?.details || {}
   const isCurrent = Boolean(latestCollectionId && latest?.collection_id === latestCollectionId)
-  const correlation = temporalText(incidentStart, stats.firstSeen)
+  const timelineText = temporalText(incidentStart, stats.firstSeen)
   const observed = durationText(stats.firstSeen, stats.lastSeen)
   const profile = chartProfile(episodeItems)
   const contentKey = `${displayHost}|${displayConsumerType}|${displayKey}|${displayAt}`
+  const program = String(latestDetails.program || '').trim()
+  const contextText = [shortHost(displayHost || latest?.host || ''), workloadTypeLabel(displayConsumerType || latest?.consumer_type), program && program.toUpperCase() !== String(displayKey).toUpperCase() ? program : ''].filter(Boolean).join(' · ')
 
   return <section className="rundeckJobHistory" aria-label="Selected workload performance" aria-busy={loading}>
     <div className="rundeckJobHistoryHead">
       <div>
         <span>Selected Workload</span>
         <h3><SphereIcon name="target" /> {displayKey} {history && <em className={isCurrent ? 'is-current' : 'is-ended'}>{isCurrent ? 'CURRENT' : 'NO LONGER SEEN'}</em>}</h3>
-        <small>{shortHost(displayHost || latest?.host || '')} · {workloadTypeLabel(displayConsumerType || latest?.consumer_type)}{latestDetails.program ? ` · ${latestDetails.program}` : ''}</small>
+        <small>{contextText}</small>
       </div>
     </div>
 
@@ -448,27 +461,30 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
             <span><b>First Seen</b>{formatWib(stats.firstSeen, true)} WIB</span>
             <span><b>Last Seen</b>{formatWib(stats.lastSeen, true)} WIB</span>
             <span><b>Duration</b>{observed}</span>
-            <span><b>Checks</b>{episodeItems.length}</span>
+            <span><b>Observed Checks</b>{episodeItems.length}</span>
           </div>
         </section>
         <section className="rundeckJobHistoryGroup" aria-label="Performance summary">
           <strong>Performance</strong>
           <div className="rundeckJobHistorySummary">
-            <span title={PROCESS_CPU_HINT}><b>Avg Process CPU</b>{numberText(stats.avgCpu)}%</span>
-            <span title={PROCESS_CPU_HINT}><b>Peak Process CPU</b>{numberText(stats.peakCpu)}%</span>
+            <span title={CPU_HINT}><b>Avg CPU</b>{numberText(stats.avgCpu)}%</span>
+            <span title={CPU_HINT}><b>Peak CPU</b>{numberText(stats.peakCpu)}%</span>
+            <span><b>Avg PSS</b>{stats.avgPss === null ? '—' : `${numberText(stats.avgPss, 2)} GB`}</span>
+            <span><b>Processes</b>{stats.avgProcesses === null ? '—' : numberText(stats.avgProcesses, 1)}</span>
           </div>
         </section>
       </div>
 
-      {(incidentStart || correlation) && <div className="rundeckJobCorrelation">
-        {incidentStart && <span>Issue start {formatWib(incidentStart, true)} WIB</span>}
-        {stats.firstSeen && <span>First Seen {formatWib(stats.firstSeen, true)} WIB</span>}
-        {correlation && <strong>{correlation}</strong>}
+      {(incidentStart || timelineText) && <div className="rundeckJobTimeline">
+        <strong>Issue Timeline</strong>
+        <span><b>Issue Start</b>{incidentStart ? `${formatWib(incidentStart, true)} WIB` : '—'}</span>
+        <span><b>First Seen</b>{stats.firstSeen ? `${formatWib(stats.firstSeen, true)} WIB` : '—'}</span>
+        {timelineText && <em>{timelineText}</em>}
       </div>}
 
       <div className="rundeckJobPerformanceTitle">
         <h4><SphereIcon name="trend" /> Workload Performance</h4>
-        {profile.hasCritical && <span title="Critical Work Process signal recorded on the APP server during one or more observations."><i /> APP Critical WP signal</span>}
+        {profile.hasCritical && <span title="Critical WP was recorded on the same SAP App Server during one or more workload observations."><i /> Critical WP observed</span>}
       </div>
 
       {episodeItems.length === 1
@@ -478,21 +494,22 @@ export default function RundeckJobHistory({ job = null, refreshToken = '', incid
           : <div className="rundeckJobHistoryState">No stored history for this workload yet.</div>}
 
       <details className="rundeckJobExecutionHistory">
-        <summary><SphereIcon name="history" /> Observation History <span>{episodeItems.length} samples</span></summary>
+        <summary><SphereIcon name="history" /> Observation History <span>{episodeItems.length} observations</span></summary>
         <div className="rundeckJobHistoryTableWrap">
           <table>
-            <thead><tr><th>Time WIB</th><th>Run</th><th>APP</th><th title={PROCESS_CPU_HINT}>Process CPU</th><th>PSS</th><th>WP</th><th>Critical WP</th></tr></thead>
+            <thead><tr><th>Time WIB</th><th>Run</th><th>APP</th><th title={CPU_HINT}>CPU Usage</th><th>PSS Memory</th><th>Processes</th><th>WP</th><th>Critical WP</th></tr></thead>
             <tbody>
               {episodeItems.map((row) => {
                 const details = row.details || {}
                 const wp = [details.wp_type, details.wp].filter(Boolean).join(' ') || '—'
-                const pss = numeric(details.pss_gb)
+                const pss = rowMetric(row, 'pss')
                 return <tr key={`${row.collection_id}-${row.host}-${row.collected_at}`}>
                   <td>{formatWib(row.collected_at, true)}</td>
                   <td>#{row.execution_id || String(row.collection_id || '').replace('rundeck-', '') || '—'}</td>
                   <td title={row.host}>{shortHost(row.host)}</td>
-                  <td title={PROCESS_CPU_HINT}>{numberText(row.cpu_pct)}%</td>
+                  <td title={CPU_HINT}>{numberText(row.cpu_pct)}%</td>
                   <td>{pss === null ? '—' : `${numberText(pss, 2)} GB`}</td>
+                  <td>{numberText(rowMetric(row, 'processes'), 0)}</td>
                   <td>{wp}</td>
                   <td>{numberText(row.host_wp_critical, 0)}</td>
                 </tr>
