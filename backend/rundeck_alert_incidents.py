@@ -47,7 +47,7 @@ SIGNALS = {
     },
     "WP_CRITICAL": {
         "field": "wp_critical",
-        "label": "Critical WP",
+        "label": "Critical WP Count",
         "unit": "",
         "warning": WP_WARNING,
         "critical": WP_CRITICAL,
@@ -88,9 +88,10 @@ def _finalize(incident: dict) -> dict:
     last_seen = _utc(incident["last_seen"])
     incident["id"] = _incident_id(incident["host"], incident["code"], first_seen)
     incident["duration_seconds"] = max(0, int((last_seen - first_seen).total_seconds()))
-    incident["current_severity"] = _severity(incident["code"], incident.get("latest_value"))
+    active_severity = _severity(incident["code"], incident.get("latest_value"))
+    incident["current_severity"] = "CLEARED" if incident.get("state") == "RESOLVED" else active_severity
     incident["peak_severity"] = _severity(incident["code"], incident.get("peak_value"))
-    # Backward compatibility: severity now represents the current state.
+    # Backward compatibility: severity reflects the current lifecycle state.
     incident["severity"] = incident["current_severity"]
     incident["evidence_count"] = len(incident.get("evidence") or [])
     return incident
@@ -214,7 +215,7 @@ def build_incidents(
             or _utc(item.get("resolved_at") or item["last_seen"]) >= visible_since
         ]
 
-    severity_rank = {"ATTENTION": 1, "WARNING": 2, "CRITICAL": 3}
+    severity_rank = {"CLEARED": 0, "ATTENTION": 1, "WARNING": 2, "CRITICAL": 3}
     incidents.sort(
         key=lambda item: (
             0 if item["state"] == "ACTIVE" else 1,
