@@ -57,6 +57,22 @@ function jobContext(workload, host, source) {
   }
 }
 
+function scrollToSelectedWorkload() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+  let frames = 0
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+  const navigate = () => {
+    frames += 1
+    if (frames < 3) {
+      window.requestAnimationFrame(navigate)
+      return
+    }
+    const target = document.querySelector('.rundeckJobHistory')
+    target?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' })
+  }
+  window.requestAnimationFrame(navigate)
+}
+
 function CurrentJobFacts({ workload }) {
   const details = workload?.details || {}
   const program = details.program || (workload?.consumer_type === 'PROGRAM' ? workload.consumer_key : '')
@@ -146,6 +162,12 @@ export default function RundeckPerformanceIncident({
     ? 'ATTENTION'
     : derivedWorkloadState
 
+  const selectAndInspect = (context) => {
+    if (!context) return
+    onSelectJob?.(context)
+    scrollToSelectedWorkload()
+  }
+
   return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
       <h3>Primary Issue · {shortHost(summary.affected_server)} · {issueSignalText(signal.label, signalValue)}</h3>
@@ -164,7 +186,9 @@ export default function RundeckPerformanceIncident({
           {currentContext ? <button
             type="button"
             className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
-            onClick={() => onSelectJob?.(currentContext)}
+            onClick={() => selectAndInspect(currentContext)}
+            title="Open selected workload detail"
+            aria-label={`Open workload detail for ${current.consumer_key}`}
           >{current.consumer_key}</button> : <strong>No current workload found</strong>}
           {current && <small title={PROCESS_CPU_HINT}>Process CPU {metric(current.cpu_pct, '%')} · Run #{summary.execution_id || '—'}</small>}
         </div>
@@ -177,7 +201,9 @@ export default function RundeckPerformanceIncident({
           {persistentContext ? <button
             type="button"
             className={`rundeckIncidentJobButton ${selectedJob?.key === persistentContext.key && selectedJob?.host === persistentContext.host ? 'is-selected' : ''}`}
-            onClick={() => onSelectJob?.(persistentContext)}
+            onClick={() => selectAndInspect(persistentContext)}
+            title="Open selected workload detail"
+            aria-label={`Open workload detail for ${persistent.consumer_key}`}
           >{persistent.consumer_key}</button> : <strong>No recurring workload found</strong>}
           {persistent && <small>{sameWorkload ? 'Also current · ' : ''}Seen {persistent.occurrences}/{persistent.affected_samples} checks</small>}
         </div>
