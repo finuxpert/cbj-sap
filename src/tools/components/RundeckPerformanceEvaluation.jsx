@@ -25,9 +25,9 @@ const STATUS_PRIORITY = {
 }
 const CONFIDENCE_PRIORITY = { HIGH: 3, MEDIUM: 2, LOW: 1, NOT_READY: 0 }
 const CPU_HINT = 'CPU Usage represents the grouped workload observation. Values can exceed 100 percent when more than one CPU core is used.'
-const WP_HINT = 'Critical WP evidence is measured on the same SAP App Server and collection check. It is supporting evidence, not direct workload-to-WP proof.'
+const WP_HINT = 'Critical WP evidence was observed on the same SAP App Server during the workload observation window. This is supporting timing evidence, not direct causation or direct workload-to-WP mapping.'
 const OBSERVED_HINT = 'Observed Checks counts complete collection checks where this workload was retained. It is not a SAP execution counter.'
-const LOW_COVERAGE_HINT = 'Historical window is not fully covered yet. Assessment strength is reduced.'
+const LOW_COVERAGE_HINT = 'Historical window is not fully covered. Conclusions are limited.'
 
 async function json(url, signal) {
   const response = await fetch(url, { cache: 'no-store', signal })
@@ -74,7 +74,7 @@ function Status({ row, quality }) {
   const reason = evaluationReasonText(row)
   const wpExcess = Number(row.wp_excess_association_pct)
   const wpContext = Number.isFinite(wpExcess) && wpExcess > 0
-    ? `Critical WP overlap is ${numberText(wpExcess, 1)} percentage points above the App Server baseline.`
+    ? `Critical WP evidence is ${numberText(wpExcess, 1)} percentage points above the App Server baseline.`
     : ''
   const title = [
     row.assessment_reason,
@@ -233,7 +233,7 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
               const baseline = row.historical_baseline || {}
               const wpExcess = Number(row.wp_excess_association_pct)
               const wpEvidence = Number.isFinite(wpExcess) && wpExcess >= Number(data.thresholds?.wp_excess_association_pp || 20)
-                ? ` · Critical WP +${numberText(wpExcess, 1)} pp vs App Server baseline`
+                ? ` · Critical WP evidence +${numberText(wpExcess, 1)} pp vs App Server baseline`
                 : ''
               const workloadTitle = [
                 `${workloadTypeLabel(row.consumer_type)}`,
@@ -241,7 +241,7 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
                 `Host CPU while observed: ${pct(row.avg_host_cpu_pct)}`,
                 row.baseline_status === 'READY' ? `Baseline CPU median ${pct(baseline.cpu_median_pct)}, P95 ${pct(baseline.cpu_p95_pct)}` : `Historical baseline ${row.baseline_status || 'NOT_READY'}`,
                 row.anomaly_status ? `Baseline result: ${row.anomaly_status}` : '',
-                wpEvidence ? `Critical WP overlap ${pct(row.wp_signal_overlap_pct)}${wpEvidence}` : '',
+                wpEvidence ? `Critical WP evidence overlap ${pct(row.wp_signal_overlap_pct)}${wpEvidence}` : '',
               ].filter(Boolean).join('\n')
               return <tr key={`${row.consumer_type}-${row.consumer_key}`} className={selected ? 'is-selected' : ''}>
                 <td className="rundeckEvaluationWorkload" title={workloadTitle}>
@@ -260,7 +260,7 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
         </table>
       </div>
       <div className="rundeckEvaluationFoot">
-        Observed Checks are collection observations, not SAP execution count. Critical WP evidence remains App Server timing evidence, not direct causation.
+        Observed Checks are collection observations, not SAP execution count. Critical WP evidence is App Server timing evidence, not direct causation or direct workload-to-WP mapping.
       </div>
     </>}
   </section>
