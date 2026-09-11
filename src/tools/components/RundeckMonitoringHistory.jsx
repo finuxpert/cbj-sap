@@ -75,9 +75,28 @@ async function json(url, signal) {
   return response.json()
 }
 
-const displayAlertSeverity = (row = {}) => {
-  if (row.code !== 'WP_CRITICAL') return row.severity || 'WARNING'
-  return String(row.severity || '').toUpperCase() === 'CRITICAL' ? 'CRITICAL' : 'ATTENTION'
+const wpSeverity = (value) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return 'ATTENTION'
+  return numeric >= 3 ? 'CRITICAL' : 'ATTENTION'
+}
+
+const displayAlertSeverity = (row = {}, value = undefined) => {
+  if (row.code === 'WP_CRITICAL') {
+    const resolvedValue = value ?? row.latest_value ?? row.details?.value
+    return wpSeverity(resolvedValue)
+  }
+  return String(row.current_severity || row.severity || 'WARNING').toUpperCase()
+}
+
+const displayPeakSeverity = (row = {}) => {
+  if (row.peak_severity) return String(row.peak_severity).toUpperCase()
+  if (row.code === 'WP_CRITICAL') return wpSeverity(row.peak_value)
+  const current = String(row.current_severity || row.severity || 'WARNING').toUpperCase()
+  const peak = Number(row.peak_value)
+  const critical = Number(row.evidence?.[0]?.details?.critical)
+  if (Number.isFinite(peak) && Number.isFinite(critical) && peak >= critical) return 'CRITICAL'
+  return current
 }
 
 const durationText = (seconds) => {
@@ -470,16 +489,18 @@ export default function RundeckMonitoringHistory({
         <section className="rundeckOpsSection">
           <div className="rundeckMiniTableWrap rundeckIncidentTableWrap">
             <table className="rundeckIncidentTable">
-              <thead><tr><th>APP</th><th>Signal</th><th>State</th><th>Severity</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Checks</th><th>Peak / Latest</th><th>Evidence</th></tr></thead>
+              <thead><tr><th>APP</th><th>Signal</th><th>State</th><th>Current Severity</th><th>Peak Severity</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Checks</th><th>Peak / Latest</th><th>Evidence</th></tr></thead>
               <tbody>
                 {visibleAlerts.slice(0, 50).map((row) => {
-                  const severity = displayAlertSeverity(row)
+                  const currentSeverity = String(row.current_severity || displayAlertSeverity(row, row.latest_value)).toUpperCase()
+                  const peakSeverity = displayPeakSeverity(row)
                   const evidence = row.evidence || []
                   return <tr key={row.id} className={row.state === 'ACTIVE' ? 'is-active-incident' : ''}>
                     <td><strong>{shortHost(row.host || 'APP')}</strong></td>
                     <td className="rundeckIncidentSignal">{row.signal || row.code}</td>
                     <td className="rundeckIncidentState"><InlineStatus value={row.state || 'UNKNOWN'} /></td>
-                    <td><InlineStatus value={severity} /></td>
+                    <td><InlineStatus value={currentSeverity} /></td>
+                    <td><InlineStatus value={peakSeverity} /></td>
                     <td>{formatWib(row.first_seen, true)}</td>
                     <td>{formatWib(row.last_seen, true)}</td>
                     <td>{durationText(row.duration_seconds)}</td>
@@ -492,7 +513,7 @@ export default function RundeckMonitoringHistory({
                           {evidence.map((item) => <div key={item.id} className="rundeckIncidentEvidenceRow" title={String(item.collected_at || '')}>
                             <span>{formatWib(item.collected_at, true)}</span>
                             <span>Run #{item.execution_id || '—'}</span>
-                            <span>{displayAlertSeverity(item)}</span>
+                            <span>{displayAlertSeverity(item, item.details?.value)}</span>
                             <span>{incidentMetric(item.details?.value, row.unit)}</span>
                             <span title={item.collection_id || undefined}>{item.message || item.code}</span>
                           </div>)}
@@ -502,8 +523,8 @@ export default function RundeckMonitoringHistory({
                     </td>
                   </tr>
                 })}
-                {alertError && <tr><td colSpan="10" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
-                {!alertError && !visibleAlerts.length && <tr><td colSpan="10">No SAP issues in this period.</td></tr>}
+                {alertError && <tr><td colSpan="11" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
+                {!alertError && !visibleAlerts.length && <tr><td colSpan="11">No SAP issues in this period.</td></tr>}
               </tbody>
             </table>
           </div>
