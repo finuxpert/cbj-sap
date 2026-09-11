@@ -40,7 +40,7 @@ test('desktop operational hierarchy stays readable and overflow-safe', async ({ 
 
   await expect(servers).toBeVisible()
   await expect(page.getByText('OS Resource', { exact: true }).first()).toBeVisible()
-  await expect(page.getByText('SAP Workload', { exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Critical WP', { exact: true }).first()).toBeVisible()
 
   const bodyOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(bodyOverflow).toBeLessThanOrEqual(2)
@@ -50,8 +50,8 @@ test('desktop operational hierarchy stays readable and overflow-safe', async ({ 
   if (headerGap !== null) expect(headerGap).toBeGreaterThanOrEqual(-2)
   if (serverTrendGap !== null) expect(serverTrendGap).toBeGreaterThanOrEqual(4)
 
-  const tableHeaderSize = await fontSize(page.locator('.rundeckServerTable th').first())
-  const tableBodySize = await fontSize(page.locator('.rundeckServerTable td').first())
+  const tableHeaderSize = await fontSize(page.locator('.rundeckServerTable th:visible').first())
+  const tableBodySize = await fontSize(page.locator('.rundeckServerTable td:visible').first())
   expect(tableHeaderSize).toBeGreaterThanOrEqual(8)
   expect(tableBodySize).toBeGreaterThanOrEqual(9)
 
@@ -60,7 +60,17 @@ test('desktop operational hierarchy stays readable and overflow-safe', async ({ 
   await attachPanel(page, `sphere-${test.info().project.name}-overview`)
 })
 
-test('evaluation engine renders baseline-aware daily weekly monthly review', async ({ page }) => {
+test('server trend exposes short incident ranges', async ({ page }) => {
+  const monitoring = page.locator('.rundeckMonitoring')
+  await monitoring.scrollIntoViewIfNeeded()
+  for (const label of ['30M', '1H', '3H', '6H', '24H', '7D', '30D']) {
+    await expect(monitoring.getByRole('button', { name: label, exact: true })).toBeVisible()
+  }
+  await monitoring.getByRole('button', { name: '30M', exact: true }).click()
+  await expect(monitoring.locator('.rundeckTrendChart')).toBeVisible({ timeout: 15_000 })
+})
+
+test('evaluation engine renders lean historical review', async ({ page }) => {
   const evaluation = page.locator('.rundeckEvaluation')
   await evaluation.scrollIntoViewIfNeeded()
   await expect(evaluation).toBeVisible()
@@ -70,9 +80,12 @@ test('evaluation engine renders baseline-aware daily weekly monthly review', asy
     await expect(evaluation.getByRole('button', { name: label, exact: true })).toBeVisible()
   }
 
-  await expect(evaluation.getByText('Data Confidence', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('Data Coverage', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('Collection Checks', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('Historical Baseline', { exact: true })).toBeVisible()
   await expect(evaluation.getByText('Observed Checks', { exact: true })).toBeVisible()
-  await expect(evaluation.getByText('Critical WP Overlap', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('Avg CPU', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('PSS Memory', { exact: true })).toBeVisible()
 
   await evaluation.getByRole('button', { name: '30 Days', exact: true }).click()
   await expect(evaluation.locator('.rundeckEvaluationTable')).toBeVisible({ timeout: 15_000 })
@@ -82,7 +95,7 @@ test('evaluation engine renders baseline-aware daily weekly monthly review', asy
   await attachPanel(page, `sphere-${test.info().project.name}-evaluation`)
 })
 
-test('SAP issue lifecycle distinguishes cleared current state from historical peak', async ({ page }) => {
+test('SAP issue lifecycle uses lean current and peak view', async ({ page }) => {
   const issues = page.locator('.rundeckSapIssues')
   await issues.scrollIntoViewIfNeeded()
   if (!(await issues.getAttribute('open'))) await issues.locator('summary').click()
@@ -90,6 +103,7 @@ test('SAP issue lifecycle distinguishes cleared current state from historical pe
   await expect(issues.getByText('SAP Signal', { exact: true })).toBeVisible()
   await expect(issues.getByText('Current', { exact: true })).toBeVisible()
   await expect(issues.getByText('Peak', { exact: true })).toBeVisible()
+  await expect(issues.getByText('Duration', { exact: true })).toBeVisible()
 
   const resolvedRows = issues.locator('tbody tr').filter({ hasText: 'RESOLVED' })
   const resolvedCount = await resolvedRows.count()
