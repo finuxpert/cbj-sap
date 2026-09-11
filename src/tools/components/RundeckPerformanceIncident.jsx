@@ -73,22 +73,17 @@ function scrollToSelectedWorkload() {
   window.requestAnimationFrame(navigate)
 }
 
-function WorkloadFacts({ workload, compact = false }) {
+function WorkloadFacts({ workload }) {
   const details = workload?.details || {}
   const pss = details.total_pss_gb ?? details.pss_gb
   const processes = Number(details.process_count || 0)
-  const facts = compact
-    ? [
-        ['Avg CPU', metric(workload?.avg_cpu_pct, '%')],
-        ['Peak CPU', metric(workload?.peak_cpu_pct, '%')],
-      ]
-    : [
-        ['CPU Usage', metric(workload?.cpu_pct, '%')],
-        ['PSS Memory', pss === null || pss === undefined ? '—' : metric(pss, ' GB')],
-        ['Processes', Number.isFinite(processes) && processes > 0 ? metric(processes) : '1'],
-      ]
+  const facts = [
+    ['CPU Usage', metric(workload?.cpu_pct, '%')],
+    ['PSS Memory', pss === null || pss === undefined ? '—' : metric(pss, ' GB')],
+    ['Processes', Number.isFinite(processes) && processes > 0 ? metric(processes) : '1'],
+  ]
 
-  return <dl className={`rundeckIncidentFacts ${compact ? 'is-compact' : ''}`}>
+  return <dl className="rundeckIncidentFacts">
     {facts.map(([label, value]) => <div key={label}><dt title={label.includes('CPU') ? CPU_HINT : undefined}>{label}</dt><dd>{value}</dd></div>)}
   </dl>
 }
@@ -149,12 +144,9 @@ export default function RundeckPerformanceIncident({
 
   const signal = summary.primary_signal || {}
   const current = summary.current_workload
-  const persistent = summary.persistent_workload || summary.primary_workload
   const currentContext = jobContext(current, summary.affected_server, 'current')
-  const persistentContext = jobContext(persistent, summary.affected_server, 'recurring')
   const hostMetrics = summary.current_host_metrics || {}
   const signalValue = metric(signal.value, signal.unit || '')
-  const sameWorkload = current?.consumer_type === persistent?.consumer_type && current?.consumer_key === persistent?.consumer_key
   const resourceState = hostResourceState(hostMetrics)
   const criticalWpSignal = /^Critical WP\b/i.test(shortSignal(signal.label)) ? Number(signal.value || 0) : 0
   const workloadContext = {
@@ -172,7 +164,7 @@ export default function RundeckPerformanceIncident({
     scrollToSelectedWorkload()
   }
 
-  return <section className="rundeckIncident" aria-label="SAP performance issue">
+  return <section className="rundeckIncident is-lean" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
       <div>
         <span className="rundeckIncidentEyebrow">Primary Issue</span>
@@ -186,40 +178,23 @@ export default function RundeckPerformanceIncident({
       <span><b>Duration</b>{duration(summary.duration_seconds)}</span>
     </div>
 
-    <div className="rundeckIncidentComparison">
-      <section className="rundeckIncidentWorkloadBlock is-current">
-        <div className="rundeckIncidentWorkloadLead">
-          <span>Current Workload</span>
-          {currentContext ? <button
-            type="button"
-            className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
-            onClick={() => selectAndInspect(currentContext)}
-            title="Open selected workload detail"
-            aria-label={`Open workload detail for ${current.consumer_key}`}
-          >{current.consumer_key}</button> : <strong>No current workload found</strong>}
-        </div>
-        {current && <WorkloadFacts workload={current} />}
-      </section>
-
-      <section className="rundeckIncidentWorkloadBlock is-persistent">
-        <div className="rundeckIncidentWorkloadLead">
-          <span>Recurring Workload</span>
-          {persistentContext ? <button
-            type="button"
-            className={`rundeckIncidentJobButton ${selectedJob?.key === persistentContext.key && selectedJob?.host === persistentContext.host ? 'is-selected' : ''}`}
-            onClick={() => selectAndInspect(persistentContext)}
-            title="Open selected workload detail"
-            aria-label={`Open workload detail for ${persistent.consumer_key}`}
-          >{persistent.consumer_key}</button> : <strong>No recurring workload found</strong>}
-          {persistent && <small>{sameWorkload ? 'Also current · ' : ''}Observed in {persistent.occurrences || 0} checks</small>}
-        </div>
-        {persistent && <WorkloadFacts workload={persistent} compact />}
-      </section>
-    </div>
+    <section className="rundeckIncidentWorkloadBlock is-current">
+      <div className="rundeckIncidentWorkloadLead">
+        <span>Current Workload</span>
+        {currentContext ? <button
+          type="button"
+          className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
+          onClick={() => selectAndInspect(currentContext)}
+          title="Open selected workload detail"
+          aria-label={`Open workload detail for ${current.consumer_key}`}
+        >{current.consumer_key}</button> : <strong>No current workload found</strong>}
+      </div>
+      {current && <WorkloadFacts workload={current} />}
+    </section>
 
     <div className="rundeckIncidentHostContext">
       <span><b>OS Resource</b><StatusPill value={resourceState} /></span>
-      <span><b>SAP Workload</b><StatusPill value={workloadState} /></span>
+      <span className="rundeckIncidentSapState"><b>SAP Workload</b><StatusPill value={workloadState} /></span>
       <span><b>CPU</b>{metric(hostMetrics.cpu_pct, '%')}</span>
       <span><b>Memory</b>{metric(hostMetrics.ram_pct, '%')}</span>
       <span><b>I/O Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
