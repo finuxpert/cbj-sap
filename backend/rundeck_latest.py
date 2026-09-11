@@ -7,6 +7,7 @@ from __future__ import annotations
 from sqlalchemy import text
 
 from backend.db.session import get_engine
+from backend.rundeck_status import enrich_host_state
 
 
 def latest_ready_host_metrics() -> dict:
@@ -40,7 +41,7 @@ def latest_ready_host_metrics() -> dict:
              WHERE collection_id = :collection_id
              ORDER BY host, collected_at DESC
         """), {"collection_id": collection["collection_id"]})
-        items = [dict(row._mapping) for row in rows]
+        items = [enrich_host_state(dict(row._mapping)) for row in rows]
 
     return {
         **dict(collection),
