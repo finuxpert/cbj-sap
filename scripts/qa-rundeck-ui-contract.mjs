@@ -81,6 +81,9 @@ const checks = [
   ['lean CSS removes duplicate header and server status columns visually', files.v120Css.includes('.rundeckLandscapeMeta span:nth-child(n+2)') && files.v120Css.includes('.rundeckServerTable th:nth-child(3)')],
   ['semantic colors reserve review and high states away from danger red', files.v120Css.includes('.is-review-required') && files.v120Css.includes('--sphere-review') && files.v120Css.includes('.is-high-cpu') && files.v120Css.includes('--sphere-high')],
   ['PDF preview still replaces immediate save', files.source.includes("pdf.output('blob')") && !files.source.includes('pdf.save(') && files.source.includes('Report Preview') && files.source.includes('Download PDF')],
+  ['PDF summary contains only current workload', files.source.includes("pdf.text('CURRENT WORKLOAD'") && !files.source.includes("pdf.text('RECURRING WORKLOAD'")],
+  ['PDF SAP App Server status uses lean columns', files.source.includes("['APP', 'OS RESOURCE', 'CPU', 'MEMORY', 'I/O WAIT', 'CRIT WP']") && !files.source.includes("['APP', 'OS RESOURCE', 'SAP WORKLOAD', 'CPU', 'MEMORY', 'I/O WAIT', 'CRIT WP']")],
+  ['PDF keeps one-page triage sections', ['PRIMARY ISSUE', 'SAP APP SERVER STATUS', 'SERVER ${trendMetric} TREND', 'SELECTED WORKLOAD', 'TOP ACTIVE WORKLOADS'].every((value) => files.source.includes(value))],
 
   ['deployment uses isolated managed nginx block updater', files.nginxUpdater.includes('BEGIN SPHERE') && files.nginxUpdater.includes('END SPHERE') && files.deployDev.includes('update-nginx-block.py') && files.deployDev.includes('--name DEV')],
   ['DEV deploy protects production routing', files.deployDev.includes('# SPHERE production Rundeck API routing') && files.deployDev.includes('# BEGIN SPHERE PROD ROUTING')],
