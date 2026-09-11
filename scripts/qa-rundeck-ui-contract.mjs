@@ -49,6 +49,7 @@ const checks = [
   ['PDF table shows both status domains', files.source.includes("'HOST RESOURCE', 'SAP WORKLOAD'")],
   ['primary issue formats Critical WP count before label', files.incident.includes('issueSignalText') && files.source.includes('issueSignalText')],
   ['incident summary labels Host Resource and SAP Workload separately', files.incident.includes('<b>Host Resource</b>') && files.incident.includes('<b>SAP Workload</b>')],
+  ['summary workload buttons navigate to selected workload detail', files.incident.includes('scrollToSelectedWorkload') && files.incident.includes("document.querySelector('.rundeckJobHistory')") && files.incident.includes('selectAndInspect(currentContext)') && files.incident.includes('selectAndInspect(persistentContext)') && files.incidentCss.includes("content: '↓'")],
   ['PDF trend title follows selected metric and range', files.source.includes('trendContext.metricLabel') && files.source.includes('trendContext.rangeLabel') && files.monitoring.includes('onTrendContext')],
   ['platform health is distinguished from SAP performance', files.source.includes('SPHERE Platform Health')],
   ['performance evaluation supports daily weekly monthly periods', files.evaluation.includes("['1d', '1 Day']") && files.evaluation.includes("['7d', '7 Days']") && files.evaluation.includes("['30d', '30 Days']") && files.backendEvaluation.includes('PERIOD_DAYS = {"1d": 1, "7d": 7, "30d": 30}')],
