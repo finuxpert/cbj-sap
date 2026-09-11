@@ -11,7 +11,6 @@ const SORT_PRESETS = [
   ['avg_cpu_pct', 'Highest CPU'],
   ['occurrences', 'Most Observed'],
   ['avg_pss_gb', 'Highest Memory'],
-  ['wp_excess_association_pct', 'Critical WP Overlap'],
 ]
 const STATUS_PRIORITY = {
   'REVIEW REQUIRED': 8,
@@ -25,8 +24,8 @@ const STATUS_PRIORITY = {
 }
 const CONFIDENCE_PRIORITY = { HIGH: 3, MEDIUM: 2, LOW: 1, NOT_READY: 0 }
 const CPU_HINT = 'CPU Usage represents the grouped workload observation. Values can exceed 100 percent when more than one CPU core is used.'
-const WP_HINT = 'Critical WP Overlap is measured on the same SAP App Server and collection check. It is supporting evidence, not direct workload-to-WP proof.'
-const OBSERVED_HINT = 'Observed Checks counts persisted top-consumer collection checks. It is not a SAP execution counter.'
+const WP_HINT = 'Critical WP evidence is measured on the same SAP App Server and collection check. It is supporting evidence, not direct workload-to-WP proof.'
+const OBSERVED_HINT = 'Observed Checks counts complete collection checks where this workload was retained. It is not a SAP execution counter.'
 
 async function json(url, signal) {
   const response = await fetch(url, { cache: 'no-store', signal })
@@ -46,25 +45,47 @@ const numericValue = (value) => {
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY
 }
 
+const observedChecks = (row, quality) => {
+  const observed = Math.max(0, Number(row?.occurrences || 0))
+  const complete = Math.max(0, Number(quality?.complete_checks || 0))
+  return complete > 0 ? Math.min(observed, complete) : observed
+}
+
+const effectiveConfidence = (row, quality) => {
+  const checks = observedChecks(row, quality)
+  const observation = checks >= 20 ? 'HIGH' : checks >= 4 ? 'MEDIUM' : 'LOW'
+  const period = String(quality?.confidence || 'LOW').toUpperCase()
+  const rank = Math.min(CONFIDENCE_PRIORITY[observation] || 1, CONFIDENCE_PRIORITY[period] || 1)
+  return Object.entries(CONFIDENCE_PRIORITY).find(([, value]) => value === rank)?.[0] || 'LOW'
+}
+
 function Segmented({ options, value, onChange, label }) {
   return <div className="rundeckEvaluationSegmented" role="group" aria-label={label}>
     {options.map(([key, text]) => <button key={key} type="button" className={value === key ? 'is-active' : ''} aria-pressed={value === key} onClick={() => onChange(key)}>{text}</button>)}
   </div>
 }
 
-function Status({ row }) {
+function Status({ row, quality }) {
   const status = row.status || row.assessment || 'NORMAL'
   const baseline = row.historical_baseline || {}
+  const confidence = effectiveConfidence(row, quality)
+  const wpExcess = Number(row.wp_excess_association_pct)
+  const wpContext = Number.isFinite(wpExcess) && wpExcess > 0
+    ? `Critical WP overlap is ${numberText(wpExcess, 1)} percentage points above the App Server baseline.`
+    : ''
   const title = [
     row.assessment_reason,
-    `Data confidence: ${row.overall_confidence || 'LOW'}`,
-    `Baseline status: ${row.baseline_status || 'NOT_READY'}`,
+    `Data confidence: ${confidence}`,
+    `Historical baseline: ${row.baseline_status || 'NOT_READY'}`,
     baseline.cpu_p95_pct !== null && baseline.cpu_p95_pct !== undefined ? `30-day CPU P95: ${pct(baseline.cpu_p95_pct)}` : '',
     row.anomaly_status ? `Baseline result: ${row.anomaly_status}` : '',
     row.signals?.performance_shift ? `Recent CPU shift: ${pct(row.recent_cpu_shift_pct)}` : '',
+    wpContext,
+    wpContext ? WP_HINT : '',
   ].filter(Boolean).join('\n')
   return <span className="rundeckEvaluationAssessmentWrap" title={title}>
     <span className={`rundeckEvaluationAssessment ${statusClass(status)}`}>{status}</span>
+    <small className={`rundeckEvaluationConfidence ${confidenceClass(confidence)}`}>{confidence}</small>
   </span>
 }
 
@@ -86,7 +107,6 @@ function riskCompare(left, right) {
     [STATUS_PRIORITY[left.status] || 0, STATUS_PRIORITY[right.status] || 0],
     [left.signals?.baseline_anomaly ? 1 : 0, right.signals?.baseline_anomaly ? 1 : 0],
     [left.signals?.performance_shift ? 1 : 0, right.signals?.performance_shift ? 1 : 0],
-    [CONFIDENCE_PRIORITY[left.overall_confidence] || 0, CONFIDENCE_PRIORITY[right.overall_confidence] || 0],
     [numericValue(left.wp_excess_association_pct), numericValue(right.wp_excess_association_pct)],
     [numericValue(left.occurrences), numericValue(right.occurrences)],
     [numericValue(left.avg_cpu_pct), numericValue(right.avg_cpu_pct)],
@@ -121,8 +141,6 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
 
   const summary = data?.summary || {}
   const quality = data?.quality || {}
-  const previousQuality = data?.previous_quality || {}
-  const sampling = data?.sampling || {}
   const sortedItems = React.useMemo(() => {
     const items = [...(data?.items || [])]
     if (sortField === 'risk') return items.sort(riskCompare)
@@ -158,16 +176,14 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
   const completeText = quality.partial_or_incomplete_checks
     ? `${numberText(quality.complete_checks, 0)} complete · ${numberText(quality.partial_or_incomplete_checks, 0)} excluded`
     : `${numberText(quality.complete_checks, 0)} complete`
-  const sampleDepth = sampling.recorded_rank_limit || sampling.observed_rank_depth || sampling.configured_rank_limit || '—'
   const lowCoverage = String(quality.confidence || 'LOW').toUpperCase() === 'LOW'
-  const baselineReady = Number(summary.baseline_anomaly || 0)
 
   return <section className="rundeckEvaluation" aria-label="Program and background job performance evaluation">
     <div className="rundeckEvaluationHead">
       <div>
         <span>Historical Review</span>
         <h3><SphereIcon name="trend" /> Performance Evaluation</h3>
-        <p>Program and background job review using complete collection checks and workload historical baselines.</p>
+        <p>Workloads that need review based on complete checks and historical behavior.</p>
       </div>
       <div className="rundeckEvaluationControls">
         <Segmented options={PERIODS} value={period} onChange={setPeriod} label="Evaluation period" />
@@ -179,21 +195,17 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
     {error && <div className="rundeckEvaluationState is-error">{error}</div>}
 
     {!loading && !error && data && <>
-      <div className="rundeckEvaluationQuality" aria-label="Evaluation data quality">
+      <div className="rundeckEvaluationQuality is-lean" aria-label="Evaluation data quality">
         <QualityItem label="Data Coverage" value={`${pct(quality.coverage_pct)} · ${quality.confidence || 'LOW'}`} confidence={quality.confidence || 'LOW'} />
         <QualityItem label="Collection Checks" value={completeText} />
-        <QualityItem label="SAP App Servers" value={`${pct(quality.app_coverage_pct)} · ${numberText(quality.expected_host_count, 0)} expected`} />
-        <QualityItem label="Baseline Status" value={`${previousQuality.confidence === 'HIGH' || previousQuality.confidence === 'MEDIUM' ? 'READY' : 'BUILDING'} · ${pct(previousQuality.coverage_pct)}`} confidence={previousQuality.confidence || 'LOW'} />
         <QualityItem label="Historical Baseline" value={`${numberText(data.baseline?.days, 0)} days · min ${numberText(data.baseline?.min_observations, 0)} observations`} />
-        <QualityItem label="Persisted Depth" value={`Top ${sampleDepth} per SAP App Server`} />
-        {lowCoverage && <span className="rundeckEvaluationCoverageFlag">LOW COVERAGE · requested period is still partial</span>}
+        {lowCoverage && <span className="rundeckEvaluationCoverageFlag">LOW COVERAGE</span>}
       </div>
 
-      <div className="rundeckEvaluationSummary">
-        <div><span>Workloads</span><strong>{numberText(summary.workloads, 0)}</strong><small>{numberText(summary.programs, 0)} programs · {numberText(summary.jobs, 0)} jobs</small></div>
+      <div className="rundeckEvaluationSummary is-lean">
         <div><span>Review Required</span><strong>{numberText(summary.review_required ?? summary.needs_review, 0)}</strong><small>{numberText(summary.sustained_high_cpu, 0)} high CPU · {numberText(summary.high_memory, 0)} high memory</small></div>
-        <div><span>CPU Spike</span><strong>{numberText(summary.cpu_spike, 0)}</strong><small>peak only · lower Top Risk weight</small></div>
-        <div><span>Baseline Signals</span><strong>{numberText(baselineReady, 0)}</strong><small>{numberText(summary.performance_shift, 0)} recent CPU shifts</small></div>
+        <div><span>CPU Spike</span><strong>{numberText(summary.cpu_spike, 0)}</strong><small>peak without sustained high average</small></div>
+        <div><span>CPU Shift</span><strong>{numberText(summary.performance_shift, 0)}</strong><small>recent increase versus preceding window</small></div>
       </div>
 
       <div className="rundeckEvaluationSortBar" aria-label="Evaluation sort options">
@@ -202,49 +214,49 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
       </div>
 
       <div className="rundeckEvaluationTableWrap">
-        <table className="rundeckEvaluationTable is-v120">
+        <table className="rundeckEvaluationTable is-v120 is-lean">
           <thead><tr>
             <th>Workload</th>
             <th>Status</th>
-            <th>Data Confidence</th>
             <SortHeader field="occurrences" label="Observed Checks" title={OBSERVED_HINT} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
             <SortHeader field="avg_cpu_pct" label="Avg CPU" title={CPU_HINT} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
             <SortHeader field="peak_cpu_pct" label="Peak CPU" title={CPU_HINT} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
             <SortHeader field="avg_pss_gb" label="PSS Memory" title="Average grouped PSS memory for the workload observations." sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
-            <SortHeader field="wp_excess_association_pct" label="Critical WP Overlap" title={WP_HINT} sortField={sortField} sortDirection={sortDirection} onSort={toggleSort} />
           </tr></thead>
           <tbody>
             {sortedItems.map((row) => {
               const selected = selectedJob?.key === row.consumer_key && selectedJob?.consumerType === row.consumer_type
               const baseline = row.historical_baseline || {}
-              const wpTitle = `Workload overlap ${pct(row.wp_signal_overlap_pct)}. SAP App Server baseline ${pct(row.app_wp_baseline_pct)}. Excess overlap ${row.wp_excess_association_pct === null || row.wp_excess_association_pct === undefined ? '—' : `${numberText(row.wp_excess_association_pct, 1)} percentage points`}. ${WP_HINT}`
+              const wpExcess = Number(row.wp_excess_association_pct)
+              const wpEvidence = Number.isFinite(wpExcess) && wpExcess >= Number(data.thresholds?.wp_excess_association_pp || 20)
+                ? ` · Critical WP +${numberText(wpExcess, 1)} pp vs App Server baseline`
+                : ''
               const workloadTitle = [
                 `${workloadTypeLabel(row.consumer_type)}`,
                 `Processes: ${numberText(row.avg_process_count, 1)}`,
                 `Host CPU while observed: ${pct(row.avg_host_cpu_pct)}`,
-                row.baseline_status === 'READY' ? `Baseline CPU median ${pct(baseline.cpu_median_pct)}, P95 ${pct(baseline.cpu_p95_pct)}` : `Baseline ${row.baseline_status || 'NOT_READY'}`,
+                row.baseline_status === 'READY' ? `Baseline CPU median ${pct(baseline.cpu_median_pct)}, P95 ${pct(baseline.cpu_p95_pct)}` : `Historical baseline ${row.baseline_status || 'NOT_READY'}`,
                 row.anomaly_status ? `Baseline result: ${row.anomaly_status}` : '',
+                wpEvidence ? `Critical WP overlap ${pct(row.wp_signal_overlap_pct)}${wpEvidence}` : '',
               ].filter(Boolean).join('\n')
               return <tr key={`${row.consumer_type}-${row.consumer_key}`} className={selected ? 'is-selected' : ''}>
                 <td className="rundeckEvaluationWorkload" title={workloadTitle}>
                   <button type="button" onClick={() => select(row)}>{row.consumer_key}</button>
                   <small>{workloadTypeLabel(row.consumer_type)}{Number(row.avg_process_count || 0) > 1 ? ` · ${numberText(row.avg_process_count, 1)} processes` : ''}</small>
                 </td>
-                <td><Status row={row} /></td>
-                <td><span className={`rundeckEvaluationConfidence ${confidenceClass(row.overall_confidence)}`}>{row.overall_confidence || 'LOW'}</span></td>
-                <td title={OBSERVED_HINT}>{numberText(row.occurrences, 0)}</td>
+                <td><Status row={row} quality={quality} /></td>
+                <td title={OBSERVED_HINT}>{numberText(observedChecks(row, quality), 0)}</td>
                 <td title={CPU_HINT}>{pct(row.avg_cpu_pct)}</td>
                 <td title={CPU_HINT}>{pct(row.peak_cpu_pct)}</td>
-                <td title={`Baseline P95: ${gb(baseline.pss_p95_gb)} · ${row.anomaly_status || 'NO BASELINE'}`}>{gb(row.avg_pss_gb)}</td>
-                <td title={wpTitle} className={Number(row.wp_excess_association_pct || 0) >= Number(data.thresholds?.wp_excess_association_pp || 20) ? 'is-association' : ''}>{pct(row.wp_signal_overlap_pct)}</td>
+                <td title={`Historical P95: ${gb(baseline.pss_p95_gb)} · ${row.anomaly_status || 'NO BASELINE'}`}>{gb(row.avg_pss_gb)}</td>
               </tr>
             })}
-            {!sortedItems.length && <tr><td colSpan="8" className="rundeckEvaluationEmpty">No program or background job observations are available from complete collections for this period.</td></tr>}
+            {!sortedItems.length && <tr><td colSpan="6" className="rundeckEvaluationEmpty">No program or background job observations are available from complete collections for this period.</td></tr>}
           </tbody>
         </table>
       </div>
       <div className="rundeckEvaluationFoot">
-        Observed Checks are collection observations, not SAP execution count. Historical baseline uses workload median and P95. Critical WP Overlap is App Server timing evidence, not direct causation.
+        Observed Checks are collection observations, not SAP execution count. Critical WP evidence remains App Server timing evidence, not direct causation.
       </div>
     </>}
   </section>
