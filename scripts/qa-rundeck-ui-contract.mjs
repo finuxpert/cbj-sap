@@ -23,6 +23,8 @@ const files = {
   backendIncidents: fs.readFileSync('backend/rundeck_alert_incidents.py', 'utf8'),
   backendEvaluation: fs.readFileSync('backend/rundeck_evaluation.py', 'utf8'),
   backendApi: fs.readFileSync('backend/rundeck_api.py', 'utf8'),
+  visualConfig: fs.readFileSync('playwright.config.mjs', 'utf8'),
+  visualSpec: fs.readFileSync('tests/visual/rundeck.visual.spec.mjs', 'utf8'),
   version: fs.readFileSync('src/app/version.js', 'utf8'),
 }
 
@@ -57,6 +59,8 @@ const checks = [
   ['adaptive UI uses centralized spacing tokens', files.sourceCss.includes('--sphere-space-1') && files.sourceCss.includes('--sphere-space-5') && files.sourceCss.includes('--sphere-font-body')],
   ['adaptive UI uses container queries', files.sourceCss.includes('container-type: inline-size') && files.incidentCss.includes('@container') && files.monitoringCss.includes('@container') && files.historyCss.includes('@container') && files.evaluationCss.includes('@container')],
   ['adaptive UI uses fluid type and spacing', files.sourceCss.includes('clamp(') && files.incidentCss.includes('clamp(') && files.evaluationCss.includes('clamp(')],
+  ['Playwright covers desktop and laptop visual layouts', files.visualConfig.includes('desktop-1920') && files.visualConfig.includes('laptop-1366') && files.visualSpec.includes('SPHERE_VISUAL_COMPARE') && files.visualSpec.includes('toHaveScreenshot')],
+  ['visual QA checks evaluation and cleared issue semantics', files.visualSpec.includes('Performance Evaluation') && files.visualSpec.includes('Current Severity') && files.visualSpec.includes('CLEARED')],
   ['process CPU semantics are explained', files.workload.includes('PROCESS_CPU_HINT') && files.history.includes('PROCESS_CPU_HINT')],
   ['selected workload separates Observation and Performance', files.history.includes('rundeckJobHistoryOverview') && files.history.includes('>Observation<') && files.history.includes('>Performance<')],
   ['critical WP legend is explicitly a signal', files.history.includes('APP Critical WP signal')],
