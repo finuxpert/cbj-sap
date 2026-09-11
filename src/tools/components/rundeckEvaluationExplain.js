@@ -11,7 +11,7 @@ export function evaluationReasonParts(row = {}, maxParts = 2) {
 
     if (signals.baseline_anomaly || row.anomaly_status === 'ABOVE BASELINE') parts.push('Above Baseline')
     else if (signals.performance_shift || signals.increasing) parts.push('CPU Increase')
-    else if (signals.wp_excess_association || signals.critical_wp_correlated) parts.push('Critical WP')
+    else if (signals.wp_excess_association || signals.critical_wp_correlated) parts.push('Critical WP Evidence')
     else if (signals.recurring) parts.push('Recurring')
   } else if (status === 'HIGH CPU') {
     parts.push('Sustained CPU')
@@ -35,7 +35,7 @@ export function evaluationReasonParts(row = {}, maxParts = 2) {
     if (signals.cpu_spike) parts.push('CPU Spike')
     if (signals.performance_shift || signals.increasing) parts.push('CPU Increase')
     if (signals.baseline_anomaly || row.anomaly_status === 'ABOVE BASELINE') parts.push('Above Baseline')
-    if (signals.wp_excess_association || signals.critical_wp_correlated) parts.push('Critical WP')
+    if (signals.wp_excess_association || signals.critical_wp_correlated) parts.push('Critical WP Evidence')
   }
 
   return unique(parts).slice(0, Math.max(1, Number(maxParts) || 2))
