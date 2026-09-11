@@ -114,7 +114,7 @@ def performance_analysis():
 
 @app.get("/evaluation/workloads")
 def workload_evaluation(
-    period: str = Query("7d", pattern="^(1d|7d|30d)$"),
+    period: str = Query("1d", pattern="^(1d|7d|30d)$"),
     consumer_type: str = Query("ALL", alias="type", pattern="^(ALL|JOB|PROGRAM)$"),
     limit: int = Query(30, ge=1, le=100),
 ):
