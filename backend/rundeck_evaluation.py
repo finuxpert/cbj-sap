@@ -24,6 +24,7 @@ PSS_HIGH_GB = float(os.getenv("SPHERE_EVAL_PSS_HIGH_GB", "4"))
 INCREASE_PCT = float(os.getenv("SPHERE_EVAL_INCREASE_PCT", "25"))
 RECURRING_PCT = float(os.getenv("SPHERE_EVAL_RECURRING_PCT", "30"))
 WP_CORRELATION_PCT = float(os.getenv("SPHERE_EVAL_WP_CORRELATION_PCT", "30"))
+WP_EXCESS_ASSOCIATION_PCT = float(os.getenv("SPHERE_EVAL_WP_EXCESS_ASSOCIATION_PCT", "20"))
 MIN_BASELINE_OCCURRENCES = max(2, int(os.getenv("SPHERE_EVAL_MIN_BASELINE_OCCURRENCES", "5")))
 CONFIDENCE_MEDIUM_OCCURRENCES = max(2, int(os.getenv("SPHERE_EVAL_CONFIDENCE_MEDIUM_OCCURRENCES", "4")))
 CONFIDENCE_HIGH_OCCURRENCES = max(CONFIDENCE_MEDIUM_OCCURRENCES, int(os.getenv("SPHERE_EVAL_CONFIDENCE_HIGH_OCCURRENCES", "20")))
@@ -52,21 +53,19 @@ def _change_pct(current: Any, previous: Any) -> float | None:
     return round((current_value - previous_value) / previous_value * 100.0, 1)
 
 
+def _observation_confidence(occurrences: int) -> str:
+    if occurrences >= CONFIDENCE_HIGH_OCCURRENCES:
+        return "HIGH"
+    if occurrences >= CONFIDENCE_MEDIUM_OCCURRENCES:
+        return "MEDIUM"
+    return "LOW"
+
+
 def _cap_confidence(value: str, period_confidence: str) -> str:
     value_rank = _CONFIDENCE_RANK.get(value, 1)
     period_rank = _CONFIDENCE_RANK.get(period_confidence, 1)
     target = min(value_rank, period_rank)
     return next((name for name, rank in _CONFIDENCE_RANK.items() if rank == target), "LOW")
-
-
-def _workload_confidence(occurrences: int, period_confidence: str) -> str:
-    if occurrences >= CONFIDENCE_HIGH_OCCURRENCES:
-        raw = "HIGH"
-    elif occurrences >= CONFIDENCE_MEDIUM_OCCURRENCES:
-        raw = "MEDIUM"
-    else:
-        raw = "LOW"
-    return _cap_confidence(raw, period_confidence)
 
 
 def assess_workload(
@@ -76,18 +75,25 @@ def assess_workload(
     *,
     baseline_eligible: bool = True,
     period_confidence: str = "HIGH",
+    previous_period_confidence: str = "HIGH",
 ) -> dict:
-    """Return deterministic review classification, confidence and supporting reason."""
+    """Return deterministic review classification and explicitly separated confidence signals."""
     previous = previous or {}
     occurrences = int(current.get("occurrences") or 0)
-    wp_checks = int(current.get("critical_wp_checks") or 0)
+    host_observations = int(current.get("host_observations") or occurrences)
+    wp_host_checks = int(current.get("critical_wp_host_checks") or current.get("critical_wp_checks") or 0)
     avg_cpu = _number(current.get("avg_cpu_pct"))
     peak_cpu = _number(current.get("peak_cpu_pct"))
     avg_pss = _number(current.get("avg_pss_gb"))
-    evidence_confidence = _workload_confidence(occurrences, period_confidence)
+    app_wp_baseline = _number(current.get("app_wp_baseline_pct"))
+
+    observation_confidence = _observation_confidence(occurrences)
+    overall_confidence = _cap_confidence(observation_confidence, period_confidence)
+    trend_confidence = previous_period_confidence if baseline_eligible else "NOT_READY"
     change = _change_pct(avg_cpu, previous.get("avg_cpu_pct")) if baseline_eligible else None
     recurring_rate = round(occurrences / total_checks * 100.0, 1) if total_checks else 0.0
-    wp_rate = round(wp_checks / occurrences * 100.0, 1) if occurrences else 0.0
+    wp_rate = round(wp_host_checks / host_observations * 100.0, 1) if host_observations else 0.0
+    wp_excess = round(wp_rate - app_wp_baseline, 1) if app_wp_baseline is not None else None
 
     high_resource = (
         (avg_cpu is not None and avg_cpu >= CPU_HIGH_AVG)
@@ -96,38 +102,56 @@ def assess_workload(
     )
     increasing = baseline_eligible and change is not None and change >= INCREASE_PCT
     recurring_signal = occurrences >= 3 and recurring_rate >= RECURRING_PCT
-    wp_overlap_signal = occurrences >= 2 and wp_rate >= WP_CORRELATION_PCT
-    enough_evidence = evidence_confidence in {"MEDIUM", "HIGH"}
-    wp_correlated = wp_overlap_signal and enough_evidence
-    recurring = recurring_signal and enough_evidence
+    wp_overlap_signal = host_observations >= 2 and wp_rate >= WP_CORRELATION_PCT
+    wp_excess_signal = (
+        wp_overlap_signal
+        and wp_excess is not None
+        and wp_excess >= WP_EXCESS_ASSOCIATION_PCT
+    )
+    enough_window_evidence = overall_confidence in {"MEDIUM", "HIGH"}
+    recurring = recurring_signal and enough_window_evidence
+    wp_associated = wp_excess_signal and enough_window_evidence
 
-    if high_resource and enough_evidence and (increasing or wp_correlated):
+    if high_resource and enough_window_evidence and (increasing or wp_associated):
         assessment = "NEEDS REVIEW"
-        reason = "High resource usage is combined with a supported trend increase or repeated host Critical WP signal overlap."
+        if increasing and wp_associated:
+            reason = "High resource usage is combined with a supported trend increase and WP signal exposure above the APP baseline."
+        elif increasing:
+            reason = "High resource usage is combined with a supported trend increase versus the previous equivalent period."
+        else:
+            reason = "High resource usage is combined with WP signal exposure materially above the APP baseline for the same observation window."
     elif high_resource:
         assessment = "HIGH RESOURCE"
-        reason = "Average/peak Process CPU or average PSS crossed the review threshold; evidence confidence is shown separately."
+        reason = "Average/peak Process CPU or average PSS crossed the review threshold; observation and period confidence are reported separately."
     elif increasing:
         assessment = "INCREASING"
         reason = "Average Process CPU increased materially versus a sufficiently covered previous equivalent period."
     elif recurring:
         assessment = "RECURRING"
-        reason = "The workload repeatedly appears across a material share of complete collection cycles."
-    elif not enough_evidence:
+        reason = "The workload repeatedly appears across a material share of complete collection cycles with sufficient period coverage."
+    elif not enough_window_evidence:
         assessment = "LIMITED DATA"
-        reason = "Too few observations or insufficient period coverage are available for a stronger historical classification."
+        reason = "Observation count or requested-period coverage is not yet sufficient for a stronger historical classification."
     else:
         assessment = "STABLE"
-        reason = "No high-resource, supported material increase, or recurring review threshold is currently met."
+        reason = "No high-resource, supported material increase, recurring, or excess WP-association threshold is currently met."
 
     return {
         "assessment": assessment,
         "assessment_reason": reason,
-        "evidence_confidence": evidence_confidence,
+        "observation_confidence": observation_confidence,
+        "period_confidence": period_confidence,
+        "overall_confidence": overall_confidence,
+        # Backward-compatible field used by older UI clients.
+        "evidence_confidence": overall_confidence,
+        "trend_confidence": trend_confidence,
+        "trend_baseline_status": "READY" if baseline_eligible else "NOT_READY",
         "baseline_available": bool(baseline_eligible),
         "avg_cpu_change_pct": change,
         "recurring_rate_pct": recurring_rate,
         "wp_signal_overlap_pct": wp_rate,
+        "app_wp_baseline_pct": _round(app_wp_baseline),
+        "wp_excess_association_pct": wp_excess,
         # Backward-compatible field name for existing API consumers.
         "critical_wp_correlation_pct": wp_rate,
         "signals": {
@@ -135,8 +159,9 @@ def assess_workload(
             "increasing": increasing,
             "recurring": recurring,
             "recurring_signal": recurring_signal,
-            "critical_wp_correlated": wp_correlated,
+            "critical_wp_correlated": wp_associated,
             "wp_signal_overlap": wp_overlap_signal,
+            "wp_excess_association": wp_excess_signal,
         },
     }
 
@@ -164,30 +189,48 @@ def _aggregate_window(conn, start: datetime, end: datetime, consumer_type: str) 
              AND COALESCE(c.finished_at, c.started_at) < :end
         ),
         host_signal AS (
-          SELECT hm.collection_id, hm.host, MAX(COALESCE(hm.wp_critical, 0)) AS wp_critical
+          SELECT hm.collection_id,
+                 hm.host,
+                 MAX(COALESCE(hm.wp_critical, 0)) AS wp_critical,
+                 MAX(hm.cpu_pct) AS host_cpu_pct
             FROM rundeck_host_metrics hm
             JOIN complete_collections cc ON cc.collection_id = hm.collection_id
            GROUP BY hm.collection_id, hm.host
+        ),
+        host_baseline AS (
+          SELECT host,
+                 100.0 * COUNT(*) FILTER (WHERE COALESCE(wp_critical, 0) > 0)
+                   / NULLIF(COUNT(*), 0) AS wp_active_pct
+            FROM host_signal
+           GROUP BY host
         )
         SELECT tc.consumer_type,
                tc.consumer_key,
                COUNT(DISTINCT tc.collection_id) AS occurrences,
                COUNT(*) AS observations,
+               COUNT(DISTINCT (tc.collection_id, tc.host)) AS host_observations,
                AVG(tc.cpu_pct) AS avg_cpu_pct,
                MAX(tc.cpu_pct) AS peak_cpu_pct,
                AVG(NULLIF(COALESCE(tc.details->>'total_pss_gb', tc.details->>'pss_gb'), '')::double precision) AS avg_pss_gb,
                MAX(NULLIF(COALESCE(tc.details->>'total_pss_gb', tc.details->>'pss_gb'), '')::double precision) AS peak_pss_gb,
+               AVG(NULLIF(tc.details->>'process_count', '')::double precision) AS avg_process_count,
+               MAX(NULLIF(tc.details->>'process_count', '')::double precision) AS peak_process_count,
+               AVG(hs.host_cpu_pct) AS avg_host_cpu_pct,
+               MAX(hs.host_cpu_pct) AS peak_host_cpu_pct,
                COUNT(DISTINCT tc.host) AS app_count,
                ARRAY_AGG(DISTINCT tc.host ORDER BY tc.host) AS hosts,
                MIN(tc.collected_at) AS first_seen,
                MAX(tc.collected_at) AS last_seen,
                COUNT(DISTINCT CASE WHEN COALESCE(hs.wp_critical, 0) > 0 THEN tc.collection_id END) AS critical_wp_checks,
+               COUNT(DISTINCT (tc.collection_id, tc.host)) FILTER (WHERE COALESCE(hs.wp_critical, 0) > 0) AS critical_wp_host_checks,
+               AVG(hb.wp_active_pct) AS app_wp_baseline_pct,
                MAX(tc.rank) AS max_rank_seen,
                COUNT(*) FILTER (WHERE tc.details->>'resource_aggregation' = 'SUM_BY_CONSUMER') AS aggregate_resource_observations
           FROM rundeck_top_consumers tc
           JOIN complete_collections cc ON cc.collection_id = tc.collection_id
           LEFT JOIN host_signal hs
             ON hs.collection_id = tc.collection_id AND hs.host = tc.host
+          LEFT JOIN host_baseline hb ON hb.host = tc.host
          WHERE tc.collected_at >= :start
            AND tc.collected_at < :end
            AND tc.consumer_type IN ('JOB', 'PROGRAM')
@@ -277,7 +320,7 @@ def _sampling_quality(conn, start: datetime, end: datetime) -> dict:
         "observed_rank_depth": int(row.get("observed_rank_depth") or 0),
         "resource_aggregation_coverage_pct": round(aggregate_observations / observations * 100.0, 1) if observations else 0.0,
         "seen_definition": "Observed in persisted top-consumer collection cycles; not an execution counter.",
-        "wp_overlap_basis": "Same APP and collection cycle; correlation evidence, not direct workload-to-WP causation.",
+        "wp_overlap_basis": "WP overlap is measured on the same APP and collection cycle; excess association subtracts the APP's own WP-active baseline for the requested window.",
         "direct_wp_match_available": False,
     }
 
@@ -293,8 +336,8 @@ def _anchor_time(conn) -> datetime:
     return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
 
 
-def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int = 30) -> dict:
-    period_key = str(period or "7d").lower()
+def evaluation_report(period: str = "1d", consumer_type: str = "ALL", limit: int = 30) -> dict:
+    period_key = str(period or "1d").lower()
     if period_key not in PERIOD_DAYS:
         raise ValueError("period must be one of 1d, 7d, 30d")
     type_key = str(consumer_type or "ALL").upper()
@@ -334,20 +377,31 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
             and previous_occurrences >= MIN_BASELINE_OCCURRENCES
             and previous_quality.get("confidence") in {"MEDIUM", "HIGH"}
         )
+        avg_cpu = _round(row.get("avg_cpu_pct"))
+        peak_cpu = _round(row.get("peak_cpu_pct"))
         normalized = {
             **row,
             "occurrences": int(row.get("occurrences") or 0),
             "observations": observations,
+            "host_observations": int(row.get("host_observations") or 0),
             "app_count": int(row.get("app_count") or 0),
             "hosts": list(row.get("hosts") or []),
             "critical_wp_checks": int(row.get("critical_wp_checks") or 0),
+            "critical_wp_host_checks": int(row.get("critical_wp_host_checks") or 0),
             "max_rank_seen": int(row.get("max_rank_seen") or 0),
             "aggregate_resource_observations": aggregate_resource_observations,
             "resource_aggregation_coverage_pct": round(aggregate_resource_observations / observations * 100.0, 1) if observations else 0.0,
-            "avg_cpu_pct": _round(row.get("avg_cpu_pct")),
-            "peak_cpu_pct": _round(row.get("peak_cpu_pct")),
+            "avg_cpu_pct": avg_cpu,
+            "peak_cpu_pct": peak_cpu,
+            "avg_cpu_core_equivalent": round(avg_cpu / 100.0, 2) if avg_cpu is not None else None,
+            "peak_cpu_core_equivalent": round(peak_cpu / 100.0, 2) if peak_cpu is not None else None,
             "avg_pss_gb": _round(row.get("avg_pss_gb"), 2),
             "peak_pss_gb": _round(row.get("peak_pss_gb"), 2),
+            "avg_process_count": _round(row.get("avg_process_count"), 1),
+            "peak_process_count": _round(row.get("peak_process_count"), 0),
+            "avg_host_cpu_pct": _round(row.get("avg_host_cpu_pct")),
+            "peak_host_cpu_pct": _round(row.get("peak_host_cpu_pct")),
+            "app_wp_baseline_pct": _round(row.get("app_wp_baseline_pct")),
             "previous": {
                 "occurrences": previous_occurrences,
                 "avg_cpu_pct": _round(previous.get("avg_cpu_pct")) if previous else None,
@@ -361,15 +415,17 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
             current_checks,
             baseline_eligible=baseline_eligible,
             period_confidence=str(current_quality.get("confidence") or "LOW"),
+            previous_period_confidence=str(previous_quality.get("confidence") or "LOW"),
         ))
         evaluated.append(normalized)
 
     evaluated.sort(key=lambda item: (
         priority.get(item["assessment"], 0),
-        _CONFIDENCE_RANK.get(item.get("evidence_confidence"), 0),
-        item.get("avg_cpu_pct") or 0,
-        item.get("peak_cpu_pct") or 0,
+        _CONFIDENCE_RANK.get(item.get("overall_confidence"), 0),
+        _CONFIDENCE_RANK.get(item.get("observation_confidence"), 0),
+        item.get("wp_excess_association_pct") or 0,
         item.get("occurrences") or 0,
+        item.get("avg_cpu_pct") or 0,
     ), reverse=True)
     items = evaluated[:max(1, min(int(limit), 100))]
 
@@ -383,12 +439,14 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
         "recurring": sum(1 for item in evaluated if item.get("signals", {}).get("recurring")),
         "limited_data": sum(1 for item in evaluated if item["assessment"] == "LIMITED DATA"),
         "wp_signal_overlap": sum(1 for item in evaluated if item.get("signals", {}).get("wp_signal_overlap")),
+        "wp_excess_association": sum(1 for item in evaluated if item.get("signals", {}).get("wp_excess_association")),
     }
 
     return {
         "period": period_key,
         "days": days,
         "type": type_key,
+        "recommended_period": "1d",
         "start": start,
         "end": end,
         "previous_start": previous_start,
@@ -405,9 +463,12 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
             "increase_pct": INCREASE_PCT,
             "recurring_pct": RECURRING_PCT,
             "wp_signal_overlap_pct": WP_CORRELATION_PCT,
+            "wp_excess_association_pp": WP_EXCESS_ASSOCIATION_PCT,
             "min_baseline_occurrences": MIN_BASELINE_OCCURRENCES,
+            "confidence_medium_occurrences": CONFIDENCE_MEDIUM_OCCURRENCES,
+            "confidence_high_occurrences": CONFIDENCE_HIGH_OCCURRENCES,
         },
         "summary": summary,
         "items": items,
-        "method": "Deterministic historical comparison using complete collections only; review signal, not root-cause proof.",
+        "method": "Deterministic historical comparison using complete collections only; WP association is normalized against APP baseline; review signal, not root-cause proof.",
     }
