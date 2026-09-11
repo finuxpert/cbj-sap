@@ -104,7 +104,7 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
             {items.map((row) => {
               const selected = selectedJob?.key === row.consumer_key && selectedJob?.consumerType === row.consumer_type
               return <tr key={`${row.consumer_type}-${row.consumer_key}`} className={selected ? 'is-selected' : ''}>
-                <td className="rundeckEvaluationWorkload"><button type="button" onClick={() => select(row)} title={`Inspect ${row.consumer_key}`}>{row.consumer_key}</button></td>
+                <td className="rundeckEvaluationWorkload"><button type="button" onClick={() => select(row)} title={`Load detailed history for ${row.consumer_key} in Selected Workload`}>{row.consumer_key}</button></td>
                 <td>{workloadTypeLabel(row.consumer_type)}</td>
                 <td title={row.assessment_reason || undefined}><Assessment value={row.assessment} /></td>
                 <td>{numberText(row.occurrences, 0)} / {numberText(data.collection_checks, 0)}</td>
@@ -121,7 +121,7 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
           </tbody>
         </table>
       </div>
-      <div className="rundeckEvaluationFoot">Current period is compared with the immediately preceding {data.days}-day period · Thresholds are deterministic and environment-configurable.</div>
+      <div className="rundeckEvaluationFoot">Current period is compared with the immediately preceding {data.days}-day period · Click a workload to load its detailed history in Selected Workload above · Thresholds are deterministic and environment-configurable.</div>
     </>}
   </section>
 }
