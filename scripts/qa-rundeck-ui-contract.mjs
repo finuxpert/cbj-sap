@@ -15,13 +15,13 @@ const files = {
   workload: read('src/tools/components/RundeckCurrentWorkload.jsx'),
   history: read('src/tools/components/RundeckJobHistory.jsx'),
   monitoring: read('src/tools/components/RundeckMonitoringHistory.jsx'),
-  monitoringCss: read('src/tools/components/RundeckMonitoringHistory.css'),
   evaluation: read('src/tools/components/RundeckPerformanceEvaluation.jsx'),
   backendStatus: read('backend/rundeck_status.py'),
   backendLatest: read('backend/rundeck_latest.py'),
   backendIncidents: read('backend/rundeck_alert_incidents.py'),
   backendConsumers: read('backend/rundeck_consumers.py'),
   backendEvaluation: read('backend/rundeck_evaluation.py'),
+  backendTrends: read('backend/rundeck_trends.py'),
   backendApi: read('backend/rundeck_api.py'),
   backfill: read('ops/rundeck/backfill-consumers.py'),
   deployDev: read('ops/rundeck/deploy-dev.sh'),
@@ -40,8 +40,8 @@ const monitoringSapIssuesIndex = files.monitoring.indexOf('<SapIssues')
 const monitoringEvaluationIndex = files.monitoring.indexOf('<RundeckPerformanceEvaluation')
 
 const checks = [
-  ['version is v1.20.0', files.version.includes("APP_VERSION = '1.20.0'") && files.version.includes("APP_PREVIOUS_VERSION = '1.19.4'") && files.version.includes('analysis-first-baseline-intelligence-v1.20.0')],
-  ['v1.20 operational CSS is loaded', files.app.includes("./app/rundeck-v120.css")],
+  ['version is v1.20.1', files.version.includes("APP_VERSION = '1.20.1'") && files.version.includes("APP_PREVIOUS_VERSION = '1.20.0'") && files.version.includes('lean-triage-short-range-v1.20.1')],
+  ['v1.20 operational CSS remains loaded', files.app.includes("./app/rundeck-v120.css")],
   ['production-safe report URL uses current origin and base', files.source.includes('window.location.origin') && files.source.includes('import.meta.env.BASE_URL')],
 
   ['host resource excludes WP-only attention', hostResourceState(wpAttention) === 'NORMAL'],
@@ -51,35 +51,36 @@ const checks = [
   ['resource critical remains CRITICAL', hostResourceState(resourceCritical) === 'CRITICAL' && overallOperationalState([resourceCritical]) === 'CRITICAL'],
   ['resolved SAP issue closes as CLEARED', files.backendIncidents.includes('"CLEARED" if incident.get("state") == "RESOLVED"')],
 
-  ['analysis flow uses SAP App Server terminology', files.source.includes('SAP App Servers') && files.source.includes('<th>OS Resource</th>') && files.source.includes('<th>Memory</th>') && !files.source.includes('<th>Load</th>')],
-  ['primary issue uses operator wording', files.incident.includes('Primary Issue') && files.incident.includes('Critical WP Active') && files.incident.includes('<b>OS Resource</b>') && files.incident.includes('Observed in')],
-  ['current workloads prioritize Basis and Infra fields', files.workload.includes('Current Workloads') && files.workload.includes('>CPU Usage</th>') && files.workload.includes('<th>PSS Memory</th>') && files.workload.includes('<th>Processes</th>')],
-  ['selected workload separates observation performance and issue timeline', files.history.includes('>Observation<') && files.history.includes('>Performance<') && files.history.includes('Issue Timeline') && files.history.includes('Observed Checks')],
-  ['selected workload uses aggregate-friendly CPU and memory terminology', files.history.includes('CPU Usage') && files.history.includes('PSS Memory') && files.history.includes('Processes')],
+  ['short trend ranges are exposed in UI', ['30M', '1H', '3H', '6H', '24H', '7D', '30D'].every((value) => files.monitoring.includes(`'${value}'`))],
+  ['short trend ranges are accepted by API', files.backendApi.includes('30m|1h|3h|6h|24h|7d|30d|90d')],
+  ['short trend auto mode uses raw collection resolution', files.backendTrends.includes('"30m": {"hours": 0.5, "auto_bucket": "raw"}') && files.backendTrends.includes('"1h": {"hours": 1, "auto_bucket": "raw"}') && files.backendTrends.includes('"3h": {"hours": 3, "auto_bucket": "raw"}') && files.backendTrends.includes('if resolved_bucket == "raw"')],
+  ['load is moved out of primary metric controls', !files.monitoring.includes("['load', 'Load'],") && files.monitoring.includes("setMetric('load')")],
+
+  ['primary issue uses operator wording', files.incident.includes('Primary Issue') && files.incident.includes('Critical WP Active') && files.incident.includes('<b>OS Resource</b>')],
+  ['primary issue removes recurring workload block', !files.incident.includes('Recurring Workload') && files.incident.includes('Current Workload')],
+  ['current workloads use lean columns', files.workload.includes('Current Workloads') && files.workload.includes('CPU Usage') && files.workload.includes('PSS Memory') && files.workload.includes('Processes') && !files.workload.includes('<th>Type</th>')],
+  ['current workload type remains available as sublabel', files.workload.includes('workloadTypeLabel(row.consumer_type)')],
+  ['selected workload keeps observation performance and issue timeline', files.history.includes('>Observation<') && files.history.includes('>Performance<') && files.history.includes('Issue Timeline') && files.history.includes('Observed Checks')],
+  ['observation history remains collapsed by default', files.history.includes('<details className="rundeckJobExecutionHistory">')],
   ['SAP Issues appears before Performance Evaluation', monitoringSapIssuesIndex >= 0 && monitoringEvaluationIndex >= 0 && monitoringSapIssuesIndex < monitoringEvaluationIndex],
-  ['SAP Issues table is simplified', files.monitoring.includes('<th>Current</th><th>Peak</th>') && !files.monitoring.includes('Peak / Latest') && !files.monitoring.includes('<th>Checks</th>')],
+  ['active SAP Issues open automatically', files.monitoring.includes('open={activeCount > 0}')],
+  ['SAP Issues table uses lean six-column view', files.monitoring.includes('<th>APP</th><th>SAP Signal</th><th>State</th><th>Current</th><th>Peak</th><th>Duration</th>') && !files.monitoring.includes('<th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Evidence</th>')],
 
   ['evaluation defaults to one day in UI and API', files.evaluation.includes("useState('1d')") && files.backendApi.includes('period: str = Query("1d"') && files.backendEvaluation.includes('evaluation_report(period: str = "1d"')],
-  ['evaluation table is analysis-first', ['Status', 'Data Confidence', 'Observed Checks', 'Avg CPU', 'Peak CPU', 'PSS Memory', 'Critical WP Overlap'].every((value) => files.evaluation.includes(value))],
-  ['evaluation no longer exposes noisy default columns', !files.evaluation.includes('label="Core Eq"') && !files.evaluation.includes('label="WP Excess"') && !files.evaluation.includes('label="Recurring"')],
-  ['evaluation uses familiar operational statuses', ['REVIEW REQUIRED', 'HIGH CPU', 'HIGH MEMORY', 'CPU SPIKE', 'INCREASING CPU', 'RECURRING', 'INSUFFICIENT DATA', 'NORMAL'].every((value) => files.backendEvaluation.includes(value))],
-  ['evaluation keeps backward-compatible assessment values', ['NEEDS REVIEW', 'HIGH RESOURCE', 'INCREASING', 'RECURRING', 'LIMITED DATA', 'STABLE'].every((value) => files.backendEvaluation.includes(value))],
-  ['historical baseline uses median and P95', files.backendEvaluation.includes('_historical_baseline') && files.backendEvaluation.includes('percentile_cont(0.5)') && files.backendEvaluation.includes('percentile_cont(0.95)') && files.backendEvaluation.includes('historical_baseline')],
-  ['baseline anomaly is workload specific', files.backendEvaluation.includes('cpu_baseline_deviation_pct') && files.backendEvaluation.includes('pss_baseline_deviation_pct') && files.backendEvaluation.includes('baseline_anomaly') && files.backendEvaluation.includes('ABOVE BASELINE')],
-  ['recent CPU shift detection is deterministic', files.backendEvaluation.includes('_recent_shift_window') && files.backendEvaluation.includes('performance_shift') && files.backendEvaluation.includes('SHIFT_RECENT_HOURS')],
-  ['single peak is distinguished from sustained high CPU', files.backendEvaluation.includes('cpu_spike') && files.backendEvaluation.includes('sustained_high_cpu') && files.backendEvaluation.includes('peak_cpu - avg_cpu >= 40')],
-  ['WP overlap remains normalized against APP baseline', files.backendEvaluation.includes('app_wp_baseline_pct') && files.backendEvaluation.includes('wp_excess_association_pct') && files.backendEvaluation.includes('WP_EXCESS_ASSOCIATION_PCT')],
-  ['evaluation excludes incomplete collections', files.backendEvaluation.includes("status = 'READY'") && files.backendEvaluation.includes('received_host_count >=') && files.backendEvaluation.includes('_complete_collection_clause')],
-  ['top consumer persistence remains Top 30 and aggregate aware', files.backendConsumers.includes('SPHERE_TOP_CONSUMERS_PER_HOST') && files.backendConsumers.includes('"30"') && files.backendConsumers.includes('total_pss_gb') && files.backendConsumers.includes('SUM_BY_CONSUMER')],
-  ['historical backfill remains dry-run first and DEV guarded', files.backfill.includes('action="store_true"') && files.backfill.includes('_dev_database_allowed') && files.backfill.includes('NO DATABASE CHANGES MADE')],
-  ['evaluation API remains read-only GET', files.backendApi.includes('@app.get("/evaluation/workloads")')],
+  ['evaluation quality header is lean', ['Data Coverage', 'Collection Checks', 'Historical Baseline'].every((value) => files.evaluation.includes(value)) && !files.evaluation.includes('Persisted Depth')],
+  ['evaluation summary focuses on review spike and shift', files.evaluation.includes('Review Required') && files.evaluation.includes('CPU Spike') && files.evaluation.includes('CPU Shift') && !files.evaluation.includes('<span>Workloads</span>')],
+  ['evaluation table is lean', ['Status', 'Observed Checks', 'Avg CPU', 'Peak CPU', 'PSS Memory'].every((value) => files.evaluation.includes(value)) && !files.evaluation.includes('<th>Data Confidence</th>') && !files.evaluation.includes('label="Critical WP Overlap"')],
+  ['observed checks are capped to complete collection checks', files.evaluation.includes('Math.min(observed, complete)')],
+  ['display confidence is recomputed from visible checks and period quality', files.evaluation.includes('effectiveConfidence') && files.evaluation.includes("checks >= 20 ? 'HIGH' : checks >= 4 ? 'MEDIUM' : 'LOW'")],
+  ['Critical WP evidence remains available in detail', files.evaluation.includes('percentage points above the App Server baseline') && files.evaluation.includes('Critical WP overlap')],
+  ['evaluation keeps familiar operational statuses', ['REVIEW REQUIRED', 'HIGH CPU', 'HIGH MEMORY', 'CPU SPIKE', 'INCREASING CPU', 'RECURRING', 'INSUFFICIENT DATA', 'NORMAL'].every((value) => files.backendEvaluation.includes(value))],
+  ['historical baseline uses median and P95', files.backendEvaluation.includes('_historical_baseline') && files.backendEvaluation.includes('percentile_cont(0.5)') && files.backendEvaluation.includes('percentile_cont(0.95)')],
+  ['WP overlap remains normalized against APP baseline', files.backendEvaluation.includes('app_wp_baseline_pct') && files.backendEvaluation.includes('wp_excess_association_pct')],
+  ['evaluation excludes incomplete collections', files.backendEvaluation.includes("status = 'READY'") && files.backendEvaluation.includes('received_host_count >=')],
 
-  ['semantic color cleanup reserves review and high states away from danger red', files.v120Css.includes('.is-review-required') && files.v120Css.includes('--sphere-review') && files.v120Css.includes('.is-high-cpu') && files.v120Css.includes('--sphere-high') && files.v120Css.includes('.is-insufficient-data') && files.v120Css.includes('--sphere-neutral')],
-  ['SAP Issues current severity is visually stronger than peak', files.v120Css.includes('.rundeckIncidentCurrent') && files.v120Css.includes('.rundeckIncidentPeak')],
-  ['PDF preview replaces immediate save', files.source.includes("pdf.output('blob')") && !files.source.includes('pdf.save(') && files.source.includes('Report Preview') && files.source.includes('Download PDF') && files.source.includes('Open in New Tab')],
-  ['PDF preview uses the same generated blob artifact', files.source.includes('URL.createObjectURL(blob)') && files.source.includes('src={pdfPreview.url}') && files.source.includes('download={pdfPreview.filename}')],
-  ['PDF server table separates OS resource and SAP workload', files.source.includes("'OS RESOURCE', 'SAP WORKLOAD'") && files.source.includes('SAP APP SERVER STATUS')],
-  ['PDF status marker is rectangular', files.source.includes("pdf.rect(W - margin - 25, 11, 21, 7, 'F')")],
+  ['lean CSS removes duplicate header and server status columns visually', files.v120Css.includes('.rundeckLandscapeMeta span:nth-child(n+2)') && files.v120Css.includes('.rundeckServerTable th:nth-child(3)')],
+  ['semantic colors reserve review and high states away from danger red', files.v120Css.includes('.is-review-required') && files.v120Css.includes('--sphere-review') && files.v120Css.includes('.is-high-cpu') && files.v120Css.includes('--sphere-high')],
+  ['PDF preview still replaces immediate save', files.source.includes("pdf.output('blob')") && !files.source.includes('pdf.save(') && files.source.includes('Report Preview') && files.source.includes('Download PDF')],
 
   ['deployment uses isolated managed nginx block updater', files.nginxUpdater.includes('BEGIN SPHERE') && files.nginxUpdater.includes('END SPHERE') && files.deployDev.includes('update-nginx-block.py') && files.deployDev.includes('--name DEV')],
   ['DEV deploy protects production routing', files.deployDev.includes('# SPHERE production Rundeck API routing') && files.deployDev.includes('# BEGIN SPHERE PROD ROUTING')],
@@ -95,8 +96,8 @@ const failed = checks.filter(([, ok]) => !ok)
 for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`)
 
 if (failed.length) {
-  console.error(`\n${failed.length} Rundeck v1.20 contract check(s) failed.`)
+  console.error(`\n${failed.length} Rundeck v1.20.1 contract check(s) failed.`)
   process.exit(1)
 }
 
-console.log('\nRundeck v1.20 contract checks passed.')
+console.log('\nRundeck v1.20.1 contract checks passed.')
