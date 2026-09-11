@@ -25,12 +25,21 @@ PREVIOUS_API=$(readlink -f "$API_CURRENT" 2>/dev/null || true)
 PREVIOUS_WEB=$(readlink -f "$WEB_CURRENT" 2>/dev/null || true)
 PROD_WEB=$(readlink -f /var/www/sphere.astraotoparts.co.id/current)
 PROD_API=$(readlink -f /opt/sphere/current)
+PROD_RUNDECK_API=$(readlink -f /opt/sphere-rundeck-prod/current 2>/dev/null || true)
 PROD_HASH=$(sha256sum "$PROD_WEB/index.html")
 NGINX_BACKUP=$(mktemp /root/sphere-nginx-before-dev.XXXXXX)
 cp "$NGINX_SITE" "$NGINX_BACKUP"
 
 cleanup() {
-  rm -f "$NGINX_BACKUP" /tmp/sphere-dev-health.json /tmp/sphere-dev-evaluation.json /tmp/sphere-dev-platform.json /tmp/sphere-dev-smoke.html
+  rm -f "$NGINX_BACKUP" \
+    /tmp/sphere-dev-health.json \
+    /tmp/sphere-dev-evaluation.json \
+    /tmp/sphere-dev-platform.json \
+    /tmp/sphere-dev-smoke.html \
+    /tmp/sphere-dev-public-latest.json \
+    /tmp/sphere-prod-public-latest.json \
+    /tmp/sphere-prod-public-hosts.json \
+    /tmp/sphere-prod-public-platform.json
 }
 
 rollback() {
@@ -57,6 +66,28 @@ rollback() {
   fi
   echo "DEV ROLLED BACK TO $(basename "${PREVIOUS_API:-unknown}")"
   exit "$status"
+}
+
+assert_json_file() {
+  local path="$1"
+  python3 - "$path" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+raw = path.read_text(errors='replace')
+if raw.lstrip().lower().startswith('<!doctype') or raw.lstrip().lower().startswith('<html'):
+    raise SystemExit(f"HTML returned where JSON was required: {path}")
+json.loads(raw)
+PY
+}
+
+fetch_json() {
+  local url="$1"
+  local path="$2"
+  curl --noproxy '*' -fsS --max-time 15 "$url" -o "$path"
+  assert_json_file "$path"
 }
 
 trap rollback ERR
@@ -95,26 +126,21 @@ if [[ "$RUN_DEV_MIGRATIONS" == "true" ]]; then
   "$RELEASE/ops/rundeck/migrate-dev.sh" "$RELEASE"
 fi
 
-# Prepare candidate Nginx config before changing current release symlinks.
-python3 - "$NGINX_SITE" "$RELEASE/ops/rundeck/nginx-dev.conf" <<'PY'
-from pathlib import Path
-import sys
+# Replace only the DEV managed block. The updater refuses any legacy migration
+# that would consume a production marker, preventing a DEV deploy from deleting
+# the production /api routing block.
+python3 "$RELEASE/ops/rundeck/update-nginx-block.py" \
+  --site "$NGINX_SITE" \
+  --snippet "$RELEASE/ops/rundeck/nginx-dev.conf" \
+  --name DEV \
+  --anchor '    location = /sap-api' \
+  --legacy-marker '    # SPHERE isolated Rundeck development' \
+  --protect '    # SPHERE production Rundeck API routing' \
+  --protect '    # BEGIN SPHERE PROD ROUTING'
 
-p = Path(sys.argv[1])
-snippet_path = Path(sys.argv[2])
-s = p.read_text()
-marker = '    # SPHERE isolated Rundeck development\n'
-anchor = '    location = /sap-api'
-snippet = snippet_path.read_text().rstrip() + '\n'
-assert anchor in s
-if marker in s:
-    start = s.index(marker)
-    end = s.index(anchor, start)
-    s = s[:start] + marker + snippet + '\n' + s[end:]
-else:
-    s = s.replace(anchor, marker + snippet + '\n' + anchor, 1)
-p.write_text(s)
-PY
+grep -q '# BEGIN SPHERE DEV ROUTING' "$NGINX_SITE"
+grep -q '# END SPHERE DEV ROUTING' "$NGINX_SITE"
+grep -Eq '# SPHERE production Rundeck API routing|# BEGIN SPHERE PROD ROUTING' "$NGINX_SITE"
 nginx -t
 
 install -m 0644 "$RELEASE/ops/rundeck/sphere-rundeck-api.service" /etc/systemd/system/
@@ -145,8 +171,7 @@ systemctl enable --now sphere-rundeck-poller.timer >/dev/null
 systemctl start sphere-rundeck-poller.service
 systemctl reload nginx
 
-# Local API restart is allowed a bounded warm-up window; transient connection
-# refusals are suppressed so deployment output only reports a real failure.
+# Local API restart is allowed a bounded warm-up window.
 HEALTH_OK=0
 for attempt in {1..20}; do
   if curl --noproxy '*' -fsS --max-time 3 http://127.0.0.1:8091/health -o /tmp/sphere-dev-health.json 2>/dev/null; then
@@ -156,21 +181,35 @@ for attempt in {1..20}; do
   sleep 1
 done
 test "$HEALTH_OK" = 1
+assert_json_file /tmp/sphere-dev-health.json
 cat /tmp/sphere-dev-health.json
 
-# v1.19+ evaluation SQL is part of the release contract. Fail and roll back if
-# the endpoint cannot evaluate the current 1-day window against the existing DB.
-curl --noproxy '*' -fsS --max-time 15 \
-  'http://127.0.0.1:8091/evaluation/workloads?period=1d&type=ALL&limit=5' \
-  -o /tmp/sphere-dev-evaluation.json
+# Evaluation SQL is part of the release contract.
+fetch_json 'http://127.0.0.1:8091/evaluation/workloads?period=1d&type=ALL&limit=5' /tmp/sphere-dev-evaluation.json
 grep -q '"period":"1d"' /tmp/sphere-dev-evaluation.json
+grep -q '"wp_excess_association_pct"' /tmp/sphere-dev-evaluation.json
 cat /tmp/sphere-dev-evaluation.json
 
+# Public DEV web and API must both resolve through Nginx.
 curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/ -o /tmp/sphere-dev-smoke.html
 grep -q '/dev/assets/' /tmp/sphere-dev-smoke.html
+fetch_json 'https://sphere.astraotoparts.co.id/dev/api/collections/latest' /tmp/sphere-dev-public-latest.json
+grep -q '"collection_id"' /tmp/sphere-dev-public-latest.json
+
+# Cross-environment contract: a DEV deploy is not successful unless the existing
+# production Rundeck routes still return JSON. This specifically prevents the
+# HTML-as-JSON incident caused by an over-broad Nginx block replacement.
+fetch_json 'https://sphere.astraotoparts.co.id/api/collections/latest' /tmp/sphere-prod-public-latest.json
+grep -q '"collection_id"' /tmp/sphere-prod-public-latest.json
+fetch_json 'https://sphere.astraotoparts.co.id/api/history/hosts/latest' /tmp/sphere-prod-public-hosts.json
+fetch_json 'https://sphere.astraotoparts.co.id/api/platform/health' /tmp/sphere-prod-public-platform.json
+grep -q '"status"' /tmp/sphere-prod-public-platform.json
 
 test "$(readlink -f /var/www/sphere.astraotoparts.co.id/current)" = "$PROD_WEB"
 test "$(readlink -f /opt/sphere/current)" = "$PROD_API"
+if [[ -n "$PROD_RUNDECK_API" ]]; then
+  test "$(readlink -f /opt/sphere-rundeck-prod/current 2>/dev/null || true)" = "$PROD_RUNDECK_API"
+fi
 test "$(sha256sum "$PROD_WEB/index.html")" = "$PROD_HASH"
 
 # Keep a bounded rollback window instead of accumulating every deploy forever.
@@ -203,9 +242,9 @@ prune_releases /opt/sphere-rundeck-dev/releases "$(readlink -f "$API_CURRENT")" 
 prune_releases /var/www/sphere-dev/releases "$(readlink -f "$WEB_CURRENT")" "$KEEP"
 
 # Report platform health only after release cleanup so the visible count is final.
-curl --noproxy '*' -fsS --max-time 10 https://sphere.astraotoparts.co.id/dev/api/platform/health -o /tmp/sphere-dev-platform.json
+fetch_json 'https://sphere.astraotoparts.co.id/dev/api/platform/health' /tmp/sphere-dev-platform.json
 cat /tmp/sphere-dev-platform.json
 
 trap - ERR
-printf '\nPRODUCTION UNCHANGED\nDEV REVISION %s\nROLLBACK READY %s\nRELEASES RETAINED %s\n' \
+printf '\nPRODUCTION ROUTING VERIFIED\nPRODUCTION UNCHANGED\nDEV REVISION %s\nROLLBACK READY %s\nRELEASES RETAINED %s\n' \
   "$REVISION" "$(basename "${PREVIOUS_API:-none}")" "$KEEP"
