@@ -184,7 +184,7 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
         for row in previous_rows
     }
     priority = {"NEEDS REVIEW": 5, "HIGH RESOURCE": 4, "INCREASING": 3, "RECURRING": 2, "STABLE": 1}
-    items: list[dict] = []
+    evaluated: list[dict] = []
     for row in current_rows:
         previous = previous_map.get((str(row.get("consumer_type")), str(row.get("consumer_key"))))
         normalized = {
@@ -206,26 +206,25 @@ def evaluation_report(period: str = "7d", consumer_type: str = "ALL", limit: int
             },
         }
         normalized.update(assess_workload(normalized, normalized["previous"], current_checks))
-        items.append(normalized)
+        evaluated.append(normalized)
 
-    items.sort(key=lambda item: (
+    evaluated.sort(key=lambda item: (
         priority.get(item["assessment"], 0),
         item.get("avg_cpu_pct") or 0,
         item.get("peak_cpu_pct") or 0,
         item.get("occurrences") or 0,
     ), reverse=True)
-    items = items[:max(1, min(int(limit), 100))]
+    items = evaluated[:max(1, min(int(limit), 100))]
 
     summary = {
-        "workloads": len(current_rows),
-        "needs_review": sum(1 for item in current_rows if False),
-        "programs": sum(1 for row in current_rows if row.get("consumer_type") == "PROGRAM"),
-        "jobs": sum(1 for row in current_rows if row.get("consumer_type") == "JOB"),
+        "workloads": len(evaluated),
+        "programs": sum(1 for item in evaluated if item.get("consumer_type") == "PROGRAM"),
+        "jobs": sum(1 for item in evaluated if item.get("consumer_type") == "JOB"),
+        "needs_review": sum(1 for item in evaluated if item["assessment"] == "NEEDS REVIEW"),
+        "high_resource": sum(1 for item in evaluated if item["assessment"] == "HIGH RESOURCE"),
+        "increasing": sum(1 for item in evaluated if item["assessment"] == "INCREASING"),
+        "recurring": sum(1 for item in evaluated if item["assessment"] == "RECURRING"),
     }
-    summary["needs_review"] = sum(1 for item in items if item["assessment"] == "NEEDS REVIEW")
-    summary["high_resource"] = sum(1 for item in items if item["assessment"] == "HIGH RESOURCE")
-    summary["increasing"] = sum(1 for item in items if item["assessment"] == "INCREASING")
-    summary["recurring"] = sum(1 for item in items if item["assessment"] == "RECURRING")
 
     return {
         "period": period_key,
