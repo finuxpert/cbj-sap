@@ -123,9 +123,8 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
   const quality = data?.quality || {}
   const previousQuality = data?.previous_quality || {}
   const sampling = data?.sampling || {}
-  const rawItems = data?.items || []
   const sortedItems = React.useMemo(() => {
-    const items = [...rawItems]
+    const items = [...(data?.items || [])]
     if (sortField === 'risk') return items.sort(riskCompare)
     const direction = sortDirection === 'asc' ? 1 : -1
     return items.sort((left, right) => {
@@ -134,7 +133,7 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
       if (a !== b) return (a - b) * direction
       return riskCompare(left, right)
     })
-  }, [rawItems, sortDirection, sortField])
+  }, [data?.items, sortDirection, sortField])
 
   const select = (row) => onSelectJob?.({
     key: row.consumer_key,
