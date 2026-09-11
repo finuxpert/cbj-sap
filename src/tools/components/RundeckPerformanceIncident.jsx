@@ -3,6 +3,7 @@ import { shortHost } from './sapUiFormat.js'
 import './RundeckPerformanceIncident.css'
 
 const API = `${import.meta.env.BASE_URL}api`
+const PROCESS_CPU_HINT = 'Process CPU can exceed 100% when a workload uses more than one CPU core or thread.'
 
 const formatTime = (value, date = false) => {
   if (!value) return '—'
@@ -34,6 +35,12 @@ const duration = (seconds) => {
 const shortSignal = (label = '') => String(label || 'Performance issue')
   .replace(/Critical Work Process/gi, 'Critical WP')
   .replace(/Work Process/gi, 'WP')
+
+const issueSignalText = (label, value) => {
+  const normalized = shortSignal(label)
+  if (/^Critical WP\b/i.test(normalized)) return `${value} Critical WP`
+  return [normalized, value].filter(Boolean).join(' ')
+}
 
 function StatusPill({ value = 'UNKNOWN' }) {
   return <span className={`rundeckStatus is-${String(value).toLowerCase()}`}>{value}</span>
@@ -133,7 +140,7 @@ export default function RundeckPerformanceIncident({
 
   return <section className="rundeckIncident" aria-label="SAP performance issue">
     <div className="rundeckIncidentHeader">
-      <h3>Primary Issue · {shortHost(summary.affected_server)} · {shortSignal(signal.label)} {signalValue}</h3>
+      <h3>Primary Issue · {shortHost(summary.affected_server)} · {issueSignalText(signal.label, signalValue)}</h3>
       {showStatus && <StatusPill value={summary.status || 'WARNING'} />}
     </div>
 
@@ -151,7 +158,7 @@ export default function RundeckPerformanceIncident({
             className={`rundeckIncidentJobButton ${selectedJob?.key === currentContext.key && selectedJob?.host === currentContext.host ? 'is-selected' : ''}`}
             onClick={() => onSelectJob?.(currentContext)}
           >{current.consumer_key}</button> : <strong>No current workload found</strong>}
-          {current && <small>Process CPU {metric(current.cpu_pct, '%')} · Run #{summary.execution_id || '—'}</small>}
+          {current && <small title={PROCESS_CPU_HINT}>Process CPU {metric(current.cpu_pct, '%')} · Run #{summary.execution_id || '—'}</small>}
         </div>
         {current && <CurrentJobFacts workload={current} />}
       </section>
@@ -167,14 +174,14 @@ export default function RundeckPerformanceIncident({
           {persistent && <small>{sameWorkload ? 'Also current · ' : ''}Seen {persistent.occurrences}/{persistent.affected_samples} checks</small>}
         </div>
         {persistent && <dl className="rundeckIncidentFacts is-compact">
-          <div><dt>Avg Process CPU</dt><dd>{metric(persistent.avg_cpu_pct, '%')}</dd></div>
-          <div><dt>Peak Process CPU</dt><dd>{metric(persistent.peak_cpu_pct, '%')}</dd></div>
+          <div><dt title={PROCESS_CPU_HINT}>Avg Process CPU</dt><dd>{metric(persistent.avg_cpu_pct, '%')}</dd></div>
+          <div><dt title={PROCESS_CPU_HINT}>Peak Process CPU</dt><dd>{metric(persistent.peak_cpu_pct, '%')}</dd></div>
         </dl>}
       </section>
     </div>
 
     <div className="rundeckIncidentHostContext">
-      <span><b>OS</b><StatusPill value={resourceState} /></span>
+      <span><b>Host Resource</b><StatusPill value={resourceState} /></span>
       <span><b>CPU</b>{metric(hostMetrics.cpu_pct, '%')}</span>
       <span><b>RAM</b>{metric(hostMetrics.ram_pct, '%')}</span>
       <span><b>IO Wait</b>{metric(hostMetrics.io_wait_pct, '%')}</span>
