@@ -14,6 +14,7 @@
   --sphere-accent: #4fc6c8;
   --sphere-accent-soft: rgba(79, 198, 200, .09);
   --sphere-positive: #75cfa5;
+  --sphere-attention: #63b7c8;
   --sphere-warning: #d8b35f;
   --sphere-danger: #db7d86;
   --sphere-memory: #8ba7d9;
@@ -214,6 +215,7 @@
 
 .rundeckStatus.is-normal,
 .rundeckStatus.is-ready { color: var(--sphere-positive); }
+.rundeckStatus.is-attention { color: var(--sphere-attention); }
 .rundeckStatus.is-warning,
 .rundeckStatus.is-partial,
 .rundeckStatus.is-waiting { color: var(--sphere-warning); }
@@ -327,6 +329,7 @@
 
 .rundeckServerTable .rundeckStatus.is-normal,
 .rundeckServerTable .rundeckStatus.is-ready { color: var(--sphere-positive); }
+.rundeckServerTable .rundeckStatus.is-attention { color: var(--sphere-attention); }
 .rundeckServerTable .rundeckStatus.is-warning,
 .rundeckServerTable .rundeckStatus.is-partial,
 .rundeckServerTable .rundeckStatus.is-waiting { color: var(--sphere-warning); }
