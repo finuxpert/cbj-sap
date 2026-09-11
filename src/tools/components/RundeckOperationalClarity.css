@@ -1,0 +1,119 @@
+/* SPHERE operational clarity polish for current vs historical monitoring. */
+
+/* Make the latest snapshot context explicit without changing collection semantics. */
+.appShell:has(.rundeckPanel) .rundeckLandscapeMeta::before {
+  content: 'LATEST SNAPSHOT';
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 1px 5px;
+  border: 1px solid rgba(79, 198, 200, .24);
+  border-radius: 3px;
+  color: var(--sphere-accent, #4fc6c8);
+  font-size: 7.6px;
+  font-weight: 850;
+  letter-spacing: .055em;
+}
+
+.appShell:has(.rundeckPanel) .rundeckLandscapeMeta > span:nth-child(n+2) {
+  display: inline !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckTitleBlock::after {
+  content: 'Current assessment uses the latest aligned Rundeck collection. Historical evaluation is shown separately below.';
+  display: block;
+  margin-top: 3px;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.9px;
+  line-height: 1.35;
+}
+
+/* The overall status already carries the dynamic explanation in its title. */
+.appShell:has(.rundeckPanel) .rundeckActions > .rundeckStatus {
+  cursor: help;
+}
+
+.appShell:has(.rundeckPanel) .rundeckActions > .rundeckStatus::after {
+  content: 'ⓘ';
+  margin-left: 4px;
+  font-size: 7.5px;
+  opacity: .72;
+}
+
+/* Current state: show OS and SAP workload as separate operational domains. */
+.appShell:has(.rundeckPanel) .rundeckServerSection .rundeckSectionTitle {
+  flex-wrap: wrap;
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerSection .rundeckSectionTitle::after {
+  content: 'Latest complete Rundeck collection · current state';
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.9px;
+  font-weight: 650;
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerTable th:nth-child(3),
+.appShell:has(.rundeckPanel) .rundeckServerTable td:nth-child(3) {
+  display: table-cell !important;
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerTable th:nth-child(2) {
+  color: var(--sphere-positive, #75cfa5);
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerTable th:nth-child(3) {
+  color: var(--sphere-attention, #6aa2d8);
+}
+
+.appShell:has(.rundeckPanel) .rundeckServerTable th:nth-child(3),
+.appShell:has(.rundeckPanel) .rundeckServerTable td:nth-child(3) {
+  border-right: 1px solid rgba(113, 128, 137, .11);
+}
+
+/* Historical state: make the chart semantics explicit. */
+.appShell:has(.rundeckPanel) .rundeckMonitoringHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.appShell:has(.rundeckPanel) .rundeckMonitoringHead::after {
+  content: 'Historical View · stored Rundeck collections';
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.9px;
+  font-weight: 650;
+}
+
+.appShell:has(.rundeckPanel) .rundeckTrendToolbar {
+  flex-wrap: wrap;
+}
+
+.appShell:has(.rundeckPanel) .rundeckTrendToolbar::after {
+  content: 'Historical aggregation · Avg or Peak per bucket';
+  align-self: center;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 7.8px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* 30M, 1H and 3H with Auto use raw collection resolution, so Avg/Peak are identical. */
+.appShell:has(.rundeckPanel) .rundeckMonitoring:has(.rundeckAdvancedControls .rundeckSegmented button:first-child.is-active):has(.rundeckTrendGroup:nth-child(2) .rundeckSegmented button:nth-child(-n+3).is-active) .rundeckTrendGroup:nth-child(3) {
+  display: none;
+}
+
+.appShell:has(.rundeckPanel) .rundeckMonitoring:has(.rundeckAdvancedControls .rundeckSegmented button:first-child.is-active):has(.rundeckTrendGroup:nth-child(2) .rundeckSegmented button:nth-child(-n+3).is-active) .rundeckTrendToolbar::after {
+  content: 'Observed · one value per Rundeck collection';
+  color: var(--sphere-accent, #4fc6c8);
+}
+
+@container (max-width: 760px) {
+  .appShell:has(.rundeckPanel) .rundeckLandscapeMeta::before,
+  .appShell:has(.rundeckPanel) .rundeckTitleBlock::after,
+  .appShell:has(.rundeckPanel) .rundeckServerSection .rundeckSectionTitle::after,
+  .appShell:has(.rundeckPanel) .rundeckMonitoringHead::after,
+  .appShell:has(.rundeckPanel) .rundeckTrendToolbar::after {
+    white-space: normal;
+  }
+}
