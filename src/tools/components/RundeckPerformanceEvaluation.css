@@ -244,20 +244,25 @@
 
 .rundeckEvaluationAssessmentWrap {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .rundeckEvaluationAssessmentWrap > small {
   color: var(--sphere-text-muted, #718089);
   font-size: 7.8px;
-  font-weight: 700;
-  text-transform: lowercase;
+  font-weight: 680;
+  line-height: 1.25;
+  text-transform: none;
 }
 
-.rundeckEvaluationAssessmentWrap > small.is-low { color: var(--sphere-warning, #d8b35f); }
-.rundeckEvaluationAssessmentWrap > small.is-medium { color: var(--sphere-attention, #6aa2d8); }
-.rundeckEvaluationAssessmentWrap > small.is-high { color: var(--sphere-positive, #75cfa5); }
+.rundeckEvaluationReason {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .rundeckEvaluationAssessment {
   display: inline-flex;
