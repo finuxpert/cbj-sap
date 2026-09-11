@@ -70,7 +70,7 @@ test('server trend exposes short incident ranges', async ({ page }) => {
   await expect(monitoring.locator('.rundeckTrendChart')).toBeVisible({ timeout: 15_000 })
 })
 
-test('evaluation engine renders lean historical review', async ({ page }) => {
+test('evaluation engine renders explainable lean historical review', async ({ page }) => {
   const evaluation = page.locator('.rundeckEvaluation')
   await evaluation.scrollIntoViewIfNeeded()
   await expect(evaluation).toBeVisible()
@@ -83,9 +83,13 @@ test('evaluation engine renders lean historical review', async ({ page }) => {
   await expect(evaluation.getByText('Data Coverage', { exact: true })).toBeVisible()
   await expect(evaluation.getByText('Collection Checks', { exact: true })).toBeVisible()
   await expect(evaluation.getByText('Historical Baseline', { exact: true })).toBeVisible()
+  await expect(evaluation.getByText('CPU Increase', { exact: true })).toBeVisible()
   await expect(evaluation.getByText('Observed Checks', { exact: true })).toBeVisible()
   await expect(evaluation.getByText('Avg CPU', { exact: true })).toBeVisible()
   await expect(evaluation.getByText('PSS Memory', { exact: true })).toBeVisible()
+
+  const reasonCount = await evaluation.locator('.rundeckEvaluationReason').count()
+  expect(reasonCount).toBeGreaterThan(0)
 
   await evaluation.getByRole('button', { name: '30 Days', exact: true }).click()
   await expect(evaluation.locator('.rundeckEvaluationTable')).toBeVisible({ timeout: 15_000 })
