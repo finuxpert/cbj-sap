@@ -12,6 +12,9 @@ const API = `${import.meta.env.BASE_URL}api`
 const DEFAULT_RANGE = '6h'
 
 const RANGES = [
+  ['30m', '30M'],
+  ['1h', '1H'],
+  ['3h', '3H'],
   ['6h', '6H'],
   ['24h', '24H'],
   ['7d', '7D'],
@@ -21,6 +24,7 @@ const RANGES = [
 const BUCKETS = [
   ['auto', 'Auto'],
   ['10m', '10m'],
+  ['30m', '30m'],
   ['1h', '1H'],
   ['6h', '6H'],
   ['1d', '1D'],
@@ -29,15 +33,15 @@ const BUCKETS = [
 const METRICS = [
   ['cpu', 'CPU'],
   ['ram', 'Memory'],
-  ['load', 'Load'],
   ['iowait', 'I/O Wait'],
   ['wp', 'Critical WP'],
 ]
 
-const RANGE_HOURS = { '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
+const RANGE_HOURS = { '30m': .5, '1h': 1, '3h': 3, '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
 
 const metricLabel = (value, fallback = 'Metric') => {
   if (value === 'swap') return 'Swap I/O'
+  if (value === 'load') return 'Load'
   return METRICS.find(([key]) => key === value)?.[1] || fallback
 }
 
@@ -192,7 +196,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
       })
     }
 
-    const shortRange = range === '6h' || range === '24h'
+    const shortRange = ['30m', '1h', '3h', '6h', '24h'].includes(range)
     const dataZoom = [{ type: 'inside', filterMode: 'none' }]
     if (!shortRange) {
       dataZoom.push({
@@ -241,7 +245,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
           hideOverlap: true,
           showMinLabel: true,
           showMaxLabel: true,
-          formatter: (value) => range === '6h' || range === '24h'
+          formatter: (value) => shortRange
             ? formatWib(value, false)
             : new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', hour: '2-digit', hour12: false }).format(new Date(value)),
         },
@@ -268,7 +272,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
           name: shortHost(host),
           type: 'line',
           connectNulls: false,
-          showSymbol: range === '6h' && hostRows.length <= 48,
+          showSymbol: ['30m', '1h', '3h', '6h'].includes(range) && hostRows.length <= 48,
           symbolSize: 4,
           lineStyle: { width: 1.5 },
           emphasis: { focus: 'series', scale: 1.35 },
@@ -354,13 +358,13 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
 }
 
 function SapIssues({ visibleAlerts, alertError, activeCount, resolvedCount }) {
-  return <details className="rundeckEvidenceGroup rundeckSapIssues">
+  return <details className="rundeckEvidenceGroup rundeckSapIssues" open={activeCount > 0}>
     <summary><SphereIcon name="alert" /> SAP Issues <span>{alertError ? 'unavailable' : `${activeCount} active · ${resolvedCount} resolved`}</span></summary>
     <div className="rundeckEvidenceBody">
       <section className="rundeckOpsSection">
         <div className="rundeckMiniTableWrap rundeckIncidentTableWrap">
-          <table className="rundeckIncidentTable">
-            <thead><tr><th>APP</th><th>SAP Signal</th><th>State</th><th>Current</th><th>Peak</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Evidence</th></tr></thead>
+          <table className="rundeckIncidentTable is-lean">
+            <thead><tr><th>APP</th><th>SAP Signal</th><th>State</th><th>Current</th><th>Peak</th><th>Duration</th></tr></thead>
             <tbody>
               {visibleAlerts.slice(0, 50).map((row) => {
                 const currentSeverity = String(row.current_severity || displayAlertSeverity(row, row.latest_value)).toUpperCase()
@@ -368,17 +372,11 @@ function SapIssues({ visibleAlerts, alertError, activeCount, resolvedCount }) {
                 const evidence = row.evidence || []
                 return <tr key={row.id} className={row.state === 'ACTIVE' ? 'is-active-incident' : ''}>
                   <td><strong>{shortHost(row.host || 'APP')}</strong></td>
-                  <td className="rundeckIncidentSignal">{row.signal || row.code}</td>
-                  <td className="rundeckIncidentState"><InlineStatus value={row.state || 'UNKNOWN'} /></td>
-                  <td className="rundeckIncidentCurrent"><InlineStatus value={currentSeverity} /></td>
-                  <td className="rundeckIncidentPeak"><InlineStatus value={peakSeverity} /></td>
-                  <td>{formatWib(row.first_seen, true)}</td>
-                  <td>{formatWib(row.last_seen, true)}</td>
-                  <td>{durationText(row.duration_seconds)}</td>
-                  <td>
+                  <td className="rundeckIncidentSignal">
                     <details className="rundeckIncidentEvidence">
-                      <summary>{row.evidence_count || evidence.length} rows</summary>
+                      <summary>{row.signal || row.code}</summary>
                       <div className="rundeckIncidentEvidenceBody">
+                        <div className="rundeckIncidentEvidenceMeta"><span>First Seen</span><b>{formatWib(row.first_seen, true)}</b><span>Last Seen</span><b>{formatWib(row.last_seen, true)}</b></div>
                         {evidence.map((item) => <div key={item.id} className="rundeckIncidentEvidenceRow" title={String(item.collected_at || '')}>
                           <span>{formatWib(item.collected_at, true)}</span>
                           <span>Run #{item.execution_id || '—'}</span>
@@ -390,10 +388,14 @@ function SapIssues({ visibleAlerts, alertError, activeCount, resolvedCount }) {
                       </div>
                     </details>
                   </td>
+                  <td className="rundeckIncidentState"><InlineStatus value={row.state || 'UNKNOWN'} /></td>
+                  <td className="rundeckIncidentCurrent"><InlineStatus value={currentSeverity} /></td>
+                  <td className="rundeckIncidentPeak"><InlineStatus value={peakSeverity} /></td>
+                  <td>{durationText(row.duration_seconds)}</td>
                 </tr>
               })}
-              {alertError && <tr><td colSpan="9" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
-              {!alertError && !visibleAlerts.length && <tr><td colSpan="9">No SAP issues in this period.</td></tr>}
+              {alertError && <tr><td colSpan="6" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
+              {!alertError && !visibleAlerts.length && <tr><td colSpan="6">No SAP issues in this period.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -516,8 +518,9 @@ export default function RundeckMonitoringHistory({
     <details className="rundeckAdvancedControls">
       <summary>More</summary>
       <div>
-        <button type="button" className={range === '90d' ? 'is-active' : ''} onClick={() => setRange('90d')}>90D</button>
+        <button type="button" className={metric === 'load' ? 'is-active' : ''} onClick={() => setMetric('load')}>Load</button>
         <button type="button" className={metric === 'swap' ? 'is-active' : ''} onClick={() => setMetric('swap')}>Swap I/O</button>
+        <button type="button" className={range === '90d' ? 'is-active' : ''} onClick={() => setRange('90d')}>90D</button>
         <Segmented options={BUCKETS} value={bucket} onChange={setBucket} ariaLabel="Trend interval" />
       </div>
     </details>
@@ -525,7 +528,7 @@ export default function RundeckMonitoringHistory({
     {trendLoading && <div className="rundeckHistoryState">Loading trend…</div>}
     {trendError && <div className="rundeckHistoryState is-error">{trendError}</div>}
     {!trendLoading && !trendError && trend && trend.items?.length > 0 && <TrendChart trend={trend} mode={mode} range={range} onSelect={selectPoint} />}
-    {!trendLoading && !trendError && trend && !trend.items?.length && <div className="rundeckHistoryState">Trend data will appear after new Rundeck runs are stored.</div>}
+    {!trendLoading && !trendError && trend && !trend.items?.length && <div className="rundeckHistoryState">No stored data in this range yet.</div>}
 
     <HistoricalRca selected={selected} data={timeline} loading={timelineLoading} error={timelineError} panelRef={rcaRef} selectedJob={selectedJob} onSelectJob={onSelectJob} />
 
