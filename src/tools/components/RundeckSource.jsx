@@ -364,28 +364,22 @@ export default function RundeckSource({ onCollection }) {
       pdf.text(`Since ${formatTime(since)} WIB  ·  Duration ${reportDuration(incidentSummary?.duration_seconds)}`, margin, 41)
 
       const current = incidentSummary?.current_workload || {}
-      const recurring = incidentSummary?.persistent_workload || {}
       const currentProgram = distinctProgramText(current)
-      const recurringProgram = distinctProgramText(recurring)
       pdf.setFillColor(235, 240, 242)
       pdf.roundedRect(margin, 45, contentW, 21, 1, 1, 'F')
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(7.5)
       pdf.setTextColor(71, 87, 97)
       pdf.text('CURRENT WORKLOAD', margin + 4, 50)
-      pdf.text('RECURRING WORKLOAD', margin + contentW / 2 + 4, 50)
       pdf.setTextColor(22, 31, 38)
-      pdf.setFontSize(8.8)
-      pdf.text(clipped(current.consumer_key, 42), margin + 4, 55)
-      pdf.text(clipped(recurring.consumer_key, 42), margin + contentW / 2 + 4, 55)
+      pdf.setFontSize(9.1)
+      pdf.text(clipped(current.consumer_key, 72), margin + 4, 55)
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(6.9)
       pdf.setTextColor(92, 105, 114)
-      if (currentProgram) pdf.text(`Program ${clipped(currentProgram, 40)}`, margin + 4, 59)
-      if (recurringProgram) pdf.text(`Program ${clipped(recurringProgram, 40)}`, margin + contentW / 2 + 4, 59)
-      pdf.setFontSize(7.1)
+      if (currentProgram) pdf.text(`Program ${clipped(currentProgram, 68)}`, margin + 4, 59)
+      pdf.setFontSize(7.3)
       pdf.text(`CPU ${metric(current.cpu_pct, '%')}  ·  PSS ${pssText(current)}  ·  Processes ${processText(current)}`, margin + 4, 63)
-      pdf.text(recurring.consumer_key ? `Observed ${recurring.occurrences || 0} checks  ·  Avg CPU ${metric(recurring.avg_cpu_pct, '%')}  ·  Peak ${metric(recurring.peak_cpu_pct, '%')}` : '—', margin + contentW / 2 + 4, 63)
 
       let y = 73
       pdf.setFont('helvetica', 'bold')
@@ -395,17 +389,16 @@ export default function RundeckSource({ onCollection }) {
       y += 4
       pdf.setFont('helvetica', 'normal')
       pdf.setFontSize(6.8)
-      const columns = [0, 25, 60, 98, 120, 145, 176]
-      ;['APP', 'OS RESOURCE', 'SAP WORKLOAD', 'CPU', 'MEMORY', 'I/O WAIT', 'CRIT WP'].forEach((label, index) => pdf.text(label, margin + columns[index], y))
+      const columns = [0, 34, 82, 112, 145, 180]
+      ;['APP', 'OS RESOURCE', 'CPU', 'MEMORY', 'I/O WAIT', 'CRIT WP'].forEach((label, index) => pdf.text(label, margin + columns[index], y))
       y += 4
       operationalHosts.slice(0, 5).forEach((host) => {
         pdf.text(shortHost(host.host), margin + columns[0], y)
         pdf.text(hostResourceState(host), margin + columns[1], y)
-        pdf.text(sapWorkloadState(host), margin + columns[2], y)
-        pdf.text(metric(host.cpu_pct, '%'), margin + columns[3], y)
-        pdf.text(metric(host.ram_pct, '%'), margin + columns[4], y)
-        pdf.text(metric(host.io_wait_pct, '%'), margin + columns[5], y)
-        pdf.text(metric(host.wp_critical), margin + columns[6], y)
+        pdf.text(metric(host.cpu_pct, '%'), margin + columns[2], y)
+        pdf.text(metric(host.ram_pct, '%'), margin + columns[3], y)
+        pdf.text(metric(host.io_wait_pct, '%'), margin + columns[4], y)
+        pdf.text(metric(host.wp_critical), margin + columns[5], y)
         y += 4
       })
 
@@ -424,7 +417,7 @@ export default function RundeckSource({ onCollection }) {
       const leftW = contentW * .70
       const inspectedHost = shortHost(selectedJob?.host || incidentSummary?.affected_server || '') || 'SAP'
       const inspectedWorkload = selectedJob?.key || current.consumer_key
-      const inspectedSource = [current, recurring, ...(workloadResult.items || [])].find((row) => (
+      const inspectedSource = [current, ...(workloadResult.items || [])].find((row) => (
         row?.consumer_key === inspectedWorkload && (!selectedJob?.host || !row?.host || row.host === selectedJob.host)
       )) || {}
       const inspectedProgram = distinctProgramText(inspectedSource)
@@ -448,10 +441,10 @@ export default function RundeckSource({ onCollection }) {
       const sideX = margin + leftW + 7
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
-      pdf.setFontSize(7.8)
+      pdf.setFontSize(8)
       pdf.text('TOP ACTIVE WORKLOADS', sideX, workY - 3)
       pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(7)
+      pdf.setFontSize(7.3)
       let sideY = workY + 3
       ;(workloadResult.items || []).slice(0, 4).forEach((row, index) => {
         pdf.setTextColor(22, 31, 38)
