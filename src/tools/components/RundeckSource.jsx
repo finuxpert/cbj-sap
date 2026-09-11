@@ -5,6 +5,7 @@ import RundeckPerformanceIncident from './RundeckPerformanceIncident.jsx'
 import SphereIcon from './SphereIcon.jsx'
 import { APP_DISPLAY_VERSION, APP_TAGLINE } from '../../app/version.js'
 import { numberText, shortHost, workloadTypeLabel } from './sapUiFormat.js'
+import { evaluationReasonText } from './rundeckEvaluationExplain.js'
 import { hostResourceState, overallOperationalState, sapWorkloadState, statusExplanation } from './rundeckStatusSemantics.js'
 import './RundeckSource.css'
 import './RundeckPlatformHealth.css'
@@ -290,10 +291,11 @@ export default function RundeckSource({ onCollection }) {
     setExporting(true)
     setError('')
     try {
-      const [{ default: html2canvas }, { jsPDF }, workloadResult, brandLogo] = await Promise.all([
+      const [{ default: html2canvas }, { jsPDF }, workloadResult, evaluationResult, brandLogo] = await Promise.all([
         import('html2canvas'),
         import('jspdf'),
         latest?.collection_id ? json(`${API}/history/jobs/current?collection_id=${encodeURIComponent(latest.collection_id)}&limit=4`) : Promise.resolve({ items: [] }),
+        json(`${API}/evaluation/workloads?period=1d&type=ALL&limit=100`).catch(() => ({ items: [] })),
         loadImage(BRAND_LOGO),
       ])
 
@@ -438,6 +440,10 @@ export default function RundeckSource({ onCollection }) {
         pdf.addImage(workloadChart.toDataURL('image/jpeg', .94), 'JPEG', margin, chartTop, workloadChart.width * ratio, workloadChart.height * ratio, undefined, 'FAST')
       }
 
+      const evaluationItems = evaluationResult.items || []
+      const evaluationFor = (row) => evaluationItems.find((item) => (
+        item.consumer_key === row.consumer_key && item.consumer_type === row.consumer_type
+      )) || null
       const sideX = margin + leftW + 7
       pdf.setTextColor(22, 31, 38)
       pdf.setFont('helvetica', 'bold')
@@ -447,11 +453,25 @@ export default function RundeckSource({ onCollection }) {
       pdf.setFontSize(7.3)
       let sideY = workY + 3
       ;(workloadResult.items || []).slice(0, 4).forEach((row, index) => {
+        const evaluation = evaluationFor(row)
+        const evaluationStatus = evaluation?.status || ''
+        const evaluationReason = evaluation ? evaluationReasonText(evaluation) : ''
         pdf.setTextColor(22, 31, 38)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(7.3)
         pdf.text(`${index + 1}. ${shortHost(row.host)}  ${clipped(row.consumer_key, 28)}`, sideX, sideY)
         pdf.setTextColor(92, 105, 114)
-        pdf.text(`CPU ${metric(row.cpu_pct, '%')}  ·  PSS ${pssText(row)}  ·  Proc ${processText(row)}`, sideX, sideY + 3.3)
-        sideY += 8
+        pdf.setFontSize(6.8)
+        pdf.text(`CPU ${metric(row.cpu_pct, '%')}  ·  PSS ${pssText(row)}  ·  Proc ${processText(row)}`, sideX, sideY + 3.2)
+        if (evaluationStatus) {
+          pdf.setFont('helvetica', 'bold')
+          pdf.setTextColor(71, 87, 97)
+          pdf.setFontSize(6.4)
+          pdf.text(clipped(`${evaluationStatus}${evaluationReason ? ` · ${evaluationReason}` : ''}`, 42), sideX, sideY + 6.2)
+          sideY += 10.4
+        } else {
+          sideY += 8
+        }
       })
 
       pdf.setDrawColor(210, 217, 221)
