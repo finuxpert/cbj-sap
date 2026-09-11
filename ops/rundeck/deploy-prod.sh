@@ -147,9 +147,10 @@ fi
 install -m 0644 "$API_RELEASE/ops/rundeck/sphere-rundeck-prod-api.service" "/etc/systemd/system/$SERVICE"
 systemctl daemon-reload
 
-# The existing production config exposes the legacy Evidence/Case API at /sap-api/.
-# Insert the new /api routing immediately before that stable anchor. The snippet adds
-# a legacy /api/ fallback to 8090 plus more-specific Rundeck routes to 8092.
+# Replace only the PROD routing block and preserve any DEV managed block that was
+# inserted later before the shared /sap-api anchor. The previous implementation
+# replaced everything from the legacy PROD marker to /sap-api, which could consume
+# the DEV routing block and make /dev/ fall through to the production SPA.
 python3 - "$NGINX_SITE" "$API_RELEASE/ops/rundeck/nginx-prod.conf" <<'PY'
 from pathlib import Path
 import sys
@@ -157,20 +158,47 @@ import sys
 site = Path(sys.argv[1])
 snippet_path = Path(sys.argv[2])
 text = site.read_text()
-marker = '    # SPHERE production Rundeck API routing\n'
-anchor = '    location = /sap-api { return 308 /sap-api/; }'
 snippet = snippet_path.read_text().rstrip() + '\n'
+legacy = '    # SPHERE production Rundeck API routing\n'
+begin = '    # BEGIN SPHERE PROD ROUTING\n'
+end = '    # END SPHERE PROD ROUTING\n'
+anchor = '    location = /sap-api { return 308 /sap-api/; }'
+dev_markers = (
+    '    # BEGIN SPHERE DEV ROUTING\n',
+    '    # SPHERE isolated Rundeck development',
+)
+block = begin + snippet + end
+
 if anchor not in text:
     raise SystemExit('Nginx anchor not found: location = /sap-api { return 308 /sap-api/; }')
-block = marker + snippet + '\n'
-if marker in text:
-    start = text.index(marker)
-    end = text.index(anchor, start)
-    text = text[:start] + block + text[end:]
+
+has_begin = begin in text
+has_end = end in text
+if has_begin != has_end:
+    raise SystemExit('Unbalanced managed PROD routing markers')
+
+if has_begin:
+    start = text.index(begin)
+    finish = text.index(end, start) + len(end)
+    text = text[:start] + block + text[finish:]
+elif legacy in text:
+    start = text.index(legacy)
+    anchor_pos = text.index(anchor, start)
+    finish = anchor_pos
+    for marker in dev_markers:
+        pos = text.find(marker, start, anchor_pos)
+        if pos != -1:
+            finish = min(finish, pos)
+    text = text[:start] + block + '\n' + text[finish:]
 else:
-    text = text.replace(anchor, block + anchor, 1)
+    text = text.replace(anchor, block + '\n' + anchor, 1)
+
 site.write_text(text)
 PY
+
+grep -q '# BEGIN SPHERE PROD ROUTING' "$NGINX_SITE"
+grep -q '# END SPHERE PROD ROUTING' "$NGINX_SITE"
+grep -Eq '# BEGIN SPHERE DEV ROUTING|# SPHERE isolated Rundeck development' "$NGINX_SITE"
 nginx -t
 
 # Transactional activation. Any failure below restores previous web/API/Nginx.
