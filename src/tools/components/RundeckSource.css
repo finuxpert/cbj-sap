@@ -14,7 +14,7 @@
   --sphere-accent: #4fc6c8;
   --sphere-accent-soft: rgba(79, 198, 200, .09);
   --sphere-positive: #75cfa5;
-  --sphere-attention: #63b7c8;
+  --sphere-attention: #6aa2d8;
   --sphere-warning: #d8b35f;
   --sphere-danger: #db7d86;
   --sphere-memory: #8ba7d9;
@@ -99,7 +99,7 @@
 .rundeckLandscapeMeta > span {
   position: relative;
   color: var(--sphere-text-muted);
-  font-size: 9.2px;
+  font-size: 9.7px;
   white-space: nowrap;
 }
 
@@ -131,7 +131,7 @@
   background: transparent;
   color: var(--sphere-text-muted);
   font-family: inherit;
-  font-size: 9.7px;
+  font-size: 10px;
   font-weight: 720;
   cursor: pointer;
   transition: background-color 140ms ease, color 140ms ease, opacity 140ms ease, border-color 140ms ease, transform 110ms ease;
@@ -193,7 +193,7 @@
 .rundeckMessage {
   padding: 5px 0;
   color: var(--sphere-danger);
-  font-size: 9.5px;
+  font-size: 9.8px;
 }
 
 .rundeckMessage.is-reconnecting {
@@ -208,7 +208,7 @@
   border: 1px solid currentColor;
   border-radius: 999px;
   background: transparent;
-  font-size: 7.9px;
+  font-size: 8.2px;
   font-weight: 850;
   line-height: 1.2;
 }
@@ -238,7 +238,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12.2px;
+  font-size: 12.5px;
   font-weight: 750;
 }
 
@@ -248,7 +248,7 @@
 
 .rundeckSectionTitle span {
   color: var(--sphere-text-muted);
-  font-size: 8.5px;
+  font-size: 8.8px;
 }
 
 .rundeckServerTableWrap,
@@ -261,7 +261,7 @@
   width: 100%;
   border-collapse: collapse;
   color: var(--sphere-text-secondary);
-  font-size: 9.4px;
+  font-size: 9.8px;
 }
 
 .rundeckServerTable th,
@@ -277,7 +277,7 @@
 .rundeckServerTable th,
 .rundeckHistory th {
   color: var(--sphere-text-muted);
-  font-size: 7.8px;
+  font-size: 8.2px;
   font-weight: 750;
   letter-spacing: .02em;
   text-transform: uppercase;
@@ -299,12 +299,17 @@
 
 .rundeckServerTable td:first-child strong {
   color: var(--sphere-text);
-  font-size: 9.8px;
+  font-size: 10.1px;
 }
 
 .rundeckServerTable td.is-attention {
-  color: var(--sphere-warning);
+  color: var(--sphere-attention);
   font-weight: 820;
+}
+
+.rundeckServerTable td.is-critical {
+  color: var(--sphere-danger);
+  font-weight: 850;
 }
 
 .rundeckServerTable .rundeckStatus {
@@ -314,7 +319,7 @@
   border: 0;
   border-radius: 0;
   color: var(--sphere-text-secondary);
-  font-size: 8.5px;
+  font-size: 8.8px;
   font-weight: 650;
   text-transform: lowercase;
 }
@@ -361,7 +366,7 @@
 
 .rundeckWpButton:hover,
 .rundeckWpButton:focus-visible {
-  background: rgba(216, 179, 95, .08);
+  background: rgba(79, 198, 200, .06);
   color: var(--sphere-accent);
   outline: none;
 }
@@ -385,7 +390,7 @@
   gap: 5px;
   margin: 0;
   color: var(--sphere-text);
-  font-size: 10.5px;
+  font-size: 10.8px;
 }
 
 .rundeckWpDrilldownHead h4 .sphereIcon {
@@ -397,20 +402,20 @@
   background: transparent;
   color: var(--sphere-text-muted);
   font: inherit;
-  font-size: 8.5px;
+  font-size: 8.8px;
   cursor: pointer;
 }
 
 .rundeckWpDrilldown > p {
   margin: 3px 0 5px;
   color: var(--sphere-text-muted);
-  font-size: 8.6px;
+  font-size: 9px;
 }
 
 .rundeckWpDrilldownState {
   padding: 5px 0;
   color: var(--sphere-text-secondary);
-  font-size: 9px;
+  font-size: 9.3px;
 }
 
 .rundeckWpDrilldownState.is-error {
@@ -426,7 +431,7 @@
   width: 100%;
   border-collapse: collapse;
   color: var(--sphere-text-secondary);
-  font-size: 8.8px;
+  font-size: 9.2px;
 }
 
 .rundeckWpDrilldown th,
@@ -439,7 +444,7 @@
 
 .rundeckWpDrilldown th {
   color: var(--sphere-text-muted);
-  font-size: 7.7px;
+  font-size: 8px;
   text-transform: uppercase;
 }
 
@@ -462,15 +467,15 @@
 }
 
 .rundeckSupportingData {
-  margin-top: 6px;
-  padding-top: 5px;
+  margin-top: 7px;
+  padding-top: 6px;
   border-top: 1px solid var(--sphere-border-subtle);
 }
 
 .rundeckSupportingTitle {
-  margin-bottom: 0;
+  margin-bottom: 1px;
   color: var(--sphere-text-muted);
-  font-size: 7.6px;
+  font-size: 8px;
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -490,7 +495,7 @@
   gap: 5px;
   color: var(--sphere-text-secondary);
   cursor: pointer;
-  font-size: 8.9px;
+  font-size: 9.3px;
   font-weight: 680;
 }
 
@@ -551,10 +556,6 @@
 
 .rundeckLandscapeMeta.is-fresh {
   animation: sphereFreshData 420ms ease-out both;
-}
-
-.rundeckLandscapeMeta > span {
-  font-size: 9.7px;
 }
 
 .rundeckStatusMotion {
