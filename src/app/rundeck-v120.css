@@ -270,8 +270,74 @@
   outline: none;
 }
 
+/* v1.20.1 lean triage: one fact once, supporting detail stays available on demand. */
+.rundeckLandscapeMeta span:nth-child(n+2) {
+  display: none;
+}
+
+.rundeckServerTable th:nth-child(3),
+.rundeckServerTable td:nth-child(3) {
+  display: none;
+}
+
+.rundeckIncident.is-lean .rundeckIncidentWorkloadBlock {
+  max-width: 700px;
+  margin-top: 10px;
+}
+
+.rundeckIncident.is-lean .rundeckIncidentHostContext {
+  margin-top: 10px;
+}
+
+.rundeckIncident.is-lean .rundeckIncidentSapState {
+  display: none;
+}
+
+.rundeckEvaluationQuality.is-lean {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rundeckEvaluationSummary.is-lean {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.rundeckEvaluationAssessmentWrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rundeckEvaluationAssessmentWrap .rundeckEvaluationConfidence {
+  min-width: 0;
+  opacity: .8;
+}
+
+.rundeckIncidentTable.is-lean .rundeckIncidentSignal details > summary {
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.rundeckIncidentEvidenceMeta {
+  display: grid;
+  grid-template-columns: auto minmax(100px, 1fr) auto minmax(100px, 1fr);
+  gap: 4px 8px;
+  padding: 6px 0;
+  color: var(--sphere-text-muted, #718089);
+  font-size: 8px;
+}
+
+.rundeckIncidentEvidenceMeta b {
+  color: var(--sphere-text-secondary, #a7b3b9);
+  font-weight: 700;
+}
+
 @container (max-width: 760px) {
   .appShell:has(.rundeckPanel) .rundeckIncidentComparison {
+    grid-template-columns: 1fr;
+  }
+
+  .rundeckEvaluationQuality.is-lean,
+  .rundeckEvaluationSummary.is-lean {
     grid-template-columns: 1fr;
   }
 }
