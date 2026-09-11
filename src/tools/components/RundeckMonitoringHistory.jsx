@@ -28,16 +28,16 @@ const BUCKETS = [
 
 const METRICS = [
   ['cpu', 'CPU'],
-  ['ram', 'RAM'],
+  ['ram', 'Memory'],
   ['load', 'Load'],
-  ['iowait', 'IO Wait'],
-  ['wp', 'Critical WP Count'],
+  ['iowait', 'I/O Wait'],
+  ['wp', 'Critical WP'],
 ]
 
 const RANGE_HOURS = { '6h': 6, '24h': 24, '7d': 168, '30d': 720, '90d': 2160 }
 
 const metricLabel = (value, fallback = 'Metric') => {
-  if (value === 'swap') return 'Swap IO'
+  if (value === 'swap') return 'Swap I/O'
   return METRICS.find(([key]) => key === value)?.[1] || fallback
 }
 
@@ -288,7 +288,7 @@ function TrendChart({ trend, mode, range, onSelect }) {
   }, [mode, onSelect, option, trend?.metric_label, trend?.unit])
 
   const ref = useEChart(option, click)
-  return <div ref={ref} className="rundeckTrendChart" role="img" aria-label={`${trend?.metric_label || 'Metric'} trend for application servers`} />
+  return <div ref={ref} className="rundeckTrendChart" role="img" aria-label={`${trend?.metric_label || 'Metric'} trend for SAP App Servers`} />
 }
 
 function Segmented({ options, value, onChange, ariaLabel }) {
@@ -302,7 +302,7 @@ function InlineStatus({ value = 'UNKNOWN' }) {
 }
 
 function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, onSelectJob }) {
-  if (!selected && !loading && !error) return <div className="rundeckRcaHint">Click chart to inspect workload at that time.</div>
+  if (!selected && !loading && !error) return <div className="rundeckRcaHint">Click the chart to inspect workload context at that time.</div>
 
   const rows = data?.items || []
   const selectedRow = rows.find((row) => row.host === selected?.host) || rows[0] || null
@@ -334,9 +334,9 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
       <div className="rundeckRcaMetricStrip">
         <span><b>{selected?.metricLabel || 'Metric'}</b>{numberText(selected?.value)}{selected?.unit ? ` ${selected.unit}` : ''}</span>
         {!selectedMetricIsCpu && <span><b>CPU</b>{numberText(selectedRow.cpu_pct)}%</span>}
-        <span><b>RAM</b>{numberText(selectedRow.ram_pct)}%</span>
-        <span><b>IO Wait</b>{numberText(selectedRow.io_wait_pct)}%</span>
-        <span><b>Critical WP Count</b>{numberText(selectedRow.wp_critical, 0)}</span>
+        <span><b>Memory</b>{numberText(selectedRow.ram_pct)}%</span>
+        <span><b>I/O Wait</b>{numberText(selectedRow.io_wait_pct)}%</span>
+        <span><b>Critical WP</b>{numberText(selectedRow.wp_critical, 0)}</span>
       </div>
 
       <div className="rundeckRcaWorkload">
@@ -351,6 +351,55 @@ function HistoricalRca({ selected, data, loading, error, panelRef, selectedJob, 
 
     {!loading && !error && data && !selectedRow && <div className="rundeckHistoryState">No SAP data found for this time.</div>}
   </section>
+}
+
+function SapIssues({ visibleAlerts, alertError, activeCount, resolvedCount }) {
+  return <details className="rundeckEvidenceGroup rundeckSapIssues">
+    <summary><SphereIcon name="alert" /> SAP Issues <span>{alertError ? 'unavailable' : `${activeCount} active · ${resolvedCount} resolved`}</span></summary>
+    <div className="rundeckEvidenceBody">
+      <section className="rundeckOpsSection">
+        <div className="rundeckMiniTableWrap rundeckIncidentTableWrap">
+          <table className="rundeckIncidentTable">
+            <thead><tr><th>APP</th><th>SAP Signal</th><th>State</th><th>Current</th><th>Peak</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Evidence</th></tr></thead>
+            <tbody>
+              {visibleAlerts.slice(0, 50).map((row) => {
+                const currentSeverity = String(row.current_severity || displayAlertSeverity(row, row.latest_value)).toUpperCase()
+                const peakSeverity = displayPeakSeverity(row)
+                const evidence = row.evidence || []
+                return <tr key={row.id} className={row.state === 'ACTIVE' ? 'is-active-incident' : ''}>
+                  <td><strong>{shortHost(row.host || 'APP')}</strong></td>
+                  <td className="rundeckIncidentSignal">{row.signal || row.code}</td>
+                  <td className="rundeckIncidentState"><InlineStatus value={row.state || 'UNKNOWN'} /></td>
+                  <td className="rundeckIncidentCurrent"><InlineStatus value={currentSeverity} /></td>
+                  <td className="rundeckIncidentPeak"><InlineStatus value={peakSeverity} /></td>
+                  <td>{formatWib(row.first_seen, true)}</td>
+                  <td>{formatWib(row.last_seen, true)}</td>
+                  <td>{durationText(row.duration_seconds)}</td>
+                  <td>
+                    <details className="rundeckIncidentEvidence">
+                      <summary>{row.evidence_count || evidence.length} rows</summary>
+                      <div className="rundeckIncidentEvidenceBody">
+                        {evidence.map((item) => <div key={item.id} className="rundeckIncidentEvidenceRow" title={String(item.collected_at || '')}>
+                          <span>{formatWib(item.collected_at, true)}</span>
+                          <span>Run #{item.execution_id || '—'}</span>
+                          <span>{displayAlertSeverity(item, item.details?.value)}</span>
+                          <span>{incidentMetric(item.details?.value, row.unit)}</span>
+                          <span title={item.collection_id || undefined}>{item.message || item.code}</span>
+                        </div>)}
+                        {!evidence.length && <div className="rundeckIncidentEvidenceEmpty">No raw signal rows stored for this incident.</div>}
+                      </div>
+                    </details>
+                  </td>
+                </tr>
+              })}
+              {alertError && <tr><td colSpan="9" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
+              {!alertError && !visibleAlerts.length && <tr><td colSpan="9">No SAP issues in this period.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </details>
 }
 
 export default function RundeckMonitoringHistory({
@@ -468,7 +517,7 @@ export default function RundeckMonitoringHistory({
       <summary>More</summary>
       <div>
         <button type="button" className={range === '90d' ? 'is-active' : ''} onClick={() => setRange('90d')}>90D</button>
-        <button type="button" className={metric === 'swap' ? 'is-active' : ''} onClick={() => setMetric('swap')}>Swap IO</button>
+        <button type="button" className={metric === 'swap' ? 'is-active' : ''} onClick={() => setMetric('swap')}>Swap I/O</button>
         <Segmented options={BUCKETS} value={bucket} onChange={setBucket} ariaLabel="Trend interval" />
       </div>
     </details>
@@ -484,55 +533,8 @@ export default function RundeckMonitoringHistory({
 
     <RundeckJobHistory job={selectedJob} refreshToken={refreshToken} incidentStart={incidentStart} latestCollectionId={latestCollectionId} latestCollectionAt={latestCollectionAt} />
 
-    <RundeckPerformanceEvaluation refreshToken={refreshToken} selectedJob={selectedJob} onSelectJob={onSelectJob} />
+    <SapIssues visibleAlerts={visibleAlerts} alertError={alertError} activeCount={activeCount} resolvedCount={resolvedCount} />
 
-    <details className="rundeckEvidenceGroup">
-      <summary><SphereIcon name="alert" /> SAP Issues <span>{alertError ? 'unavailable' : `${activeCount} active · ${resolvedCount} resolved`}</span></summary>
-      <div className="rundeckEvidenceBody">
-        <section className="rundeckOpsSection">
-          <div className="rundeckMiniTableWrap rundeckIncidentTableWrap">
-            <table className="rundeckIncidentTable">
-              <thead><tr><th>APP</th><th>SAP Signal</th><th>State</th><th>Current Severity</th><th>Peak Severity</th><th>First Seen</th><th>Last Seen</th><th>Duration</th><th>Checks</th><th>Peak / Latest</th><th>Evidence</th></tr></thead>
-              <tbody>
-                {visibleAlerts.slice(0, 50).map((row) => {
-                  const currentSeverity = String(row.current_severity || displayAlertSeverity(row, row.latest_value)).toUpperCase()
-                  const peakSeverity = displayPeakSeverity(row)
-                  const evidence = row.evidence || []
-                  return <tr key={row.id} className={row.state === 'ACTIVE' ? 'is-active-incident' : ''}>
-                    <td><strong>{shortHost(row.host || 'APP')}</strong></td>
-                    <td className="rundeckIncidentSignal">{row.signal || row.code}</td>
-                    <td className="rundeckIncidentState"><InlineStatus value={row.state || 'UNKNOWN'} /></td>
-                    <td><InlineStatus value={currentSeverity} /></td>
-                    <td><InlineStatus value={peakSeverity} /></td>
-                    <td>{formatWib(row.first_seen, true)}</td>
-                    <td>{formatWib(row.last_seen, true)}</td>
-                    <td>{durationText(row.duration_seconds)}</td>
-                    <td>{numberText(row.checks, 0)}</td>
-                    <td>{incidentMetric(row.peak_value, row.unit)} / {incidentMetric(row.latest_value, row.unit)}</td>
-                    <td>
-                      <details className="rundeckIncidentEvidence">
-                        <summary>{row.evidence_count || evidence.length} rows</summary>
-                        <div className="rundeckIncidentEvidenceBody">
-                          {evidence.map((item) => <div key={item.id} className="rundeckIncidentEvidenceRow" title={String(item.collected_at || '')}>
-                            <span>{formatWib(item.collected_at, true)}</span>
-                            <span>Run #{item.execution_id || '—'}</span>
-                            <span>{displayAlertSeverity(item, item.details?.value)}</span>
-                            <span>{incidentMetric(item.details?.value, row.unit)}</span>
-                            <span title={item.collection_id || undefined}>{item.message || item.code}</span>
-                          </div>)}
-                          {!evidence.length && <div className="rundeckIncidentEvidenceEmpty">No raw signal rows stored for this incident.</div>}
-                        </div>
-                      </details>
-                    </td>
-                  </tr>
-                })}
-                {alertError && <tr><td colSpan="11" className="rundeckIncidentError">SAP issue lifecycle is temporarily unavailable.</td></tr>}
-                {!alertError && !visibleAlerts.length && <tr><td colSpan="11">No SAP issues in this period.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-    </details>
+    <RundeckPerformanceEvaluation refreshToken={refreshToken} selectedJob={selectedJob} onSelectJob={onSelectJob} />
   </section>
 }
