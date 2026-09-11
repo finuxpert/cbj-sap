@@ -1,6 +1,7 @@
 import React from 'react'
 import SphereIcon from './SphereIcon.jsx'
 import { numberText, workloadTypeLabel } from './sapUiFormat.js'
+import { baselineCpuContext, evaluationReasonText } from './rundeckEvaluationExplain.js'
 import './RundeckPerformanceEvaluation.css'
 
 const API = `${import.meta.env.BASE_URL}api`
@@ -26,6 +27,7 @@ const CONFIDENCE_PRIORITY = { HIGH: 3, MEDIUM: 2, LOW: 1, NOT_READY: 0 }
 const CPU_HINT = 'CPU Usage represents the grouped workload observation. Values can exceed 100 percent when more than one CPU core is used.'
 const WP_HINT = 'Critical WP evidence is measured on the same SAP App Server and collection check. It is supporting evidence, not direct workload-to-WP proof.'
 const OBSERVED_HINT = 'Observed Checks counts complete collection checks where this workload was retained. It is not a SAP execution counter.'
+const LOW_COVERAGE_HINT = 'Historical window is not fully covered yet. Assessment strength is reduced.'
 
 async function json(url, signal) {
   const response = await fetch(url, { cache: 'no-store', signal })
@@ -69,6 +71,7 @@ function Status({ row, quality }) {
   const status = row.status || row.assessment || 'NORMAL'
   const baseline = row.historical_baseline || {}
   const confidence = effectiveConfidence(row, quality)
+  const reason = evaluationReasonText(row)
   const wpExcess = Number(row.wp_excess_association_pct)
   const wpContext = Number.isFinite(wpExcess) && wpExcess > 0
     ? `Critical WP overlap is ${numberText(wpExcess, 1)} percentage points above the App Server baseline.`
@@ -77,20 +80,21 @@ function Status({ row, quality }) {
     row.assessment_reason,
     `Data confidence: ${confidence}`,
     `Historical baseline: ${row.baseline_status || 'NOT_READY'}`,
-    baseline.cpu_p95_pct !== null && baseline.cpu_p95_pct !== undefined ? `30-day CPU P95: ${pct(baseline.cpu_p95_pct)}` : '',
+    ...baselineCpuContext(row),
+    baseline.pss_p95_gb !== null && baseline.pss_p95_gb !== undefined ? `Historical PSS P95: ${gb(baseline.pss_p95_gb)}` : '',
     row.anomaly_status ? `Baseline result: ${row.anomaly_status}` : '',
-    row.signals?.performance_shift ? `Recent CPU shift: ${pct(row.recent_cpu_shift_pct)}` : '',
+    row.signals?.performance_shift ? `Recent CPU increase: ${pct(row.recent_cpu_shift_pct)}` : '',
     wpContext,
     wpContext ? WP_HINT : '',
   ].filter(Boolean).join('\n')
-  return <span className="rundeckEvaluationAssessmentWrap" title={title}>
+  return <span className="rundeckEvaluationAssessmentWrap" title={title} aria-label={`${status}. ${reason || 'No additional reason'}. Data confidence ${confidence}.`}>
     <span className={`rundeckEvaluationAssessment ${statusClass(status)}`}>{status}</span>
-    <small className={`rundeckEvaluationConfidence ${confidenceClass(confidence)}`}>{confidence}</small>
+    {reason && <small className="rundeckEvaluationReason">{reason}</small>}
   </span>
 }
 
-function QualityItem({ label, value, confidence = '' }) {
-  return <span className="rundeckEvaluationQualityItem"><b>{label}</b><strong className={confidence ? confidenceClass(confidence) : ''}>{value}</strong></span>
+function QualityItem({ label, value, confidence = '', title = '' }) {
+  return <span className="rundeckEvaluationQualityItem" title={title || undefined}><b>{label}</b><strong className={confidence ? confidenceClass(confidence) : ''}>{value}</strong></span>
 }
 
 function SortHeader({ field, label, title, sortField, sortDirection, onSort }) {
@@ -196,16 +200,16 @@ export default function RundeckPerformanceEvaluation({ refreshToken = '', select
 
     {!loading && !error && data && <>
       <div className="rundeckEvaluationQuality is-lean" aria-label="Evaluation data quality">
-        <QualityItem label="Data Coverage" value={`${pct(quality.coverage_pct)} · ${quality.confidence || 'LOW'}`} confidence={quality.confidence || 'LOW'} />
+        <QualityItem label="Data Coverage" value={`${pct(quality.coverage_pct)} · ${quality.confidence || 'LOW'}`} confidence={quality.confidence || 'LOW'} title={lowCoverage ? LOW_COVERAGE_HINT : 'Coverage of complete collection checks in the selected period.'} />
         <QualityItem label="Collection Checks" value={completeText} />
         <QualityItem label="Historical Baseline" value={`${numberText(data.baseline?.days, 0)} days · min ${numberText(data.baseline?.min_observations, 0)} observations`} />
-        {lowCoverage && <span className="rundeckEvaluationCoverageFlag">LOW COVERAGE</span>}
+        {lowCoverage && <span className="rundeckEvaluationCoverageFlag" title={LOW_COVERAGE_HINT}>LOW COVERAGE</span>}
       </div>
 
       <div className="rundeckEvaluationSummary is-lean">
-        <div><span>Review Required</span><strong>{numberText(summary.review_required ?? summary.needs_review, 0)}</strong><small>{numberText(summary.sustained_high_cpu, 0)} high CPU · {numberText(summary.high_memory, 0)} high memory</small></div>
+        <div><span>Review Required</span><strong>{numberText(summary.review_required ?? summary.needs_review, 0)}</strong><small>workloads requiring review</small></div>
         <div><span>CPU Spike</span><strong>{numberText(summary.cpu_spike, 0)}</strong><small>peak without sustained high average</small></div>
-        <div><span>CPU Shift</span><strong>{numberText(summary.performance_shift, 0)}</strong><small>recent increase versus preceding window</small></div>
+        <div><span>CPU Increase</span><strong>{numberText(summary.performance_shift, 0)}</strong><small>recent CPU increase versus preceding window</small></div>
       </div>
 
       <div className="rundeckEvaluationSortBar" aria-label="Evaluation sort options">
